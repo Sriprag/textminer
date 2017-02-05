@@ -1,0 +1,961 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+235
+
+Cardiac Electrophysiological Activation Pattern
+Estimation From Images Using a Patient-Specific
+Database of Synthetic Image Sequences
+Adityo Prakosa, Maxime Sermesant∗ , Pascal Allain, Nicolas Villain, C. Aldo Rinaldi, Kawal Rhode,
+Reza Razavi, Hervé Delingette, and Nicholas Ayache
+
+Abstract—While abnormal patterns of cardiac electrophysiological activation are at the origin of important cardiovascular diseases (e.g., arrhythmia, asynchrony), the only clinically available
+method to observe detailed left ventricular endocardial surface activation pattern is through invasive catheter mapping. However,
+this electrophysiological activation controls the onset of the mechanical contraction; therefore, important information about the
+electrophysiology could be deduced from the detailed observation
+of the resulting motion patterns. In this paper, we present the study
+of this inverse cardiac electrokinematic relationship. The objective
+is to predict the activation pattern knowing the cardiac motion
+from the analysis of cardiac image sequences. To achieve this, we
+propose to create a rich patient-specific database of synthetic time
+series of the cardiac images using simulations of a personalized
+cardiac electromechanical model, in order to study this complex
+relationship between electrical activity and kinematic patterns in
+the context of this specific patient. We use this database to train
+a machine-learning algorithm which estimates the depolarization
+times of each cardiac segment from global and regional kinematic
+descriptors based on displacements or strains and their derivatives.
+Finally, we use this learning to estimate the patient’s electrical activation times using the acquired clinical images. Experiments on
+the inverse electrokinematic learning are demonstrated on synthetic sequences and are evaluated on clinical data with promising
+results. The error calculated between our prediction and the invasive intracardiac mapping ground truth is relatively small (around
+10 ms for ischemic patients and 20 ms for nonischemic patient).
+This approach suggests the possibility of noninvasive electrophysiological pattern estimation using cardiac motion imaging.
+Index Terms—Cardiac electrophysiology, computer model, inverse problem, machine learning, non-invasive mapping, synthetic
+images.
+
+Manuscript received December 21, 2012; revised August 30, 2013; accepted
+September 3, 2013. Date of publication September 16, 2013; date of current version January 16, 2014. This work was supported under the MedYMA advanced
+Grant 291080 funded by the European Research Council. Asterisk indicates
+corresponding author.
+A. Prakosa, H. Delingette, and N. Ayache are with Inria, Asclepios
+team, 06902 Sophia Antipolis, France (e-mail: Adityo.Prakosa@inria.fr;
+Herve.Delingette@inria.fr; nicholas.ayache@inria.fr).
+∗ M. Sermesant is with Inria, Asclepios team, 06902 Sophia Antipolis, France
+(e-mail: maxime.sermesant@inria.fr).
+P. Allain and N. Villain are with the Medisys Research Laboratory, Philips
+Healthcare France, 92156 Suresnes, France (e-mail: pascal.allain@philips.com;
+nicolas.villain@philips.com).
+C. A. Rinaldi is with the Department of Cardiology, St. Thomas’ Hospital,
+London, SE1 7EH, U.K. (e-mail: aldo.rinaldi@gstt.nhs.uk).
+K. Rhode and R. Razavi are with the King’s College London, Division of
+Imaging Sciences, St. Thomas’ Hospital, London, SE1 7EH, U.K. (e-mail:
+kawal.rhode@kcl.ac.uk; reza.razavi@kcl.ac.uk).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2281619
+
+I. INTRODUCTION
+INCE electrophysiological activation controls the onset of
+the mechanical contraction, important information about
+the electrophysiology could be gathered from the detailed observation of the resulting motion patterns. Abnormal patterns of this
+activation are at the origin of important cardiovascular diseases
+(e.g., arrhythmia, asynchrony). However, only catheter-based
+intracardiac electrical mappings are available to obtain such
+information, and these invasive procedures are not classically
+used for diagnosis but rather for planning and guiding a therapy.
+Electrocardiographic imaging (ECGI) [1] (a.k.a. body surface
+potential mapping) is a noninvasive technique for imaging activation times of the myocardium but still remains to be validated
+thoroughly and is not widely available in the clinical centers.
+First application of ECGI in human subject was done in [2] to
+image the activation pattern of the normal heart, heart with right
+bundle branch block, heart with pacing, and also atrial flutter.
+In a recent study [3], the invasive catheter-based electrophysiology study findings were compared with the noninvasive ECGI
+method to image a large diversity of human ventricular tachycardia activation patterns. Recent validation studies were done in
+rabbit [4], canine [5], and swine [6] for another technique which
+also uses the body potential mapping, namely the 3-D cardiac
+electrical imaging, to noninvasively reconstruct the 3-D ventricular activation sequence. Another method which also used
+the body surface potential maps and an ultrafast computerized
+tomography scanning was developed in the 3-D electrocardiographic imaging technique [7] and was compared with the 3-D
+intracardiac mapping in rabbits. In [8], the feasibility of the noninvasive imaging of cardiac electrophysiology in patients with
+the Wolf–Parkinson–White syndrome was investigated. The result was compared with the standard invasive electroanatomical
+mapping. Therefore, there is a strong need to quantitatively
+assess a patient electrophysiological condition from noninvasive imaging modalities. The proposed method could help in
+constraining the notoriously ill-posed inverse problem of electrocardiography.
+Despite advances in both the medical image analysis and
+the intracardiac electrophysiological mapping technology, the
+understanding of the relationship between the cardiac electrophysiology and the cardiac motion visible in images is only
+partial. Since noninvasive cardiac imaging is readily available,
+unlike noninvasive detailed electrophysiology maps, it is important to investigate how the cardiac electrophysiology function
+can be estimated from the analysis of the cardiac motion. This
+
+S
+
+0018-9294 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+236
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+is specifically relevant, for example, in the evaluation of the cardiac resynchronization therapy (CRT) where the placement and
+tuning of pacemaker leads play a crucial role in the outcome
+of the therapy. In this context, cardiologists need to interpret
+time series of cardiac images in order to detect and characterize
+kinematic patterns (motion asynchrony, delayed contraction)
+and then infer possible electrical conduction disorders. However, currently 30% of the patients with CRT show no benefit
+from this therapy [9], which may be caused by the suboptimal
+implementation of the therapy. Providing activation maps from a
+time series of cardiac images would be of great interest to better
+select patients and to optimize the lead placements and delays
+during and after the therapy. For instance, in a recent study, Sohal
+et al. [10] use time–volume curves of left ventricular segments
+to identify two classes of contraction patterns, which seem to
+be correlated with the CRT response in patients with left bundle
+branch block (LBBB). More fundamentally, understanding the
+relationship between the cardiac motion and electrophysiology
+is essential to improve the diagnosis and therapy of patients
+suffering from heart failure.
+While there is an important literature on the estimation of
+the cardiac kinematics from cardiac sequences (see for instance [11]–[14] and references therein), there exist no such
+tools to estimate the electrical wave propagation from such image sequences. However, the relationship between the cardiac
+motion and electrical activation has been investigated in several
+studies [15]–[19].
+Electromechanical wave imaging modality has been recently
+introduced to image the electromechanical wave (EW) which
+was shown to correlate with the myocardium electrical wave
+propagation [18], [20]. In [21], it was shown that the EW was
+able to be reproduced by an E/M model. This imaging modality uses high ultrasound frequency to map the small, transient
+deformation of the EW. However, this method is limited to this
+specific modality, which has only been demonstrated in 2-D
+(whereas the propagation pattern is 3-D) and is not often available clinically.
+In this paper, we propose to study the inverse electrokinematic
+relationship through the creation of a patient-specific database
+of synthetic time series of cardiac images based on our previous
+study in [15]. Because it is difficult to obtain a large number
+of cases where both the electrophysiological mapping and time
+series of 3-D images are available, we use an E/M model of
+the heart to produce synthetic but visually realistic image sequences for which the electrical stimulation is known using our
+method [22]. On this database, invariant kinematic descriptors
+were extracted from each synthetic sequence and then fed to a
+machine-learning algorithm which estimates the electrical pattern from kinematic descriptors during the cardiac cycle. The
+creation of this database allows us to develop this machinelearning-based study. Recently, many medical image analysis
+studies are motivated by machine learning, for example in [23],
+where a virtual population is created to train an active shape
+models. As the electrokinematic relationship is very complex,
+we prefer here to generate a patient-specific database, so that
+the learning is done on cases relatively close to the patient condition. The hypothesis of this study is that the clinician already
+has some knowledge on the pathology when asking for the MR
+
+images, e.g., LBBB from a standard ECG using QRS shape and
+width. Therefore, the aim is not to help for diagnosis but for
+therapy planning. We believe that solving the general case without any information on the diagnosis of the patient would lead
+to a huge number of possibilities and make the inverse problem
+even more difficult.
+Previous works [18], [19] have mainly focused in detecting
+E/M wave directly from the displacement and strain patterns
+estimated from image sequences during the contraction and
+relaxation of the myocardium. Since the relationship between
+those mechanical waves and electrical waves is very complex,
+our approach is to learn it through an E/M model of the heart
+at a larger spatial and temporal scale. In [19], the cardiac motion descriptors are combined in order to obtain the electrical
+activation time, but the weights are assigned manually for the
+descriptors. Another study by McVeigh et al. [24] considers only
+the circumferential strain estimated from tagged MR images as
+the mechanical activation measure. Another approach has been
+developed using a mathematical-based computational technique
+to image the active stress from the displacement using an inverse
+model [17]. This method was able to reconstruct traveling plane
+wave of active stress from a mechanical deformation. The active stress was initially used to generate this deformation using
+a forward model. However, this method would still need to be
+evaluated in the clinical application. Compared to [16], instead
+of estimating displacements and strains directly from the E/M
+model, we propose a more realistic estimation by first simulating
+3-D images and then using an image-based motion tracking algorithm. Furthermore, rather than learning the activation forces
+over time, we have chosen to learn the depolarization times of
+all American Heart Association (AHA) segments. Finally, our
+learning approach is optimized in order to detect which kinematic descriptor is most correlated with the electrophysiology
+waves.
+The overall approach is described in Fig. 1 and mainly consists in three stages. First, right, and left ventricles (LVs) are
+segmented from an input cardiac image sequence and the cardiac motion is tracked. An electromechanical model of the heart
+is mechanically calibrated from this data. In a second stage,
+a training set, a.k.a patient-specific database, is created from
+this E/M model by changing the electrophysiological parameters related to different pathological conditions. For each set
+of electrophysiology parameters, a different cardiac motion is
+simulated and a realistic synthetic image sequence is created.
+In the third stage, motion descriptors are estimated from each
+sequence. A learning method is then trained to relate those
+descriptors with the endocardial depolarization times. Finally,
+the depolarization times of the original sequence are estimated
+from the knowledge of its motion descriptors. Evaluation of the
+inverse electrokinematic-learning process on three patients is
+discussed in Section V.
+II. IMAGE PROCESSING AND PARAMETER CALIBRATION
+A. Image Segmentation and Registration
+First, we need to apply two image processing steps to the
+patient clinical image sequence. These steps are the segmentation of the end diastolic (ED) myocardium and the estimation of
+
+PRAKOSA et al.: CARDIAC ELECTROPHYSIOLOGICAL ACTIVATION PATTERN ESTIMATION FROM IMAGES
+
+237
+
+Fig. 1. Estimation of electrophysiological activation pattern from images. A
+cardiac mesh is created from image segmentation. Different electromechanical
+conditions are simulated close to the patient condition to generate the database of
+electrophysiological patterns and synthetic cardiac sequences. The relationship
+between the motion descriptors and the activation patterns is learned from this
+database. The result is used to predict the patient electrophysiological activation
+pattern.
+
+the myocardium motion. The purpose of the segmentation is to
+personalize the cardiac mesh geometry required for the cardiac
+E/M simulation. Furthermore, the estimation of patient cardiac
+motion allows us to also estimate the patient’s endocardial LV
+volume curve. Using this information, the E/M simulation can
+be calibrated with respect to this volume curve so that the simulated ejection fraction as well as the ejection and filling rates
+are similar to the measured ones [25].
+The 3-D epicardium and endocardium of the left and the right
+ventricles of the ED clinical image were delineated using an interactive tool available within the CardioViz3D software [26].
+These delineations were then used to create the myocardium
+segmentation. Using the CGAL software [27], a computational
+tetrahedral mesh was created from the binary mask of the compact myocardium segmentation (cf., Fig. 2). We label the different tetrahedra of the mesh in order to set different electrical conduction parameters for each labeled region (see Section III-A).
+The labels include the scar, the Purkinje network (the tetrahedra
+next to the endocardial surface), the scarred Purkinje network
+(the intersection of the scar and the Purkinje network), and the
+cardiac muscle (the remaining tetrahedra). To create bull-eyes
+plot, we also label the LV according to the 17 AHA segments.
+Applying a nonlinear registration to pairs of medical images
+is a common method to estimate the motion of the tissue in
+the image. Here, we use the symmetric log-domain diffeomorphic demons (LogDemons) [28] nonrigid registration method
+to align the template image Ti (x) to a reference image R(x),
+
+Fig. 2. Cardiac geometry and electrical stimulation. A personalized cardiac
+mesh is created from the myocardium delineation of the clinical image. The
+region on the surface of the LV and RV endocardium is set to have higher
+electrical conduction velocity to simulate the Purkinje network. Different RV
+initial electrical activation position is set to simulate the extremities of the
+Bundle of His. These positions are approximately set based on the septal LV
+AHA Zones.
+
+which is the ED image of the clinical sequence, by estimating
+a dense nonlinear transformation φi (x), where x ∈ R3 is the
+space coordinate. Ti (x) is the image at each time frame i in the
+cardiac sequence. This transformation φi (x) is associated with
+the displacement vector field ui (x) and is parameterized by the
+stationary velocity field vi (x) which ensures the invertibility of
+the deformation since we are working in the log-domain. By
+having this estimated displacement field, we are also able to
+estimate the patient’s endocardial LV volume curve in time. We
+deformed the ED tetrahedral mesh using the estimated displacement field ui (x) and then computed the endocardial LV volume
+of the deformed mesh in time.
+
+238
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+B. Electromechanical Model Calibration
+We used the Eikonal model to simulate the electrophysiological activation patterns. This model has the advantage to be
+fast to compute and involves few parameters. More detailed
+models [29], [30] could also have been used; however, such additional level of complexity is not necessary since we are only
+interested in providing main patterns ofconduction driven by
+few parameters. The Eikonal equation v ∇Tdt D∇Td = 1 was
+solved using multifront fast marching method [31] to calculate
+the depolarization time Td at each point of the mesh. v is the
+local conduction velocity and D = (1 − r)f ⊗ f + r.I is the
+anisotropic conductivity tensor where f is the fiber orientation,
+r is the conductivity anisotropy ratio, and I is the identity matrix.
+We base our approach on the Bestel–Clément–Sorine (BCS)
+E/M model [32] composed of a passive nonlinear elastic part
+and an active part that describes the binding and unbinding
+process of the actin and myosin filaments in the sarcomere by
+a differential equation that controls the active stress τc and the
+sarcomere stiffness kc
+ ˙
+kc = −(| u | +α | e˙c |)kc + n0 k0 | u |+
+(1)
+τ˙c = −(| u | +α | e˙c |)τc + e˙c kc + n0 σ0 | u |+
+where α is a constant related to the cross-bridge release due to a
+high contraction rate, k0 and σ0 are, respectively, the maximum
+stiffness and contraction. n0 is a reduction factor that allows us
+to take into account the Starling effect by which the maximum
+contraction depends on the fiber strain ec . The control variable u
+is derived from the electrical activation model and is a function
+of the free calcium concentration only. It is modeled using electrophysiological inputs such as depolarization times (Td ) and
+action potential durations (APD). The four-element Windkessel
+model is used to model the arterial pressure [25].
+The BCS E/M model was implemented in the SOFA simulation platform [33] and to assess the mechanical parameters of
+the model, we used the algorithm derived from the Unscented
+Transform [34], and described in [25] and [35]. The algorithm
+finds a set of parameters that enable the simulation to match observations on the endocardial LV volume (the minimum volume,
+the minimum, and maximum of the flow) in one iteration through
+the analysis of the covariance matrix between the simulated observations and the variation of each parameter independently.
+The assessed calibrated parameters of the BCS E/M model are
+σ0 , K, μ, APD, and Rp. K is the Bulk modulus of the passive
+part and μ is the viscosity parameter of the active part. APD is
+the cell excitation duration. Rp is the peripheral resistance, one
+of the Windkessel parameters.
+III. PATIENT-SPECIFIC DATABASE OF SYNTHETIC
+IMAGE SEQUENCES
+A database of visually realistic synthetic cardiac sequences
+is created using the method proposed in [22]. This database is
+required to train the machine-learning algorithm. This synthetic
+sequence generation method consists in the combination of the
+simulated motion and the real motion estimated from the patient
+image sequence. The database is built using different scenarios
+which are performed to simulate a variety of conditions close to
+
+TABLE I
+PATIENT-SPECIFIC DATABASE OF 144 SIMULATED CASES
+
+TABLE II
+PATIENT-SPECIFIC DATABASE OF 180 SIMULATED CASES
+
+clinical condition of this patient. Since these datasets are taken
+from patients with an LBBB, the scenarios consist of different
+variations of electrophysiological and mechanical parameters
+that simulate this specific pathology.
+A. Simulated Electromechanical Conditions
+An electrophysiological activation pattern which corresponds
+to each scenario is generated using the Eikonal model in the
+personalized cardiac mesh geometry. The scenarios are created
+based on a variation of the parameters of the Eikonal model
+around the standard values. The varying parameters are the conduction velocity value of the Purkinje network vp , the value in
+the cardiac muscle vm , and also the initial electrical activation
+position which simulates the extremities of the Bundle of His.
+For datasets containing a scar region, a variation of the conduction velocity value for this region vs and also a value of the
+scarred Purkinje network vsp are also included in the scenarios
+(cf., Table I and Fig. 2).
+For datasets that do not contain a scar region, we set a low
+conduction velocity in the anterior lateral region (zone 6, 12,
+and 16 of the AHA segments) or in the inferior lateral region
+(zone 5, 11, and 16 of the AHA segments) in order to mimic the
+occurrence of a functional block in those regions (cf., Table II).
+The overall conduction velocities are also set lower compared
+to Table I.
+B. Generation of Synthetic Image Sequences
+Visually realistic synthetic time series of MR images were
+created using the previously simulated deformation which was
+combined to the real clinical sequence estimated displacement
+using the method proposed in [22]. This method applied nonrigid registration algorithm to extract the motion of the real
+clinical MRI sequence. This extracted motion was then combined with the E/M simulated motion in the log domain and
+then used to warp the original images in order to create the synthetic cardiac sequence. With this method, a database of realistic
+images of the patient was generated for which the underlying
+
+PRAKOSA et al.: CARDIAC ELECTROPHYSIOLOGICAL ACTIVATION PATTERN ESTIMATION FROM IMAGES
+
+239
+
+cardiac motion and electrophysiological parameters are known.
+This database served as the training set in our machine-learningbased study. For each different initial electrical activation position (RV Init 1, 2, 3, and 4) (cf., Fig. 2, Tables I and II), a mechanical calibration is performed as described in Section II-B.
+Therefore, the variation of the mechanical parameters was included as well in the database.
+With the method described previously, a large database of
+synthetic 3-D MR images was created. We then tracked the
+cardiac motion from those synthetic images by using the symmetric LogDemons registration algorithm [28]. More precisely,
+we registered all the images of the synthetic sequence to its
+reference ED image as we did to the real clinical sequence.
+IV. INVERSE ELECTROKINEMATIC LEARNING
+A. Cardiac Motion Descriptors
+As an input to a machine-learning algorithm, we needed to
+first extract kinematic descriptors which describe in a compact
+and discriminative way the cardiac motion for each time point
+in the cardiac cycle. We wanted these descriptors to be regional,
+as we aim for an activation pattern rather than local activation
+times, and also intrinsic (frame invariant) as the orientation of
+the heart in the images varies.
+To this end, we first characterized the motion of each AHA
+segment by fitting in the least-squares sense an affine transformation f (p) = Ap + B to the LogDemons estimated displacement field. The strain tensor E was then computed from the
+affine matrix A as E = (AT A − I)/2.
+We then extracted kinematic descriptors at each time of the
+cardiac cycle that are invariant to any change of reference frame
+(or rigid transformation). For the strain matrix E, the three
+Euclidean invariants are computed as
+x1 = trace(E), x2 = trace(E 2 ), x3 = det(E).
+For the displacement vector, we only extracted its norm as invariant
+x4 = u = Ab + B − b
+where u is the displacement norm of the zone centroid with
+b the initial position of the centroid. We also used the strain in
+the direction of displacement as the invariant
+x5 = (uT Eu)/(2u2 ).
+Compared to our previous study [15], we added here more descriptors which are usually found in clinical records. We added
+the QRS duration x6 = tQRS which is the time needed for the
+whole myocardium to be activated. We also added the LV volume curve x7 = V and the regional LV volume curve x8 = Vreg
+computed for each AHA segment. More precisely, we divided
+the LV endocardial surface according to the AHA segment surfaces and then computed the volume of the region created by
+each displaced segment surface and the barycenter of the LV
+(cf., Fig. 3).
+Furthermore, in order to learn the influence of the dynamics
+of some descriptors, we added the derivative of the trace of the
+strain tensor, of the displacement, and of the global and regional
+
+Fig. 3. Regional LV volume. The V re g is the volume of the region created by
+the LV AHA segment surface and the LV barycenter.
+
+volume curves
+x9 = d trace(E)/dt, x10 = du/dt
+x11 = dV /dt, x12 = dVreg /dt.
+These descriptors, except for the volume curve x7 , its derivative
+x11 and the QRS duration x6 , are evaluated regionally for the 17
+AHA zones during the n time instances. The value n depends
+on the temporal resolution of the original clinical sequence, n =
+number of frames − 1. The volume curve x7 and its derivative
+x11 are vectors with length of n and the QRS duration x6 is a
+single scalar value.
+The difficulty in using a simulated database for machine learning is that there are limitations in both the electromechanical
+model used to simulate the motion and the image processing
+methods used to extract the descriptors. Therefore, there can be
+discrepancies between the descriptors used in the learning phase
+compared to the descriptors extracted from the real images.
+In order to cope with this, and also because we are more
+interested in the relative dynamics of these descriptors which
+are related to the activation pattern than in their absolute values,
+we normalized each descriptor. This normalization was done
+regionally for the descriptors taken from the 17 AHA regions.
+With this normalization, each descriptor has a range of values
+from 0 to 1, as we use the relationship x = (x − xm in )/(xm ax −
+xm in ), where xm ax and xm in are the maximum and the minimum
+values of x, respectively.
+These 12 descriptors (cf., Table III) were used to create a
+kinematic descriptor vector x = (xi )i∈[1,12] ∈ Rd for each simulation with
+d = 9(Descriptors1,2,3,4,5,8,9,10,12 ) × n(Times) × 17(Zones)
++ 2(Descriptors7,11 ) × n(Times)
++ 1(Descriptors6 )
+= 155n + 1.
+
+240
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+with K = XX T , k = Xx, λ > 0 is the regularization parameter, X = (x1 , x2 , . . . , xN )T is a N × d matrix and Y =
+(y1 , y2 , . . . , yN )T is a N × r matrix. In this form, other type
+of Kernel function can be used to substitute the linear Kernel
+function K = K(xi , xj ) = xTi xj .
+We modeled the nonlinear relationship using KRR with a bias
+term or LS-SVM for regression
+
+TABLE III
+LIST OF THE DESCRIPTORS
+
+y = f (x) = Ak(xi , x) + b
+
+(3)
+
+with matrix A is computed as A = Y T (λI + K)−1 and
+k(xi , x) is a kernel vector. We chose the radial basis funcD
+−z k
+as the Kernel function where
+tion K(x
+ k i , xj )k = k =1 e 2
+zk = (xi − xj  /(σk αk )) , i, j = {1, . . . , N }, and D is the
+number of descriptors. In this kernel function, σk is the standard deviation of each descriptor and αk is a dimensionless
+coefficient which weights the importance of each
+descriptor
+2 in
+N  k
+2
+
+the learning process, where σk = (1/N ) i=1 xi − μ and
+
+k
+μ = (1/N ) N
+i=1 xi .
+
+For a cardiac image sequence with 30 images, the dimension d
+of the complete vectorial kinematic descriptor is
+d = 155 × (30 − 1) + 1 = 4496.
+
+B. Machine-Learning Method
+In the inverse electrokinematic-learning process, the nonlinear relationship between the kinematic descriptors and the
+electrical propagation was estimated based on a training set extracted from the synthetic database. To represent the cardiac
+electrophysiology, we considered the activation time when the
+electrical potential starts to depolarize at a point of the myocardium. The activation time was averaged for all points of the
+LV endocardial surface in each AHA segment. Therefore, the
+vector characterizing electrophysiology for each simulation is
+y = (yi ) ∈ Rr=17 (AHA Zones) = log(Activation Times).
+We modeled the nonlinear relationship using least-square support vector machine (LS-SVM) for regression [36] which is
+similar to the kernel ridge regression (KRR).
+LS-SVM extends the KRR method by adding a bias term.
+KRR itself is the nonlinear extension of ridge regression (RR)
+which searches a linear function y = wT x that models the dependencies between the descriptor vectors x = xi ∈ Rd and the
+response vectors y = yi ∈ Rr (all vectors are column vectors)
+from a set of N examples (x1 , y1 ), (x2 , y2 ), . . . , (xN , yN ). The
+use of nonlinear kernels allows us to capture the complex relationship between activation times and motion in a way that will
+decrease the influence of some descriptors when far from the
+ones used in the training phase.
+RR can be extended to KRR by rewriting the solution
+y = wT x
+= Y T (λI + K)−1 k
+
+(2)
+
+C. Parameter Optimization
+The chosen λ and α parameters are optimized by using
+leave-one-out estimates which train the model with all members of the training set but one and test the performance on
+the singleton. The process is repeated for all the singletons
+in the training set. We use Allen’s predicted residual sum of
+squares (PRESS) criterion
+for 2the optimization of the λ and
+α parameters PRESS = N
+i e(i) [36] where e(i) = yi − ŷ(i)
+is the residual for the ith example with the ith example excluded from the training process and ŷ(i) is the predicted response for the ith example based on the training process. Fortunately, we have e(i) = ei /(1 − hii ) where ei = yi − ŷi is the
+residual for the ith example in the training process which includes all examples and ŷi is fitted response based on this
+training. hii is the ith element of the leading diagonal of the
+hat matrix H = X(λI + X T X)−1 X T = XX T (λI + XX T =
+K(λI + K)−1 . Therefore, in the end, we can have the PRESS
+for the chosen parameters λ and α in one iteration without having to do N iterations for the leave-one-out cross validation. We
+use the Powell’s BOBYQA [37], [38] method to optimize these
+parameters to have the smallest PRESS.
+V. RESULTS
+A. Activation Pattern Validation on Synthetic Data
+First, we evaluated the learning process on the generated
+synthetic data and estimated the minimum size of the training
+set to have a small regression error for the remaining entries
+of the database. Fig. 4 shows a good generalization with a root
+mean square (RMS) error of less than 8 ms of residual by using
+at least 13, 18, and 44 training datasets for the Databases I,
+II, and III, respectively. The Databases I, II, and III are the
+patient-specific databases for patients I, II, and III, respectively,
+described in Section V-B. These numbers are less than 25% of
+the size of datasets of each database.
+
+PRAKOSA et al.: CARDIAC ELECTROPHYSIOLOGICAL ACTIVATION PATTERN ESTIMATION FROM IMAGES
+
+241
+
+TABLE IV
+RANK OF THE OPTIMIZED LS-SVM PARAMETERS
+
+Fig. 4. RMS residual versus size of training data. Less than 8-ms RMS residual
+is obtained by using more than 13, 18, and 44 training cases for the Databases
+I, II, and III, respectively. The Databases I, II, and III are the patient-specific
+databases for patients I, II, and III, respectively, described in Section V-B. This
+means that a good generalization is obtained by using less than 25% of the
+whole dataset.
+
+B. Activation Pattern Evaluation on Clinical Data
+We applied our proposed approach on three clinical cases
+from patients with different pathologies and etiologies or causes
+of diseases. However, in all three of them there was a modified
+activation pattern due to scars or functional blocks, as well as
+poor ejection fraction, which are the characteristics of the patient
+groups we are aiming at.
+The first patient was a 60-year-old woman with heart failure and NYHA class III symptoms. She had subendocardial
+posterolateral scar in the LV. Her left ventricular ejection fraction was 25% on maximal tolerated heart failure medication.
+The surface ECG demonstrated significant conduction disease
+with LBBB QRS duration of 154 ms (normal QRS is less than
+120 ms). Echocardiography, including tissue doppler, confirmed
+significant mechanical dyssynchrony in keeping with the ECG
+findings.
+The second patient was a 72 years old male patient with
+ischemic heart disease. He had a myocardial infarction in the
+inferolateral wall. His left ventricular ejection fraction was 35%
+with the QRS duration of 99 ms.
+The third patient was a 77-year-old woman with a much more
+developed dilated cardiomyopathy. She was in NYHA class III
+heart failure with a LV ejection fraction of 18%, LBBB and
+a QRS duration of 200 ms. There was no late gadolinium enhancement images acquired but functional conduction block was
+observed in the electrophysiological mapping. We proposed to
+add different virtual functional blocks in the simulated database
+in order to be able to correctly estimate the activation patterns in
+nonischemic cases, which often also present conduction blocks.
+For all the cases, dynamic cardiac MRI (Philips 1.5T Achieva,
+Phillips Healthcare, Best, The Netherlands) consisted of multiple slice cine steady state free precession scans performed
+in short-axis orientation to assess the ventricular function
+
+(TR/TE = 2.9/1.5 ms, resolution 2.2 × 2.2 × 10 mm3 , around
+30 heart phases, breath-hold). The images were then resampled
+in a resolution of 1.6 mm3 and centered on the heart region
+with a region of interest of around 1003 voxels. A noncontact
+mapping study was performed using the Ensite 3000 multielectrode array catheter system (St Jude, Sylmar, CA, USA). The
+array records intracavity far-field potentials that are sampled
+at 1.2 kHz and digitally filtered at 0.1–300 Hz. The resulting
+signals allow the reconstruction of over 3000 virtual unipolar
+electrograms superimposed on a model of the LV created using
+a locator signal on a roving endocardial catheter. The XMR fusion provided the location of the Ensite mapping with respect
+to the MR-derived information.
+For each patient, a database of synthetic sequences which
+contains the scenarios described in Section III-A was built. For
+the first patient, the total generated synthetic 3-D MR images
+are 144 (scenarios) × 29 (number of frame − 1) = 4176.
+We did a first evaluation of this learning process on the clinical
+3-D MR sequence of the patients. Using the relationship or the
+optimized parameters previously found, we are able to predict
+the LV endocardial electrical activation time of the patient. We
+apply the same processing to this sequence as we did for the
+synthetic sequence.
+After optimizing the PRESS criterion on the whole synthetic database of each patient, the obtained LS-SVM parameters are shown in Table IV. We listed the descriptors with
+their (αm ax − αi )/(αm ax − αm in ) value which describes the
+increasing importance of the descriptor i (cf., Table IV). αm ax
+and αm in are, respectively, the maximum and minimum α value
+
+242
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+Fig. 5. Depolarization time estimation from clinical 3-D MR sequences. First
+evaluation of the learning process in the prediction of the LV endocardial surface
+depolarization time on three patients (right) is compared to the ground truth value
+(left). Similar patterns in the same range are observed on the three of them.
+
+of the descriptors for a patient database. Therefore, the value
+range is from 0 for the least important descriptor to 1 for the
+most important one. Table IV shows that the kinematic descriptors x1 = trace(E) and x5 = (uT Eu)/(2u2 ) are consistently
+the most important ones to learn the electrokinematic relationship from the three databases since they have smaller optimized
+αi values compared to the other descriptors.
+After performing LogDemons nonrigid registration and extracting the vector x of kinematic descriptors from the estimated
+displacement field, the electrophysiology vector y was estimated
+from the LS-SVM. Since we have the ground truth LV endocardial electrical activation time of the patient acquired using noncontact mapping study, we are able to compare our prediction
+with this measurement. Similar estimated depolarization times
+were obtained for this patient (cf., Fig. 5) with the root mean
+square error (RMSE) = 11.20 ms for the patient I, 13.51 ms for
+the patient II, and 22.42 ms for the patient III.
+We computed the mean and variance of the electrophysiological database created previously with the patient’s LV endocardial electrical activation time ground truth value. Then, we were
+able to compare our prediction with these values (cf., Fig. 6).
+We can observe similar RMS errors for the activation time for
+different parameter sets, which is mostly due to the influence
+of the Purkinje network. The high electrical conductivity of the
+Purkinje network produces similar endocardial activation patterns. However, the activation pattern for the whole myocardium
+is significantly different for each parameter set, which makes the
+resulting motion pattern different.
+
+Fig. 6. Distance (RMSE) of each simulated electrophysiology with respect
+to the patient’s ground truth. For each patient’s database of simulated electrophysiological patterns, the difference of each pattern with the patient’s electrophysiological pattern ground truth is calculated. These differences are shown in
+a curve which describes the variation of the simulated electrophysiology. The
+mean and standard deviation of each curve for each patient are shown in the
+legend. The prediction errors in Fig. 5 are shown as horizontal lines with the
+values shown in the legend.
+
+VI. DISCUSSION
+In this paper, we created patient-specific database of synthetic
+sequences in order to learn the cardiac inverse electrokinematic
+relationship. In the end, we used the learned relationship to
+estimate patient’s LV endocardium electrical activation time.
+For each dataset, the prediction error (cf., Fig. 5) is in the order
+of 15 ms which represents typically between 21% and 24%
+of the total LV endocardium surface activation and between
+7% and 14% of the QRS duration. This is reasonable given
+the spatial and temporal accuracy of the invasive intracardiac
+mapping systems and even more compared to the accuracy of
+noninvasive ECGI systems.
+A current limitation of the method is the spatial resolution of
+the predicted map. The spatial resolution of the estimated activation pattern could be increased to more than 17 regions as the
+electromechanical model spatial resolution is much finer. However, given the resolution of the images and the uncertainty on
+the invasive EP data (due to acquisition and registration errors),
+predicting depolarization times at a greater spatial resolution
+would be difficult to validate with the current data. However,
+the modeling and the learning phases can handle higher resolution data; therefore, the method would be unchanged. We are
+working on acquiring higher resolution contact maps to allow
+us to have a better validation for a finer model.
+The prediction error is also smaller compared to the
+average error in the database (cf., Fig. 6). Patient I:
+11.20 ms < 13.74 ms, Patient II: 13.51 ms < 16.28 ms, Patient
+III: 22.42 ms < 26.99 ms. This shows the proper behavior of
+
+PRAKOSA et al.: CARDIAC ELECTROPHYSIOLOGICAL ACTIVATION PATTERN ESTIMATION FROM IMAGES
+
+the LS-SVM method since it basically consists in interpolating
+the depolarization times of the entries in the learning set that
+are closest to the input kinematics descriptors. Ideally, a measure of confidence in the prediction should be provided, but the
+LS-SVM regression method does not provide any covariance on
+the activation times. Covariance can only be estimated on the
+activation parameters if covariance on the motion descriptors is
+available which is not the case here.
+With this learning process, the prediction error combines several types of possible errors: noise in the noncontact mapping
+acquisition, errors in the learning process, errors in modeling
+the cardiac electromechanics, and discretization errors. Due to
+the noncontact nature of the mapping, it is often difficult to have
+an accurate match between the electrophysiology maps and the
+endocardial surface reconstructed from MR imaging. For example for Patient II, there is an uncertainty in the ground truth
+data since the latest activated area is not in the region where the
+scar is. Applying 30 ◦ of clockwise rotation to the ground truth
+data would make the scarred region last activated and reduce
+the prediction error from 13.51 to 8.73 ms. The learning error
+mostly depends on the size of the electrophysiology scenarios
+as they should be vast enough to include the actual pathology of
+the patient. In this paper, we have restricted ourselves to LBBB
+cases with five parameter categories (onset position, conduction
+velocity. . .) leading to between 144 and 180 simulated cases.
+Adding more hypothesis of electrophysiology parameters in the
+training set would help capturing more complex electrophysiology and kinematics patterns. However, this would also lead
+to a much increased number of simulations, and therefore, a
+tradeoff must be found between the range of pathologies and
+the computational requirements.
+Then, prediction errors also depend on the accuracy of the
+electrophysiology model. For instance, applying an automated
+personalization method [39] of an electrophysiology model on
+the three patients’ datasets described previously leads to errors
+of 10.19, 9.19, and 16.51 ms, respectively. These errors after
+personalization capture the combined effect of acquisition, discretization, and model errors. Given that the prediction errors
+are, respectively, 11.20, 13.51, and 22.42 ms, it appears that
+the errors due to the learning process are relatively small. To
+decrease further those errors may require to use a more complex electrophysiological model or a finer mesh. However, it
+is probable that improving the acquisition protocol leading to
+higher spatial resolution would be most beneficial. In practice,
+obtaining ground truth electrophysiology data is currently difficult due to the invasive nature of the endocardial mapping
+systems. Using less invasive electrophysiology data from body
+surface potential mapping would allow to broaden the number
+of test cases.
+In addition, to decrease the prediction errors, it is important
+that the electromechanical model produces realistic simulations
+of the cardiac motion. This not only implies that the cardiac
+physiology is well described by the chosen E/M model, but it
+also means that this model is sufficiently well personalized. In
+our approach, the chosen E/M has been shown to produce realistic simulations of the cardiac motion and also shown good predictive behavior for the electrophysiology and mechanics [40].
+
+243
+
+Furthermore, in this paper, we have performed four different
+mechanical calibrations for each onset position, in order to have
+similar volume curves between the simulation and the patient
+data. To improve the prediction, one would probably need to
+perform a calibration and even a personalization of the mechanical parameters for each electrophysiology scenario. Indeed, the
+calibration stage only tries to match the endocardial volume
+curves whereas the personalization stage tries to match more
+regional or local kinematic indices (regional volume curves, estimated displacement, etc.). The weighting of the descriptors
+was learned on the simulated database; therefore, it is important
+that the link between electromechanics and deformation is well
+captured by the model. Any improvement of the model can be
+readily used in this method by rerunning the learning phase.
+The learning phase will be also influenced by the observability of the deformation features in the motion extracted from the
+simulated images. Any improvement in cardiac motion tracking
+from images would help in better learning the link between the
+simulations and the resulting features. More sophisticated methods for cardiac motion analysis, e.g., atlas-based ones, could be
+used as input to the learning process; however, they still need
+a large-scale validation; therefore, we focused here on motion
+descriptors already available in a clinical setting.
+One limitation of this paper is that the created database is
+patient-specific. Therefore, numerous simulations need to be
+performed in order to predict another patient’s depolarization
+time. Currently, predictions from one training set built from
+one patient does not generalize to another patient because of the
+difference in their kinematic descriptors. The use of an atlas may
+overcome this limitation but meaningful strategies to transport
+the kinematic descriptors between patients have to be found.
+VII. CONCLUSION
+As the generated synthetic cardiac MR sequences have electrokinematic “ground truth” information, we have performed
+an inverse electrokinematic learning on this patient-specific
+database. Invariant kinematic descriptors were extracted from
+the displacement field obtained from the sequence registration.
+The nonlinear inverse relationship between the electrical activation times and the kinematic descriptors was modeled using
+LS-SVM. Evaluation of the learning process for the database
+of synthetic sequence shows good generalization and a first
+evaluation on three clinical MR sequences shows encouraging
+results.
+We presented here results on patients with an LBBB in order to reduce the span of possible onset locations and have a
+relatively slower propagation (large QRS). However, we tested
+the method on both ischemic and nonischemic patients. The
+results are better for the ischemic patients, as the scar locations are known, while for the nonischemic patients we need to
+find where the potential functional block is. Extension of this
+method to more complex activation patterns should be possible,
+but the evaluation of the observability of such patterns from the
+available time resolution of the images has to be explored.
+This approach opens the possibility of using noninvasive cardiac motion imaging as a way to estimate electrophysiological
+
+244
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+patterns. This could provide additional information to the cardiologist during the optimization of the CRT, for example, allowing the placement of the pacemaker leads in the cardiac region
+which is lately activated. An extension of this paper would be the
+application of this method to different imaging modalities. This
+can be done since the synthetic sequence generation method
+is generic and was already demonstrated for different imaging
+modalities [22].
+
+[13]
+
+[14]
+
+ACKNOWLEDGMENT
+The authors would like to thank S. Marchesseau and J. Relan
+from the Asclepios team, P. Cathier and P. Etyngier from the
+Medysis Research Laboratory, and E. Saloux from the Caen
+University Hospital for the fruitful discussions.
+REFERENCES
+[1] R. N. Ghanem, P. Jia, C. Ramanathan, K. Ryu, A. Markowitz, and Y. Rudy,
+“Noninvasive electrocardiographic imaging (ECGI): Comparison to intraoperative mapping in patients,” Heart Rhythm, vol. 2, pp. 339–354, Apr.
+2005.
+[2] C. Ramanathan, R. N. Ghanem, P. Jia, K. Ryu, and Y. Rudy, “Noninvasive
+electrocardiographic imaging for cardiac electrophysiology and arrhythmia.,” Nature Med., vol. 10, no. 4, pp. 422–428, 2004.
+[3] Y. Wang, P. Cuculich, J. Zhang, K. Desouza, R. Vijayakumar, J. Chen,
+M. Faddis, B. Lindsay, T. Smith, and Y. Rudy, “Noninvasive electroanatomic mapping of human ventricular arrhythmias with electrocardiographic imaging,” Sci. Transl. Med., vol. 3, no. 98, p. 98ra84, 2011.
+[4] C. Han, S. M. Pogwizd, C. R. Killingsworth, and B. He, “Noninvasive
+imaging of three-dimensional cardiac activation sequence during pacing
+and ventricular tachycardia,” Heart Rhythm, vol. 8, no. 8, pp. 1266–1272,
+2011.
+[5] C. Han, S. M. Pogwizd, C. R. Killingsworth, and B. He, “Noninvasive
+reconstruction of the three-dimensional ventricular activation sequence
+during pacing and ventricular tachycardia in the canine heart,” Amer. J.
+Physiol. Heart Circulat. Physiol., vol. 302, no. 1, pp. H244–H252, 2012.
+[6] C. Liu, N. Skadsberg, S. Ahlberg, C. Swingen, P. Iaizzo, and B. He,
+“Estimation of global ventricular activation sequences by noninvasive
+three-dimensional electrical imaging: Validation studies in a swine model
+during pacing,” J. Cardiovasc. Electrophysiol., vol. 19, no. 5, pp. 535–540,
+2008.
+[7] X. Zhang, I. Ramachandra, Z. Liu, B. Muneer, S. M. Pogwizd, and B. He,
+“Noninvasive three-dimensional electrocardiographic imaging of ventricular activation sequence,” Amer. J. Physiol. Heart Circulat. Physiol.,
+vol. 289, no. 6, pp. H2724–H2732, Dec. 2005.
+[8] T. Berger, G. Fischer, B. Pfeifer, R. Modre, F. Hanser, T. Trieb,
+F. Roithinger, M. Stuehlinger, O. Pachinger, B. Tilg, and F. Hintringer,
+“Single-beat noninvasive imaging of cardiac electrophysiology of ventricular pre-excitation.,” J. Amer. College Cardiol., vol. 48, no. 10, pp. 2045–
+2052, 2006.
+[9] R. H. Helm, M. Byrne, P. A. Helm, S. K. Daya, N. F. Osman, R. Tunin,
+H. R. Halperin, R. D. Berger, D. A. Kass, and A. C. Lardo, “Threedimensional mapping of optimal left ventricular pacing site for cardiac
+resynchronization,” Circulation, vol. 115, pp. 953–961, Feb. 2007.
+[10] M. Sohal, A. Shetty, S. Duckett, Z. Chen, E. Sammut, S. Amraoui, G. CarrWhite, R. Razavi, and C. A. Rinaldi, “Non-invasive assessment of left
+ventricular contraction patterns using cardiac magnetic resonance imaging
+to identify responders to cardiac resynchronization therapy,” J. Amer.
+College Cardiol.: Cardiovasc. Imag., vol. 6, no. 8, pp. 864–873, 2013.
+[11] K. McLeod, A. Prakosa, T. Mansi, M. Sermesant, and X. Pennec, “An incompressible log-domain demons algorithm for tracking heart tissue,”
+in Statistical Atlases and Computational Models of the Heart: Imaging and Modelling Challenges (Lecture Notes in Computer Science Series), O. Camara, E. Konukoglu, M. Pop, K. Rhode, M. Sermesant, and
+A. Young, Eds. Toronto, ON, Canada: Springer-Verlag, Sep. 2012, no.
+7085, pp. 55–67.
+[12] C. Tobon-Gomez, M. D. Craene, A. Dahl, S. Kapetanakis, G. Carr-White,
+A. Lutz, V. Rasche, P. Etyngier, S. Kozerke, T. Schaeffter, C. Riccobene,
+
+[15]
+
+[16]
+
+[17]
+[18]
+[19]
+
+[20]
+
+[21]
+
+[22]
+
+[23]
+
+[24]
+
+[25]
+
+[26]
+
+[27]
+[28]
+
+Y. Martelli, O. Camara, A. F. Frangi, and K. S. Rhode, “A multimodal
+database for the 1st cardiac motion analysis challenge,” in Statistical Atlases and Computational Models of the Heart: Imaging and Modelling
+Challenges, vol. 7085, (Lecture Notes in Computer Science Series),
+O. Camara, E. Konukoglu, M. Pop, K. Rhode, M. Sermesant, and
+A. Young, Eds.
+Toronto, ON, Canada: Springer-Verlag, 2012, pp.
+33–44.
+T. Mansi, X. Pennec, M. Sermesant, H. Delingette, and N. Ayache,
+“iLogDemons: A demons-based registration algorithm for tracking incompressible elastic biological tissues,” Int. J. Comput. Vis., vol. 92,
+pp. 92–111, 2011.
+A. Elen, H. F. Choi, D. Loeckx, H. Gao, P. Claus, P. Suetens, F. Maes, and
+J. D’hooge, “Three-dimensional cardiac strain estimation using spatiotemporal elastic registration of ultrasound images: A feasibility study,”
+IEEE Trans. Med. Imag., vol. 27, no. 11, pp. 1580–1591, Nov. 2008.
+A. Prakosa, M. Sermesant, H. Delingette, E. Saloux, P. Allain, P. Cathier,
+P. Etyngier, N. Villain, and N. Ayache, “Synthetic echocardiographic
+image sequences for cardiac inverse electro-kinematic learning,” in Medical Image Computing and Computer-Assisted Intervention, vol. 6891,
+(Lecture Notes in Computer Science Series), G. Fichtinger, A. Martel,
+and T. Peters, Eds. Toronto, ON, Canada: Springer-Verlag, Sep. 2011,
+pp. 500–507.
+A. Prakosa, M. Sermesant, H. Delingette, E. Saloux, P. Allain, P. Cathier,
+P. Etyngier, N. Villain, and N. Ayache, “Non-invasive activation times
+estimation using 3D echocardiography,” in Statistical Atlases and Computational Models of the Heart, vol. 6364, (Lecture Notes in Computer
+Science Series), O. Camara, M. Pop, K. Rhode, M. Sermesant, N. Smith,
+and A. Young, Eds. Beijing, China: Springer-Verlag, 2010, pp. 212–221.
+N. Otani, S. Luther, R. Singh, and R. Gilmour, “Transmural ultrasoundbased visualization of patterns of action potential wave propagation in
+cardiac tissue,” Ann. Biomed. Eng., vol. 38, pp. 3112–3123, 2010.
+J. Provost, W. Lee, K. Fujikura, and E. Konofagou, “Electromechanical
+wave imaging of normal and ischemic hearts in vivo,” IEEE Trans. Med.
+Imag., vol. 29, no. 3, pp. 625–635, Mar. 2010.
+G. Sanchez-Ortiz, M. Sermesant, R. Chandrashekara, K. Rhode,
+R. Razavi, D. Hill, and D. Rueckert, “Detecting the onset of myocardial contraction for establishing inverse electro-mechanical coupling in
+XMR guided RF ablation,” in Proc. Int. Symp. Biomed. Imag., Arlington,
+TX, USA, 2004, pp. 1055–1058.
+E. E. Konofagou and J. Provost, “Electromechanical wave imaging for
+noninvasive mapping of the 3D electrical activation sequence in canines
+and humans in vivo,” J. Biomech., vol. 45, no. 5, pp. 856–864, 2012,
+special Issue on Cardiovascular Solid Mechanics.
+J. Provost, V. Gurev, N. Trayanova, and E. E. Konofagou, “Mapping of
+cardiac electrical activation with electromechanical wave imaging: An in
+silico in vivo reciprocity study,” Heart Rhythm, vol. 8, no. 5, pp. 752–759,
+2011.
+A. Prakosa, M. Sermesant, H. Delingette, S. Marchesseau, E. Saloux,
+P. Allain, N. Villain, and N. Ayache, “Generation of synthetic but visually
+realistic time series of cardiac images combining a biophysical model and
+clinical images,” IEEE Trans. Med. Imag., vol. 32, no. 1, pp. 99–109, Jan.
+2013.
+C. Tobon-Gomez, C. Butakoff, S. Aguade, F. Sukno, G. Moragas, and
+A. Frangi, “Automatic construction of 3D-ASM intensity models by simulating image acquisition: Application to myocardial gated SPECT studies,” IEEE Trans. Med. Imag., vol. 27, no. 11, pp. 1655–1667, Nov. 2008.
+E. R. McVeigh, F. W. Prinzen, B. T. Wyman, J. E. Tsitlik, H. R. Halperin,
+and W. C. Hunter, “Imaging asynchronous mechanical activation of the
+paced heart with tagged MRI,” Magnet. Reson. Med., vol. 39, pp. 507–513,
+Apr. 1998.
+S. Marchesseau, H. Delingette, M. Sermesant, and N. Ayache, “Fast
+parameter calibration of a cardiac electromechanical model from medical
+images based on the unscented transform,” in Biomechanics and Modeling
+in Mechanobiology. New York, NY, USA: Springer-Verlag, 2012.
+N. Toussaint, T. Mansi, H. Delingette, N. Ayache, and M. Sermesant, “An
+integrated platform for dynamic cardiac simulation and image processing:
+Application to personalised tetralogy of fallot simulation,” presented at
+the Eurograph. Workshop Vis. Comput. Biomed., Delft, The Netherlands,
+2008.
+L. Rineau, S. Tayeb, and M. Yvinec, “3D mesh generation,” in CGAL
+User and Reference Manual, 3rd ed. CGAL Editorial Board, 2009.
+T. Vercauteren, X. Pennec, A. Perchant, and N. Ayache, “Symmetric logdomain diffeomorphic registration: A demons-based approach,” in Medical Image Computing and Computer-Assisted InterventionMICCAI, vol.
+5241, (Lecture Notes in Computer Science Series), D. Metaxas, L. Axel,
+
+PRAKOSA et al.: CARDIAC ELECTROPHYSIOLOGICAL ACTIVATION PATTERN ESTIMATION FROM IMAGES
+
+[29]
+[30]
+[31]
+
+[32]
+
+[33]
+
+[34]
+[35]
+
+G. Fichtinger, and G. Székely, Eds. New York, NY, USA: SpringerVerlag, Sep. 2008, pp. 754–761.
+K. Ten Tusscher, D. Noble, P. Noble, and A. Panfilov, “A model for human
+ventricular tissue,” Amer. J. Physiol., vol. 286, pp. H1573–H1589, 2004.
+C. C. Mitchell and D. G. Schaeffer, “A two current model for the dynamics
+of cardiac membrane,” Bull. Math. Biol., vol. 65, no. 5, pp. 767–793, 2003.
+M. Sermesant, E. Konukoglu, H. Delingette, Y. Coudiere,
+P. Chinchaptanam, K. Rhode, R. Razavi, and N. Ayache, “An
+anisotropic multi-front fast marching method for real-time simulation of
+cardiac electrophysiology,” in Functional Imaging and Modeling of the
+Heart, vol. 4466, (Lecture Notes in Computer Science Series), Jun. 7–9,
+2007, pp. 160–169.
+D. Chapelle, P. Le Tallec, P. Moireau, and M. Sorine, “An energypreserving muscle tissue model: Formulation and compatible discretizations,” Int. J. Multiscale Computat. Eng., vol. 10, no. 2, pp. 189–211,
+2012.
+F. Faure, C. Duriez, H. Delingette, J. Allard, B. Gilles, S. Marchesseau,
+H. Talbot, H. Courtecuisse, G. Bousquet, I. Peterlik, and S. Cotin, “Sofa:
+A multi-model framework for interactive physical simulation,” in Soft
+Tissue Biomechanical Modeling for Computer Assisted Surgery, vol. 11,
+(Studies in Mechanobiology, Tissue Engineering and Biomaterials Series),
+Y. Payan, Ed. Heidelberg, Germany: Springer-Verlag, 2012, pp. 283–
+321.
+S. Julier and J. Uhlmann, “A new extension of the Kalman filter to nonlinear systems,” in Proc. Int. Symp. Aerosp./Defense Sensing, Simulat.
+Controls, 1997, vol. 3, pp. 182–193.
+S. Marchesseau, H. Delingette, M. Sermesant, K. Rhode, S. Duckett,
+C. Rinaldi, R. Razavi, and N. Ayache, “Cardiac mechanical parameter calibration based on the unscented transform,” in Medical Image Computing
+and Computer-Assisted Intervention, vol. 7511, (Lecture Notes in Computer Science Series), N. Ayache, H. Delingette, P. Golland, and K. Mori,
+Eds. Heidelberg, Germany: Springer-Verlag, Oct. 2012, pp. 41–48.
+
+245
+
+[36] G. C. Cawley, “Leave-one-out cross-validation based model selection criteria for weighted LS-SVMs,” in Proc. Int. Joint Conf. Neural Netw.,
+Vancouver, BC, Canada, 2006, pp. 1661–1668.
+[37] M. J. D. Powell, “The BOBYQA algorithm for bound constrained optimization without derivatives,” Dept. Appl. Math. Theoretical Phys., Cambridge, U.K. Tech. Rep. NA2009/06, Aug. 2009.
+[38] S. G. Johnson. (2012). The NLopt nonlinear-optimization package. [Online]. Available: http://ab-initio.mit.edu/nlopt
+[39] J. Relan, M. Pop, H. Delingette, G. Wright, N. Ayache, and M. Sermesant,
+“Personalisation of a cardiac electrophysiology model using optical mapping and MRI for prediction of changes with pacing,” IEEE Trans. Biomed.
+Eng., vol. 58, no. 12, pp. 3339–3349, Dec. 2011.
+[40] M. Sermesant, R. Chabiniok, P. Chinchapatnam, T. Mansi, F. Billet,
+P. Moireau, J. Peyrat, K. Wong, J. Relan, K. Rhode, M. Ginks, P. Lambiase,
+H. Delingette, M. Sorine, C. Rinaldi, D. Chapelle, R. Razavi, and
+N. Ayache, “Patient-specific electromechanical models of the heart for
+the prediction of pacing acute effects in CRT: A preliminary clinical validation,” Med. Image Anal., vol. 16, no. 1, pp. 201–215, 2012.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

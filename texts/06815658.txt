@@ -1,0 +1,1163 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 10, OCTOBER 2014
+
+2609
+
+Toward Long-Term and Accurate Augmented-Reality
+for Monocular Endoscopic Videos
+Gustavo A. Puerto-Souza∗ , Student Member, IEEE, Jeffrey A. Cadeddu, and Gian-Luca Mariottini, Member, IEEE
+
+Abstract—By overlaying preoperative radiological 3-D models onto the intraoperative laparoscopic video, augmented-reality
+(AR) displays promise to increase surgeons’ visual awareness of
+high-risk surgical targets (e.g., the location of a tumor). Existing
+AR surgical systems lack in robustness and accuracy because of the
+many challenges in endoscopic imagery, such as frequent changes
+in illumination, rapid camera motions, prolonged organ occlusions,
+and tissue deformations. The frequent occurrence of these events
+can cause the loss of image (anchor) points, and thus, the loss of the
+AR display after a few frames. In this paper, we present the design
+of a new AR system that represents a first step toward long term and
+accurate augmented surgical display for monocular (calibrated and
+uncalibrated) endoscopic videos. Our system uses correspondencesearch methods, and a new weighted sliding-window registration
+approach, to automatically and accurately recover the overlay by
+predicting the image locations of a high number of anchor points
+that were lost after a sudden image change. The effectiveness of
+the proposed system in maintaining a long term (over 2 min) and
+accurate (less than 1 mm) augmentation has been documented over
+a set of real partial-nephrectomy laparascopic videos.
+Index Terms—Augmented reality (AR), endoscopic vision, feature tracking.
+
+I. INTRODUCTION
+UGMENTED reality (AR) displays promise to improve
+the outcome of minimally-invasive surgical interventions,
+because of the possibility to enhance the surgeon’s awareness
+of high-risk anatomical targets [1], [2]. As illustrated in Fig. 1,
+the accurate overlay of a patient’s preoperative radiological 3-D
+organ’s model (e.g., from CT scans) onto the live surgical video,
+can reveal the exact location, orientation, and depth of a tumor
+in it, or of other important anatomical structures.
+The detection and tracking of anchor points—a set of organ’s
+3-D model points and video-features associations—is of utmost
+importance to ensure a prolonged and accurate augmented display even after strong illumination changes, camera occlusions,
+and tissue deformations.
+
+A
+
+Manuscript received October 4, 2013; revised February 16, 2014; accepted
+May 2, 2014. Date of publication May 14, 2014; date of current version September 16, 2014. Asterisk indicates corresponding author.
+∗ G. A. Puerto-Souza is with the Department of Computer Science and Engineering, University of Texas at Arlington, Arlington, TX 76019 USA (e-mail:
+gustavo.puerto@mavs.uta.edu).
+G. L. Mariottini is with the department of Computer Science and Engineering, University of Texas at Arlington, Arlington, TX 76019 USA (e-mail:
+gianluca.mariottini@uta.edu).
+J. A. Cadeddu is with the Department of Urology, University of Texas Southwestern Medical Center, Dallas, TX 75390 USA (e-mail: jeffrey.cadeddu@
+utsouthwestern.edu).
+This paper contains multimedia material available online at http://ieeexplore.
+ieee.org (File size: 239 MB).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2323999
+
+Fig. 1. Example of an AR display: A set of anchor-points (i.e., matches
+between the 3-D CT model and the endoscopic image) are used to maintain the
+AR display.
+
+While artificial fiducial markers inserted into the surgical
+scene [3], [4] have been adopted in the past, recent AR systems
+[5]–[7] have used natural features within the surgical scene.
+Even if the latter approaches are less invasive for the patient, they
+are very sensitive to frequent large camera motions, illumination
+changes, and occlusions since they exclusively rely on imagefeature trackers [8]–[12]. As a result, the anchor points (and
+thus, the AR display) are easily lost after a few frames and
+a time-consuming manual reinitialization by an expert user is
+required to reinitialize the augmentation.
+In an effort to promote long-term and accurate AR surgical displays, we present the design and prototype development
+of a new AR system that can automatically and accurately recover the augmentation over long endoscopic monocular surgical videos and after unexpected events (such as rapid camera
+motions, occlusions, or organ deformations). Accuracy is indeed important in many surgical interventions: e.g., adequate
+resectioning margins in partial nephrectomy are about 5–7 mm.
+The key ingredients of our system consist of the use of feature
+matching [13], [14] to automatically recover the precise position
+of the anchor points, as well as in the use of a sliding-window
+(SW) weighted least-squares criterion to ensure accurate and
+stable AR display. As such, the proposed system provides accurate augmentation over long time periods using weighted point
+correspondences, temporal smoothing, removal of augmentation when tracking fails, and subsequent recovery of alignment
+when possible. Our system works also in the case of unknown
+camera-calibration parameters, which is of interest in retrospectively augmenting uncalibrated videos for skill assessment and
+evaluation.
+Our system was tested on real monocular (calibrated and
+uncalibrated) surgical videos from two partial-nephrectomy laparoscopic interventions and an overall accuracy of less than
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+2610
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 10, OCTOBER 2014
+
+1 mm was achieved. Our sequences are representative of challenging scenarios, such as camera retraction/reinsertion, prolonged partial and total occlusion of the organ by surgical instruments passing in front of the endoscope, as well as in the
+case of fast camera motions and strong organ deformations.
+To the best of our knowledge, this is the first CT-to-video
+AR surgical system that achieves both long-term and highlyaccurate augmentation without the need for adopting fiducial
+markers. Our designs and the results presented here represent a
+first important step toward the wide adoption and acceptance of
+augmented-reality systems in minimally-invasive surgery.
+A. Related Work and Original Contribution
+Existing AR systems can be broadly divided into fiducialbased and feature-based, depending on whether they use artificial markers (fiducials) or natural features (e.g., tissue textures),
+respectively.
+Fiducial-based systems [15] work by registering the virtual
+object with respect to a visible fiducial with known geometry. In
+[4], color-coded metallic fiducial shafts are used to co-register in
+real time the transrectal ultrasonography 3-D data with the live
+laparascopic video. Similarly, the system in [16] uses fiducial
+markers to align monocular video with 3-D CT data. Despite
+their popularity when adopted for man-made environments [17],
+[18], fiducial-based surgical systems are invasive for the patient,
+they have a low accuracy because of the paucity and size of
+fiducials that can be inserted, and are invasive for the patient
+since they need to be placed in the patient’s body preoperatively,
+e.g., at the moment of the radiological exams.
+Feature-based systems do not require artificial fiducials, but
+make use of natural structures in the scene, such as corners
+and textures. The authors of [19] have proposed an AR system
+with a semiautomatic initialization based on the contours of the
+3-D model. This system incorporates an illumination-invariant
+feature tracker robust to partial occlusions. A major drawback
+of this method is in its high computational complexity, which
+makes it inadequate for surgical applications. A major improvement was presented in parallel tracking and mapping (PTAM)
+[20], where tracking and mapping were treated in a parallel way,
+thus improving over both real-time performance, as well as accuracy and robustness to fast camera motions. However, PTAM
+is sensitive to the initialization phase and it has been recently
+documented not robust when applied to endoscopic scenarios
+[21]. The work in [22] detects new anchor points in the scene
+based on both optical flow and affine constraints. However, this
+approach requires known camera calibration parameters and has
+been designed to work in man-made environments that have less
+clutter than those during surgical interventions.
+Feature-based surgical AR systems are mostly designed for
+stereo endoscopes. The authors of [3], [5], [6], [23] propose
+markerless real-time systems that use at their core the iterative closest point (ICP) algorithm [24] to co-register the 3-D
+reconstruction of the scene (from stereo endoscopes) with the
+preoperative 3-D CT model. These approaches require accurate
+camera calibration and AR initialization in order for ICP to converge to a correct solution. Furthermore, they are very sensitive
+
+to noise and to occlusions since they do not include any anchorpoint recovery strategy. Finally, they have been tested only over
+very short video sequences.
+Addressing the problem of long-term tracking of image features in endoscopic videos is an open challenge [25], [26] and
+it has been recently studied in [12], where two new feature
+detectors/descriptors were introduced and tracked over long sequences. However, this work adopts spatial and temporal filters
+for tracking and will not then work in the case of strong organ
+deformations and prolonged image occlusions or blurs. More
+recently, some efforts have been done to achieve wide-baseline
+registration like in [21], where the authors present a two-phased
+approach to register the uterus in monocular laparoscopy, that
+effectively decouples 3-D mapping from registration. However,
+the proposed method is tailored to registering a 3-D model obtained from an initial video sequence, and not from preoperative
+radiological scans (e.g., CT).
+The novelty of our study consists of the introduction of a
+feature-based AR system for long-term augmentations. The major contributions of our system are both the automatic detection
+of anchor-points and the accurate estimation of the camera projection model. Our system can recover the overlay of radiological (CT) data after unexpected camera events, such as a
+total and prolonged occlusion, illumination changes, and organ
+deformations. Our system makes no assumptions about the endoscope’s position and orientation, and it works also in the case
+of unknown endoscope calibration parameters.
+This work is an extension of our conference submissions [27]
+and [28] over which we strongly improved in several directions:
+first, the algorithm’s pipeline has been ameliorated to achieve
+better accuracy in augmenting longer video sequences. Second,
+a modified version of the weights for the registration phase is
+here presented that also accounts for the reprojection error from
+the previous frames.
+Finally, the proposed system has been tested over a dataset
+lasting several minutes long and including many challenging
+scenarios (camera retraction/reinsertion, bleeding, prolonged total occlusions, smoke, and organ deformations). Note that such
+an extensive validation has never been performed before and
+that existing state-of-the-art methods are usually validated only
+on sequences lasting few seconds.
+II. METHODS
+The AR system described in the following has been designed
+to ensure both accuracy and long-term overlay. These two features are particularly important because of the occurrence of
+challenging (but very common) events in the operating site,
+such as fast camera motion, smoke, blood, changes in illumination, organ deformation, or total occlusions (e.g., due to surgical
+instruments moving in front of the camera).
+A. Monocular AR Architecture
+This system aims to provide accurate augmentation over long
+time periods by using weighted point correspondences, temporal smoothing and removal of augmentation when tracking
+fails with subsequent recovery of alignment when possible. This
+
+PUERTO-SOUZA et al.: TOWARD LONG-TERM AND ACCURATE AUGMENTED-REALITY FOR MONOCULAR ENDOSCOPIC VIDEOS
+
+2611
+
+Fig. 2. Block diagram of the AR pipeline: Several stages are used to accurately estimate the projection matrix P t while being robust to occlusion and fast camera
+motions.
+
+subsection provides an overview of the proposed AR pipeline,
+while each phase is described in detail in the following subsections.
+The proposed AR architecture is illustrated in the block diagram of Fig. 2. We assume a given initial alignment between
+the preoperative 3-D model and the initial monocular video
+frame, It 0 , at time t0 . This alignment corresponds to finding a
+set of n0 3D-to-2D corresponding point pairs, at time t0 , usually referred to as anchor-point pairs. We indicate this set as
+0
+.
+α0  {(ui0 , Xi )}ni=1
+The set of anchor points could be obtained either by carefully
+placing fiducial markers before the surgery on the scene, or by
+means of manual alignment with the assistance of an expert
+user. Since our datasets are retrospective, and in order not to
+alter or interfere with the operating site, we designed a graphical user interface (GUI) to help an experienced urologist in
+the manual alignment task (cf., Section II-B). Note that, while
+the choice of a GUI for the initial alignment is preferred in
+the case of monocular endoscopic videos (as in this work), 3-D
+to 3-D initial-registration techniques (e.g., ICP) can be seamlessly adopted in the case of stereo endoscopic videos. The
+output of this stage consists of a set α0 of initial anchor-points
+associations.
+Once the initial anchor-point pairs are obtained, a projection
+matrix, Pt is estimated, to project the CT model on top of the
+current frame It . However, the estimation of Pt is made challenging by several factors such as noisy and erroneous anchor
+points, camera occlusions, and organ deformations. Our system is designed to provide robustness to these potential problems by iterating over the following four stages. At time t, the
+t
+, are passed to a
+set of anchor-point pairs, αt  {(uit , Xi )}ni=1
+projection-estimation stage that estimates a projection matrix,
+Pt [29], in the cases of both known or unknown camera calibration parameters. One of the major contributions of this step is
+the use of a weighting scheme to reduce the impact that image
+
+features clustered over a specific organ’s portion might have in
+biasing the augmentation over that region. The second contribution consists of incorporating a temporal smoothing approach to
+reduce the sensitivity to noise on the anchor points, as well as to
+reduce the model’s jitter on the augmented video. Robustness to
+incorrect associations is ensured by the inclusion of RANSAC
+in the estimation of Pt . Moreover, our scheme is designed for
+either calibrated or uncalibrated scenarios.
+The estimated matrix Pt is then used in the augmentation
+stage to project the entire 3-D CT organ’s model onto the current endoscopic video. Next, a feature-tracking stage is used to
+update the location of the image points, ut → ut+1 , by tracking
+them into the next image frame, It+1 . As a result, each 3-D
+CT point, Xi , is now associated to a feature uit+1 . These three
+stages will be iterated until unexpected events happen.
+In particular, these events are detected by means of a recoverycondition criteria. The second major contribution of this work
+is indeed in the ability to automatically recover after system
+failures caused by camera occlusions, endoscope retractions
+and organ deformation. In these cases, an anchor-point recovery
+stage is adopted at time t to recover the positions of features
+ut corresponding to a set of previously-detected anchor points
+(e.g., u0 ). If the recovery is successful, the new set of anchor
+points are used to compute Pt . Otherwise, the system does not
+render the virtual model on the current frame and tries to recover
+the anchor-point pairs at the next frame. These stages are iterated
+for each new frame of the video.
+
+B. Initial Alignment
+Similarly to other works [3]–[7] we assume a given set of
+initial anchor points α0 , i.e., a known initial alignment between
+the first endoscopic-video frame and the 3-D CT model. Our
+approach does not require the use of special patterns or fiducials
+
+2612
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 10, OCTOBER 2014
+
+Fig. 4. Example of the bias in the projection matrix estimation. (a) The (yellow) asterisks represent the tracked anchor points whose position was perturbed
+with additive white Gaussian noise with standard deviation of 3 pixels. Note
+that some corners are clustered in small regions (green circle), while others are
+very isolated (white arrow). (b) Resulting augmentation using a DLT with no
+weighting scheme. Note that this augmentation is not accurate (see red arrow)
+and tend to discard many features (red crosses/yellow squares). (c) Resulting
+augmentation using a DLT incorporating the weighting scheme. Note that this
+augmentation is more accurate (see yellow arrow) and also preserves more
+features than the regular DLT (i.e., with no weights).
+Fig. 3. Initial alignment : Our GUI for the manual alignment between the
+3-D model and the endoscopic video. (a) and (b) Note that the control panel
+allows the user to manipulate the position of the model (green/red dots) until
+fully matching with the organ profile. (c) Extracted z 0 Shi-Tomasi corners
+on the initial frame. (d) Resulting initial anchor-point associations. (a) GUI
+before manual alignment. (b) After manual alignment. (c) Corner extraction.
+(d) Anchor-point association.
+
+on the scene, nor of any additional knowledge about the camera
+location.
+We developed a GUI that allows the user to rotate and translate the organ’s model to best match the profiles of the observed scene, as shown in Figs. 3(a)–(b). Once this alignment
+is given, a set of Shi-Tomasi corners [30], z0 is extracted from
+the endoscopic image with a minimum inter-corner distance
+of 10 pixels, [c.f., Fig. 3(c)]. Then, each corner, zi0 , is associated to the closest projected model’s point, P0 (Xi ), and only
+those associations within a distance of τ = 3.5 pixels are kept.
+This process results in a set of initial anchor-point associations,
+0
+, where ui0 = zi0 .
+α0 = {(ui0 , Xi )}ni=1
+We finally note that, as for every 3-D-to-2-D registration,
+the quality of the initial alignment will certainly dominate the
+performance along the entire video. In the experimental results
+presented in Section III , we tried to have a fair comparison by
+initializing all of the evaluated methods with the same projection
+matrix, thus effectively focusing the comparison on their relative
+algorithmic differences.
+C. Projection-Estimation Stage
+The proposed approach estimates the 3 × 4 projection matrix
+Pt from a set of anchor points, αt , and seamlessly works even
+if the camera calibration parameters are unknown. Furthermore,
+our method is robust to outliers, and is accurate despite image
+noise or cluttered features.
+In the uncalibrated case, we adopt an improved version of the
+direct linear transformation (DLT) approach [29]. In DLT, Pt
+is obtained from the homogeneous system of linear equations,
+pt = 0, where ADLT
+is a 2nt × 12 matrix created from
+ADLT
+t
+t
+the anchor-point associations, αt , and pt is a 12 × 1 vector
+constructed by stacking the columns of the projection matrix
+Pt . The solution of this homogeneous system of linear equa-
+
+tions is found as the eigenvector corresponding to the smallest
+[29].
+eigenvalue of matrix ADLT
+t
+In the calibrated case, images are first undistorted and the
+perspective-three-point (P3P) approach [31] is used to comt
+, i.e., the 3-D reconstruction of the observed
+pute, {C Xit }ni=1
+=
+features in the current camera frame. Then, the matrix, AP3P
+t
+T
+n t C i C   i
+X
+X
+−
+−
+X̄
+is
+constructed,
+where
+(¯
+·)
+deX̄
+t
+t
+i
+is used to exnotes the mean operator. Then, matrix AP3P
+t
+R
+=
+UVT , CW t =
+tract the camera pose as in [32], i.e., C
+W
+C
+C
+T
+X̄ − W R X̄, where U and V are factors obtained from
+the Single Value Decomposition (SVD) as, [U, Σ, V] =
+SVD(AP3P
+t ). The projection matrix is finally computed as,
+C
+Pt = K C
+W R|W t .
+In both cases, a RANSAC phase [33] is implemented to simultaneously estimate Pt , while discarding outliers.
+In our experiments, we observed that RANSAC alone would
+not be able to cope for two other sources of errors: 1) the
+presence of anchor points clustered in a single organ’s region, and 2) the frequent jitter, due to noise in the measurements, among consecutive frames. Our novel contribution stems from trying to address these two problems. In order to deal with case 1), we devised a weighted-RANSAC
+strategy that weighs less both those anchor points clustered
+in portions of the image [see e.g., Figs. 4(a)–(c)], as well
+as those that exhibited large reprojection errors in the previous frames. In particular, the weights, wi , have been choi
+i
+i
+sen as follows: wi  0.5e−f d (u t ,u t ,δ ) + 0.5e−f e (u t −1 ,P t −1 ,X ) ∈
+i
+1
+[0, 1], where fd (ut , ut , δ) represents the density of features
+around uit , and fe (uit−1 , Pt−1 , Xi ) is the pinhole reprojection
+error2 of the ith anchor-point at time t − 1.
+Once the new constraint is obtained, in the uncalibrated case,
+the weights wi are incorporated into the system of linear equations, Wt ADLT
+pt = 0, where Wt is a diagonal matrix of the
+t
+form diag(Wt ) = [w1 , w1 , w2 , w2 , . . . , wn t , wn t ]T . In the calibrated case, the weights are incorporated directly in the compu
+
+T
+
+tation of AP3P
+, i.e., AP3P
+= ni t wi C X − C X̄ X − X̄ .
+t
+t
+1 The function f (u i , u , δ) computes the number of u elements within a
+t
+t
+d
+t
+circular region centered on u it and with radius δ.
+2 The reprojection error is defined as, f (u i , P X ) = u i − P , X̃ ,
+e
+t i
+t
+i
+t
+t
+where X̃ i denotes the extension to homogeneous coordinates of X i .
+
+PUERTO-SOUZA et al.: TOWARD LONG-TERM AND ACCURATE AUGMENTED-REALITY FOR MONOCULAR ENDOSCOPIC VIDEOS
+
+The other source of inaccuracy was observed to cause jittering in the projected model across consecutive frames. We
+address this issue by formulating a SW approach [34]. The
+overall W-RANSAC–SW estimation stage uses the constraints
+obtained from the inliers of W-RANSAC in the previous k iterations, At , At−1 , . . . At−k , and associate each constraint to a
+forgetting-factor coefficient β = [β0 , β1 , . . . , βk ]T . This factor
+indicates the relative importance for each
+linear system. As a
+result, a new constraint is formulated as, ki=0 βi ATt−i At−i . In
+the uncalibrated case, Pt is obtained as the eigenvector corresponding to the smallest eigenvalue of this new constraint. For
+the calibrated case, the SVD decomposition of this new con-
+C
+C
+C
+straint is used to extract C
+W R and W t, and Pt = K W R|W t
+is readily computed.
+In Section III, we will present a comparison between the two
+(calibrated and uncalibrated) projection-estimation algorithms.
+In order to illustrate the benefits of the weighted-SW (W-SW)
+approach, a comparison against a simple RANSAC-based DLT
+will be also included.
+D. Augmentation Stage
+In this stage, the projection matrix estimated from the previous stage, is used to overlay the entire 3-D organ’s model
+onto the endoscopic view. Note that, when projecting the entire
+3-D model onto the endoscopic image, we only preserve those
+anchor points whose reprojection error is below γ = 10 pixels.
+E. Feature-Tracking Stage
+The feature-tracking stage updates the anchor point every
+time a new frame is acquired. In order to track image features (corners) among consecutive endoscopic video frames, we
+adopted the feature-tracking algorithm in [35], which is robust
+to changes in illumination.
+However, no matter how strong the tracker is, the tracked
+points will still be lost after unexpected camera and organ motions, or camera occlusions by the surgical instruments. The use
+of just a feature tracker is surprisingly still the standard in many
+AR systems.
+F. Tracking-Recovery Stage
+As mentioned previously, the tracking algorithm can lose
+some tracked features due to unexpected or sudden image events.
+As a consequence, the augmented overlay may deteriorate its
+quality or even disappear. For the sake of clarity, but without
+losing in generality, we will focus our discussion on the challenging case of a total loss of tracked features, e.g., due to the
+motion of a surgical tool in front of the camera while the organ
+and the camera are also moving.
+In order to accurately recover a high percentage of anchor
+points after a complete occlusion, we adopted a trackingrecovery stage (see Fig. 5). Our method compares an image
+before the occlusion with the current one after the occlusion.
+The current frame will be indicated as It , while the image before the occlusion is selected from a buffer containing the initial
+
+2613
+
+Fig. 5. Diagram of the tracking recovery: Our method uses the images before
+and after the occlusion, and initial associations (anchor points (u 0 , X)) between
+the image before the occlusion and the 3-D model. As an output, we recover the
+alignment between the image after the occlusion and the 3-D model.
+
+frame, I0 , and the last successfully recovered image, (e.g., Im
+with m < t).
+First, local image features are extracted from both images
+(feature-extraction block) and are matched by means of an
+appearance-based criteria to find a set of candidate matches
+(initial-matching block)3 . We chose SIFT features instead of
+Shi–Tomasi corners, because of the invariance of SIFT to rotation and scale that Shi–Tomasi corners do not offer. These
+initial matches are used by our hierarchical multiaffine (HMA)
+feature-matching strategy [14] to compute an image transformation that predicts in It the position of those anchor points from
+Im . This procedure is repeated for each image in the buffer,
+and the solution that leads to the largest number of recovered
+features and lowest reprojection error is selected.
+However, due to uncertainties in the estimated transformation,
+these predicted points ut might not correspond exactly to the
+original tracked features. For this reason, a corner-association
+stage has been introduced to ensure that the recovered features
+are of the same kind of the original tracked ones, e.g., ShiTomasi corners. This is done by first extracting Shi–Tomasi
+corners, {z}, from the image after occlusion (corner-extraction
+block), and by associating them to the closest recovered anchor
+points {ut }. An anchor point is updated to its closest corner
+only if their distance is less than a threshold γ (e.g., 3.5 pixels);
+in this way, only the most certain associations are preserved.
+As a result of the whole feature-recovery phase, we obtain a
+new set of anchor points {(uit , Xi )}. If the recovery is successful, the anchor points {(uit , Xi )} are passed to the projection
+estimation phase to re-compute Pt . Conversely, if the recovery
+fails (e.g., an instrument is still occluding the organ) the frame
+is skipped (i.e., the frame is displayed without augmentation)
+and a recovery attempt is then done with the next frame.
+III. EXPERIMENTAL EVALUATION
+We evaluated the performance of our system on real surgical videos from partial nephrectomy interventions. Fig. 6 shows
+some representative frames extracted from these sequences that
+include many cases of rapid camera motions, organ deformations, and prolonged occlusions.
+3A
+
+distance-ratio threshold of 0.8 is a common choice [36].
+
+2614
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 10, OCTOBER 2014
+
+Fig. 6. Examples of evaluated frames from both video sequences (a) First sequence: 570 frames containing cases of fast organ motion and camera occlusion.
+(b) Second sequence: 3596 frames containing cases of camera retraction, fast
+camera motion, organ deformation, and prolonged occlusions. (a) Prolonged
+occlusion (first sequence). (b) Occlusion, retraction, and deformation (second
+sequence).
+
+In order to illustrate the strengths of our approach, we compared the performance of our proposed solution with respect to
+a RANSAC–DLT approach that estimates the projection matrix
+by means of DLT with RANSAC (i.e., without the weighting scheme and the SW approach), and also adopts the feature
+recovery-strategy of Fig. 5. The second approach (denoted as
+W-DLT–SW) estimates the projection matrix with the weighted
+DLT on a SW, and the feature-recovery strategy. The third approach (denoted as W-P3P–SW), assumes known camera intrinsic calibration parameters and rectified images, and incorporated
+the projection matrix estimation with the weighted P3P, together
+with a SW, as well as the feature-recovery strategy.
+For each sequence, a 3-D model of the diseased kidney was
+obtained by processing the preoperative CT-scans of the respective patient. ITK-Snap [37] was used to segment the kidney and
+the tumor and to generate a 3-D model for each sequence. Each
+model was then processed (e.g., simplified and smoothed) by
+means of MeshLab [38] in order to obtain the final 3-D models
+used in our experiments.
+The first testing sequence duration is about 19 s, mostly containing strong changes in illumination and partial occlusions
+and, thus, representing a good benchmark for a detailed performance analysis of our approach. The second testing sequence
+has larger duration (more than 2 min) and contains a wider
+range of challenging cases such as total occlusions, strong organ deformations, camera retraction and reinsertion, as well as
+zoom-ins and zoom-outs. This sequence is useful to support the
+observations from the first sequence, and to demonstrate the effectiveness of the proposed method over a long sequence with
+a wider range of challenging events.
+Note that our long and comprehensive sequences differ from
+other monocular videos used in state-of-the-art papers, which
+are only a few seconds long and with very limited or controlled
+events. To the best of our knowledge, this is the first work
+that presents such a comparison over challenging and realistic
+laparoscopic sequences. Because of the richer set of challenging
+scenarios contained in these videos, our data is more complete
+than when using in-lab phantom organ models.
+
+We assessed the performance of our system based on the following parameters during the entire length of each sequence:
+precision of overlay, robustness to noise, robustness to occlusion and precision of 3-D registration. The precision of overlay is
+measured as the average pixel reprojection error between the 2D component of the anchor points pairs and their corresponding
+t
+fe (uit , Xi , Pt ). A high rereprojected 3-D points, i.e., n1t Σni=1
+projection error indicates a disagreement between the estimated
+projection matrix and the measured tracked points, and thus a
+potential wrong augmentation. The number of anchor points in
+each frame was used as an indicator of the robustness to noise
+since, as expected, the display is more sensitive to noise when
+it has only a few anchor points. The robustness to occlusion is
+measured by maintaining a statistic over the number of skipped
+frames, as well as over the number of successfully recovered anchor points. The precision of 3-D registration is measured as the
+average distance between 3-D points of the model and the corresponding 3-D reconstructed from the endoscopic images, i.e.,
+nt
+1
+i
+i
+n t Σi=1 X̂t − X . The reconstructed 3-D points are obtained
+from the pin-hole camera model as, X̂it = λit K−1 ũt , where K
+is the camera intrinsic calibration parameters, and λit can be
+obtained from the third coordinate of Pt X̃i . In the uncalibrated
+case, an estimation K̂, calculated from Pt [29], is used instead
+of K. This error (in mm) provides a more intuitive interpretation
+of the accuracy of the estimated projection matrix.
+The parameters used by our algorithms are δ = 25, τ = γ =
+3.5, k = 4, β = [1, 0.75, 0.5, 0.25]T , an accuracy of 5 pixels for
+the RANSAC-based DLT, and the parameters of HMA were set
+as in [14] with minimal changes to improve efficiency. Based
+on the aforementioned performance indices, the following tests
+were used in the anchor-point recovery stage:
+1) The number of anchor-point pairs, nt , is less than 25%
+the number of initial anchor-point pairs, n0 .
+2) The average reprojection error fe (uit , Xi , Pt ) is larger
+than 4 pixels.
+3) The number of anchor points, nt is less than 80% of
+the number of previously successfully-recovered anchorpoint pairs, and fe (uit , Xi , Pt ) > 3.5 pixels.
+The first two conditions represent limit situations when we
+deem it is imperative to recover the anchor points due to the
+high risk of performing a wrong augmentation; the third condition detects potential cases when the overlay is incorrect due to
+accumulation of errors in the tracked anchor points. All these
+systems were implemented in MATLAB and processed offline
+on a computer with an i7 processor at 2.20 Ghz and 8 GB of
+RAM. In our MATLAB implementation, the time required to
+process a frame is in average 1.2 s (0.4 s for the projection estimation stage, 0.65 s for the display, and 0.25 s for the tracking),
+and 6.5 s for the recovery strategy. However, note that these
+systems are in their prototype stage and a final C/C++ implementation will be comprehensively optimized and parallelized
+to achieve significantly faster execution time.
+A. Experimental Results: First Sequence
+This sequence consists of 570 frames (approx. 19 s) with
+an image resolution of 704 × 480 pixels and 29.95 fps. The
+
+PUERTO-SOUZA et al.: TOWARD LONG-TERM AND ACCURATE AUGMENTED-REALITY FOR MONOCULAR ENDOSCOPIC VIDEOS
+
+2615
+
+Fig. 7. First sequence-initial alignment: Example of the manual alignment
+between the initial frame and the 3-D model foot he calibrated case. The resulting
+161 anchor points (yellow asterisks) are spread over the visible surface of the
+kidney and tumor. (a) Initial frame. (b) 3-D model. (c) Initial alignment.
+
+Fig. 9. AR results for the W-DLT–SW strategy: (First row) Selected frames
+from the AR endoscopic augmented sequence. (Second row) Number of tracked
+features during the sequence. (Third row) Average reprojection error of the
+tracked points during the sequence. (Fourth row) Average 3-D registration error
+of the tracked points during the sequence.
+
+Fig. 8. AR results for the RANSAC–DLT strategy: (First row) Selected frames
+from the AR endoscopic augmented sequence. (Second row) Number of tracked
+features during the sequence. (Third row) Average reprojection error of the
+tracked points during the sequence. (Fourth row) Average 3-D registration error
+of the tracked points during the sequence.
+
+sequence shows an exposed kidney containing a large tumor
+located on the top, as illustrated in the examples of Fig. 6(a).
+The beginning of the sequence (frames 1−220) mostly contains
+cases of strong changes in illumination and fast organ motion
+
+due to the patient’s breathing. The kidney is mostly occluded by
+an ultrasound probe during frames 221−392 and 415−570.
+Figs. 7(a) and (b) show the initial frame and the reconstructed
+3-D model from the CT images. Note that in the 3-D model, we
+colored in green the portions of the kidney corresponding to
+healthy tissue, while the tumor is colored in blue. Fig. 7(c)
+shows the initial alignment obtained from our GUI, containing
+188 initial anchor points (yellow asterisk) for the first two uncalibrated systems, and 161 initial anchor points for the calibrated
+case.
+Our qualitative results for the three methods, RANSAC–DLT,
+W-DLT–SW, and W-P3P–SW, are summarized on Figs. 8–10,
+respectively. In these figures, the first row shows the resulting overlay for some of the most crucial frames of the video
+sequence. In particular, we chose a frame before the first occlusion, during the first occlusion, after the first occlusion, and
+finally, during the final occlusion (frames 165, 336, 400, and
+
+2616
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 10, OCTOBER 2014
+
+Fig. 10. AR results for our W-P3P–SW system: (First row) Selected frames
+from the AR endoscopic augmented sequence. (Second row) Number of tracked
+features during the sequence. (Third row) Average reprojection error of the
+tracked points during the sequence. (Fourth row) Average 3-D registration error
+of the tracked points during the sequence.
+
+Fig. 11. Second sequence-initial alignment: Example of the manual alignment
+between the initial frame and the 3-D model, for the calibrated case. The resulting
+213 anchor points (yellow asterisks) are spread over the visible surface of the
+kidney and tumor. (a) Initial frame. (b) 3-D model. (c) Initial alignment.
+
+566, respectively). We use red arrows in these images to indicate the evident disparity between the projected 3-D model
+boundary and the organ boundary in the endoscopic video. The
+second row in Figs. 8–10 shows the number of tracked features
+during the sequence. Note that each peak in these plots repre-
+
+Fig. 12. AR results for the RANSAC–DLT strategy: (First row) Selected
+frames from the AR endoscopic augmented sequence. (Second row) Number of
+tracked features during the sequence. (Third row) Average reprojection error of
+the tracked points during the sequence. (Fourth row) Average 3-D registration
+error of the tracked points during the sequence.
+
+sents a successful anchor-point recovery, which results in an
+increment on the number of anchor point pairs.
+Similarly, the third row in Figs. 8–10 shows the plots of the
+average reprojection error of the tracked features, respectively.
+Note that the average reprojection error increases in time if no
+anchor-point recovery stage is used. Each dropdown in the plots
+represent a successful recovery of anchor points, thus resulting
+in a reduction of the reprojection error.
+The fourth row in Figs. 8–10 shows the plots of the average
+3-D registration error of the tracked features, respectively. Note
+that the average 3-D registration error also decreases when an
+anchor-point recovery phase is launched.
+B. Experimental Results: Second Sequence
+This sequence consists of 3596 frames (approx. 2 min) with
+an image resolution of 704 × 480 pixels and 29.95 fps. The
+sequence shows a partially exposed kidney with a clearly visible
+large tumor located on the top-left of the kidney, as illustrated
+
+PUERTO-SOUZA et al.: TOWARD LONG-TERM AND ACCURATE AUGMENTED-REALITY FOR MONOCULAR ENDOSCOPIC VIDEOS
+
+Fig. 13. AR results for the W-DLT–SW strategy: (First row) Selected frames
+from the AR endoscopic augmented sequence. (Second row) Number of tracked
+features during the sequence. (Third row) Average reprojection error of the
+tracked points during the sequence. (Fourth row) Average 3-D registration error
+of the tracked points during the sequence.
+
+in the examples of Fig. 6(b). This sequence is larger and more
+challenging than the first one, since it contains several cases of
+prolonged partial and total occlusions (frames 53−567, 1512−
+1740, and 2620−3596) due to the surgical instruments passing
+in front of the camera, retraction reinsertion of the endoscope
+(frames 567−645), strong changes of illumination (frames 645−
+1512), as well as, zooms and strong organ deformations (frames:
+53−567 and 1774−2214) due to the ultrasound probe pressing
+the organ. We subsampled this sequence in order to reduce the
+processing time by selecting every five frames when the scene
+was static, and every two otherwise, resulting in 1536 frames.
+Fig. 11(a) and (b) show the initial frame and the reconstructed
+3-D model from the CT images where green portion of the
+kidney corresponds to healthy tissue, and the blue regions corresponds to the tumor. Fig. 11(c) shows the initial alignment
+obtained from our GUI, containing 243 anchor points for the
+uncalibrated cases, and 213 anchor points (yellow asterisks) for
+the calibrated one.
+
+2617
+
+Fig. 14. AR results for our W-P3P–SW system: (First row) Selected frames
+from the AR endoscopic augmented sequence. (Second row) Number of tracked
+features during the sequence. (Third row) Average reprojection error of the
+tracked points during the sequence. (Fourth row) Average 3-D registration error
+of the tracked points during the sequence.
+
+Similarly to the first sequence, Figs. 13 and 14 summarize
+our qualitative results for all systems. The first row shows the
+resulting overlay for a frame after a first occlusion by the ultrasound probe, after a zoom-in, an occlusion with a surgical
+instrument, and finally, during the an organ deformation by the
+ultrasound probe pressing the organ (frames 925, 2100, 2668,
+and 3186, respectively).
+The second, third and fourth rows in Figs. 12–14 show the
+number of tracked features, the plot of the average reprojection error of the tracked features, and the 3-D registration error
+during the sequence, respectively. Note that all systems can successfully prevail along the multiple challenges of this sequence,
+eventually recovering even after total occlusion or strong organ
+deformations (frames 55 − 570 and 1700 − 1850).
+Table I shows the statistics collected throughout both sequences for all the evaluated systems. The second-third and
+tenth-eleventh columns contain the mean and standard deviation of the number of anchor points; the fourth-fifth and
+
+2618
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 10, OCTOBER 2014
+
+TABLE I
+STATISTICS OF THE PERFORMANCE FOR THE THREE METHODS IN BOTH EVALUATED SEQUENCES
+Method
+
+First Sequence
+Avg. Num.
+Feat.
+
+RANSAC-DLT
+W-DLT-SW
+W-P3P-SW
+
+Avg. Rep.
+Err. (pix)
+
+Second Sequence
+
+Avg. 3D.
+Error (mm)
+
+Rec.
+
+avg
+
+std
+
+avg
+
+std
+
+avg
+
+std
+
+177
+
+39.1
+41.7
+
+3.52
+3.25
+
+0.42
+0.38
+
+0.76
+0.72
+
+0.1
+0.1
+
+30
+8
+
+26.6
+
+3.23
+
+0.44
+
+0.76
+
+0.1
+
+32
+
+142.7
+140
+
+Drops.
+
+twelfth-thirteenth columns show the mean and standard deviation of the average reprojection error; and the sixth-seventh and
+fourteenth-fifteenth columns show the mean and standard deviation of the average 3-D registration error, respectively. Finally,
+the eight-ninth and the sixteenth-seventeenth columns contain
+the number of successful anchor-point recoveries (Num. Rec.)
+and unsuccessful ones (Drops) for each sequence.
+The resulting videos for all methods are available from:
+http://astra.uta.edu/research/surgical-vision/.
+IV. DISCUSSION AND CONCLUSIONS
+In this paper, we have presented our novel design and validation of a new AR system, which represents the first step
+toward long term and accurate augmented surgical display. Our
+study represents an improvement over the current state-of-theart AR systems since it integrates both a robust estimation of the
+projection matrix (cf., Section II-C), for both calibrated and uncalibrated camera cases, as well as a tracking recovery strategy
+(cf., Section II-F) which accurately retrieves those anchor points
+that were lost due to unexpected events (e.g., occlusions or deformations). A weighted SW projection-estimation strategy is
+adopted and is shown to improve accuracy. The effectiveness
+of our tracking-recovery strategy has been demonstrated on two
+long and challenging endoscopic sequences of two real partial
+nephrectomy endoscopic interventions. In both cases, the average registration error was always less than 1.5 mm.
+The results presented in Figs. 8–14 and Table I demonstrate
+the advantages of our approach, for both calibrated (W-P3P–
+SW) and uncalibrated (W-DLT–SW) cases, compared to the
+RANSAC–DLT strategy on both video sequences.
+From the results of the first sequence, we noticed the benefits of RANSAC and the anchor-point recovery stage, since
+the RANSAC–DLT strategy can maintain a good augmentation
+during the entire first sequence, even in cases of occlusion, as
+shown in Fig. 8(a). This happens because RANSAC removes
+potentially wrong anchor points, and the anchor-point recovery
+stage recovers those anchor points that were lost in previous
+frames. This is evident from the plots in Fig. 8(b) and (c) which
+show that the number of anchor points is always above the
+minimum threshold (50) and the average reprojection error is
+always below the maximum limit (4 pixels). However, because
+of the faster decay in the number of anchor points DLT requires
+the frequent adoption (30 times) of the anchor-point recovery,
+
+Avg. Num. Feat.
+
+Avg. Rep.
+Err. (pix)
+
+Avg. 3D.
+Error (mm)
+
+Rec.
+
+Drops
+
+avg
+
+std
+
+avg
+
+std
+
+avg
+
+std
+
+1
+0
+
+120.6
+216.9
+
+61.6
+48.8
+
+2.59
+3.39
+
+0.2
+0.35
+
+0.51
+0.71
+
+0.09
+0.12
+
+33
+60
+
+326
+326
+
+1
+
+188.9
+
+33.3
+
+3.40
+
+0.27
+
+0.82
+
+0.15
+
+57
+
+357
+
+mostly during the second occlusion (frames 450–500), as noticeable from the many peaks in Fig. 8(b). These peaks represent
+those time instants when the recovery takes place and the augmentation is successfully reinitialized. Moreover, the overlay is
+sometimes inaccurate, as shown in frames 336, 400, and 566,
+where the contour of the augmented model does not match with
+the current contour of the organ in the endoscopic image (red
+arrow/ellipse). This happens because the RANSAC-based DLT
+applied at each frame is not able to fully overcome the noise in
+the anchor points introduced by the tracker. Even if RANSAC
+rejects many outliers during each iteration, it only preserves
+few anchor points, thus making the estimation of the projection
+matrix more sensitive to noise. As a result, the augmentation is
+slightly unstable, which is evident on the augmented video.
+The performance of our proposed W-DLT–SW (uncalibrated
+case) is illustrated in the results of Fig. 9(a). Note that our algorithm maintains the overlay of the 3-D model very close to the
+organ real boundaries in the endoscopic video (yellow arrows).
+Furthermore, the decay in the number of tracked features during
+the sequence is smoother and the overlay is more stable during
+the whole sequence, indicating that the SW approach and the
+feature weight are indeed helpful. The SW helps in providing a
+more stable projection matrix estimation than DLT, even in the
+case of occlusions (frame 350 and 541). This improved stability of our method is demonstrated from the plots of the number of tracked features, the average reprojection error, and the
+3-D registration error in Fig. 9(b)–(d), respectively. In particular, observe that the decay in the number of features is slower
+than in the RANSAC–DLT approach. As a result, our method
+only requires a tracking recovery few times (8 compared with
+the 30 of the DLT strategy), mostly when the reprojection error
+of the anchor points passes the threshold of 4 pixels, e.g., during the second occlusion (frames 415–570). Also, note that the
+number of features never pass the minimum limit (50), the average reprojection error never goes above the maximum threshold
+(4 pixels), and the 3-D error is below 1 mm. Moreover, all plots
+are more smooth than in the other two approaches. Differently
+from RANSAC–DLT, the reprojection error for W-DLT–SW
+tends to increase over time, indicating a stronger temporal relationship between frames.
+The qualitative results for the calibrated case (W-P3P–SW)
+are presented in Fig. 10(a). Note that this version of our
+algorithm achieves the most accurate overlay in the augmented
+endoscopic video (yellow arrows). Similarly to the uncalibrated
+
+PUERTO-SOUZA et al.: TOWARD LONG-TERM AND ACCURATE AUGMENTED-REALITY FOR MONOCULAR ENDOSCOPIC VIDEOS
+
+case, the decay in the number of tracked features during the
+sequence is slow and the augmentation is more stable than in
+RANSAC–DLT. However, the number of recoveries is large
+(32), the majority happening during the occlusions (frames 221–
+392 and 415–570). This suggests that the P3P-based projection
+matrix estimation is more sensitive to noise, due to occlusions,
+than its DLT-based counterpart. However, to make a fair comparison, note that W-P3P–SW had two subtle differences with
+respect to the other two approaches. First, the input images were
+rectified, thus requiring an initial alignment with different number of anchor points. Second, the 3-D registration error measure
+computed by W-P3P–SW is the most precise, since it uses the
+ground-truth camera intrinsic calibration parameters, K, instead
+of an estimated one. Having these points in mind, it is evident
+the impressive performance of W-P3P–SW, because of its high
+number of anchor points (always above the minimum of 50),
+as well as comparable reprojection and 3-D registration errors
+which were maintained below 4 pixels and 1 mm., respectively
+[c.f., Fig. 10(b)–(d)].
+The results from the second sequence support the observations made from the first sequence. Fig. 12 shows that
+RANSAC–DLT can maintain the augmentation during the majority of the second sequence because of the recovery-strategy.
+However, the anchor points quickly deteriorate after few frames,
+resulting in incorrect overlays, as shown in the examples in
+Fig. 12(a). In particular, note the high instability of the overlay
+after losing anchor points in key regions, indicated by (red)
+ellipses. This observation is also evident from the plots in
+Fig. 12(b) that shows the steep peaks in the number of features,
+which usually decay rapidly.
+In the case of W-DLT–SW, the results illustrated in Fig. 13(a)
+show a more precise overlay of the 3-D model to the organ
+real boundary in the endoscopic video (yellow arrows). Note
+in Fig. 13(b) that the number of tracked features during the sequence is larger and decay slower than in RANSAC–DLT. Note
+that the peaks in the reprojection and 3-D registration errors
+in Fig. 13(c)–(d) represent cases when the augmentation went
+wrong due to a unexpected event, e.g., occlusion of an instrument or fast zoom-in. Also, observe that despite of the increase
+number of recoveries (60) and same number of dropped frames
+(326 of 1536, approx 21.2%), the final augmented video is significantly more stable and with less jitter than the RANSAC–
+DLT strategy.
+The plots in Fig. 14(a) show the high accuracy of W-P3P–SW.
+Furthermore, the plot in Fig. 14(b) shows the high number of
+tracked features with a slow decay. The plots in Fig. 14(c) and
+(d) show larger reprojection error and 3-D registration errors,
+always below 4 pixels and 1.5 mm, respectively. Observe from
+Table I that the number of recoveries (57) is comparable with
+the uncalibrated case, but the dropped frames is slightly larger
+(378 out of 1536, approx. 23.2%). However, it is important to
+consider that in several of these dropped frames the organ was
+drastically deformed (e.g., by an ultrasound probe) explaining
+the incapability of P3P to estimate the camera rotation and translation components. The final augmented video is very accurate,
+and similarly to the uncalibrated case, is significantly more stable and with less jitter than the RANSAC–DLT strategy. All of
+
+2619
+
+these observations, for both experiments, are summarized on the
+statistics presented in Table I.
+The endoscopic vision community is in need of an accurate
+comparison of the state-of-the-art augmented reality systems.
+As such, our future work will focus on creating a publicly available and annotated dataset of endoscopic videos and CT scans.
+Also, we will focus on evaluating the robustness of the system
+after changes in the organ’s topology (e.g., after the excision of
+the tumor). Another topic of future investigation is the adoption
+of deformable registration techniques jointly with biomechanical models of the organ, in order to more effectively combine
+preoperative and intraoperative images. Prior work was recently
+done by [39] to show the increased accuracy when compared
+to extended Kalman filter (EKF)–SLAM registration, but further work is needed to expand this preliminary work to other
+domains other than cardiac surgery.
+
+REFERENCES
+[1] O. Ukimura and I. S. Gill, “Image-fusion, augmented reality, and predictive surgical navigation,” Urologic Clin. North Amer., vol. 36, no. 2,
+pp. 115–123, 2009.
+[2] P. Lamata, W. Ali, A. Cano, J. Cornella, J. and Declerck, O. J. Elle,
+A. Freudenthal, H. Furtado, D. Kalkofen, E. Naerum et al., “Augmented
+reality for minimally invasive surgery: overview and some recent advances,” Augmented Reality, ISBN, pp. 978–953, 2010.
+[3] D. Cohen, E. Mayer, D. Chen, A. Anstee, J. Vale, G. Z. Yang, A. Darzi,
+and P. Edwards, “Augmented reality image guidance in minimally invasive prostatectomy,” Prostate Cancer Imag. Comput.-Aided Diagnosis,
+Prognosis, Intervent., 2010, pp. 101–110.
+[4] T. Simpfendorfer, M. Baumhauer, M. Muller, C. N. Gutt, H. P. Meinzer,
+J. J. Rassweiler, S. Guven, and D. Teber, “Augmented reality visualization
+during laparoscopic radical prostatectomy,” J. Endourol., vol. 25, no. 12,
+pp. 1841–1845, 2011.
+[5] L. M. Su, B. P. Vagvolgyi, R. Agarwal, C. E. Reiley, R. H. Taylor, and
+G. D. Hager, “Augmented reality during robot-assisted laparoscopic partial
+nephrectomy: Toward real-time 3d-ct to stereoscopic video registration,”
+Urology, vol. 73, no. 4, pp. 896–900, 2009.
+[6] B. Vagvolgyi, L.-M. Su, R. Taylor, and G. D. Hager, “Video to ct registration for image overlay on solid organs,” in Proc. 4th Workshop Augment.
+Envir. Med. Imag. Comput.-Aided Surg., 2008, pp. 78–86.
+[7] E. H. William, P. H. James, L. Kongkuo, A. M. Scott, R. Lav, and Y. KunChang, “3d ct-video fusion for image-guided bronchoscopy,” Computer.
+Med. Imag. Graph., vol. 32, no. 3, pp. 159–173, 2008.
+[8] R. Richa, A. P. L. Bo, and P. Poignet, “Towards robust 3d visual tracking
+for motion compensation in beating heart surgery,” Med. Image Anal.,
+vol. 15, no. 3, pp. 302–315, 2010.
+[9] D. Stoyanov, G. Mylonas, F. Deligianni, A. Darzi, and G.-Z. Yang, “Softtissue motion tracking and structure estimation for robotic assisted mis
+procedures,” in Proc. Med. Image Comput. Comput.-Assist. Intervent.,
+2005, pp. 139–146.
+[10] P. Mountney and G. Z. Yang, “Motion compensated slam for image guided
+surgery,” in Proc. Med. Image Comput. Comput.-Assist. Intervent., 2010,
+pp. 496–504.
+[11] S. Giannarou, M. Visentini-Scarzanella, and G. Yang, “Probabilistic tracking of affine-invariant anisotropic regions,” IEEE Trans. Pattern Anal.
+Mach. Intell., vol. 35, no. 1, pp. 130–143, Jan. 2013.
+[12] M. Yip, D. Lowe, S. Salcudean, R. Rohling, and C. Nguan, “Real-time
+methods for long-term tissue feature tracking in endoscopic scenes,” in
+Proc. Third Int. Conf. Inf. Process. Comput.-Assist. Intervent., 2012, pp.
+33–43.
+[13] G. A. Puerto-Souza and G. L. Mariottini, “Hierarchical multi-affine
+(HMA) algorithm for fast and accurate feature matching in minimallyinvasive surgical images,” in Proc. IEEE/RSJ Int. Conf. Intell. Robots
+Syst., 2012, pp. 2007–2012.
+[14] G. A. Puerto-Souza and G. L. Mariottini, “A fast and accurate featurematching algorithm for minimally-invasive endoscopic images,” IEEE
+Trans. Med. Imag., vol. 32, no. 7, pp. 1201–1214, Jul. 2013.
+
+2620
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 10, OCTOBER 2014
+
+[15] P. Pratt, A. Marco, C. Payne, A. Darzi, and G.-Z. Yang, “Intraoperative
+ultrasound guidance for transanal endoscopic microsurgery,” in Proc. Med.
+Image Comput. Comput.-Assist. Intervent., 2012, vol. 7510, pp. 463–470.
+[16] D. Teber, S. Guven, T. Simpfendörfer, M. Baumhauer, E. O. Güven,
+F. Yencilek, A. S. Gözen, and J. Rassweiler, “Augmented reality: A new
+tool to improve surgical accuracy during laparoscopic partial nephrectomy? Preliminary in vitro and in vivo results,” Eur. Urol., vol. 56, no. 2,
+pp. 332–338, 2009.
+[17] H. Kato, “ARToolKit: Library for vision-based augmented reality,” Tech.
+Rep., PRMU, Inst. Electron. Inf. Commun. Eng., vol. 101, no. 652, pp. 79–
+86, Feb. 2002.
+[18] R. Munoz-Salinas, “ArUco: A minimal library for vision based augmented
+reality applications based on openCV,” (Jun. 6, 2014). [Online]. Available:
+http://www.uco.es/investiga/grupos/ava/node/26
+[19] G. Bleser, H. Wuest, and D. Strieker, “Online camera pose estimation
+in partially known and dynamic scenes,” in Proc. IEEE/ACM Int. Symp.
+Mixed Augment. Reality, 2006, pp. 56–65.
+[20] G. Klein and D. Murray, “Parallel tracking and mapping for small ar
+workspaces,” in Proc. 6th IEEE ACM Int. Symp. Mixed Augment. Reality,
+2007, pp. 225–234.
+[21] T. Collins, D. Pizarro, A. Bartoli, M. Canis, and N. Bourdel, “Realtime
+wide-baseline registration of the uterus in laparoscopic videos using multiple texture maps,” in Proc. Augment. Reality Environments Med. Imag.
+Comput.-Assist. Intervent., 2013, pp. 162–171.
+[22] J. Park, S. You, and U. Neumann, “Natural feature tracking for extendible
+robust augmented realities,” in Proc. Int. Workshop Augment. Reality,
+1998, pp. 209–217.
+[23] H. Meinzer, M. Fangerau, M. Schmidt, T. R. dos Santos, A. M. Franz,
+L. Maier-Hein, and J. M. Fitzpatrick, “Convergent iterative closest-point
+algorithm to accommodate anisotropic and inhomogenous localization
+error,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 34, no. 8, pp. 1520–
+1532, Aug. 2012.
+[24] P. J. Besl and N. D. McKay, “A method for registration of 3-D shapes,”
+IEEE Trans. Pattern Anal. Mach. Intell., vol. 14, no. 2, pp. 239–256, 1992.
+[25] D. Mirota, M. Ishii, and G. Hager, “Vision-based navigation in imageguided interventions,” Annu. Rev. Biomed. Eng., vol. 13, pp. 297–319,
+2011.
+[26] D. Stoyanov, “Surgical vision,” Ann. Biomed. Eng., vol. 40, no. 2, pp. 332–
+345, 2012.
+[27] G. A. Puerto-Souza, A. Castano-Bardawil, and G. L. Mariottini. (2012).
+“Real-time feature matching for the accurate recovery of augmentedreality display in laparoscopic videos,” in Augmented Environments for
+Computer-Assisted Interventions, (ser. Lecture Notes in Computer Science), vol. 7815, Berlin: Springer-Verlag, pp. 153–166. [Online]. Available: http://dx.doi.org/10.1007/978-3-642-38085-3_15
+[28] G. A. Puerto-Souza and G. L. Mariottini, “An augmented-reality system
+for laparoscopic surgery robust to complete occlusions and fast camera
+motions,” in Proc. IEEE Int. Conf. Robot. Automat, 2013, pp. 934–943.
+[29] R. Hartley and A. Zisserman, Multiple View Geometry in Computer Vision
+Cambridge, U.K.: Cambridge Univ. Press, 2000.
+[30] J. Shi and C. Tomasi, “Good features to track,” in Proc. IEEE Int. Conf.
+Comp. Vis. Patt. Rec., Jun. 1994, pp. 593–600.
+[31] V. Lepetit, F. Moreno-Noguer, and P. Fua, “Epnp: An accurate o (n)
+solution to the pnp problem,” Int. J. Comput. Vis., vol. 81, no. 2,
+pp. 155–166, 2009.
+[32] K. Arun, T. Huang, and S. Blostein, “Least-squares fitting of two 3-d point
+sets,” Pattern. Anal. Mach. Intell., vol. 9, no. 5, pp. 698–700, 1987.
+[33] M. A. Fischler and R. C. Bolles, “Random sample consensus: a paradigm
+for model fitting with applications to image analysis and automated cartography,” Commun. ACM, vol. 24, pp. 381–395, Jun. 1981.
+[34] D. MacKay, Information Theory, Inference and Learning Algorithms.
+Cambridge, U.K.: Cambridge Univ. Press, 2003.
+[35] J. Hailin, P. Favaro, and S. Soatto, “Real-time feature tracking and outlier
+rejection with changes in illumination,” in Proc. IEEE Int. Conf. Comput.
+Vis., 2001, vol. 1, pp. 684–689.
+[36] D. G. Lowe, “Distinctive image features from scale-invariant keypoints,”
+Int. J. Comp. Vis., vol. 60, no. 2, pp. 91–110, 2004.
+[37] P. A. Yushkevich, J. Piven, H. C. Hazlett, R. G. Smith, S. Ho, J. C. Gee,
+and G. Gerig, “User-guided 3D active contour segmentation of anatomical
+structures: Significantly improved efficiency and reliability,” Neuroimage,
+vol. 31, no. 3, pp. 1116–1128, 2006.
+[38] P. Cignoni, M. Corsini, and G. Ranzuglia, “Meshlab: An open-source
+3d mesh processing system,” ERCIM News, vol. 1, no. 73, pp. 45–46,
+Apr. 2008.
+
+[39] P. Pratt, D. Stoyanov, M. Visentini-Scarzanella, and G. Z. Yang, “Dynamic guidance for robotic surgery using image- constrained biomechanical models,” in Proc. 13th Int. Conf. Med. Image Comput. Comput.-Assist.
+Intervent., 2010, pp. 77–85.
+
+Gustavo A. Puerto-Souza (S’11) received the B.S.
+degree in mathematics from the University of Yucatán, Mérida, México, in 2006, and the M.S. degree
+in computer science from the Center for Research
+in Mathematics, Guanajuato, México, in 2010. Since
+2010, he has been working toward the Ph.D. degree
+in computer science and engineering at University of
+Texas at Arlington, Arlington, TX, USA.
+He is a Member of the Active Sensing Technologies for Robotics and Automation (ASTRA) Laboratory, and research interests include surgical vision,
+localization, and augmented reality for endoscopic scenarios.
+Mr. Puerto-Souza received the Best Paper Award from the 6th Pacific-Rim
+Symposium on Image and Video Technology.
+
+Jeffrey A. Cadeddu received the B.S. degree in
+biomedical engineering from Johns Hopkins University, Baltimore, MD, USA, in 19889, and the Ph.D.
+degree in medicine from Johns Hopkins University
+School of Medicine, in 1993, where he also completed his urology and surgery residencies.
+He then joined The University of Texas Southwestern Medical Center, Dallas, TX, USA, in 1999,
+where he currently holds the dual appointments of
+Professor of Urology and Professor of Radiology. In
+addition, he holds the Ralph C. Smith, M.D. Distinguished Chair in Minimally Invasive Urologic Surgery and serves as the Director
+of the Clinical Center for Minimally Invasive Urologic Cancer Treatment. His
+affiliations include membership in the American Urological Association, the
+Endourological Society, the Society for Urologic Oncology, Texas Urological
+Society, and the Engineering and Urology Society. He currently serves as Associate or Assistant Editor on behalf of the Journal of Endourology, World Journal
+of Urology, and the International Brazilian Journal of Urology, and serves as a
+Survey Section Editor for the Journal of Urology. His publications include over
+200 peer-reviewed articles; over 75 invited articles and book chapters; numerous
+editorial comments, book reviews, and original videos.
+Dr. Cadeddu is the recipient of the American Urological Associations 2007
+Gold Cystoscope Award. In April 2013, he was elected to active membership in
+the American Association of Genitourinary Surgeons.
+
+Gian-Luca Mariottini (S’04–M’06) received the
+M.S. degree in computer engineering and the Ph.D.
+degree in robotics and automation from the University
+of Siena, Siena, Italy, in 2002 and 2006, respectively.
+In 2005 and 2007, he was a Visiting Scholar at
+the GRASP Lab (CIS Department, UPENN, USA)
+and he held postdoctoral positions at the University
+of Siena from 2006 to 2007, the Georgia Institute of
+Technology from 2007 to 2008, Atlanta, GA, USA,
+and the University of Minnesota from 2008 to 2010,
+Minneapolis, MN, USA. Since September 2010, he
+has been an Assistant Professor at the Department of Computer Science and Engineering at The University of Texas at Arlington, Arlington, TX, USA, where
+he founded the ASTRA Robotics Lab. His research interests include robotics
+and computer vision, with a particular focus on endoscopic vision, augmentedreality systems for minimally-invasive surgery, as well as single- and multirobot
+localization and navigation.
+Dr. Mariottini received the Best Paper Award from the 6th Pacific-Rim Symposium on Image and Video Technology.
+
+

@@ -1,0 +1,1069 @@
+2112
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+Learning From Data: Recognizing Glaucomatous
+Defect Patterns and Detecting Progression From
+Visual Field Measurements
+Siamak Yousefi, Member, IEEE, Michael H. Goldbaum, Madhusudhanan Balasubramanian, Felipe A. Medeiros,
+Linda M. Zangwill, Jeffrey M. Liebmann, Christopher A. Girkin, Robert N. Weinreb, and Christopher Bowd∗
+
+Abstract—A hierarchical approach to learn from visual field
+data was adopted to identify glaucomatous visual field defect patterns and to detect glaucomatous progression. The analysis pipeline
+included three stages, namely, clustering, glaucoma boundary limit
+detection, and glaucoma progression detection testing. First, crosssectional visual field tests collected from each subject were clustered using a mixture of Gaussians and model parameters were
+estimated using expectation maximization. The visual field clusters were further estimated to recognize glaucomatous visual field
+defect patterns by decomposing each cluster into several axes. The
+glaucoma visual field defect patterns along each axis then were
+identified. To derive a definition of progression, the longitudinal
+visual fields of stable glaucoma eyes on the abnormal cluster axes
+were projected and the slope was approximated using linear regression (LR) to determine the confidence limit of each axis. For
+glaucoma progression detection, the longitudinal visual fields of
+each eye on the abnormal cluster axes were projected and the slope
+was approximated by LR. Progression was assigned if the progression rate was greater than the boundary limit of the stable eyes;
+otherwise, stability was assumed. The proposed method was compared to a recently developed progression detection method and to
+clinically available glaucoma progression detection software. The
+clinical accuracy of the proposed pipeline was as good as or better
+than the currently available methods.
+
+Manuscript received January 24, 2014; revised March 21, 2014; accepted
+March 22, 2014. Date of publication April 1, 2014; date of current version June
+14, 2014. This work was supported by NIH R01EY022039, NIH R00EY020518,
+NIHR01EY008208, NIH R01EY011008, NIH R01EY019869, P30EY022589,
+an unrestricted grant from Research to Prevent Blindness (New York, NY, USA),
+Eyesight Foundation of Alabama, Corinne Graber Research Fund of the New
+York Glaucoma Research Institute, David and Marilyn Dunn Fund, and participant incentive grants in the form of glaucoma medication at no cost from Alcon
+Laboratories, Allergan, and Pfizer. Asterisk indicates corresponding author.
+S. Yousefi, M. H. Goldbaum, F. A. Medeiros, L. M. Zangwill, and R. N.
+Weinreb are with the Hamilton Glaucoma Center and the Department of Ophthalmology, University of California San Diego, CA 92093 USA (e-mail:
+syousefi@ucsd.edu; mgoldbaum@ucsd.edu; fmedeiros@ucsd.edu; lzangwill@
+ucsd.edu; rweinreb@ucsd.edu).
+M. Balasubramanian is with the Hamilton Glaucoma Center and the Department of Ophthalmology, University of California San Diego, CA 92093 USA,
+and also with the Department of Electrical and Computer Engineering and the
+Department of Biomedical Engineering, University of Memphis, Memphis, TN
+38111 USA (e-mail: madhu@glaucoma.ucsd.edu).
+J. M. Liebmann is with the Department of Ophthalmology, New York University, New York, NY 10012, USA (e-mail: jml18@earthlink.net).
+C. A. Girkin is with the Department of Ophthalmology, University of
+Alabama, Birmingham, AL 35487 USA (e-mail: cgirkin@uab.edu).
+∗ C. Bowd is with the Hamilton Glaucoma Center and the Department of
+Ophthalmology, University of California San Diego, CA 92093 USA (e-mail:
+cbowd@ucsd.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2314714
+
+Index Terms—Data analysis, glaucoma, machine learning, progression detection, visual field.
+
+I. INTRODUCTION
+ACHINE learning techniques have been widely used
+in biomedical applications [1]–[14]. Recent advances
+in data analysis and a significant growth in available database
+size have promoted classification methods that are capable of
+identifying previously hidden clusters and patterns in available datasets. In particular, unsupervised machine learning techniques can mathematically describe patterns in data without the
+use of prior class knowledge or heuristics [15]–[17]. Revealing these patterns can serve as a fundamental step toward more
+specific mining and learning tasks [18]. Such learning tasks
+recently have been applied to the detection and monitoring of
+glaucoma [9], [19]–[21].
+Glaucoma is an optic neuropathy that is the second leading
+cause of blindness in the world [22]–[24]. Glaucoma management is dependent on identifying disease-related functional or
+structural defects and monitoring their progression over time.
+Recognition of glaucoma-related visual field defects (i.e., functional defects) is an aspect on which clinicians have relied since
+the mid-1800s [25]–[28]. For over a century, glaucoma specialists have accumulated knowledge to describe patterns of
+glaucoma-related visual field defects [29], [30]. Increased acceptance of Standard Automated Perimetry (SAP) testing about
+25 years ago standardized visual field testing for glaucoma.
+Current SAP software includes a statistical analysis package
+and provides the clinician with information about visual function in the form of measurements of retinal sensitivity to light at
+52 different test points (for 24-2 stimuli) across the central 24◦
+of the visual field [25], [31]. Individual patient results also are
+compared to a normative database that provides the clinician an
+age-adjusted probability of abnormality for each test point.
+A number of commercially available progression detection algorithms are included in the SAP software, such as progression
+by visual field index (VFI) [32] and guided progression analysis (GPA) [33]. These are statistical methods that use linear
+classification methods to represent the rate and magnitude of
+change (for VFI) or use variance analysis to identify change
+outside normal limits (for GPA), to classify eyes as progressing
+or stable. Recent advances in unsupervised classification techniques provide an alternative approach for glaucoma-related
+
+M
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+YOUSEFI et al.: LEARNING FROM DATA: RECOGNIZING GLAUCOMATOUS DEFECT PATTERNS AND DETECTING PROGRESSION
+
+progression detection from SAP. For instance, machine learning and data mining techniques have been used to recognize
+glaucoma-related SAP visual field defect patterns and detect
+progression of glaucoma-related visual field defects [9], [19],
+[20], [34].
+In the current study, we describe the performance of a
+Gaussian mixture model [35], [36] and expectation maximization (GEM) methods for 1) clustering eyes as glaucomatous
+or healthy and 2) discriminating between eyes with known
+glaucomatous progression and stable eyes. We compare the
+progression-detection performance of GEM to that of several
+other algorithms, including SAP software-based commercially
+available techniques (e.g., VFI and GPA). Results also are
+compared to those from a previously described unsupervised
+learning-based progression detection algorithm, progression of
+patterns (POP), which is based on change over time of patterns
+revealed using the variational Bayesian independent component analysis mixture model (VIM) [34], [37], [38]. We hypothesize that change in GEM-defined patterns of defect would
+perform as well as or better at detecting known glaucomatous
+change than other techniques. If our hypothesis is confirmed,
+change in GEM-defined patterns might be a better candidate for
+glaucoma progression detection from SAP data than change in
+VIM-defined patterns, because computational requirements to
+identify patterns are significantly less using GEM than VIM, and
+tracking change in VIM-defined patterns (i.e., POP) already has
+been shown to outperform some commercially available progression algorithms [19].
+
+II. METHODS
+In this section, we first describe the instruments used to collect
+data, data acquisition, and the assessment of study participants.
+We then explain the mathematical derivations for modeling the
+data using GEM. We elaborate on the framework and implementation of the glaucoma progression-detection pipeline and the
+performance metrics employed. Next, we describe the clustering, boundary limit detection, and progression-detection testing
+steps. Finally, we report and discuss our results.
+
+A. Instruments
+Color photograph pairs were simultaneously obtained
+through maximally dilated pupils using a stereoscopic camera (Kowa nonmyd WX3D , software version VK27E, Kowa
+Optimed Europe Ltd.). SAP-measured visual field sensitivity
+was tested at 52 points [54 points, with 2 blind-spot points
+excluded; see Fig. 1(b)] using the 24-2 SITA test strategy
+(Humphrey Field Analyzer II, Carl Zeiss Meditec Inc., Dublin,
+CA, USA). Fig. 1 (left) shows the optic disk region and peripapillary retina of a glaucomatous eye. Fig. 1 (right) displays the
+24-2 SAP visual field measurements as absolute sensitivities in
+decibels at the available 52 test points that are uniquely specified
+by their angular location from fixation in the superior, inferior,
+nasal, or temporal zones.
+
+2113
+
+Fig. 1. (Left) sample optic disk photograph image, (right) absolute sensitivities
+(in dB) of SAP visual points tested using the 24-2 system.
+
+B. Data Acquisition and Assessment
+All participant eyes were recruited from the University of
+California San Diego (UCSD)-based Diagnostic Innovations in
+Glaucoma Study (DIGS) and the African Descent and Glaucoma Evaluation Study (ADAGES) [39]. ADAGES is a multicenter study that includes UCSD, University of Alabama at
+Birmingham, and New York Eye and Ear Infirmary. Both studies follow the tenets of the Declaration of Helsinki, Health Insurance Portability and Accountability Act guidelines and the
+study site Human Research Protection Programs have approved
+all methodology. Written informed consent was obtained from
+all study participants.
+Each study participant underwent a comprehensive ophthalmic evaluation, including review of medical history, best
+corrected visual acuity, slit-lamp biomicroscopy, intraocular
+pressure measurement with Goldmann applanation tonometry,
+gonioscopy, dilated slit-lamp fundus examination, simultaneous
+stereoscopic optic disk photography, and SAP visual field exam
+at each visit.
+The current overall goals are to cluster glaucomatous visual
+fields into recognizable defect patterns, to establish a method
+of data representation, and to detect glaucomatous progression.
+Here, we explain how we created the reference standards for
+the clustering assessment and progression-detection steps. To
+create a gold standard for clustering assessment, all eyes were
+classified as abnormal (glaucomatous) or healthy based on the
+SAP software-provided glaucoma hemifield test (GHT) and pattern standard deviation (PSD). Eyes were considered abnormal
+if the instrument software defined GHT was outside of normal
+limits or if PSD ≤ 5% of normal, on two consecutive tests [40].
+Healthy eyes had both GHT and PSD within normal limits. 939
+eyes from 677 subjects were classified as abnormal and 1 146
+eyes from 721 subjects were classified as healthy.
+To create a reference standard for progression assessment,
+all eyes were classified as progressed or stable by evaluation of
+images of the optic disk. Optic disk images were chosen because
+they differed from the visual measurements being analyzed for
+progression. Hence, glaucomatous progression was based on
+structural evidence so as not to bias the detection of SAP-related
+visual field progression. Eyes showed progression or stability
+based on serial analysis of optic disk stereoscopic photographs.
+The baseline and each follow-up photograph were assessed for
+progressive glaucomatous optic neuropathy (PGON) by two
+expert-trained observers viewing digitized image pair on a 21-in
+or larger computer monitor. PGON was defined as a decrease
+
+2114
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+TABLE I
+DEMOGRAPHIC INFORMATION OF SUBJECTS USED FOR CLUSTERING
+
+TABLE II
+DEMOGRAPHIC INFORMATION OF SUBJECTS AND FOLLOW-UP VISITS USED FOR PROGRESSION DETECTION
+
+in the neuroretinal rim width, or the appearance of a new or
+enlarged retinal nerve fiber layer defect in paired stereoscopic
+images. Observers were masked to the patient identification and
+diagnosis. A third observer adjudicated any disagreement in
+assessment between the first two observers [41]. 76 eyes from
+70 subjects were identified as progressed by PGON (24 eyes
+also were labeled “likely progression” by SAP GPA). A total
+of 414 SAP visual field measurements were collected from this
+group. The mean number of follow-up visits was 5.5, and the
+mean follow-up time was 3 years.
+Stable eyes were tested using SAP over a short period of time
+with the assumption that any change in measurements was due
+to variability in function of diseased ganglion cells or in attentiveness of the patient and not due to disease-related progression
+(this is because disease-related progression in adequately treated
+glaucoma eyes generally occurs over years, not weeks).
+Stable glaucoma was simulated in a set of 91 eyes from 48
+subjects that had been identified as glaucomatous at baseline
+with repeatable SAP defects, as defined earlier. Stable eyes were
+tested once a week, providing an average of 4.5 consecutive
+tests for each eye over an average of 4.3 weeks. A total of 428
+SAP visual field measurements were collected from eyes in this
+group.
+Table I shows the demographic information of the subjects in
+the abnormal and healthy visual field groups. Table II shows the
+demographic information of the subjects in the progressed and
+stable groups. The mean deviation (MD) and PSD of each group,
+global indices that indicate the deviation of a visual field from
+a mean of normal visual field, also are listed in both Tables.
+C. Data Modeling Using Gaussian Mixture
+Model-Expectation Maximization
+Assume we have n samples of data and that each sample
+has d dimensions. The goal is to model the given data with a
+
+c-component Gaussian mixture model. Let Y = [Y1 , . . . , Yd ]T
+represent the d-dimensional Gaussian random variable and let
+y = [y1 , . . . , yd ]T represent a particular outcome of Y . Then,
+the probability distribution function of a c-component finite
+Gaussian mixture model can be written as [35], [36]
+p (y|θ) =
+
+c
+
+
+αm p (y|θm )
+
+(1)
+
+m =1
+
+where α1 , . . . , αc are weights of each mixing distribution, and
+each θm is the set of parameters defining the mth mixing distribution component. Therefore, the complete set of model parameters can be written as {θ1 , . . . , θc , α1 , . . . , αc }.
+Assume the data samples, Y = y (1) , . . . , y (n ) are independent and identically distributed. Then, we can write the loglikelihood of the c-component Gaussian mixture model as
+log p (Y|θ) = log
+
+n
+n
+c
+
+
+ 
+
+
+
+p y (i) |θm =
+log
+αm p y (i) |θm
+i=1
+
+i=1
+
+m =1
+
+(2)
+with constraints on the weighting coefficients as αm ≥ 0, m =
+c
+
+1, . . . , c and
+αm = 1.
+m =1
+
+The main approaches below can be followed to find the parameters of this model. The maximum likelihood (ML) estimate
+can be written as
+θ̂ M L = arg max log p (Y|θ)
+
+(3)
+
+The maximum a Posteriori (MAP) criterion can be written as
+θ̂ M AP = arg max {log p (Y|θ) + log p (θ)}
+
+(4)
+
+where p (θ) is the prior on the parameters.
+It is well known that neither ML nor MAP estimates can
+be found analytically. The expectation maximization (EM) is
+the proper choice for computing the parameters in ML or MAP.
+
+YOUSEFI et al.: LEARNING FROM DATA: RECOGNIZING GLAUCOMATOUS DEFECT PATTERNS AND DETECTING PROGRESSION
+
+2115
+
+and within normal limits (i.e., healthy) SAP visual fields (refer
+to Table I) for the clustering stage, a dataset of stable glaucoma
+visual fields (refer to Table II, column 2) for the boundary limit
+detection stage, and we used a dataset containing time sequences
+of SAP visual fields of PGON eyes (i.e., those designated as progressing by optic disc assessment) in the progression-detection
+testing stage (refer to Table II, column 3). We will explain each
+stage in more detail in the subsequent sections.
+A. Implementation and Performance Metrics
+
+Fig. 2.
+
+Glaucoma progression detection pipeline.
+
+Using EM in an iterative procedure, thelocal maximumof ML or
+MAP can be found. Assume that Z = z (1) , . . . , z (n ) indicate
+which Gaussian mixture component produced each
+
+
+	 data sample.
+(i)
+(i)
+Therefore, each label is a binary vector z(i) = z1 , . . . , zc ,
+(i)
+
+(i)
+
+where zm = 1 and zq = 0 for q = m, means that the sample
+y (i) was generated by the mth Gaussian mixture component.
+Adding membership data to the model, we can write
+log p (Y, Z|θ) =
+
+n 
+c
+
+
+(i)
+zm
+log[αm p(y (i) |θm )].
+
+(5)
+
+i=1 m =1
+
+Then, the Expectation step can be written as [42]
+
+
+Q θ, θ̂ (t) ≡ E[ log p (Y, Z|θ) |Y, θ̂ (t)] = logp (Y, W|θ)
+(6)
+where W = E[Z|Y, θ̂ (t)] and {t = 0, 1, 2, . . .} represents a
+time sequence.
+Because the elements of Z are binary, we can write
+(
+(i)
+(i)
+wm
+i) ≡ E[zm
+|Y, θ̂(t)] = Pr[zm
+= 1|Y(i) , θ̂(t)]
+
+α̂m (t)p(y |θ̂m (t))
+.
+= c
+(i)
+j =1 α̂j (t)p(y |θ̂j (t))
+
+The GEM data modeling introduced in the previous section essentially combined multivariate Gaussian components
+to model the visual field data points. Number of samples, n,
+was 2 085 and the number of dimensions, d, was 53 (52 SAP
+absolute sensitivity values and age). Clusters were assigned by
+selecting the component that maximized the MAP based on the
+EM-estimated parameters. Principal component analysis (PCA)
+was utilized to decompose each cluster into several axes. To
+identify a globally optimal GEM model that represents glaucoma category and visual field defect patterns, we generated
+several GEM models and selected a model that provided the
+best sensitivity at near 95% specificity. We chose the number
+of clusters in our GEM models, c, as three to reflect the three
+broad categories of visual field namely, normal, early, and advanced glaucoma. All stages of the model were implemented
+in MATLAB (Mathworks, Natick, MA, USA). The following
+performance metrics were utilized to assess the accuracy of the
+clustering stage.
+1) True Positives (TP), which are positive instances correctly
+classified as positive, 2) False Positives (FP), which are negative
+instances incorrectly classified as positive, 3) True Negatives
+(TN), which are negative instances correctly classified as negatives, and 4) False Negatives (FN), which are positive instances
+incorrectly classified as negatives.
+Specificity is defined as the proportion of all those without
+disease correctly identified as negative.
+Speciﬁcity =
+
+(i)
+
+(7)
+
+In the case of MAP, the maximization step can be written as
+ 
+
+
+θ̂ (t + 1) = arg max Q θ, θ̂ (t) + log p (θ) . (8)
+The EM algorithm is iterated until reaching a convergence
+criterion.
+III. GLAUCOMA PROGRESSION DETECTION PIPELINE
+The pipeline used for glaucoma progression detection is composed of three stages: clustering, glaucoma boundary limit detection, and glaucoma progression detection testing (see Fig. 2).
+In Fig. 2, the clustering stage is shown at the top, the boundary
+limit detection in the middle, and the progression detection testing at the bottom. The axes, which make up the output of the
+top stage, are the input to the second stage. A different dataset
+was used to complete each stage. We used a dataset of abnormal
+
+TN
+.
+TN + FP
+
+Sensitivity is defined as the proportion of all those with diseases correctly identified as positive.
+Sensitivity =
+
+TP
+.
+TP + FN
+
+We assessed the performance of the clustering stage using
+the reference standard dataset (abnormal and normal SAP visual fields) and the sensitivity/specificity performance metrics
+defined previously. To assess the relative performance of the
+entire pipeline, we compared the outcome of our method to
+GPA [33], linear regression (LR) of the VFI, and LR of the MD.
+GPA indicates visual field change from baseline by evaluating
+all test points and indicates “likely progression” for the full field
+if visual field change (greater than the variability observed in
+two baseline measurements) in three or more of the same points
+is repeatable in three consecutive exams [33]. The VFI and MD
+are global indices provided for each individual test. We also
+compared the performance of GEM with that of the previously
+
+2116
+
+Fig. 3.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+Performance of all trained GEM models.
+
+described VIM-based method [19]. We will provide the details
+of the assessments in the subsequent sections.
+B. Clustering Stage
+The absolute visual field sensitivity values from the 52 perimetric locations (54, excluding 2 blind spot locations) and age
+were used as input to GEM for data modeling. Age was included
+because both glaucomatous and normal visual fields expressed
+as absolute sensitivity are affected by age, and age was used in
+the previous unsupervised learning studies [10], [34], [43]. The
+unsupervised clustering was performed using the GEM model
+to detect glaucomatous visual field defects. Using the 2 085
+SAP visual fields (cross sectional) as input, GEM modeled c
+categories of glaucoma stages (i.e., c clusters) from the data and
+assigned each of these visual fields to the best fitting cluster.
+The initiating variable for the learning process was the number
+of mixing Gaussians, their mean and variance, and the number
+of clusters, c, which ranged from c = 2–5. Validation was done
+after learning the clusters by observing the distribution of abnormal and normal fields in each cluster and the GEM model with
+nearly 95% specificity and the highest sensitivity was selected
+from 600 trained GEM models. Fig. 3 shows the specificity
+versus sensitivity for 600 trained GEM models.
+From our assessment of sensitivity-specificity tradeoff among
+the 600 training GEM models, we found that three clusters provided a better separation of glaucoma and healthy fields. These
+three clusters were categorized into normal cluster N, moderate glaucoma cluster G1, and advanced glaucoma cluster G2
+depending on the centroid of the raw threshold sensitivities of
+these clusters (normal fields have higher threshold values than
+glaucomatous fields). In Fig. 4, we show 2-D scatterplots of
+these 53-D clusters for visualization. Fig. 4 (top) shows the
+scatter plot of the superior hemifield (i.e., all visual field locations above the middle horizontal meridian shown in Fig. 1)
+average threshold versus the inferior hemifield (all visual field
+locations below the middle horizontal line as in Fig. 1) average
+threshold for all eyes.
+As can be seen from this figure, the eyes in different clusters
+are organized from top right to the bottom left. The clinical
+
+Fig. 4. 2-D Scatter plot of features. (Top) average of superior hemifield versus
+average of inferior hemifield. (Bottom) MD versus PSD.
+
+interpretation of this organization is discussed in Results and
+Discussion section. Fig. 4 (bottom) shows the scatter plot of
+MD versus PSD (two global clinical indices of visual function)
+for all eyes. As can be seen from this figure, three clusters have
+been organized from high to low MD and PSD values.
+We decomposed all of the visual fields comprising each cluster into different axes using PCA. The visual fields associated
+with each axis define the patterns of visual defect that we are
+seeking. Within each cluster, the relative contribution of each
+axis was assessed based on its respective eigenvalue. Only axes
+with significant contributions (high eigenvalues) were retained
+in a cluster. The number of axes in clusters N and G1 was 2
+each, and the number of axes in cluster G2 was 5.
+To organize the visual field loss patterns from mild to advanced, the visual field patterns are represented as axes through
+each cluster centroid. Clinicians typically rely on the total deviation (TD) or pattern deviation (PD) plots supplied by the HFA
+Statpac analysis (Carl Zeiss Meditec, Inc., Dublin, CA, USA).
+We used simulated TD plots in our analysis to display the patterns of visual defects in relation to normal eyes. The simulated
+TD plot is a 52-D vector obtained by subtracting absolute sensitivities at the centroid of the normal cluster N from the absolute
+sensitivities at the centroid of the glaucomatous clusters, and
+then, representing field defects as plots at –2, 0 (cluster centroid), and +2 standard deviation (SD) along each of the axes.
+The numerical TD-like plots were further converted into color
+
+YOUSEFI et al.: LEARNING FROM DATA: RECOGNIZING GLAUCOMATOUS DEFECT PATTERNS AND DETECTING PROGRESSION
+
+2117
+
+Fig. 5. VF patterns represented by the centroid of each GEM cluster. Increased red saturation indicates increased deterioration of the visual field. The top left
+pattern represents the visual fields the cluster N, the top middle showing early visual field deterioration represents cluster G1 , and the top right showing mild to
+advanced visual field deterioration represents cluster G2 . The bottom figure is the color-coding legend.
+
+representations to aid in visualization. The −26 to +26 values
+were displayed in equal steps of color from red to green, with
+−26 as pure red and +26 as pure green.
+Fig. 5 (first row) shows the generated mean patterns of each
+cluster after TD simulation.
+The centroid of the first cluster (see Fig. 5 left) has zero
+dB MD at all points and is composed mostly of normal visual
+fields (cluster N), the centroid of the second cluster (see Fig. 5
+middle) deviates −2.6 dB on average from the normal mean
+and is composed mostly of abnormal visual fields (cluster G1 ),
+and the centroid of the third cluster deviates −9 dB on average
+from the normal mean (see Fig. 5 right) and is composed only
+of abnormal visual fields (cluster G2 ).The color coded legend
+used to display the TD simulated plot patterns is shown in Fig. 5
+(second row).
+We created the patterns along each axis by adding to or subtracting from the cluster centroid, 2 standard deviations along
+that axis direction (i.e., ± 2 SD). Fig. 6 shows the visual field
+patterns at +/–2 SD along each cluster axis within each cluster. Using the distance between each 52-D visual field and each
+of the axes within each of the three clusters, we assigned each
+visual field to its closest axis within the closest cluster.
+For further examination, the visual fields were projected on
+to their respective assigned axes and the visual fields assigned to
+each axis were sorted depending on their projection magnitudes
+from the cluster centroid.
+Sorting the visual fields from negative to positive depicts the
+earliest visual field defects to the most advanced ones. The visual
+fields were noted for their resemblance to the generated fields
+on the axis, to the similarity of other visual fields assigned to the
+same axis, and for the consistency in increasing severity as the
+visual fields were located further in the positive direction along
+the axis. This procedure will be discussed in Section IV.
+
+C. Glaucoma Boundary Limit Detection Stage
+We performed glaucoma boundary limit detection by projecting the longitudinal sequence of visual fields of each stable
+eye in the 53-D space onto each of the seven predefined GEM
+glaucoma axes as identified by the clustering stage (refer to
+Section II-B and Table II to recall stable group definition and
+demographic information). We then permuted the visual field
+sequence of each stable eye to maximize the number of slopes
+used to determine the percentile limit (PL) for stable eyes on
+each axis. For an eye with five consecutive visits, we generated 5!(= 120) longitudinal sequences of VFs, and then, we
+projected each sequence on the axis. The temporal interval between visits for each stable eye was about one week; however,
+we reset this interval to one year to approximate the limits of
+stability of eyes and to be in agreement with the convention that
+glaucoma patients are commonly followed at intervals between
+six months to one year. Next, we approximated the slope of
+each longitudinal series of projected visual fields by a LR. Due
+to the intervisit variability of the visual fields, the longitudinal
+sequence of visual fields from some stable eyes have a positive
+slope, indicating improvement, while others have a negative
+slope, suggesting deterioration.
+The 95th single tail percentiles toward the direction of deterioration for all seven axes for detecting glaucoma progression
+were then calculated. Single tail was used, because we were interested only in significant deterioration and were not interested
+in significant improvement. Because eyes in the stable group
+presumably showed no disease related progression, the variability in this group was used to define the maximum variability
+that indicated no change. Fig. 7 demonstrates the histograms
+of all the approximated slopes after projecting the longitudinal
+visual fields of the stable eyes on each axis of clusters G1 and
+G2 .
+
+2118
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+Fig. 6. VF patterns (axes and +/–2SD) in three clusters N, G1, and G2 generated by GEM. The representation simulates total deviation plots generated at −2/+2
+standard deviation units on each axis. Increased red saturation indicates increased deterioration of the visual field.
+
+Table III lists the 95th PL for glaucoma progression detection
+after projecting the longitudinal visual field of stable eyes on
+axes of clusters G1 and G2 (identified at the clustering stage),
+and then, approximating the slopes by an LR model. The 95th
+PL of the empirical histogram of the slopes for each axis alone
+indicates that if we project the visual field of an eye and it falls
+above this limit, the eye is stable, otherwise, the eye is classified
+as progressed at 5% level of significance.
+D. Glaucoma Progression Detection Testing Stage
+For progression detection, we projected the longitudinal series of visual fields on to each glaucoma axis (axes determined
+at the clustering stage), and then, we approximated the average
+progression rate (slope) of each sequence along the glaucoma
+
+axes using an LR model. For each eye, if the approximated slope
+passes the 95% PL of that axis (the line falls below the stable
+cutoff limit), the eye was classified as progressed; otherwise,
+the eye was classified as stable. The progression detection stage
+essentially uses GEM to detect POP during glaucoma progression, therefore, we call the entire pipeline GEM-POP. We have
+shown the outcome of the proposed GEM-POP for four example
+eyes in Fig. 8. The eye in Fig. 8 (top left) provided ten visual
+field tests collected from 2000 to 2006, the eye in Fig. 8 (top
+right) provided seven visual field tests collected from 2003 to
+2007, the eye in Fig. 8 (bottom left) provided 11 visual field tests
+collected from 2000 to 2007, and the eye in Fig. 8 (bottom right)
+provided ten visual field tests collected from 2001 to 2007. The
+orange circles indicate the severity after projecting the 53-D
+data onto the first axis of cluster G2 . The blues circles indicate
+
+YOUSEFI et al.: LEARNING FROM DATA: RECOGNIZING GLAUCOMATOUS DEFECT PATTERNS AND DETECTING PROGRESSION
+
+2119
+
+Fig. 7. Histogram of the projected slopes. Top row shows the histogram of the slopes after projecting the stable group’s longitudinal visual fields on axis 1 and 2
+of the cluster G1 , middle row represents the histogram of the slopes after projecting the stable group’s longitudinal visual fields on axis 1, 2, and 3 of cluster G2 ,
+and bottom row shows the histogram of the slopes after projecting the stable group’s longitudinal visual fields on axis 4 and 5 of cluster G2 .
+TABLE III
+95% PERCENTILE LIMIT OF STABLE EYES FOR EACH AXIS
+
+the estimated mean slope of projected values by LR (through
+the orange circles). Note that the y-intercept of all severity lines
+is zero for these comparisons. We also adjusted the curve of
+actual projected values accordingly, to start from zero severity
+at baseline. The gray line indicates the 95% PL for the slopes
+of the first axis of cluster G2 . This cutoff limit was determined
+using the percentile boundary limit detection stage utilizing the
+stable eyes described in the previous step. If the linear model
+approximating the slope fell below the gray line (progression
+zone), then the eye was classified as progressed, otherwise, the
+eye was classified as stable. Therefore, the eyes in Fig. 8 (top
+row) are classified as progressed, because the blue line for both
+falls in the progression zone and the eyes in Fig. 8 (bottom row)
+
+are classified as stable, because the blue line for both falls in the
+stable zone.
+Even though the slope of the blue line that indicates the change
+in severity of glaucoma is negative (suggests deterioration) in
+the two eyes displayed at the bottom Fig. 8, the change is not
+significantly negative; hence, the eyes are classified as stable.
+This indicates that the rate of deterioration is the factor indicative of progression. For assessing the GEM-POP performance,
+we used longitudinal SAP visual fields from eyes with known
+progressing glaucoma, which will be discussed in more detail
+in the next section.
+
+IV. RESULTS AND DISCUSSION
+We selected the best model out of 600 models, generated
+by the clustering stage, which contained three clusters. The MD
+value (global index of deviation from normal visual field) of each
+cluster approximates the clinical assessment of disease severity.
+Cluster N was mostly composed of normal visual fields with
+an average mean defect (MD) of −0.53 ± 1.3 SD, Cluster G1
+
+2120
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+Fig. 8. gray line indicates the 95th percentile limit for progression rate, the orange circles represent the actual projected visual field values on the first axis of
+cluster G2 , and the blue circles are the linear regressed line approximating the projected visual field values on the first axis of cluster G2 .
+
+was mostly composed of early glaucoma visual fields with an
+average MD of −2.3 ± 1.6 SD and Cluster G2 was composed
+of mild to advanced glaucoma visual fields with an average MD
+of −8.7 ± 6.4 SD.
+Cluster N was composed of 1 237 visual fields (1102 normal
+and 135 abnormal fields), Cluster G1 was composed of 530
+visual fields (44 normal and 486 abnormal), and Cluster G2 was
+composed of 318 visual fields (0 normal and 318 abnormal).
+The specificity was 96% for placing normal fields in Cluster N,
+and the sensitivity was 87% for placing abnormal visual fields
+in either Cluster G1 or G2 . Because the structures of Cluster N
+and Cluster G1 were represented by two axes, and the structure
+of Cluster G2 was represented by five axes, all visual fields
+patterns were characterized by a total of nine principal axes.
+We characterized the patterns at points on an axis on the positive and negative sides (± 2 SD) of the cluster mean, generating
+18 patterns.
+Most of the normal fields were represented by two axes in
+Cluster N, and most of the glaucomatous fields were represented
+by seven axes in Clusters G1 and G2 ; resulting in 14 patterns
+of abnormal visual fields. As can be seen in Fig. 5 (left), the
+simulated TD plot for the first cluster’s (N) centroid resulted
+in 0 dB at all test locations, and the generated fields at −2
+
+and +2 SD on axis 1 (see Fig. 6, first and second rows) were
+uniformly mildly depressed (−2 dB) or above normal (+2 dB),
+respectively. The generated fields at −2 SD and +2 SD of axis 2
+were within ±1 dB at each hemifield. The simulated TD plot for
+the second cluster’s (G1 ) centroid (From Fig. 5 middle) resulted
+in average −2.6 dB, and the generated fields at all locations
+on both axes were between 0 and −7 dB (see Fig. 6, third and
+fourth rows). From Fig. 5 (right), the simulated TD plot for the
+third cluster’s (G2 ) centroid resulted in about −9 dB, and the
+generated fields at all locations on all five axes were between
+−1 and −22 dB (see Fig. 6, fifth and sixth rows).
+The clustering stage assigned most of the normal eyes to axes
+1 and 2 of cluster N based on the minimum distance of the
+visual field from each axis. From the total eyes in the normal
+cluster, 849 eyes were assigned to the first axis and 139 eyes
+were assigned to the second axis of the normal cluster. From the
+total eyes in cluster G1 , 76 eyes were assigned to the first axis
+and 31 eyes were assigned to the second axis. From the total
+eyes in cluster G2 , 158 eyes were assigned to the first axis, 5
+eyes to the second axis, 44 eyes to the third axis, 41 eyes to the
+fourth axis, and 40 eyes were assigned to the fifth axis.
+In addition to the fact that age is a significant risk factor
+for glaucoma, baseline age in this study was also significantly
+
+YOUSEFI et al.: LEARNING FROM DATA: RECOGNIZING GLAUCOMATOUS DEFECT PATTERNS AND DETECTING PROGRESSION
+
+2121
+
+Fig. 9. VF absolute sensitivity values and TD simulated patterns for three eyes in abnormal clusters assigned to the first axis of that cluster. Projecting the VF
+of each eye on the first axis, and then, sorting the values from the most negative to the most positive, calculated the severity. The VF thresholds and TD simulated
+values for eyes corresponding to the most negative, mid, and most positive projected severities are placed from left to right, respectively.
+
+different between normal and abnormal eyes (p < 0.01;
+Table I). There is a possibility that age might affect the clustering outcome significantly. To evaluate the effects of age on
+the clustering outcome, we also assessed the performance of the
+clustering step excluding age. The best clustering model without
+age was 96% specific and 86.4% sensitive (versus 96% and 87%
+with age, respectively). Therefore, it is evident that the clustering outcome is not significantly affected by age. From machine
+learning perspective, this indicates that the spatial VF data without age information contains sufficient diagnostic information
+to maintain a high discriminative/diagnostic power.
+
+To examine the individual visual fields associated with each
+axis, we projected the visual fields associated with an axis and
+sorted them by their projection on (i.e., distance along) that
+axis. The sorted visual fields from negative to positive indicated
+the earliest field defects to most advanced field defects. Fig. 9
+shows the visual field patterns of sample eyes along the first
+axis of each cluster. Fields are shown as absolute sensitivities
+(top) and simulated TD plots (bottom) from three sample eyes
+(from left to right) from the first axis of each cluster. Note that
+the GEM clustering stage generates seven glaucoma axes, as
+explained earlier. If we define progression detection based on
+
+2122
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+TABLE IV
+95TH PERCENTILE LIMIT OF STABLE EYES TO REACH OVERALL 95%
+SPECIFICITY ON ALL AXES
+
+any one axis that indicates progression, GEM-POP has seven
+chances to detect progression; in contrast, GPA, MD, and VFI
+each have only one chance to detect progression.
+To compensate for this advantage for GEM-POP, we adjusted
+the specificity of each axis upwards to achieve an overall specificity of 95%. This compensation resulted in larger cutoff values
+for stability for the individual axes than those listed in Table III.
+We minimized the effect of differences among the algorithms
+by equating for specificity prior to determining progression. Table IV lists the adjusted 95th PL for each axis to reach overall
+95% specificity on stable eyes.
+To test the performance of our proposed framework, we analyzed 76 progressed eyes (refer to the progressed column of
+Table II). We projected the longitudinal SAP visual fields of
+all eyes on all seven axes of clusters G1 and G2 , and we then,
+computed the approximated slopes by LR for each axis. Then,
+for each eye, we compared the slope of the linear fit to the 95th
+percentile limit for stable eyes (refer to Table IV) on each axis.
+If at least one of the axes showed progression, we classified the
+eye as progressed; otherwise, we classified the eye as stable. To
+further analyze the effectiveness of GEM-POP, we compared
+its performance for identifying known progressing eyes to LR
+of three available visual field diagnostic indices, MD, and VFI.
+Table V lists the progression detection outcomes of GEM-POP,
+GPA, MD, and PSD.
+Similar to GEM-POP, we defined the 95th percentile limits
+of stability based on the permutation distribution of the stable
+eyes and defined progression by MD and VF.
+We also compared the GEM-POP outcome to the recently developed VIM progression of patterns (VIM-POP) method [19],
+for the same eyes and for the same follow-up duration, and found
+that GEM-POP performed slightly but not significantly better
+than VIM-POP (sensitivity for VIM-POP was 26.6% compared
+to 28.9% for GEM-POP).
+The percentage of correctly identified known progressing
+eyes (sensitivity) is somewhat low for all methods. There are
+several explanations for this finding. First, structural change
+(used as the reference standard for progression in this study)
+and functional change (based on SAP) do not necessarily occur
+at the same time [44]. Second, it is often difficult to detect actual
+change in VFs from noise due measurement error and random
+variation. This can be alleviated partly by modeling spatial correlation within visual fields, while considering the relationship
+between the spatial arrangements of the visual fields and the
+anatomy of the eye. We have not considered spatial dependence
+in this paper; however, it could be investigated in future work.
+Third, progression detection may be less than ideal due to the
+lack of a ground truth reference standard.
+
+TABLE V
+PROGRESSION DETECTION PERFORMANCE COMPARISON
+
+In GEM-POP, the clustering stage uses a mixture of Gaussians to model the data, to identify the clusters and to decompose
+each cluster to several axes based on PCA. In VIM-POP, cluster
+identification and ICA axis decomposition is performed within a
+single step, making implementation very complex and creating a
+computationally complex model. Creating a progression detection environment using GEM-POP takes minutes on a standard
+PC, while creating such an environment using VIM-POP takes
+several days. It is worth mentioning that GPA and LR of MD and
+VFI all use linear statistical methods to detect progression that
+lack the inherent benefits of machine learning-based methods.
+In addition, we have shown that the clustering stage capable of
+effectively extracting useful features from high-dimension data
+space (e.g., pointwise visual thresholds) can improve the sensitivity of detecting progression compared to selective 1-D global
+indices such as MD and VFI. In contrast to global indices, GPA
+uses high-dimensional data for analysis. Therefore, the comparison of GEM-POP with GPA further emphasizes the strengths of
+GEM-POP including its strengths of extracting useful features
+in the clustering stage.
+The future direction of this study can be devoted to assessing
+the glaucoma progression detection rate using other ophthalmic
+data.
+V. CONCLUSION
+A pipeline for recognizing glaucomatous visual field defect
+patterns and identifying glaucomatous progression was demonstrated. The visual field data were modeled using a mixture
+of Gaussians and the model parameters were estimated using expectation maximization. Then, the visual field data were
+clustered successfully into one normal and two glaucoma clusters (each representing disease severities). The relatively good
+performance of our clustering stage confirms its relative effectiveness in structuring data. Each cluster was decomposed
+to several axes using PCA to identify glaucomatous progression. Glaucoma cutoff limits were calculated on all identified glaucoma axes and were used to detect progression. A
+dataset of progressing glaucomatous eyes was used to assess
+the performance of the entire glaucoma progression pipeline
+and the outcome of our method was compared to commercially
+available glaucoma progression detection software algorithms
+and a recently published algorithm for progression detection.
+Overall, progression detection based on the Gaussian mixture
+model using expectation maximization identified significantly
+more known progressing eyes than all but one commercially
+available SAP progression detection method. Progression detection based on change in GEM-POP defined axes performed
+
+YOUSEFI et al.: LEARNING FROM DATA: RECOGNIZING GLAUCOMATOUS DEFECT PATTERNS AND DETECTING PROGRESSION
+
+slightly better than progression detection using VIM-POP, while
+being far less computationally complex. The run time for clustering and axis identification using GEM-POP is a small fraction
+of the run time required to perform the same tasks using the
+methodology on which VIM-POP is based.
+
+[20]
+[21]
+
+REFERENCES
+[1] S. Yousefi, N. Kehtarnavaz, M. Akins, K. Luby-Phelps, and
+M. Mahendroo, “Separation of preterm infection model from normal
+pregnancy in mice using texture analysis of second harmonic generation images,” in Proc. IEEE Eng. Med. Biol. Soc. Conf., 2010, vol. 2010,
+pp. 5314–5317.
+[2] S. Yousefi, N. Kehtarnavaz, M. Akins, K. Luby-Phelps, and
+M. Mahendroo, “Distinguishing different stages of mouse pregnancy using
+second harmonic generation images,” in Proc. 42nd Southeastern Symp.
+Syst. Theory, 2010, pp. 44–46.
+[3] S. Yousefi, B. Kim, and N. Kehtarnavaz, “Automating porosity features
+extraction from second harmonic generation images of cervical tissue,” in
+Proc. IASTED Int. Conf. Signal Image Process., 2011, pp. 129–132.
+[4] L. Ohno-Machado, “Research on machine learning issues in biomedical
+informatics modeling,” J. Biomed. Inform., vol. 37, pp. 221–223, Aug.
+2004.
+[5] M. M. Rahman, S. K. Antani, and G. R. Thoma, “A learning-based similarity fusion and filtering approach for biomedical image retrieval using
+SVM classification and relevance feedback,” IEEE Trans. Inf. Technol.
+Biomed., vol. 15, no. 4, pp. 640–646, Jul. 2011.
+[6] S. Oh, M. S. Lee, and B. T. Zhang, “Ensemble learning with active example selection for imbalanced biomedical data classification,” IEEE/ACM
+Trans. Comput. Biol. Bioinform., vol. 8, no. 2, pp. 316–325, Mar./Apr.
+2011.
+[7] S. J. Fodeh, C. Brandt, T. B. Luong, A. Haddad, M. Schultz, T. Murphy, and
+M. Krauthammer, “Complementary ensemble clustering of biomedical
+data,” J. Biomed. Inform., vol. 46, pp. 436–443, Jun. 2013.
+[8] R. Xu and D. C. Wunsch, “Clustering algorithms in biomedical research:
+A review,” IEEE Rev. Biomed. Eng., vol. 3, pp. 120–154, Oct. 2010.
+[9] M. H. Goldbaum, P. A. Sample, Z. Zhang, K. Chan, J. Hao, T. W. Lee,
+C. Boden, C. Bowd, R. Bourne, L. Zangwill, T. Sejnowski, D. Spinak, and
+R. N. Weinreb, “Using unsupervised learning with independent component
+analysis to identify patterns of glaucomatous visual field defects,” Invest
+Ophthalmol. Vis. Sci., vol. 46, pp. 3676–3683, Oct. 2005.
+[10] M. H. Goldbaum, P. A. Sample, H. White, B. Colt, P. Raphaelian, R. D.
+Fechtner, and R. N. Weinreb, “Interpretation of automated perimetry
+for glaucoma by neural network,” Invest Ophthalmol. Vis. Sci., vol. 35,
+pp. 3362–3373, Aug. 1994.
+[11] K. Suzuki, P. Yan, F. Wang, and D. Shen, “Machine learning in medical
+imaging,” Int. J. Biomed. Imag., vol. 2012, pp. 123727-1–123727-2, 2012.
+[12] I. Kononenko, “Machine learning for medical diagnosis: History, state
+of the art and perspective,” Artif. Intell. Med., vol. 23, pp. 89–109, Aug.
+2001.
+[13] C. Bowd, R. N. Weinreb, I. Lee, G. Jang, S. Yousefi, L. M. Zangwil, F. A.
+Medeiros, C. A. Girkin, J. M. Liebmann, and M. H. Goldbaum,, “Glaucomatous patterns in frequency doubling technology (FDT) perimetry
+data identified by unsupervised machine learning classifiers,” PLoS ONE,
+vol. 9, no. 1, pp. 1–8, Jan. 2014.
+[14] S. Yousefi, M. H. Goldbaum, M. Balasubramanian, T.-P. Jung, R. N.
+Weinreb, F. A. Medeiros, L. M. Zangwill, J. M. Liebmann, C. A. Girkin,
+and C. Bowd, “Glaucoma progression detection using structural retinal
+nerve fiber layer measurements and functional visual field points,” IEEE
+Trans. Biomed. Eng., vol. 61, no. 4, pp. 1143–1154, Apr. 2014.
+[15] S. B. Katwal, J. C. Gore, R. Marois, and B. P. Rogers, “Unsupervised
+spatiotemporal analysis of fMRI data using graph-based visualizations of
+self-organizing maps,” IEEE Trans. Biomed. Eng., vol. 60, no. 9, pp. 2472–
+2483, Sep. 2013.
+[16] Y. Zhao and G. Karypis, “Data clustering in life sciences,” Mol. Biotechnol., vol. 31, pp. 55–80, Sep. 2005.
+[17] I. Var, “Multivariate data analysis,” Vectors, vol. 8, p. 6, 1998.
+[18] Z. Zivkovic and F. van der Heijden, “Recursive unsupervised learning of
+finite mixture models,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 26,
+no. 5, pp. 651–656, May 2004.
+[19] M. H. Goldbaum, I. Lee, G. Jang, M. Balasubramanian, P. A. Sample,
+R. N. Weinreb, J. M. Liebmann , C. A. Girkin, D. R. Anderson, L.
+M. Zangwill, M. J. Fredette, T. P. Jung, F. A. Medeiros, and C. Bowd,
+
+[22]
+[23]
+[24]
+[25]
+
+[26]
+
+[27]
+[28]
+[29]
+[30]
+[31]
+[32]
+[33]
+[34]
+
+[35]
+[36]
+[37]
+
+[38]
+
+[39]
+
+[40]
+
+[41]
+
+2123
+
+“Progression of patterns (POP): A machine classifier algorithm to identify glaucoma progression in visual fields,” Invest Ophthalmol. Vis. Sci.,
+vol. 53, pp. 6557–6567, Oct. 2012.
+U. R. Acharya, S. Dua, X. Du, S. V. Sree, and C. K. Chua, “Automated
+diagnosis of glaucoma using texture and higher order spectra features,”
+IEEE Trans. Inf. Technol. Biomed., vol. 15, no. 3, pp. 449–455, May 2011.
+B. Hallengren, P. Manhem, M. Bramnert, I. Redlund-Johnell, and A. Heijl,
+“Normal visual fields as assessed by computerized static threshold perimetry in patients with untreated primary hypothyroidism,” Acta. Endocrinol.
+(Copenh.), vol. 121, pp. 495–500, Oct. 1989.
+R. N. Weinreb and P. T. Khaw, “Primary open-angle glaucoma,” Lancet,
+vol. 363, pp. 1711–1720, May 22 2004.
+S. Kingman, “Glaucoma is second leading cause of blindness globally,”
+Bull World Health Organ., vol. 82, pp. 887–888, Nov. 2004.
+H. A. Quigley and A. T. Broman, “The number of people with glaucoma
+worldwide in 2010 and 2020,” Brit. J. Ophthalmol., vol. 90, pp. 262–267,
+Mar. 2006.
+L. M. Alencar and F. A. Medeiros, “The role of standard automated
+perimetry and newer functional methods supply for glaucoma diagnosis and follow-up,” Indian J. Ophthalmol., vol. 59, pp. S53–S58, Jan.
+2011.
+K. Rhee, Y. Y. Kim, D. H. Nam, and H. R. Jung, “Comparison of visual
+field defects between primary open-angle glaucoma and chronic primary
+angle-closure glaucoma in the early or moderate stage of the disease,”
+Korean J. Ophthalmol., vol. 15, pp. 27–31, Jun. 2001.
+M. F. Armaly, “Visual field defects in early open angle glaucoma,” Trans.
+Amer. Ophthalmol. Soc., vol. 69, pp. 147–162, 1971.
+S. M. Drance, “The early field defects in glaucoma,” Invest Ophthalmol.,
+vol. 8, pp. 84–91, Feb. 1969.
+L. I. Lau, C. J. Liu, J. C. Chou, W. M. Hsu, and J. H. Liu, “Patterns of visual field defects in chronic angle-closure glaucoma with different disease
+severity,” Ophthalmology, vol. 110, pp. 1890–1894, Oct. 2003.
+M. Araie, “Pattern of visual field defects in normal-tension and hightension glaucoma,” Curr. Opin. Ophthalmol., vol. 6, pp. 36–45, Apr. 1995.
+B. Bengtsson, J. Olsson, A. Heijl, and H. Rootzen, “A new generation of
+algorithms for computerized threshold perimetry, SITA,” Acta. Ophthalmol. Scand., vol. 75, pp. 368–375, Aug. 1997.
+B. Bengtsson and A. Heijl, “A visual field index for calculation of glaucoma rate of progression,” Amer. J. Ophthalmol., vol. 145, pp. 343–353,
+Feb. 2008.
+B. Bengtsson and A. Heijl, “A visual field index for calculation of glaucoma rate of progression,” Amer. J. Ophthalmol., vol. 145, pp. 343–353,
+Feb. 2008.
+P. A. Sample, K. Chan, C. Boden, T. W. Lee, E. Z. Blumenthal, R. N.
+Weinreb, A. Bernd, J. Pascual, J. Hao, T. Sejnowski, and M. H. Goldbaum,
+“Using unsupervised learning with variational bayesian mixture of factor
+analysis to identify patterns of glaucomatous visual field defects,” Invest
+Ophthalmol. Vis. Sci., vol. 45, pp. 2596–2605, Aug. 2004.
+G. J. McLachlan and K. E. Basford, Mixture Models : Inference and Applications to Clustering. New York, NY: M. Dekker, 1988.
+G. J. McLachlan and D. Peel, Finite Mixture Models. New York, NY,
+USA: Wiley, 2000.
+M. H. Goldbaum, P. A. Sample, K. Chan, J. Williams, T. W. Lee, E.
+Blumenthal, C. A. Girkin, L. M. Zangwill, C. Bowd, T. Sejnowski, and
+R. N. Weinreb, “Comparing machine learning classifiers for diagnosing
+glaucoma from standard automated perimetry,” Invest Ophthalmol. Vis.
+Sci., vol. 43, pp. 162–169, Jan. 2002.
+P. A. Sample, C. Boden, Z. Zhang, J. Pascual, T. W. Lee, L. M.
+Zangwill, R. N. Weinreb, J. G. Crowston, E. M. Hoffmann, F. A. Medeiros,
+T. Sejnowski, and M. H. Goldbaum, “Unsupervised machine learning with
+independent component analysis to identify areas of progression in glaucomatous visual fields,” Invest Ophthalmol. Vis. Sci., vol. 46, pp. 3684–3692,
+Oct. 2005.
+P. A. Sample, C. A. Girkin, L. M. Zangwill, S. Jain, L. Racette, L. M.
+Becerra, R. N. Weinreb, F. A. Medeiros, M. R. Wilson, J. De LeónOrtega, C. Tello, C. Bowd, and J. M. Liebmann, “The african descent and
+glaucoma evaluation study (ADAGES): Design and baseline data,” Arch.
+Ophthalmol., vol. 127, pp. 1136–1145, Sep. 2009.
+C. A. Johnson, P. A. Sample, G. A. Cioffi, J. R. Liebmann, and
+R. N. Weinreb, “Structure and function evaluation (SAFE): I. Criteria for
+glaucomatous visual field loss using standard automated perimetry (SAP)
+and short wavelength automated perimetry (SWAP),” Amer. J. Ophthalmol., vol. 134, pp. 177–185, Aug. 2002.
+F. A. Medeiros, L. M. Zangwill, C. Bowd, P. A. Sample, and
+R. N. Weinreb, “Use of progressive glaucomatous optic disk change as
+
+2124
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+the reference standard for evaluation of diagnostic tests in glaucoma,”
+Amer. J. Ophthalmol., vol. 139, pp. 1010–1018, Jun. 2005.
+[42] M. A. T. Figueiredo and A. K. Jain, “Unsupervised learning of finite mixture models,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 24, no. 3,
+pp. 381–396, Mar. 2002.
+[43] M. H. Goldbaum, “Unsupervised learning with independent component
+analysis can identify patterns of glaucomatous visual field defects,” Trans.
+Amer. Ophthalmol. Soc., vol. 103, pp. 270–280, 2005.
+[44] M. A. Kass, D. K. Heuer, E. J. Higginbotham, C. A. Johnson, J. L. Keltner,
+J. P. Miller, R. K. Parrish, M. R. Wilson, and M. O. Gordon, “The ocular
+hypertension treatment study: A randomized trial determines that topical
+ocular hypotensive medication delays or prevents the onset of primary
+open-angle glaucoma,” Arch. Ophthalmol., vol. 120, pp. 701–713, Jun.
+2002.
+
+Linda M. Zangwill received the M.S. degree from
+the Harvard School of Public Health and the Ph.D.
+degree from Ben-Gurion University of the Negev.
+She is a Professor of ophthalmology at the University of California, San Diego, CA, USA. His research interests include improving our understanding
+of the complex relationship between structural and
+functional changes in the aging and glaucoma eye,
+and developing computational techniques to improve
+glaucomatous change detection.
+
+Siamak Yousefi (S’09–M’12) received the Ph.D. degree from the University of Texas at Dallas, Richardson, TX, USA.
+He is currently a Postdoctoral Fellow at the Hamilton Glaucoma Center, University of California at San
+Diego, CA, USA, where he is conducting research
+on ophthalmic image and data analysis. His research
+interests include biomedical image analysis, pattern
+recognition, and machine learning.
+Dr. Yousefi is a member of the ARVO.
+
+Jeffrey M. Liebmann completed his ophthalmology residency at the State University of New York/
+Downstate Medical Center and his fellowship in glaucoma at the New York Eye and Ear Infirmary of
+Mount Sinai.
+He is presently a Clinical Professor of ophthalmology at New York University School of Medicine,
+New York, NY, USA and the Director of Glaucoma
+Services at Manhattan Eye, Ear, and Throat Hospital,
+New York and New York University Langone Medical Center, New York and an Adjunct Professor of
+clinical ophthalmology at New York Medical College, Valhalla, NY.
+
+Michael H. Goldbaum received the M.D. degree
+from Tulane University, New Orleans, LA, USA
+(MD) and the M.S. degree in medical informatics
+from Stanford University Stanford, CA, USA.
+He is an Ophthalmic Surgeon, an Educator, and
+a Scientist and is a Professor of ophthalmology at
+the University of California at San Diego, CA, USA.
+He is the Director of Glaucoma Informatics Research,
+where he applies medical image analysis and machine
+learning classifiers to improve care of eye diseases.
+
+Madhusudhanan Balasubramanian received the
+Ph.D. degree from Louisiana State University,
+Baton Rouge, LA, USA.
+He is currently an Assistant Professor in the Department of Electrical and Computer Engineering at
+the University of Memphis, Memphis, TN, USA. His
+research interests include the intersection of computational science and engineering, biosolid mechanics
+and biofluid dynamics with emphasis in studying ocular structures, and dynamics and the mechanism of
+vision loss in glaucoma.
+
+Felipe A. Medeiros received the graduate degree and
+residency from the University of Sao Paulo.
+He is a Professor of ophthalmology and the Medical Director of the Hamilton Glaucoma Center, University of California San Diego, CA, USA. He is also
+the Director of Vision Function Research at the same
+institution.
+
+Christopher A. Girkin is the Chairman of the Department of Ophthalmology and a Chief Medical Officer for the Callahan Eye Hospital, the University
+of Alabama at Birmingham (UAB), AL, USA. After
+residency at the UAB, he completed a fellowship in
+neuro-ophthalmology at the Wilmer Eye Institute at
+Johns Hopkins, Baltimore, MD, USA and in Glaucoma at the Hamilton Glaucoma Center, the University of California, San Diego, CA, USA.
+
+Robert N. Weinreb received the electrical engineering degree from the Massachusetts Institute of Technology, Cambridge, MA, USA and the M.D. degree
+from Harvard Medical School, Boston, MA.
+He is a Clinician, a Surgeon, an Educator, and a
+Scientist. He is the Distinguished Professor of ophthalmology and the Chairman of the Department of
+Ophthalmology at the University of California, San
+Diego, CA, USA.
+
+Christopher Bowd received the Ph.D. degree from
+Washington State University, Pullman, WA, USA.
+He is currently a Research Scientist at the
+Hamilton Glaucoma Center, University of California,
+San Diego, CA, USA. His current work involves early
+detection and monitoring of glaucoma with structural
+imaging of the optic nerve, visual function and electrophysiological testing using standard and machine
+learning classifier-based analyses.
+
+

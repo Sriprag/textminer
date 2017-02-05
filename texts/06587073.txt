@@ -1,0 +1,512 @@
+246
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+Hybrid Spectral Micro-CT: System Design,
+Implementation, and Preliminary Results
+James R. Bennett, Alex M. T. Opie, Qiong Xu, Hengyong Yu, Senior Member, IEEE, Michael Walsh,
+Anthony Butler, Phillip Butler, Guohua Cao, Aaron Mohs, and Ge Wang∗ , Fellow, IEEE
+
+Abstract—Spectral CT has proven an important development in
+biomedical imaging, and there have been several publications in
+the past years demonstrating its merits in pre-clinical and clinical
+applications. In 2012, Xu et al. reported that near-term implementation of spectral micro-CT could be enhanced by a hybrid
+architecture: a narrow-beam spectral “interior” imaging chain integrated with a traditional wide-beam “global” imaging chain. This
+hybrid integration coupled with compressive sensing (CS)-based
+interior tomography demonstrated promising results for improved
+contrast resolution, and decreased system cost and radiation dose.
+The motivation for the current study is implementation and evaluation of the hybrid architecture with a first-of-its-kind hybrid
+spectral micro-CT system. Preliminary results confirm improvements in both contrast and spatial resolution. This technology is
+shown to merit further investigation and potential application in
+future spectral CT scanner design.
+Index Terms—CT architecture, CT instrumentation, interior
+tomography, micro-CT, spectral-CT.
+
+Manuscript received February 20, 2013; revised April 3, 2013, June 23, 2013,
+and July 23, 2013; accepted August 15, 2013. Date of publication August 26,
+2013; date of current version January 16, 2014. Asterisk indicates the corresponding author.
+J. Bennett and G. Cao are with the Biomedical Imaging Division, VT-WFU
+School of Biomedical Engineering and Sciences, Virginia Tech, Blacksburg, VA
+24061 USA (e-mail: jrbennet@vt.edu; ghcao@vt.edu).
+A. M. T. Opie is with the Department of Electrical and Computer Engineering, University of Canterbury, Christchurch 8140, New Zealand (e-mail:
+alex.opie@pg.canterbury.ac.nz).
+Q. Xu is with the Institute of Image Processing and Pattern Recognition, Xi’an Jiaotong University, Xi’an, Shaanxi 710049, China (e-mail:
+xjtuxqiong@gmail.com).
+H. Yu is with the Biomedical Imaging Division, VT-WFU School of Biomedical Engineering and Sciences, Virginia Tech, Blacksburg, VA 24061 USA, and
+also with the Department of Radiology, Wake Forest University Health Sciences, Winston-Salem, NC 27157 USA (e-mail: Hengyong-yu@ieee.org).
+M. Walsh is with the Department of Radiology, University of Otago,
+Christchurch 8011, New Zealand (e-mail: michael.walsh@canterbury.ac.nz).
+A. Butler is with the Department of Radiology, University of Otago,
+Christchurch 8011, New Zealand, and also with the European Organization
+for Nuclear Research, Geneva 23, Switzerland (e-mail: anthony@butler.co.nz).
+P. Butler is with the Department of Physics and Astronomy, University
+of Canterbury, Christchurch 8140, New Zealand, and also with the European Organization for Nuclear Research, Geneva 23, Switzerland (e-mail:
+phil.butler@canterbury.ac.nz).
+A. Mohs is with the VT-WFU School of Biomedical Engineering and Sciences, Wake Forest University Health Sciences, Winston-Salem, NC 27157
+USA (e-mail: amohs@wakehealth.edu).
+∗ G. Wang is with the Biomedical Imaging Cluster, Department of Biomedical
+Engineering, Rensselaer Polytechnic Institute, Troy, NY 12180 USA (e-mail:
+ge-wang@ieee.org).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2279673
+
+I. INTRODUCTION
+-RAY beams are comprised of photons and like visible
+light they are generally polychromatic. X-ray detectors in
+conventional micro-CT and CT scanners are known as energyintegrating, or intensity-integrating, because their output signal
+is proportional to the detected photon flux, weighted by the photon energy, integrated across the entire energy spectrum. However, x-ray attenuation varies nonlinearly with photon energy;
+spectral information is lost with energy-integrating detectors in
+much the same way as color information is lost with black and
+white photography. Recently, significant progress has been made
+in spectral (i.e., multienergy, energy-resolved, spectroscopic,
+etc.) x-ray detectors that are sensitive to the incident photon
+energy. Numerous publications have demonstrated promising
+pre-clinical and clinical applications for spectral CT [1]–[13].
+Clearly, spectral CT is the future of x-ray based biomedical
+imaging and will yield improvements for the diagnosis of millions of patients, yet there remain significant hurdles to clinical
+and even pre-clinical implementation of this technology.
+The most critical limitations with current spectral x-ray detectors are cost, size, radiation dose, and flux. Current spectral detectors are both small and expensive. Radiation dose
+is a concern for any x-ray based system, and energy bins for
+each spectral channel require higher total exposure relative to a
+single-channel energy-integrating (conventional) detector. Furthermore, the maximum detectable x-ray flux is limited by the
+detector readout speed (due to pulse pile-up); current technology is too slow for clinical use by an estimated three orders of
+magnitude [14]. While there are no physical laws that would
+preclude advancement of spectral detectors beyond these limitations, it does appear to be prohibitive in the near future.
+In order to overcome these limitations, Xu et al. proposed
+to combine a spectral imaging chain with an energy-integrating
+imaging chain [15]. The latter provides wide-beam (“global”)
+grayscale projections of the sample, while the former provides
+narrow-beam (“interior”) spectral projections covering a small
+field of view (FOV). Further, Xu et al. proposed a reconstruction
+method whereby the grayscale image from the global imaging chain is reconstructed by statistical iterative reconstruction with total variation minimization (SIR-TV), and the interior image for each spectral channel is reconstructed by a
+compressive sensing-based statistical interior tomography (CSSIT) method [16], [17]. The spectral images are processed with
+principal component analysis (PCA) and the results are color
+mapped together with the global reconstruction to produce high
+resolution hybrid spectral images.
+
+X
+
+0018-9294 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+BENNETT et al.: HYBRID SPECTRAL MICRO-CT: SYSTEM DESIGN, IMPLEMENTATION, AND PRELIMINARY RESULTS
+
+There are several merits to this approach. First, the radiation
+dose would be lower for hybrid architecture than a full FOV
+spectral micro-CT/CT scanner, as only the interior ROI receives
+the higher exposure necessary for equivalent spectral contrast
+resolution. Second, spectral flux can be increased because the
+collimated x-ray beam only passes through the interior sample
+region, thus avoiding pulse pile-up that would occur at the sample periphery with a full FOV spectral detector [18]. Third, the
+hybrid architecture maintains a traditional energy-integrating
+imaging chain, which is important for obtaining “scout” views
+to locate and center the interior ROI prior to a full scan. Fourth,
+the global energy-integrating chain provides necessary a priori data about the interior ROI for exact interior spectral reconstruction. Fifth, the system cost would be lower because
+energy-integrating detectors are vastly more mature and less expensive than spectral detectors. Finally, the most obvious and
+important benefit of a hybrid architecture is that it brings spectral
+CT closer to widespread use in the near-term.
+In this study, we implement a first-of-its-kind hybrid spectral micro-CT prototype system. There are three goals for this
+paper: 1) to demonstrate hybrid spectral micro-CT architecture
+with a prototype system implementation, phantom scan, and reconstruction; 2) to numerically simulate the hybrid prototype
+phantom scan; 3) to evaluate the prototype system by comparing the results to those of a matching simulation. The remainder
+of this paper is organized as follows. Section II describes the
+hybrid scanner design and configuration, Section III contains a
+brief explanation of the reconstruction technique and describes
+the methods and materials used in this study, Section IV presents
+the results from the first hybrid spectral micro-CT system and
+simulation studies, and Section V discusses related work on
+hybrid spectral systems and concludes the manuscript.
+II. HYBRID SCANNER DESIGN
+Xu et al. [15] reported a hybrid spectral micro-CT system design that incorporated the spectral interior and energyintegrating global imaging chains into a rotating gantry configuration. The benefits of a rotating gantry design, compared to
+a rotating sample stage, are obvious for biomedical researchers
+as many potential applications require in vivo scans (e.g., small
+rodents). However, a rotating gantry configuration requires specialized mechanical components, such as a rotation slip ring,
+and many parts must be custom manufactured. Furthermore, it
+is more difficult to make alignment/configuration (e.g., sourceto-detector positions, etc.) changes on a rotating gantry design.
+Thus, we chose to utilize a rotating sample configuration for the
+first prototype of this hybrid architecture. While this rotating
+sample architecture may be only useful for micro-CT, it still has
+significant biomedical applications and the resulting data should
+support further development of a rotating gantry system for in
+vivo application.
+Our design for the first prototype of a hybrid spectral microCT has endured several evolutions into its final form. The original design required building both the energy-integrating and
+spectral imaging chains from scratch, along with a new sample
+rotation system. After completing the preliminary system build,
+
+247
+
+TABLE I
+HYBRID SPECTRAL MICRO-CT HARDWARE COMPONENT SPECIFICATIONS
+
+it was realized that the spectral imaging chain could be reconfigured to fit within an existing Xradia XCT micro-CT scanner
+(Xradia, Pleasanton, CA). There are several advantages to this
+approach: the Xradia micro-CT is an existing, well known, and
+tested scanner with a very high precision rotating sample stage;
+the Xradia grayscale energy-integrating detector has high resolution and a large FOV with existing control hardware/software
+integration; and the Xradia micro-CT eliminated the need to
+build and test two out of three major components required by
+the original hybrid spectral micro-CT design.
+The grayscale imaging chain relies on the native Xradia hardware: a Hamamatsu L12606 (Hamamatsu, Japan) microfocus
+x-ray source and 6 cm scintillator plus high resolution CCD
+camera. The Xradia source and detector positions are controlled
+by the proprietary Xradia software and hardware. The spectral
+imaging chain consists of a Hamamatsu L10101 microfocus
+x-ray source (Hamamatsu, Japan) and a Medipix MXR-Si spectral detector (MARS Bioimaging, Christchurch, New Zealand).
+The L10101 source is mounted on a linear translation stage,
+while the Medipix detector is mounted in a permanent position
+after alignment. The sample rotation stage consists entirely of
+the Xradia hardware, which allows for submicron position accuracy in three linear dimensions plus rotation. The hardware
+component details are outlined in Table I, a design schematic
+is shown in Fig. 1, and an image of the prototype system is in
+Fig. 2.
+III. METHODOLOGY
+Preliminary experiments were performed with a contrast
+agent (CA) phantom on the prototype hybrid spectral micro-CT
+system. Two common CA types, gadolinium-based Magnevist
+(gadopentetate dimeglumine, Berlex Laboratories, Wayne, NJ,
+USA) and iodine-based Omnipaque 300 (iohexol, GE Healthcare, Princeton, NJ) were used in various concentrations and
+
+248
+
+Fig. 1.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+Hybrid spectral micro-CT design schematic.
+TABLE II
+CONTRAST AGENT PHANTOM CONCENTRATIONS
+
+Fig. 2. Hybrid spectral micro-CT prototype system. Hardware component labels: (A) Medipix MXR-Si detector; (B) Xradia energy-integrating detector; (C)
+Hamamatsu L10101 X-ray source for spectral imaging chain; (D) Hamamatsu
+L12606 X-ray source for Xradia energy-integrating imaging chain; (E) Xradia
+sample rotation stage with contrast agent phantom.
+
+Fig. 3. Contrast agent phantom. (a) Image of the phantom mounted on sample
+stage (excerpt from Fig. 2). (b) Axial schematic of the phantom at the reconstructed slice location used for Figs. 4 and 5: blue indicates water, red indicates
+Magnevist, and green indicates Omnipaque (Note: shading is not representative
+of the contrast agent concentrations). See Table II for details.
+
+immersed in pure water. The CA samples were contained in
+polyethylene centrifuge tubes. A schematic of the phantom is
+shown in Fig. 3 and the corresponding CA concentrations are
+listed in Table II.
+The phantom was alternately scanned on the prototype system with the full-width grayscale and narrow spectral imaging
+chains to prevent contamination by cross scatter [19]. The interior spectral chain x-ray source was set to 80 kVp and 200 μA
+without filtration, and the silicon Medipix detector captured 12
+energy bins between 10 to 38 keV at 361 uniformly distributed
+angles over 192◦ . The global grayscale chain x-ray source was
+set to 80 kVp and 100 μA without filtration, and the energyintegrating detector uniformly captured 1500 projections over
+192◦ .
+Numerical simulation algorithms were developed based on
+Xu et al. [15] and the aforementioned prototype system/CA
+phantom design. Global grayscale and interior spectral projections of the phantom were simulated with parameters matching
+the prototype system scan, including: source flux and spectrum; source-to-object and source-to-detector distances; projection angles and numbers; detector configuration, pixel size,
+conversion efficiency, and energy binning.
+Image reconstructions of the spectral interior projections
+were performed with CS-SIT, both with and without the global
+grayscale image for comparison. The reconstruction algorithm
+
+BENNETT et al.: HYBRID SPECTRAL MICRO-CT: SYSTEM DESIGN, IMPLEMENTATION, AND PRELIMINARY RESULTS
+
+249
+
+Fig. 4. Hybrid spectral micro-CT reconstruction results of the simulated (first row) and actual prototype (second row) CA phantom scan: (a/d) is the SIR-TV
+reconstruction of the global grayscale projections; (b/e) is the CS-SIT reconstruction of the interior spectral projections without the global grayscale image; (c/f)
+is the reconstruction of the interior spectral and global grayscale projection data using CS-SIT. The black circle denotes the interior FOV.
+
+is fully described and derived in [15] and [16], respectively, but
+summarized here for convenience.
+1) Reconstruct the global image μG with SIR-TV.
+2) Reconstruct each energy bin image with CS-SIT, using
+μG as the initial image.
+3) Apply PCA to the set of reconstructed images to produce
+{μs }Ss=1 , where μs is component s of the PCA result set,
+and S is the number of PCA components.
+4) Create a color image by mapping the first two principal
+components and the global reconstruction image into the
+HSV color space.
+The reconstruction algorithms (SIR-TV for the grayscale, CSSIT for the color interior) operate by minimizing the objective
+function
+Φ (μ) =
+
+I
+
+yi
+i=1
+
+2
+
+([Aμ]i − pi )2 + β T V (μ)
+
+(1)
+
+where μ is the reconstructed image vector, yi is the intensity
+measurement on x-ray beam i, A is the system (forward projection) matrix, pi is the estimated projection data, β is a parameter
+controlling regularization, and T V (·) calculates total variation.
+The objective function (1) is obtained by considering the Poisson
+nature of the x-ray data and maximizing an a priori (MAP) objective [16]. The minimization is performed by alternately using
+
+the separable paraboloidal surrogate method [20] for the data fidelity term and using soft-threshold nonlinear filtration [21] for
+the regularization. The difference between the two algorithms
+is in the choice of initial estimate for μ: in SIR-TV an empty
+image is used, while in CS-SIT the reconstructed grayscale image is used. The yi weighting on the data represents the detected
+photon number at each detector cell and is proportional to the
+square of the SNR since it is Poisson distributed.
+The reconstructed images from the spectral imaging chain
+are processed with PCA because it is a simple yet effective
+method to identify the primary differences in spectra across the
+image [1]. PCA operates to find orthogonal basis functions that
+best describe the variance of a dataset: the first channel is chosen
+such that it describes as much of the multidimensional data as
+possible with a single coefficient per pixel; the second channel
+is chosen to describe as much of the residual image as possible,
+again with a single coefficient per pixel; and the remaining
+channels continue in this manner until all the data are accounted
+for [22]. A more sophisticated material decomposition algorithm
+could be applied, yet is beyond the scope of this paper.
+IV. EXPERIMENTAL RESULTS
+Evaluation of the first-of-its-kind prototype hybrid micro-CT
+system was performed by simulating a CA phantom scan and
+comparing with the prototype scan results.
+
+250
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+Fig. 5. PCA decomposition of the simulated (first row) and actual prototype (second row) hybrid spectral reconstructions: (a/d), (b/e), and (c/f) are the first,
+second, and third principal components, respectively.
+
+A. Reconstruction
+Fig. 4 shows three reconstructions of the simulated and actual
+prototype system, and demonstrates the improvement obtained
+by incorporating a global projection dataset. Figs. 4(a) and (d)
+show the global grayscale image reconstructed by SIR-TV for
+the simulated and prototype systems, respectively; these images
+demonstrate the expected high spatial resolution of a high-end
+micro-CT scanner with full FOV. Fig. 4(e) is the Medipix spectral image reconstructed by CS-SIT without a priori global
+grayscale data, processed by PCA and color mapped; Fig. 4(b)
+is the result from the corresponding simulation data. Figs. 4(c)
+and (f) are the spectral images reconstructed from the hybrid
+interior spectral and global grayscale data sets; these images
+benefit from both the spectral resolution of the interior chain
+and the spatial resolution of the global grayscale chain.
+The basis set from the PCA of the hybrid reconstruction was
+also used to decompose the interior reconstruction, and the same
+windows and levels were used to allow fair comparison. We can
+see that Figs. 4(b) and (e) lack spatial resolution and Figs. 4(c)
+and (f) demonstrate better spectral homogeneity inside the FOV
+(delineated by the black circle) than Figs. 4(b) and (e). We also
+observe that Figs. 4(c) and (f) show better spectral homogeneity
+outside the FOV; however, this degree of improvement may
+not be equally impressive in cases of more complex shapes or
+contrast in the exterior region.
+
+Fig. 6. Semilog plot of the proportional variance weight of each principal
+component for actual and simulated hybrid spectral reconstructions.
+
+The global grayscale reconstruction does not differentiate between the iodine and gadolinium, but all spectral reconstructions
+[see Figs. 4(b), (c), (e), and (f)] allow differentiation between
+the two CAs. The regions of 0.05M concentration are not readily
+
+BENNETT et al.: HYBRID SPECTRAL MICRO-CT: SYSTEM DESIGN, IMPLEMENTATION, AND PRELIMINARY RESULTS
+
+251
+
+TABLE III
+SIMULATION AND PROTOTYPE: ATTENUATION, CONTRAST AND NOISE ANALYSIS
+
+identified on the interior image of Fig. 4(b), while the improved
+reconstruction in Fig. 4(c) shows the regions more clearly. Neither imaging chain could distinguish the 0.005M concentrations.
+Further, the interior spectral reconstructions do not clearly show
+spatial details such as the plastic centrifuge tube containing the
+CA, nor the slight interior bulge in tube 4 (see Fig. 3), both of
+which are apparent in the global and hybrid spectral reconstructions.
+B. Quantitative Analysis
+Fig. 5 shows the first three components from PCA decomposition of the simulated and prototype hybrid spectral reconstructions. Fig. 6 plots the proportion of data variance represented
+by each principal component on a semilog plot. It is clear that
+the variance diminishes significantly after the second principal component in both simulated and prototype reconstructions;
+this phenomenon is similarly demonstrated by the images in
+Figs. 5(a)/(d) and (b)/(e), representing the first two principal
+components, clearly contain relevant information, whereas the
+third component [see Fig. 5(c)/(f)] does not show any relevant
+information. The dominance of the first two components in this
+experiment suggests that a carefully chosen dual energy CT system may be capable of producing similar results. However, this
+would not be true, in general, for the hybrid configuration with
+a harder detector layer (e.g., CdTe or GaAs) because more Kedges could be measured yielding more than two PCA channels
+containing significant information.
+Another critical element illustrated in Fig. 5 is the differentiation between gadolinium and iodine. The first principal component [see Fig. 5(a)/(d)] does not show any appreciable difference,
+yet it is visually obvious that only the gadolinium is enhanced in
+the second principal component [see Fig. 5(b)/(e)]. The difference between the first two principal components produces the
+colorization of different materials shown in Figs. 4(b)/(e) and
+(c)/(f), and thus increases the contrast between elements that
+would otherwise be indistinguishable with traditional grayscale
+imaging [see Fig. 4(a)]. This phenomenon is due to the K-edge
+property of the CA with respect to the photon energy. The signaldifference-to-noise ratio (SDNR) was calculated as described by
+He et al. [23] to quantify the contrast improvement between materials. The results in Table III clearly demonstrate the improved
+contrast resolution with spectral hybrid reconstruction and PCA.
+Fig. 8 plots the reconstructed linear attenuation coefficient
+as a function of the 12 spectral energy bins for the simulated
+hybrid data, and Fig. 9 plots the same for the actual prototype
+
+Fig. 7. Schematic of the ROIs used for quantitative analysis. Line segment AA is used for spatial resolution measurements; B, C, and D denote the sampled
+gadolinium, iodine, and water regions, respectively; the dashed circle represents
+the interior field of view.
+
+hybrid data. The attenuations are averages over the ROIs described in Fig. 7. There are two prominent features in the hybrid
+prototype plot, the most critical being the expected increase in
+attenuation at 33 keV from the K-edge of iodine. Second, there
+is a signal drop-off after roughly 35 keV for all three ROIs
+which corresponds to the limited efficiency of the silicon detector above this energy, thus the detected counts are too low for
+accurate reconstructions. It should be noted that the attenuation
+curves do not appear as ideal curves (e.g., NIST) [25] for several
+reasons: energy bin width, charge sharing, spectral response of
+the silicon detector, source spectrum, and unavoidable noise all
+combine to make the measured attenuation plots different from
+the ideal ones. For example, a sharp attenuation jump at the
+iodine K-edge is observed neither in the real prototype nor the
+simulated plots because the relatively wide energy bins are not
+exactly defined on either side of the K-edge. Thus, the increased
+attenuation at energies above the iodine K-edge is averaged, but
+it is still clearly visible in Figs. 8 and 9.
+The spatial resolution of each reconstruction method (interior,
+hybrid, and grayscale) was calculated for the prototype data via
+the edge spread function [24]. First, a line profile was sampled at
+1 μm intervals through the segment A-A for each reconstructed
+image. The edge spread function was produced by selecting
+the line profile regions passing through the CA-polyethylene
+
+252
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 2, FEBRUARY 2014
+
+Fig. 8. Simulated attenuation versus energy plot. The plot shows the average
+linear attenuation coefficient in the three ROIs described in Fig. 7 as a function
+of the 12 spectral energy bins in the simulated hybrid reconstructions.
+
+between the high-resolution grayscale imaging chain and the
+spectral resolution of the spectral imaging chain. The described
+reconstruction technique utilizes the respective strengths of each
+imaging chain to produce images with both high spatial and contrast resolution. This concept was theoretically proven in [15],
+and the results from the prototype system implementation in this
+paper support its assertions.
+There are a few limitations to this study, hence the “preliminary results” designation in its title. The positions of the
+x-ray sources, detectors, and sample were not optimized, and
+we would have preferred to scan additional CAs, such as barium and gold nanoparticles, with a harder spectral detector layer
+than the silicon Medipix MXR used in this study.
+Future work will build upon these results, and will include
+an evaluation of reducing the number of global grayscale and
+interior spectral projections on the contrast and spatial resolution
+in order to reduce the x-ray dose. Another study will seek to
+optimize the interior spectral energy bin (window) width for
+specific CA K-edge(s) to improve contrast resolution. Finally,
+we would like to implement a pre-clinical hybrid spectral microCT architecture (i.e., rotating gantry) for in vivo biomedical
+applications.
+REFERENCES
+
+Fig. 9. Prototype attenuation versus energy plot. The plot shows the average
+linear attenuation coefficient in the three ROIs described in Fig. 7 as a function
+of the 12 spectral energy bins in the actual prototype hybrid reconstructions.
+
+boundary (border between the CA and the polyethylene centrifuge tubes). The line spread function was produced by taking
+the derivative of the edge spread function, and the spatial resolution was calculated as the full width at half maximum (FWHM)
+value of the line spread function at the boundary. The FWHM
+values are 106, 339, and 124 μm for the grayscale, interior, and
+hybrid reconstructions, respectively. These values show spatial
+resolution improvement in the hybrid reconstruction relative to
+the original interior reconstruction.
+V. CONCLUSION
+The experimental results from the hybrid spectral micro-CT
+prototype demonstrate the feasibility and the merits of this
+particular system architecture. There is an obvious synergy
+
+[1] N. Anderson, A. Butler, N. Scott, N. Cook, J. Butzer, N. Schleich, M.
+Firsching, R. Grasset, N. de Ruiter, M. Campbell, and P. Butler, “Spectroscopic (multi-energy) CT distinguishes iodine and barium contrast material in MICE,” Eur. Radiol., vol. 20, pp. 2126–2134, 2010.
+[2] P. Baturin, Y. Alivov, and S. Molloi, “Spectral CT imaging of vulnerable plaque with two independent biomarkers,” Phys. Med. Biol., vol. 57,
+pp. 4117–4138, 2012.
+[3] D. P. Cormode, E. Roessl, A. Thran, T. Skajaa, R. E. Gordon, J.-P.
+Schlomka, V. Fuster, E. A. Fisher, W. J. M. Mulder, R. Proksa, and Z.
+A. Fayad, “Atherosclerotic plaque composition: Analysis with multicolor
+CT and targeted gold nanoparticles,” Radiology, vol. 256, pp. 774–782,
+Sep. 2010.
+[4] S. Feuerlein, E. Roessl, R. Proksa, G. Martens, O. Klass, M. Jeltsch, V.
+Rasche, H.-J. Brambs, M. H. K. Hoffmann, and J.-P. Schlomka, “Multienergy photon-counting K-edge imaging: Potential for improved luminal
+depiction in vascular imaging,” Radiology, vol. 249, pp. 1010–1016, Dec.
+2008.
+[5] J. Fornaro, S. Leschka, D. Hibbeln, A. Butler, N. Anderson, G. Pache,
+H. Scheffel, S. Wildermuth, H. Alkadhi, and P. Stolzmann, “Dual- and
+multi-energy CT: Approach to functional imaging,” Insights Imag., vol. 2,
+pp. 149–159, 2011.
+[6] D. Pan, R. Proksa, S. D. Caruthers, E. Roessl, M. J. Scott, J.-P. Schlomka,
+A. Senpan, P. J. Gaffney, S. A. Wickline, and G. M. Lanza, “Fibrin-specific
+spectral CT molecular imaging detects ruptured plaque without calcium
+interference,” Circulation, vol. 118, S777, 2008.
+[7] E. Roessl and R. Proksa, “K-edge imaging in x-ray computed tomography
+using multi-bin photon counting detectors,” Phys. Med. Biol., vol. 52,
+pp. 4679–4696, 2007.
+[8] J. P. Schlomka, E. Roessl, R. Dorscheid, S. Dill, G. Martens, T. Istel,
+C. Bäumer, C. Herrmann, R. Steadman, G. Zeitler, A. Livne, and R.
+Proksa, “Experimental feasibility of multi-energy photon-counting Kedge imaging in pre-clinical computed tomography,” Phys. Med. Biol.,
+vol. 53, pp. 4031–4047, 2008.
+[9] P. M. Shikhaliev and S. G. Fritz, “Photon counting spectral CT versus
+conventional CT: Comparative evaluation for breast imaging application,”
+Phys. Med. Biol., vol. 56, pp. 1905–1930, 2011.
+[10] H. Q. Le and S. Molloi, “Segmentation and quantification of materials
+with energy discriminating computed tomography: A phantom study,”
+Med. Phys., vol. 38, pp. 228–237, 2011.
+[11] J. P. Ronaldson, R. Zainon, N. J. A. Scott, S. P. Gieseg, A. P. Butler, P.
+H. Butler, and N. G. Anderson, “Toward quantifying the composition of
+soft tissues by spectral CT with medipix3,” Med. Phys., vol. 39, pp. 6847–
+6857, 2012.
+
+BENNETT et al.: HYBRID SPECTRAL MICRO-CT: SYSTEM DESIGN, IMPLEMENTATION, AND PRELIMINARY RESULTS
+
+[12] T. Woodfield, A. Siegert, B. Schon, and K. Schrobback, “Novel imaging
+methods for detecting cartilage tissue quality via MARS-micro computed
+tomography,” J. Bone Joint Surg., Brit. Vol., vol. 94, pp. 122–122, 2012.
+[13] R. Zainon, J. P. Ronaldson, T. Janmale, N. J. Scott, T. M. Buckenham, A.
+P. H. Butler, P. H. Butler, R. M. Doesburg, S. P. Gieseg, J. A. Roake, and N.
+G. Anderson, “Spectral CT of carotid atherosclerotic plaque: Comparison
+with histology,” Eur. Radiol., vol. 22, pp. 2581–2588, Dec. 2012.
+[14] K. Taguchi, S. Srivastava, H. Kudo, and W. C. Barber, “Enabling photon
+counting clinical X-ray CT,” in Proc. IEEE Nucl. Sci. Symp. Conf. Rec. ,
+2009, pp. 3581–3585.
+[15] Q. Xu, H. Yu, J. Bennett, P. He, R. Zainon, R. Doesburg, A. Opie, M. Walsh,
+S. Haiou, A. Butler, P. Butler, X. Mou, and G. Wang, “Image reconstruction
+for hybrid true-color micro-CT,” IEEE Trans. Biomed. Eng., vol. 59, no. 6,
+pp. 1711–1719, Jun. 2012.
+[16] Q. Xu, X. Mou, G. Wang, J. Sieren, E. A. Hoffman, and H. Yu, “Statistical
+interior tomography,” IEEE Trans. Med. Imag., vol. 30, no. 5, pp. 1116–
+1128, May 2011.
+[17] H. Yu and G. Wang, “Compressed sensing based interior tomography,”
+Phys. Med. Biol., vol. 54, pp. 2791–2805, 2009.
+[18] T. G. Schmidt and F. Pektas, “Region-of-interest material decomposition
+from truncated energy-resolved CT,” Med. Phys., vol. 38, pp. 5657–5666,
+2011.
+[19] Y. Kyriakou and W. A. Kalender, “Intensity distribution and impact of
+scatter for dual-source CT,” Phys. Med. Biol., vol. 52, pp. 6969–6989,
+2007.
+
+253
+
+[20] H. Erdogan and J. A. Fessler, “Monotonic algorithms for transmission tomography,” in Proc. 5th IEEE EMBS Int. Summer School Biomed. Imag.,,
+1999, pp. 801–814.
+[21] H. Yu and G. Wang, “A soft-threshold filtering approach for reconstruction
+from a limited number of projections,” Phys. Med. Biol., vol. 55, pp. 3905–
+3916, 2010.
+[22] A. R. Kalukin, M. Van Geet, and R. Swennen, “Principal components
+analysis of multienergy X-ray computed tomography of mineral samples,”
+IEEE Trans. Nucl. Sci., vol. 47, no. 5, pp. 1729–1736, Oct. 2000.
+[23] P. He, B. Wei, W. Cong, and G. Wang, “Optimization of K-edge imaging
+with spectral CT,” Med. Phys., vol. 39, pp. 6572–6579, 2012.
+[24] S. M. Bentzen, “Evaluation of the spatial resolution of a CT scanner
+by direct analysis of the edge response function,” Med. Phys., vol. 10,
+pp. 579–581, 1983.
+[25] J. H. Hubbell and S. M. Seltzer, “Tables of X-ray mass attenuation coefficients and mass energy-absorption coefficients 1 keV to 20 MeV for
+elements Z = 1 to 92 and 48 additional substances of dosimetric interest,”
+Nat. Inst. Standards Technology-PL, Gaithersburg, MD (United States).
+Ionizing Radiation Div., 1995.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

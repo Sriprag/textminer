@@ -1,0 +1,942 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+1009
+
+Joint Application of Audio Spectral Envelope
+and Tonality Index in an E-Asthma
+Monitoring System
+Marcin Wiśniewski and Tomasz P. Zieliński
+
+Abstract—This paper presents in detail a recently introduced
+highly efficient method for automatic detection of asthmatic wheezing in breathing sounds. The fluctuation in the audio spectral envelope (ASE) from the MPEG-7 standard and the value of the tonality
+index (TI) from the MPEG-2 Audio specification are jointly used as
+discriminative features for wheezy sounds, while the support vector machine (SVM) with a polynomial kernel serves as a classifier.
+The advantages of the proposed approach are described in the paper (e.g., detecting weak wheezes, very good ROC characteristics,
+independence from noise color). Since the method is not computationally complex, it is suitable for remote asthma monitoring using
+mobile devices (personal medical assistants). The main contribution of this paper consists of presenting all the implementation
+details concerning the proposed approach for the first time, i.e.,
+the pseudocode of the method and adjusting the values of the ASE
+and TI parameters after which only one (not two) FFT is required
+for analysis of a next overlapping signal fragment. The efficiency of
+the method has also been additionally confirmed by the AdaBoost
+classifier with a built-in mechanism to feature ranking, as well as
+a previously performed minimal-redundancy-maximal-relevance
+test.
+Index Terms—Asthma, audio spectral envelope (ASE), discrete
+Fourier transform (DFT), monitoring, recognition, tonality index
+(TI), wheezes.
+
+I. INTRODUCTION
+HE capability for patients to monitor conditions at home,
+exploiting e-health technology and personal medical assistants, is a very important and promising trend in contemporary
+medicine. Heart disease, diabetes, and asthma are well-known
+examples of chronic illnesses requiring permanent home monitoring over some periods of time (e.g., after intensification of
+disease symptoms or dangerous attacks).
+In order to increase patient comfort and device functionality,
+the mobile medical devices used in the patient’s native environment should be very small and characterized by low power
+consumption ensuring long battery life. For this reason, com-
+
+T
+
+Manuscript received November 9, 2013; revised June 6, 2014 and August
+1, 2014; accepted August 18, 2014. Date of publication August 26, 2014; date
+of current version May 7, 2015. This work was (partially) supported by the
+Polish Ministry of Science and Higher Education under the European Regional
+Development Fund, Grant POIG.01.01.02–00-045/09-00, Future Internet Engineering, and by AGH contract no 11.11.230.018.
+The authors are with the Department of Telecommunications, AGH
+University of Science and Technology, Kraków 30-059, Poland (e-mail:
+wisniewski@kt.agh.edu.pl; tzielin@agh.edu.pl).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2352302
+
+putational algorithms designed for mobile e-health applications
+should be efficient but not very computationally intensive.
+This paper addresses the issue of remote monitoring of patients with asthma. Automatic recognition of asthmatic wheezes
+has a very long history, starting from the early 1980s [1], [2].
+Many different methods relevant to this purpose have been developed and reported to the present day. Since excellent review
+papers and books have already been written on this subject [3],
+[4], [5] and are still current, only a brief introduction to this
+issue will be given below.
+A medical introduction to lung sound classification can be
+found in [6]–[8]. The asthmatic wheeze recognition task can be
+summarized as detecting whether bursts of summations of pure
+tones are present in the breathing sound (as colored noise) or not
+[9]. In the past, many methods for automatic wheeze recognition have been proposed. Most of these make use of a variety of
+frequency analysis methods for sound feature extraction (e.g.,
+short-time Fourier transform [9], mel-frequency spectral coefficients (MFCC) [10], wavelet transform [11], or autoregressive analysis [12]) that are combined with different tools for
+data modeling [vector quantization, Gaussian mixture models
+(GMM)] and classification [k-nearest neighbors, support vector
+machine (SVM), and artificial neural networks]. After testing
+several approaches, it was indicated in [10] that superior results
+are ensured by combing MFCC with GMM. MFCC coefficients
+are used also with success in the classification of breathing
+movements (inspiratory and expiratory) in real time [13].
+In [14], an interesting algorithmic perspective on asthma telemonitoring by means of low-power mobile systems and wireless
+networks is described. In this application scenario, the computational expense of the algorithm is of great importance. This goal
+is addressed, for example, with the following simple wheeze
+detection methods using: kurtosis (K), Renyi entropy, and frequency ratio f50 /f90 from [15], and spectral peak entropy (SPE)
+from [16].
+In this paper, a new low-cost computer algorithm for automatic recognition of asthmatic wheezing in breathing sounds
+is proposed. The method makes use of a set of two acoustic sound features, i.e., the audio spectral envelope (ASE) descriptor, adopted from the MPEG-7 multimedia standard [17],
+and the tonality index (TI) taken from the MPEG-2 Audio specification [18], and described in detail in [19] and [20]. As a
+classifier, the SVM [21] with a polynomial third-order kernel
+function is used. The paper describes how, using real lung sound
+recordings, the new method represents a very flexible solution
+for mobile real-time asthma monitoring: It is very sensitive while
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1010
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+not computationally demanding, has very good ROC characteristics, and is independent of noise color.
+This paper presents the final results of the research activity already reported in the series of papers [22]–[28]. First, we
+presented state-of-the-art solutions used in e-asthma mobile systems [22]. Then, we introduced an application of the TI from the
+MPEG-2 Audio standard for wheeze detection [23] and compared its efficiency [23], [24] with some other sound features
+(e.g., kurtosis in the time and frequency domains, spectral flatness (SF), SPE, and frequency ratio f50 /f90 ). Next, we built a
+computer model of normal and wheezy breath that we used in
+our simulations [25] and tested the application of some other
+sound features (linear prediction error and two new tonality
+measures based on autocorrelation function and eigenvalue decomposition) [26]. Finally, in [27] and [28], we introduced the
+application of an ASE from the MPEG-7 standard and exploited
+the minimal-redundancy-maximal-relevance (mRMR) method
+[29] to confirm the superiority of the dual feature set {ASE +
+TI}. Additionally, in [28], we demonstrated that this set of features also guarantees wheeze recognition independently of noise
+color. In the present paper, we provide for the first time a pseudocode for the developed solution (in detail) in which ASE
+calculation is significantly simplified. Additionally, both ASE
+and TI features now have parameters jointly optimized (unified)
+for fast real-time sliding-window implementation (now only one
+256-point FFT per new overlapping signal fragment is required).
+We also show some new results including a joint 2-D scatter plot
+for the ASE + TI algorithm and ROC characteristics of several
+tested methods. Finally, we present new classification (ranking)
+of all methods using the AdaBoost algorithm.
+The structure of this paper is as follows. In Section II, the
+detection problem is explained in more detail. In Section III, the
+calculation of the ASE and TI tonality measures is described.
+In Section IV, this method is experimentally compared with
+some alternative solutions. The paper ends traditionally with
+conclusions and references.
+
+II. WHEEZE DETECTION PROBLEM
+From the signal processing perspective, asthmatic wheeze
+recognition relies on detecting bursts of oscillatory tones (usually from 1 to 6, typically 2–4, with frequencies in the range
+from 100 to 1200 Hz and lasting at least 80 ms) that are embedded in additive colored noise—the breathing sound [6], [7]. The
+typical breath signal taken from the chest wall, as in our case,
+is a colored noise whose spectrum decreases exponentially in
+frequency (but can be detected near 1 kHz by sensitive microphones as well). Figs. 1 and 2 present time waveforms, Fourier
+spectra energy |X(f)|2 in decibels (computed via FFT), and spectrograms (joint energy distribution in the time-frequency domain
+calculated by means of a short-time Fourier transform) for a normal breath (colored, mainly low-frequency noise) and a wheezy
+breath (multitones embedded in colored noise), respectively.
+Our aim is to distinguish clear inspiration from wheezy. However, the situation is not always as clear as presented: Normal
+breath can have a wider spectrum (with higher frequencies) and
+
+Fig. 1. Sound of a normal breath: (a) time waveform, (b) energy spectrum,
+and (c) spectrogram (i.e., change of energy spectrum in time—brighter colors
+represent higher energy values).
+
+low-frequency tones, not only high-frequency ones, can also be
+present in a wheeze.
+Since the background noise is colored not white, the described
+above recognition task cannot be solved by means of known optimal detectors [30], [31] developed for additive white Gaussian
+noise. Such optimal detectors are used in sonar systems [32]
+for finding the parameters of linear mixtures of cosines and
+in nuclear magnetic spectroscopy [33] for the measurement of
+mixtures of exponentially damped cosines. Unfortunately, they
+are useless in our detection problem due to the noise color.
+
+WIŚNIEWSKI AND ZIELIŃSKI: JOINT APPLICATION OF AUDIO SPECTRAL ENVELOPE AND TONALITY INDEX IN AN E-ASTHMA
+
+1011
+
+ments so they are predictable. Since the TI tonality descriptor
+measures a spectral unpredict-ability, after combing it with ASE
+we are tracking both, how much the spectrum is peaky and how
+much it is not varying.
+III. PROPOSED METHOD
+The application of an ASE [17] for wheeze detection was
+proposed for the first time in [27] and [28]. ASE calculation relies on 1) extracting an mth overlapping signal fragment xm (n) = x(m · M + n), n = 0, 1, . . . , N −1 (where N
+and M denote observation window length and shift, respectively), 2) multiplying it with a window function w(n): xm (n) ←
+xm (n) · w(n) (in our case with a Kaiser window with shape
+parameter β = 7, chosen experimentally for maximization of
+recognition accuracy), 3) calculation of the discrete Fourier
+transform (DFT) Xm (k), k = 0, 1, 2, . . . , N −1, and the power
+spectrum Pm (k) = |Xm (k)|2 of the windowed signal, and 4)
+performing a weighted summation of the Pm (k) over k in predefined frequency bands b
+
+ASEm (b) =
+Pm (k), b = 0, 1, 2, ..., B.
+(1)
+k for given b
+
+The bands are logarithmically distributed between a predefined low flow and high fhigh frequency edge with the chosen
+resolution r being equal to the number of bands per octave (e.g.,
+8, 16, 32)
+fb = flow 2b · Δ ,
+
+Δ = 1/r,
+
+b = 0, 1, 2, . . . , r · log2 (fhigh /flow ).
+
+(2)
+
+In our previous papers [27], [28], lung sounds were sampled with frequency fsam pl = 8000 Hz, DFT had length N =
+256 samples, and window shift equaled M = 64 samples.
+In consequence, the DFT frequency resolution was equal to
+df = fsam pl /N = 31.25 Hz, and the DFT spectral bins from
+k = 4(km in ) to k = 38 (km ax ) covered the frequency range of
+interest [125–1187.5 Hz] during the asthmatic wheeze detection.
+In this study, the following values for the ASE parameters
+were used (according to ISO/IEC defaults [17]):
+flow = 62.5 Hz, fhigh = 4000 Hz, r = 32 bands per octave.
+Fig. 2. Sound of a wheezy breath: (a) time waveform, (b) energy spectrum,
+and (c) spectrogram (i.e., change of energy spectrum in time—brighter colors
+represent higher energy values).
+
+Origin of the proposed ASE + TI wheeze detection method
+can be explained as follows. Asthmatic wheezes (multitones)
+occur from time to time in breathing sounds, and their frequency
+spectra have higher peaks at this moments. Length of the spectral envelope is sensitive to existence of such peaks, especially
+when the background noise floor is exponentially decaying in
+frequency (colored). Therefore, the ASE tonality measure has
+larger values for a wheeze than for a normal breath. The same
+time spectra of tonal components (in contrary to noise) are not
+changing so rapidly for consecutive/overlapping signal frag-
+
+In consequence, (1) takes the very simple form ASEm (k) =
+Pm (k) (with no summation) because inside the range 100–
+1200 Hz of wheeze presence, only one frequency DFT bin lies in
+each frequency band (2) in the range fbm in = 106.5 Hz (b = 23)
+and fbm ax = 1189.2 Hz (b = 137). For this reason, the ASE
+calculation turned out to be easy and, therefore, appropriate for
+low-power implementation on a mobile device.
+The ASE-based algorithm for detection of signal tonality
+is summarized in Table I. From power spectra Pm (k), calculated by means of DFT/FFT, only bins from km in = 4 to
+km ax = 38 are taken; next, these spectra fragments are locally
+averaged in time (LASE = 13) and normalized into the range
+[0], [1]. Finally, the spectrum fluctuation f luctASEm is calculated, which serves next as a local tonality measure (descriptor).
+The f luctASEm takes significantly smaller values for normal
+
+1012
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+TABLE I
+ASE + TI WHEEZES DETECTION ALGORITHM
+ INITIALIZATION:
+f s a m p l i n g ← 8000Hz
+N ← 256
+M ← 64
+k m i n ← 4, k m a x ← 38
+L A S E ← 13, L T I ← 7
+ MAIN LOOP - repeat for each new (mth) data frame:
+REPEAT for m = 0, 1, 2, 3, . . .
+ Data preprocessing ——————————————repeat for n = 0, 1, 2, . . . , N − − − − − − − − − − − − − − − 1:
+x m (n ) ← x(m · M + n )
+x m (n ) ← x m (n ) − m ean (x m (n ))
+x
+(n )
+x m (n ) ← m a x (m
+|x m ( n ) |)
+
+ sampling frequency
+ DFT: window length
+ STEP: window shift
+ DFT: lags numbers of interest
+ orders of time averaging
+
+ take new frame
+ subtract mean
+ normalize
+
+n
+
+end repeat
+ DFT/FFT with windowing ———————————N
+−1
+−j 2 π k n
+X m (k ) ←
+x m (n )w (n )e N
+n=0
+
+ ASE calculation ———————————————–
+repeat for k = k m i n , . . . , k m a x :
+P m (k ) ← |X m (k )|2
+m
+
+ASE m (k ) ← L 1
+P l (k )
+
+ power
+ mean
+
+A S E l = m −L
+ASE +1
+
+ASE nmo r m (k ) ←
+
+A S E m ( k ) −m i n ( A S E m ( k ) )
+k
+m a x ( A S E m ( k ) ) −m i n ( A S E m ( k ) )
+k
+k
+
+ norm
+
+end repeat
+f lu ctASE m ←
+
+km
+a x
+
+|ASE nmo r m (k ) − ASE nmo r m (k − 1)|
+
+ final
+
+k = k m in + 1
+
+ TI calculation ————————————————–
+repeat for k = k m i n , . . . , k m a x :
+r m (k ) ← |X m (k )|, ϕ m (k ) ← angle(X m (k ))
+r m (k ) ← 2r m −1 (k ) − r m −2 (k )
+
+ predict magnitude
+
+ϕ m (k ) ← 2ϕ m −1 (k ) − ϕ m −2 (k )
+
+ predict phase
+
+A m (k ) ← r m (k ) · cos(ϕ m (k )) − r m (k ) · cos(ϕ m (k ))
+B m (k ) ← r m (k ) · sin(ϕ m (k )) − r m (k ) · sin(ϕ m (k ))
+
+
+
+c m (k ) ←
+
+2 (k )
+A 2m ( k ) + B m
+
+
+
+
+r m (k )+ r m (k )
+
+
+
+
+ spectral unpredictability
+
+end repeat
+km
+a x 2
+r m (k )
+em ←
+(w )
+
+cm
+
+k = k m in
+km
+a x
+
+←
+
+k = k m in
+
+em ←
+
+1
+LTI
+
+TI m ←
+
+ energy
+ weighted spectral unpredictability
+
+2
+c m (k )r m
+(k )
+m
+
+
+(w )
+
+el , cm
+
+
+l = m −L T I + 1
+
+
+(w )
+em
+log 1 0 c m
+
+←
+
+1
+LTI
+
+m
+
+
+(w )
+
+l = m −L T I + 1
+
+cl
+
+ mean values
+final
+
+END REPEAT
+
+breaths than for wheezes due to peaks existing in frequency
+spectra of wheeze sounds.
+During numerous experiments performed on real as well as
+on modeled (synthesized) data, it turned out that the proposed
+wheeze detector based on ASE is an absolute winner (among
+front-end simple approaches) in the situation where multitones
+(>1) to be found are embedded in colored (not white!) noise
+with a strongly exponentially damped spectrum [see Fig. 1(b)]—
+this is the case for asthmatic wheezes. When the background
+noise spectrum is close to white, the superiority of the ASE
+detector vanishes. It was also observed that the ASE works less
+effectively for single-tone wheezes.
+With the goal of minimizing the aforementioned drawbacks
+of the separate ASE usage and increasing the field of applica-
+
+tion of the ASE wheeze detector, we proposed in [27] and [28]
+combining the ASE with the TI descriptor originating from the
+MPEG audio standard [18]–[20]. The optimality of the choice
+of {ASE + TI} was confirmed in [27] by the mRMR test [29].
+Since the use of the TI in asthmatic wheeze detection has been
+widely reported in our previous papers [23], [24], [26], only the
+final method’s equations are given in Table I. This descriptor also
+makes use of the signal DFT/FFT spectrum, but now the spectrum unpredictability is of interest (which is high for a normal
+noisy breath and small for a tone-like wheeze). One can observe
+that now, contrary to the standard [18]: 1) no psychoacoustically
+motivated spreading function is used, 2) all DFT-based parameters are only calculated for spectral lags changing from km in to
+km ax , 3) energy and weighted spectral unpredictability are only
+
+WIŚNIEWSKI AND ZIELIŃSKI: JOINT APPLICATION OF AUDIO SPECTRAL ENVELOPE AND TONALITY INDEX IN AN E-ASTHMA
+
+1013
+
+TABLE II
+UMBER OF REQUIRED REAL-VALUE ARITHMETIC OPERATIONS
+Operation
+Old method
+New method
+Speed-up
+
+∗
+
++, −
+
+/
+
+√
+
+sin, atan
+
+15086
+4842
+3.12 ×
+
+22336
+7145
+3.13 ×
+
+999
+400
+2.5 ×
+
+156
+70
+2.2 ×
+
+234
+105
+2.2 ×
+
+found in this rage, and, next, 4) averaged for last LTI = 7 signal
+frames.
+It is important to stress that in Table I a new version of the
+method is presented in which ASE and TI both exploit the results
+of the same N = 256-point FFT (only one, not two), which significantly reduces the computational cost (expense). Previously,
+in the TI calculation, we used the following parameter values
+[23]–[28]: N = 512, M = 64, km in = 6, km ax = 83, LTI = 7
+and Kaiser window with β = 12. Comparison of computational
+costs between the old and new methods for real-time slidingwindow implementation is performed in Table II, where the
+number of required real-value arithmetic operations is given.
+We can conclude that the present version of the algorithm requires about three times fewer real-value multiplications and
+additions than before the optimization.
+It is important to stress that in this study, we analyze 1024point signal fragments but we: 1) cut them into consecutive, overlapping portions/frames (having N = 256 or N =
+512 samples and shifted by M = 64 samples in respect to each
+other), 2) do the same calculations for each signal frame separately, and 3) average partial results (summations over l in Table II) and calculate final tonality measures. Since the developed
+method addresses the real-time continuous asthma monitoring,
+in Table II, only these calculations are taken into account which
+are required when a new signal frame is available. It is assumed
+(w )
+that some temporary results (e.g., Pl (k), el , cl ) are stored in
+memory, and this way the expense of averaging is significantly
+reduced.
+
+Fig. 3. Histogram of (a) fluctASE and (b) TI values calculated for normal
+breath (red/dark) and wheezes (white).
+
+IV. RESULTS
+In this section, we present some results demonstrating the
+efficiency of the proposed wheeze detection method: in the beginning results obtained on real data, which in our opinion are
+more reliable, and then results for modeled data (when we are
+checking the tonality descriptors’ behavior in more controlled
+conditions/setup).
+A. Real Data
+During the tests, human lung sound databases available online were mainly used [34], [35]; however, several of our own
+recordings of normal and wheezy breaths were proportionally
+appended to these (the recorder and its parameters are described
+in Section V). From longer recordings chosen by medical doctors, we carefully selected 130 short records representing normal
+and 130 records of wheezy breath, each with 1024 samples.
+About 30% of these came from our own recordings. The
+database created for testing had all the different recognition
+
+Fig. 4. Joint 2-D scatter of fluctASE and TI values calculated for normal breath
+(“+”) and wheezes (“·”).
+
+cases (very easy, typical, and very difficult to interpret) previously noted by the doctors.
+In Fig. 3, histograms of the fluctASE and TI tonality measure
+values are shown. They demonstrate that both features discriminate asthmatic wheezes (multitones) from normal breathing
+well. We can observe that both descriptors take significantly
+smaller values for normal breaths than for wheezes.
+
+1014
+
+Fig. 5.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+Experimental wheeze recognition accuracy for different methods.
+
+Fig. 6.
+
+ROC of different tonality (wheeze) recognizers.
+
+TABLE III
+AREA UNDER CURVE FOR SELECTED FEATURES FOR REAL DATA
+
+In Fig. 4, a 2-D plot of fluctASE versus TI is presented, showing that it is not difficult to separate a 2-D plane into two regions
+of values typical of normal breaths (“+,” left down corner) and
+wheezes (“·,” upper part).
+The dashed border line plotted in this figure, separating the
+two classes, was calculated using an SVM classifier with a
+polynomial third-order kernel.
+Due to the relatively small dataset, all recognition experiments were conducted using k-fold, in our case tenfold, methodology: Recordings of both types were randomly divided into
+ten blocks having 13 sound fragments each, then nine blocks
+from each class were used for training the classifier (SVM with
+polynomial kernel with order 3, chosen experimentally) and the
+remaining one block was exploited for testing; the experiments
+were repeated ten times, and recognition results were averaged.
+The following measures of wheeze recognition efficiency were
+used:
+· 100%
+1) positive predictive value: PPV = TPTP
++ FP
+· 100%
+2) negative predictive value: NPV = TNTN
++ FN
+TP
+3) sensitivity: Sens = TP + FN · 100%
+· 100%
+4) specificity: Spec = TNTN
++ FP
++ TN
+TP
+· 100%
+5) accuracy: AC =
+TP + TN + FP + FN
+
+where: TP—true positive (percentage of wheezes correctly recognized), TN—true negative (percentage of wheezes not recognized), FP—false positive (percentage of normal breaths correctly recognized), and FN—false negative (percentage of normal breaths not recognized).
+Fig. 5 presents the recognition accuracy for different tonality
+measures:
+1) joint application of fluctASE + TI;
+2) separate usage of fluctASE and TI;
+3) some other reference methods that were used as background in our previous research [23]–[28]. Below, the
+reference methods are listed in order of decreasing significance: autocorrelation tonality measure (CTM) [24], [26],
+spectral energy ratio (ER) [26], spectral peak-to-mean ratio (P2M) [26], optimum constant false alarm rate (CFAR)
+
+Method
+
+ASE
+
+TI
+
+CTM
+
+ER
+
+SF
+
+AUC
+
+0.951
+
+0.905
+
+0.871
+
+0.779
+
+0.595
+
+detector originated from sonar applications [32], linearprediction (LP) measure [12], [26], comparison (tracking)
+of vector of spectral coefficients (VCMP) [27], SPE [16],
+[23], [24], diagonal of Fourier bispectrum [36], and SF
+[23].
+Fig. 5 takes the form of a MATLAB boxplot [37]: The central mark denotes the median; the edges of the box represent
+the 25th and 75th percentiles; the whiskers extend to the most
+extreme data points, while “×” and “∗,” if they are marked,
+denote the median value of PPV and Sens, respectively. We can
+observe the superior efficiency of the fluctASE tonality measure,
+the high performance of the autocorrelation-based tonality descriptor (CTM) and the better than average behavior of the TI.
+Joint usage of fluctASE and TI does not improve the recognition
+accuracy significantly; however, this combination does ensure
+the robustness of the detector against changes in noise color, as
+will be shown below. Combing fluctASE and TI was suggested
+by the mRMR method [27]. This pair of tonality descriptors is
+also better than the {fluctASE + CTM} pair from the point of
+view of lower computational cost.
+The experimental receiver operating characteristics (ROC,
+sensitivity as a function of 1-specificity) obtained for the tested
+methods are presented in Fig. 6. The ROC curves were calculated for the whole dataset of signals without cross validation.
+For better clarity, only the three best descriptors (solid lines:
+ASE, CTM, TI) are shown, together with the best and the worst
+method from the rest of the testing set (dashed lines: ER, SF).
+In Table III, the area under each curve (AUC) is given. Again,
+fluctASE outperforms the other methods with its very high sensitivity and AUC value.
+As mentioned above, we have already confirmed the optimality of the ASE + TI choice in [27] using the mRMR method.
+In the mRMR test, the following feature ranking was obtained:
+ASE, TI, CTM, VCMP, SPE, ER, K, CFAR, SF, EVD, P2M,
+
+WIŚNIEWSKI AND ZIELIŃSKI: JOINT APPLICATION OF AUDIO SPECTRAL ENVELOPE AND TONALITY INDEX IN AN E-ASTHMA
+
+1015
+
+TABLE IV
+DESCRIPTORS WEIGHTS CALCULATED BY ADABOOST ALGORITHM
+ASE
+
+TI
+
+CTM
+
+P2 M
+
+ER
+
+Others
+
+2.87
+
+1.44
+
+0.74
+
+0.61
+
+0.37
+
+0
+
+and LP. Now, we would like to present the new verification
+results obtained using the AdaBoost feature evaluation methodology [38]. This makes use of a simple classifier (thresholding in
+our case) and allows evaluation of the significance of particular
+features by means of their weights calculated during the training process. The weights obtained are shown in Table IV; they
+are largest for ASE and TI. The overall recognition ACC was
+equal 93%.
+
+Fig. 7. Joint 2-D scatter of fluctASE and TI values calculated for modeled
+signals (scenario #1) normal breath (“+”) and wheezes (“·”).
+
+B. Simulated/Modeled Data
+The results presented so far were obtained using the database
+of real recordings. Since it was impossible to control the tonal
+components of the wheezes (e.g., the number of components,
+their frequencies, and power) and to observe the sensitivity of
+the method we developed for different signal features, we analyzed the available real data, and on this basis, built two signal models—for a normal breath and a wheezy breath [25].
+We calculated the mean spectrum envelope (EN) of the normal
+breath, characterized by approximately exponential damping in
+frequency, and a spectral background envelope (EW) for the
+wheezy breath. A wheezy breath typically had two to four tones
+with frequencies in the range 100–1200 Hz as expected. We
+discovered that the distribution of typical breath samples is approximately Gaussian. With the model, we generated many synthetic signals representing normal-like and wheeze-like breaths:
+Gaussian noise was smoothed by an appropriate filter (with
+the specified EN or EW frequency response) and, next, one to
+six random tones were added to it (with predefined probability). During training and testing, the signal-to-noise (wheezeto-breath) ratio was chosen as a random number from the range
+[–20, 20] dB.
+First (scenario #1), normal-like breath signals were obtained
+by filtering the Gaussian noise with the EN filter. In turn, for
+generation of the wheezy-like breath signals, the EW filter was
+used, and then, the multitones were added. The joint 2-D scatter
+of fluctASE and TI values calculated for these modeled signals
+is presented in Fig. 7 (compare it with Fig. 4). The recognition
+efficiency obtained in this case is presented in Fig. 8, which is
+very similar to Fig. 5. This confirms, in our opinion, the validity
+of our signal model.
+Next (scenario #2), during the generation of the pseudowheezes, the EN filter (rather than the EW filter) was used.
+This signal modeling is typically recommended in the literature
+[9]. The recognition results are shown in Fig. 9. As we can see,
+the efficiency of the methods is different; however, ASE + TI,
+ASE, CTM, and TI are again among the winners, which shows
+that they are robust against changes in the background spectrum
+of the wheezes. In turn, the ER and SF tonality descriptors are
+very sensitive to this background. Therefore, in the following
+
+Fig. 8.
+
+Recognition accuracy for modeled signals (scenario #1).
+
+Fig. 9.
+
+Recognition accuracy for modeled signals (scenario #2).
+
+part of the paper, we will present some additional results obtained for the second recommended modeling scenario only.
+We will investigate the sensitivity of the proposed ASE + TI
+method as well as its robustness against breathing noise color.
+Sensitivity: Using the model, we trained the SVM classifier
+with synthetic normal and wheezy breaths. We start by training
+using mixed SNR data and testing on a single SNR. During this
+
+1016
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+Fig. 10. Recognition accuracy as a function of SNR (wheeze-to-breath) ratio
+(scenario #2).
+
+training, the signal-to-noise (wheeze-to-breath) ratio was chosen
+as a random number from the range [–20, 20] dB. During testing,
+we tried to recognize different modeled wheezes with the same
+SNR. These experiments were repeated many times for an SNR
+changing during testing from –40 to 20 dB. Fig. 10 presents
+recognition accuracy as a function of wheeze-to-breath energy
+ratio for the different methods tested (ASE + TI, ASE, CTM, TI,
+VCMP). Once again, in order to provide better clarity, only the
+best three single descriptors are shown (solid lines: ASE, CTM,
+TI) together with the worst method from the remainder of those
+tested (dashed lines: VCMP). In addition, the joint application
+of ASE + TI is also presented (wide dotted line). Among the
+single-feature detectors, the ASE method is the most efficient for
+low SNR—only CTM can compete with it. However, ASE does
+not work as well for higher SNR values. The joint application
+of ASE + TI is only slightly better than the usage of ASE alone
+for low SNR, although it is significantly better for higher SNR
+values.
+Robustness to noise color: Additional simulations showed
+that ASE does not work very well for single tone wheezes and
+in the situation where the noise background is white not colored.
+The addition of TI was found to be a remedy to both problems.
+As an example, Fig. 11 presents results from synthetic wheeze
+recognition by means of ASE and ASE + TI when the noise
+changed smoothly from white (0 dB, no increase in near-dc frequencies) to strongly colored (60 dB increase in near-dc frequencies, then exponential decay and 0 dB for 1200 Hz—typical case
+of an asthmatic wheeze), see details in [28]. As we can see, the
+ASE method depends strongly on noise color while the ASE +
+TI does not. So the use of ASE + TI is noise-type robust and
+only slightly more complex computationally (only slightly since
+both methods make use of the same single FFT).
+V. E-ASTHMA MONITORING SYSTEM
+The wheeze detection method presented in this paper was
+developed for the e-asthma monitoring system built by the
+POIG Polish project entitled “Future Internet Engineering” [39].
+The system consists of [40]: a four-channel wheeze recorder
+(shown in Fig. 12, with Panasonic WM-61 microphones, ARM
+
+Fig. 11. Recognition accuracy as a function of SNR (wheeze-to-breath) ratio
+and level of noise color (increase of near-dc frequency components artificially
+added to initially white background noise and expressed in decibels) for scenario
+#2: (a) ASE, (b) ASE + TI.
+
+Fig. 12.
+
+Prototype of four-channel breath sound recorder.
+
+LPC2468 ARM7 TDMI-S processor, and Bluetooth transmitter), a smartphone (HTC HD2 mini) with dedicated Windows
+Mobile application and AMONIT (Asthma MONIToring) medical server. A simplified system diagram is presented in Fig. 13.
+Connections which have already been implemented are marked
+with solid lines.
+Microphones for breathing sound recordings are placed on
+the patient’s chest wall. Data are sampled with 16-bit resolution
+and a frequency of 8 kHz. The patients were not moving during
+the building of our own database of breathing sounds. Patients
+and recordings were selected by medical doctors but the data
+were separated by our research team. Our own data took up
+about 30% of the database used for training and testing.
+
+WIŚNIEWSKI AND ZIELIŃSKI: JOINT APPLICATION OF AUDIO SPECTRAL ENVELOPE AND TONALITY INDEX IN AN E-ASTHMA
+
+1017
+
+annotated and contained signals that were very differentiated:
+easy, midrange and difficult to interpret. It is also important to
+note that all the tested methods were faced with exactly the same
+level of difficulty, and it is interesting to observe that in our tests,
+the ASE method overcame some very strong and well-known
+competitors such as the linear prediction method (preferred in
+[12] and [14]) and the optimal CFAR tone detector (proposed
+in [32]).
+
+Fig. 13.
+
+Developed E-asthma monitoring system.
+
+REFERENCES
+The smartphone is the heart (master) of the mobile part of the
+system. A built-in Bluetooth interface is used to connect it, in
+a star topology, with the following external devices: pulsometer sensor, peak flow meter, and wheeze recorder. The results
+of measurements are sent to the e-health server continuously
+or on demand. Using a built-in GPS receiver, air quality measurements can be obtained by a patient more precisely from an
+external internet pollution database. All devices used in the mobile subsystem guarantee high power efficiency, and therefore,
+battery charging is not required every day.
+To increase the application range, a stationary system extension is offered. This exploits a PC (netbook) for periodic
+patient self tests (e.g., peakflowmetry, spirometry, and wheeze
+detection). Mostly, these tests are performed at home, but the
+Bluetooth interface present in the peak flow meter and wheeze
+recorder enables tests to be conducted elsewhere too. In this
+case, the data are transferred to external servers using the mobile phone’s Wi-Fi interface or a GSM modem. The patient may
+be supervised by a medical doctor during the self tests.
+VI. CONCLUSION
+In this paper, we have summarized the final results of our
+long study of the issue of asthmatic wheeze detection. More
+than 20 different tonality measures have been tested (typical and
+proposed, based on linear prediction, bi-spectrum, Fourier spectrum energy, signal statistics, etc.), real and synthetic data were
+used, and thousands of experiments were performed. Finally, the
+“winner” was the fluctuation of ASE descriptor adopted from
+the MPEG-7 standard. This ensures two very important features: high recognition accuracy and low computational complexity (after optimization of parameter values). Therefore, this
+is a very good candidate for implementation in mobile asthma
+monitoring devices. Combining ASE with the second tonality
+measure, i.e., the TI from the MPEG audio standard, makes the
+developed method even more robust (to noise color and number
+of tones), but at the cost of slightly increased computational
+complexity. Since the ASE + TI detector is immune to noise
+color, it can be used in different applications and not only for
+recognition of asthmatic wheezes.
+The authors are aware that the main drawback of this study
+is our limited access to large lung sound repositories. However,
+we would like to stress in this context that the database of
+real recordings we used, though not very large, was carefully
+
+[1] G. Charbonneau, J. Racineux, M. Sudraud, and E. Tuchais, “Digital processing techniques of breath sounds for objective assistance of asthma
+diagnosis”, in Proc. IEEE Int. Conf. Acoust., Speech, Signal Process.,
+1982, vol. 82, pp. 736–738.
+[2] T. R. Fenton, H. Pasterkamp, A. Tal, and V. Chernick, “Automatic spectral
+characterization of wheezing in asthmatic children,” IEEE Trans. Biomed.
+Eng., vol. BME-32, no. 1, pp. 50–55, Jan. 1985.
+[3] S. Reichert, R. Gass, C. Brandt, and E. Andrès, “Analysis of respiratory
+sounds: State of the art,” Clinical Med., Circulatory, Respiratory Pulmonary Med., vol. 2, pp. 45–58, 2008.
+[4] L. J. Hadjileontiadis, Lung Sounds: An Advanced Signal Processing Perspective. San Rafael, CA, USA: Morgan & Claypool, 2009.
+[5] R. Palaniappan, K. Sundaraj, N. U. Ahamed, A. Arjunan, and S. Sundaraj,
+“Computer-based respiratory sound analysis: A systematic review,” IETE
+Tech. Rev., vol. 30, no. 3, pp. 248–256, 2013.
+[6] H. Pasterkamp, S. S. Kraman, and G. R. Wodicka, “Respiratory sounds.
+Advances beyond the stethoscope,” Amer. J. Respiratory Crit. Care Med.,
+vol. 156, no. 3, pp. 974–987, 1997.
+[7] A. R. A Sovijarvi, L. P. Malmberg, G. Charbonneau, J. Vanderschoot,
+F. Dalmasso, C. Sacco, M. Rossi, and J. R. Earis, “Characteristics of
+breath sounds and adventitious respiratory sounds,” Eur. Respiratory Rev.,
+vol. 77, no. 10, pp. 591–596, 2000.
+[8] Special issue on respiratory sound analysis, Eur. Respiratory Rev., vol. 77,
+no. 10, 2000.
+[9] S. A. Taplidou and L. J. Hadjileontiadis, “Wheeze detection based on
+time-frequency analysis of breath sounds,” Comput. Biol. Med., vol. 37,
+no. 8, pp. 1073–1083, 2007.
+[10] M. Bahoura, “Pattern recognition methods applied to respiratory sounds
+classification into normal and wheeze classes,” Comput. Biol. Med.,
+vol. 39, pp. 824–843, 2009.
+[11] S. A. Taplidou and L. J. Hadjileontiadis, “Analysis of wheezes using wavelet higher order spectral features,” IEEE Trans. Biomed. Eng.,
+vol. 57, no. 7. pp. 1596–1610, Jul. 2010.
+[12] B. Sankur, Y. P. Kahya, E. Cagatay Guler, and T. Engin, “Comparison of
+AR-based algorithms for respiratory sounds classification,” Comput. Biol.
+Med., vol. 24, no. 1, pp. 67–76, 1994.
+[13] A. Abushakra and M. Faezipour, “Acoustic signal classification of breathing movements to virtually aid breath regulation,” IEEE J. Biomed. Health
+Informat., vol. 17, no. 2, pp. 493–500, Mar. 2013.
+[14] D. Oletic, Wireless sensor networks in monitoring of asthma. [Online]. Available: http://www.fer.unizg.hr/_download/repository/Dinko_
+Oletic,_KDI.pdf
+[15] S. Aydore, I. Sen, Y. P. Kahya, and M. K. Mihcak, “Classification of
+respiratory signals by linear analysis,” in Proc. IEEE Int. Conf. Eng. Med.
+Biol., 2009, pp. 2617–2620.
+[16] J. Zhang, W. Ser, J. Yu, and T. T. Zhang, “A novel wheeze detection
+method for wearable monitoring systems,” in Proc. IEEE Int. Symp. Intell.
+Ubiquitous Comput. Educ., 2009, pp. 331–334.
+[17] ISO/IEC MPEG, Information Technology—Multimedia Content Description Interface. Part 4: Audio, ISO/IEC JTC 1/SC 29, 2001.
+[18] ISO/IEC MPEG, IS11172-3 Coding of Moving Pictures and Associated
+Audio for Digital Storage Media up to 1.5 Mbit/s. Part 3: Audio, Annex
+D. ISO/IEC JTCI, 1992.
+[19] A. J. S. Ferreira, “Tonality detection in perceptual coding of audio,” presented at the Audio Eng. Soc. Conf., Paris, France, 1995, Paper 3947.
+[20] T. Painter and A. Spanias, “Perceptual coding of audio signals,” Proc.
+IEEE, vol. 88, pp. 451–513, 2002.
+[21] C. M. Bishop, Pattern Recognition and Machine Learning. New York,
+NY, USA: Springer, 2006.
+
+1018
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+[22] M. Wisniewski and T. P. Zielinski, “Digital analysis methods of wheezes
+in asthma,” presented at the Int. Conf. Signals Electron. Syst., Krakow,
+Poland, 2010.
+[23] M. Wisniewski and T. P. Zielinski, “Application of tonal index to pulmonary wheezes detection in asthma monitoring,” presented at the 19th
+Eur. Signal Process. Conf., Barcelona, Spain, 2011.
+[24] M. Wisniewski and T. P. Zielinski, “Fast and robust method for wheeze
+recognition in remote asthma monitoring,” in Information Technologies in
+Biomedicine, vol. 2. Berlin, Germany: Springer, 2012.
+[25] M. Wisniewski and T. P. Zielinski, “Analysis and modeling of lung sound,”
+(in Polish), PAK Publishing House, PAK, no. 4, pp. 383–386, 2012.
+[26] M. Wisniewski and T. P. Zielinski, “Tonality detection methods for
+wheezes recognition system,” presented at the Int. Workshop Signal Image
+Process., Vienna, Austria, 2012.
+[27] M. Wisniewski and T. P. Zielinski, “MRMR-based feature selection for
+automatic asthma wheezes recognition,” presented at the Int. Conf. Signals
+Electron. Syst., Wroclaw, Poland, 2012.
+[28] M. Wisniewski and T. P. Zielinski, “Detection of multi-tones in white and
+colored noise with application to asthmatic wheezes detection,” presented
+at the Int. Conf. Signals Electron. Syst., Wroclaw, Poland, 2012.
+[29] H. Peng, F. Long, and C. Ding, “Feature selection based on mutual information: Criteria of max-dependency, max-relevance, and minredundancy,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 27, no. 8,
+pp. 1226–1238, Aug. 2005.
+[30] S. M. Kay, Modern Spectrum Analysis. Englewood Cliffs, NJ, USA:
+Prentice-Hall, 1987.
+[31] L. Marple, Digital Spectrum Analysis With Applications. Englewood
+Cliffs, NJ, USA: Prentice-Hall, 1987.
+[32] Q. Wang and C.-R. Wan, “A novel CFAR tonal detector using phase
+compensation,” IEEE J, Ocean. Eng., vol. 30, no. 4, pp. 900–911, Oct.
+2005.
+
+[33] J.-B. Poullet, D. M. Sima, and S. Van Huffel, “MRS signal quantitation:
+A review of time- and frequency-domain methods,” J. Magn. Resonance,
+vol. 195, pp. 134–144, 2008.
+[34] Lung sounds repository. [Online]. Available: http://solutions.
+3m.com/wps/portal/3M/ en_US/Littmann/stethoscope/education/lung_
+sounds/
+[35] Lung sounds repository. [Online]. Available: http://faculty.
+etsu.edu/arnall/www/
+public_html/heartlung/breathsounds/contents.
+html
+[36] G.-C. Chang and Y.-P. Cheng, “Investigation of noise effect on lung sound
+recognition,” in Proc. Int. Conf. Mach. Learn. Cybern., Kunming, China,
+2008, pp. 1298–1301.
+[37] [Online]. Available: http://www.mathworks.com/help/toolbox/stats/box
+plot.html
+[38] Y. Freund and R. E. Schapire, “A decision-theoretic generalization of
+on-line learning and an application to boosting,” J. Comput. Syst. Sci.,
+vol. 55, no. 1, pp. 119–139, 1997.
+[39] Project financed by the European Union: “Future Internet Engineering.”
+[Online]. Available: https://www.iip.net.pl/
+[40] M. Wisniewski, et al., “Remote monitoring of patient with asthma disease,”
+(in Polish), Przeglad
+˛ Telekomunikacyjny, Wiadomości Telekomunikacyjne,
+vol. 84, nos. 8/9, pp. 750–752, 2011.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

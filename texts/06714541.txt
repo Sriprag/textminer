@@ -1,0 +1,804 @@
+1684
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 6, JUNE 2014
+
+Combining Conformal Deformation and
+Cook–Torrance Shading for 3-D Reconstruction
+in Laparoscopy
+Abed Malti∗ and Adrien Bartoli
+
+Abstract—We propose a new monocular 3-D reconstruction
+method adapted for reconstructing organs in the abdominal cavity. It combines both motion and shading cues. The former
+uses a conformal deformation prior and the latter the Cook–
+Torrance reflectance model. Our method runs in two phases: first, a
+3-D geometric and photometric template of the organ at rest is
+reconstructed in vivo. The geometric shape is reconstructed using rigid shape-from-motion while the surgeon is exploring—but
+not deforming—structures in the abdominal cavity. This geometric template is then used to retrieve the photometric properties.
+A nonparametric model of the light’s direction of the laparoscope and the Cook–Torrance reflectance model of the organ’s
+tissue are estimated. Second, the surgeon manipulates and deforms
+the environment. Here, the 3-D template is conformally deformed to
+globally match a set of few correspondences between the 2-D image
+data provided by the monocular laparoscope and the 3-D template.
+Then, the coarse 3-D shape is refined using shading cues to obtain a
+final 3-D deformed shape. This second phase only relies on a single
+image. Therefore, it copes with both sequential processing and selfrecovery from tracking failure. The proposed approach has been
+validated using 1) ex vivo and in vivo data with ground-truth, and
+2) in vivo laparoscopic videos of a patient’s uterus. Our experimental results illustrate the ability of our method to reconstruct
+natural 3-D deformations typical in real surgical procedures.
+Index Terms—Deformable surface, laparoscopy, monocular 3-D
+reconstruction, motion, shading.
+
+I. INTRODUCTION
+HE problem of 3-D reconstruction in monocular laparoscopy has recently become a field of promising research. This has been made possible thanks to recent advances
+in 3-D reconstruction of deformable surfaces [1]–[4] and the extraordinary potential that such techniques can offer to new view
+point synthesis, augmented reality with 3-D preoperative data
+(MRI, CT, etc.), and surgery planning, to name a few. However,
+if these techniques have shown effectiveness in a well-controlled
+context, the peritoneal tissues present three main difficulties:
+1) nonrigid motion, 2) nonLambertian reflectance, and 3) lack of
+texture. To be able to use motion and photometry for peritoneal
+
+T
+
+Manuscript received January 3, 2013; revised November 29, 2013 and
+December 29, 2013; accepted January 3, 2014. Date of publication January
+16, 2014; date of current version May 15, 2014. Asterisk indicates corresponding author.
+∗ A. Malti is with the ALCoV-ISIT, UMR 6284 CNRS/Université d’Auvergne,
+Clermont-Ferrand 63000, France (e-mail: abed.malti@gmail.com).
+A. Bartoli is with the ALCoV-ISIT, UMR 6284 CNRS/Université
+d’Auvergne, Clermont-Ferrand 63000, France (e-mail: Adrien.Bartoli@gmail.
+com).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2300237
+
+tissues, a model of its parameters for the nonrigid motion and
+the bidirectional reflectance distribution function (BRDF) have
+to be estimated. It is clear that the estimation of the mechanical
+and photometric properties has to be done in vivo since these
+parameters change across patients. These properties make 3-D
+shape recovery from monocular laparoscopy a difficult and open
+problem. On the one hand, deformable-structure-from-motion
+(DSfM) has shown effectiveness in recovering 3-D shape after
+elastic deformations in laparoscopy [4], [5]. However, with these
+methods, the 3-D shape may be quite sparse. Human organs are
+usually textureless and very specular. This makes it difficult to
+densely cover their deforming surface with feature correspondences using automatic feature detection and matching. On the
+other hand, shape-from-shading (SfS) allows one to recover
+surface details. However, it is difficult in practice because the
+reflectance of the organ tissues is complex and the SfS problem
+has been mostly solved for Lambertian surfaces [6]. In addition,
+SfS does not allow one to solve temporal registration between
+successive images. In order to take advantage of DSfM and SfS
+and overcome their drawbacks, we propose to combine them in
+a deformable-shape-from-motion-and-shading (DSfMS) framework. This paper is an improvement of our former work [7]
+where we proposed a combination of motion and shading cues,
+but we assumed a Lambertian reflectance model in the shading part. In this paper, we propose to use the Cook–Torrance
+reflectance model [8]. We prove with both qualitative and quantitative results that this assumption fits better the reflectance
+model of the tissues than the Lambertian or the Oren–Nayar [9]
+models.
+Paper organization: Section II presents state-of-the-art.
+Section III gives an overview of our DSfMS. Section IV presents
+the reconstruction of the photometric template using the Cook–
+Torrance reflectance model. Section V presents our 3-D reconstruction method based on motion and shading cues. Section VI
+reports experimental results. Our notation will be introduced
+throughout the paper.
+II. RELATED WORK AND CONTRIBUTION
+The various methods of 3-D sensing in laparoscopy can be
+classified as active and passive [10]. As active approaches, [11]
+and [12] have proposed a technique based on the detection of a
+laser beam line. In [13], a prototype of time-of-flight endoscope
+was designed. If these approaches offer 2.5D views (depth maps)
+of the current image, they do not solve the registration problem.
+Solving this problem is required for important applications such
+as augmented reality. In passive approaches, both stereo and
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+MALTI AND BARTOLI: COMBINING CONFORMAL DEFORMATION AND COOK-TORRANCE SHADING
+
+1685
+
+Fig. 1. Principle of our DSfMS approach. In the first phase, the surgeon explores the abdominal cavity without deforming it; RSfM is used to find the 3-D shape
+called the 3-D template (N vertices and N F faces). This 3-D shape is used to infer the Cook–Torrance reflectance parameters and calibrate the light directions. In
+the second phase, the 3-D template is used to infer the 3-D shape deformed as observed from only a single laparoscopic view. This makes the approach resistant
+to registration and tracking errors and well-adapted to live sequential processing.
+
+monocular endoscopes are concerned. In [5] and [14], methods
+based on disparity map computation for stereo-laparoscope have
+been proposed. Visual SLAM for dense surface reconstruction
+has been proposed in [15]. In monocular DSfM approaches, the
+computer vision community has made important achievements
+in template-based 3-D reconstruction. Template-based methods
+provide a dense surface recovery rather than just a sparse one
+as in the previously cited methods. This allows one to render
+the surface from a new viewpoint and opens applications based
+on augmented reality. Template-based monocular 3-D recovery needs priors to have a unique consistent solution. Different
+types of physical and statistical priors were proposed [1]–[3].
+Recently, a 3-D conformal method has been proposed to reconstruct elastic deformations in the context of laparosurgery [4].
+To provide good reconstruction results, DSfM needs feature detection and matching in the deformed areas which are not easy
+to obtain because of the textureless nature of some tissues. Alternatively, SfS is a 3-D reconstruction method which does not
+need feature correspondences [6], [16]. Recovering depths using shading cues has been extensively used for both rigid and
+deformable objects [16]. This method is quite effective with perfect diffuse surfaces (Lambertian reflectance model), but fails
+for surfaces which present specular reflections.
+To overcome the bottleneck of SfS and DSfM, we can take
+advantage of both methods: we use feature-based 3-D reconstruction to recover a coarse deformed 3-D surface and we use
+shading to refine the reconstruction of areas which lack feature
+correspondences. This combined approach has been used in several other conditions to recover coarse to fine 3-D shapes. For
+instance, in rigid 3-D reconstruction, Zhang et al. [17] presented
+an algorithm for computing optical flow, shape, motion, lighting, and albedo from an image sequence of a rigidly-moving
+Lambertian object under distant illumination. Wu et al. [18]
+proposed an approach to recover shape details in a dynamic
+scene captured with a multicamera setup.
+
+This paper is based on our recent work [7], where we proposed a method to combine motion and shading cues assuming
+a Lambertian model. In this paper, we improve this approach
+by using the Cook–Torrance reflectance model. Indeed, this
+function is known to better represent the physical model of the
+diffuse/specular reflectance properties of surfaces. We experimentally show with both qualitative and quantitative results that
+the Cook–Torrance model combined with motion cues performs
+better than the Lambertian model combined with motion cues as
+used in [7]. We take advantage of our recent work on estimating
+the Cook–Torrance parameters [19] to have fully automated 3-D
+reconstruction.
+Contribution: The contributions of our paper are three folds.
+1) Enhancing the 3-D geometric template [4] with a photometric
+template by estimating the Cook–Torrance reflectance parameters from in vivo images. 2) Combining motion and shading
+cues, with a realistic reflectance model to recover the 3-D deformed tissue. The motion cues take advantage of a few point
+correspondences to recover a coarse deformation of the tissue
+and the shading cues take advantage of the estimated Cook–
+Torrance parameters to accurately refine the 3-D reconstruction.
+3) Our proposed 3-D reconstruction method is qualitatively and
+quantitatively compared to two previous methods: the first is
+based only on motion cues with conformal priors [4] and the
+second is based on combining motion and shading cues but
+assumes a Lambertian model of reflectance [7].
+III. OVERVIEW OF DSFMS
+As depicted in Fig. 1, our DSfMS system has two main phases:
+1) Template reconstruction. In this phase, both the 3-D
+structure and the Cook–Torrance parameters are recovered, by
+assuming that the scene remains approximately rigid as the surgeon explores it with the laparoscope. Using a calibrated camera and the five-point algorithm for rigid shape-from-motion
+
+1686
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 6, JUNE 2014
+
+Fig. 2. Geometry of light reflection with the Cook–Torrance model. The image
+irradiance depends on 1) the projection of the surface normal N onto the viewing
+direction V and 2) on the projection of N onto the incident light direction L. The
+surface roughness D, the Fresnel parameter F , and the albedo ρ are assumed
+constant.
+
+(RSfM) [20], a 3-D point cloud representing the organ’s shape
+is reconstructed. The 3-D point cloud is then meshed to provide
+a dense 3-D surface, parameterized on the 2-D plane via conformal flattening [21]. The procedure of reconstruction of the 3-D
+geometric template is explained with more details in [4]. This
+geometric shape is then used to estimate the Cook–Torrance
+reflectance model (c.f. Section IV).
+2) 3-D reconstruction of deformations. The surgeon is now
+free to proceed and manipulate the target surface, and consequently induces nonrigid deformations with the surgery tools.
+Here, the template reconstructed in phase 1 is used to perform 3-D reconstruction from raw laparoscopic images. The
+3-D shape is computed by globally deforming the template assuming conformal deformations and then refined using shading cues with the estimated Cook–Torrance parameters (c.f.
+Section V).
+IV. PHOTOMETRIC TEMPLATE RECONSTRUCTION
+The Cook–Torrance model is known as being one of the
+most meaningful physical representations for complex surface
+reflectance modeling [8]. If we assume a linear radiometric
+response of the camera sensor, then the predicted image intensity
+Iˆ with this model depends on three vectors: the shape normal
+N, the viewing direction V, and the light direction L (see Fig. 2
+for a local geometry representation of the reflection). It is given
+by
+ˆ F, σ, N, L) =
+I(ρ,
+
+ρ
+(N · L)
+π  
+diﬀuse reﬂectance
+
+where
+D(σ, N, L) =
+
++
+
+F D(σ, N, L)
+(1)
+π (N · L) (N · V)
+
+
+
+sp ecular reﬂectance
+
+
+
+tan2 α
+1
+exp
+−
+.
+σ 2 cos2 α
+σ2
+
+(2)
+
+The diffuse reflectance is assumed to be Lambertian and ρ is
+the diffuse albedo. The Fresnel coefficient F represents the refractive index of the tissue. The facet slope distribution D can
+be represented by the Beckmann distribution explicited in (2),
+where σ represents the roughness of the tissue (small for mirror
+like surfaces). α = (N,
+H) is the angle between the normal
+
+and the bisector H of the angle (L,
+V). For estimating the
+Cook–Torrance reflectance parameters (ρ, F, σ), of a given tis-
+
+sue, reflections are first measured under various viewing and
+illumination angles. At this step, the 3-D geometric template of
+the tissue is assumed to be computed as previously described
+in Section III. The measured image irradiance I (the intensity
+of the image) can be then approximated by the prediction formula (1). If we assume that, near the specularities, the light
+direction is such that the bisector H is parallel to the surface
+normal, we can estimate the Cook–Torrance parameters by minimizing the difference between the measured and the predicted
+intensity [19]:
+(ρ, F, σ) = argmin
+ρ,F ,σ
+
+ 	
+
+
+2
+ˆ F, σ, Ni , Li )
+I(ui , vi )− I(ρ,
+(3)
+
+i∈S̃
+
+where S̃ is the set of pixels that are neighbors of the specular
+pixels (taken over all the considered rigid images of the organ)
+and which are not saturated pixels. I(ui , vi ) is the measured
+intensity, Ni is the normal of surface organ, and Li is the light
+direction at these pixels. Notice that ρ and F are estimated
+up to scale representing the camera response factor and the
+light intensity. Once these parameters are evaluated, we use
+them to estimate the light directions over all the pixels of the
+laparoscopic image. This estimation assumes that the source
+light is rigidly attached to the camera body. The computation
+criterion is as follows:
+Li = argmin
+L
+
+ 	
+
+
+2
+ˆ F, σ, Nj , Li )
+I j (ui , vi ) − I(ρ,
+i
+
+(4)
+
+j ∈M
+
+where j is the image index within the set M of rigid images and
+i runs over the image pixels to assign a light direction to each
+pixel. The global minimum of criterion (3) is computed using
+branch-and-bound and second order cone programming [19].
+The minimization of criterion (4) is done using the Levenberg–
+Marquardt algorithm [19].
+
+V. MONOCULAR CONFORMAL DSFMS
+A. Coarse 3-D Reconstruction
+We use a triangular mesh representation of the surface. When
+conformally deformed, each triangle may undergo stretching
+or shrinking by penalizing changes in angles. In [4], a discrete quasi-conformal reconstruction of deformable surfaces is
+proposed from Nc point correspondences between the imaged
+deformed shape and the 3-D template. In this paper, we propose to formalize the conformal penalty by directly minimizing
+the changes in angles. This formulation has the advantage of
+being independent of any extra hyperparameter as the shearing
+and the scaling. In the template, the correspondences are given
+by their barycentric coordinates (fi bi ) , i = 1, . . . , Nc . fi is
+the index of the triangle and bi = (b1i , b2i , b3i ) are the values
+of the barycentric coordinates. (ui , vi ), i = 1, . . . , Nc are the
+corresponding pixels in the image where the deformed shape is
+projected. Extensible 3-D reconstruction is formulated as
+
+MALTI AND BARTOLI: COMBINING CONFORMAL DEFORMATION AND COOK-TORRANCE SHADING
+
+
+
+v = argmin
+v
+
+Nc
+
+
+1687
+
+ Π (v (fi )b
+i ) − (ui , vi ) 
+
+i=1
+
+
+
+
+
+
+
+(repro jection cond.)
+
++ λ1
+
+N
+
+
+
+(αi (v) − αi (v ))2 + (βi (v) − βi (v ))2
+
+i=1 j ∈N (v i )
+
+
+
+
+
+
+
+(conform al energy)
+
++ λ2  Δv 2
+  
+
+(5)
+
+(sm o othing)
+
+where Π is the projective mapping from 3-D to 2-D including the intrinsics of the camera. v is the matrix of
+vertices that represents the coarse reconstructed shape with
+motion cues (see Fig. 1). v (fi ) is the (3 × 3) matrix whose
+columns are the 3-D coordinates of the vertices of face i.
+αi (v) and βi (v) are two template angles of triangle fi .
+αi (v ) and βi (v ) are their corresponding angles in the
+deformed shape. The conformal energy term allows triangles
+to stretch but penalizes changes in angles. The smoothing
+energy term is expressed through the linear Laplace–
+Beltrami discrete linear operator Δ of dimension N × N
+[22], where N is the number of vertices in the 3-D template
+mesh. λ1 and λ2 are real positive weights that tune the amount of
+penalty for the conformal and the smoothing energy terms. Their
+values are respectively set to 0.11 and 0.30 using the method
+described by [23]. This is further discussed in Section VI-D.
+B. Fine 3-D Reconstruction
+vi ,
+
+The resulting deformed shape with the set of vertices
+i = 1, . . . , N , recovered from the previously described method
+can be refined using shading cues to obtain the final mesh vi ,
+i = 1, . . . , N (last box in the pipeline of Fig. 1. Using the reconstructed photometric template, we formulate 3-D reconstruction
+with motion and shading cues as
+Nc
+
+
+
+ 2
+v  = argmin
+ (0 0 1) v  (fi ) − v  (fi ) b 
+i  +λ6  Δv 
+  
+v 
+i= 1
+(sm o o th in g )
+
+
+
+(b o u n d a ry c o n d . )
+
+
+N
+
++ λ3
+
+
+
+i= 1
+
+ Π(v i ) − Π(v i ) 2 +λ5
+
+
+
+
+
+(re p ro je c tio n c o n d . )
+
+
+i ∈Sv
+
+
+
+ H i × N i 2
+
+
+
+
+
+(sp e c u la r ve rtic e s)
+
+ 
+2
+
+
+
+Ni · Li
+F D(σ, N i , L i )
+
+
++ λ4
+ρ+
+I(u i , vi ) −
+π
+π(N i · L i )(N i · V) 
+i ∈Dv
+
+
+
+(d iﬀ u se ve rtic e s)
+
+(6)
+where Dv and Sv are, respectively, the diffuse and specular
+pixels which belong to the organ’s tissue. A tool/tissue segmentation using graph cuts [24] allows us to determine these
+pixels. The specular pixels can be easily detected as saturated
+regions in the deformed image intensity I. Hi is the bisector
+i
+. The real parameters λ3 , λ4 , λ5 , λ6 are
+written as Hi = V +L
+2
+
+Fig. 3. Experimental setup to acquire real ex vivo datasets. Two Pointgrey
+cameras are synchronized to obtain reference ground-truth data using stereoviews.
+
+experimentally set to 0.21, 0.21, 0.21, and 0.17. Section VI-D
+discusses this choice. Through the boundary condition, this formulation gives confidence to the depth of the correspondences
+reconstructed by the conformal method using motion. The reprojection condition constrains the refinement of the vertices
+along the camera sightlines. The diffuse condition refines the
+diffuse vertices according to the Cook–Torrance model using
+shading. The specular vertices are constrained to have their normals parallel to the bisector direction of the source light and
+the viewing direction. Due to noise in the image intensity, a
+smoothing term is needed to avoid bumpy surfaces. The diffuse
+and specular terms allow us to recover the deformed surface in
+regions where the data correspondences are missing.
+VI. EXPERIMENTAL RESULTS
+Using ex vivo and in vivo animal and human data with
+ground-truth, our proposed method MoT–CT (MoTion–Cook–
+Torrance) is quantitatively compared to three methods: MoT
+(MoTion) which is based only on motion cues with conformal priors [4], MoT–LaM (MoTion–LaMbertian) which is
+based on combining motion and shading cues but assumes a
+Lambertian model of reflectance [7], and MoT–ON (MoTion–
+Oren–Nayar) which uses the Oren–Nayar [9] model instead of
+the Cook–Torrance model. We also present some qualitative reconstructions using in vivo images of a human uterus. The considered deformations range from 2 to 12 mm per mesh vertex
+up to a rigid transform of the mesh. This interval of deformation
+is acceptable for early surgery step when the surgeon deforms
+the organ to find the locations of abnormal tissues.
+The proposed method is implemented and tested with
+MATLAB_R2013a running on a MAC OS X 10.8 system with
+an Intel Core 2 Duo CPU running at 2.26 GHz. The template
+reconstruction takes about 15 s. The light and Cook–Torrance
+calibration take about 10 s. These two steps are processed once
+at the beginning of the experiments or surgery. The 3-D reconstruction of deformations lasts about 10 s.
+A. Ex Vivo Data With Ground-Truth
+In order to acquire real ex vivo datasets, we used two laparoscopes fixed through two trocars mounted on a pelvitrainer (see
+Fig. 3). The two laparoscopes are mounted to two PointGrey
+Flea2 color cameras with two c-mounts. The two cameras are
+
+1688
+
+Fig. 4. Ex vivo datasets: 3-D template of the lung and the liver. The size of the
+box bounding the 3-D shape of the lung is 45.40 × 47.50 × 20.16 mm3 . The size
+of the box bounding the 3-D shape of the lung is 42.40 × 43.50 × 18.16 mm3 .
+
+synchronized at 15 fps with a resolution of 1024 × 728 pixels.
+The distance between the two cameras is about 3 cm and the
+angle between the camera axes is about 30◦ . This setup allows
+us to build reference ground-truth 3-D models of ex vivo organs
+with stereo views. The stereo reconstruction was about 0.2 mm.
+In order to avoid interference with the room light, we covered
+the pelvitrainer with black clothes and the room light was turned
+off during the experiments
+In our validation with ex vivo organs, we use the lung and the
+liver of a lamb. In the first exploratory step, we reconstruct the
+3-D template of these organ’s tissues as shown in Fig. 4. The
+Cook–Torrance parameters and the light are then calibrated as
+described previously in Section IV. In the deformation step, the
+lung and the liver are deformed with a surgery tool. A set of
+600 deformed image frames are taken. We use on average a set
+of 15 point correspondences between template and deformed
+images. For the liver, we drew a set of patterns with surgery
+pen because of the extreme textureless aspect of its tissue. The
+correspondences were generated using SIFT [25]. Outliers and
+points outside the organs were removed by the method proposed
+by [26]. In Fig. 5, we show a subset of different 3-D reconstructions using our method from single views for different amounts
+of extensibility and curvature change with respect to the template. We can see that globally our method gives meaningful
+3-D reconstructions according to the deformed images.
+B. In Vivo Data With Ground-Truth
+To obtain in vivo datasets with ground-truth, we use two synchronized laparoscopes in a stereo setup to explore and deform
+the abdominal cavity of a living pig. The experiment is done
+in the Centre International de Chirurgie Endoscopique1 under
+respect of ethical constraints. The laparoscopes and the synchronization framework follow the same setup as described previously to acquire real ex vivo datasets. However, to cope with
+the difficulty of having a nonconstant rigid transform (stereotransform) between the two laparoscopes, we put a reference
+checker-board inside the abdominal cavity. This checker-board
+allows us at any frame to calibrate the stereo-transform from the
+left and right views to obtain ground-truth 3-D information. The
+distance between the two cameras is about 3 cm and the angles
+between the camera axis is about 30◦ . The stereo reconstruction
+1 http://www.cice.fr/
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 6, JUNE 2014
+
+was about 0.3 mm. In the first exploratory step, we reconstruct
+the 3-D template of three different organ’s tissues: the bladder, the pericardium, and the left lung. The obtained shapes are
+shown in Fig. 6. The Cook–Torrance parameters and the light
+are then calibrated as described previously in Section IV. In the
+deformation step, the bladder and the pericardium are deformed
+with the checker-board tool. The left lung also deforms due to
+the breathing. A set of 500 deformed image frames are taken for
+each tissue. For our reconstruction method, we use on average a
+set of 20, 25, and 10 point correspondences, respectively, for the
+bladder, the pericardium, and the left lung. They were generated
+using SIFT [25]. Outliers and points outside the organs in concern were removed by the method proposed in [26]. In Fig. 7,
+we show a subset of different 3-D reconstructions using our
+method from single views for different amounts of extensibility
+and curvature change with respect to the templates. We can see
+that globally our method gives meaningful 3-D reconstructions
+according to the deformed images. The quantitative results are
+shown in Table I and discussed in Section VI-E.
+C. Surgery In Vivo Data with Ground-Truth
+To validate the proposed approach on real in vivo data, we use
+in vivo sequences of a human uterus acquired using a monocular
+Karl Storz laparoscope. The frames are acquired at 25 fps and
+have a resolution of 1920 × 1080. The 3-D template of the
+uterus is generated during the laparosurgery exploration step as
+previously described. The Cook–Torrance parameters and the
+light are then calibrated as described previously in Section IV.
+Deformations on the uterus are performed by a surgery tool.
+To construct the ground-truth data of a deformation, we ask the
+surgeon to keep steady the deforming tool and to explore around
+this area with the laparoscope. Under this condition, the scene
+remains approximately rigid. Using a calibrated laparoscope
+and the five-point algorithm for RSfM [20], a 3-D ground-truth
+point cloud representing the deformed organ is reconstructed.
+A set of 50 images of deformations have been used for this
+experiment. An average of 15 correspondences between the
+uterus template and the deformed images were used. They were
+generated using SIFT [25]. Outliers and points outside the uterus
+region were removed by the method proposed in [26]. In Fig. 8,
+we show a sample of 3-D reconstruction using our method from
+single views for the human uterus. We can see that globally
+our method gives meaningful 3-D reconstructions according to
+the deformed images. Further qualitative results on other uterus
+tissues are reported in Fig. 11. The quantitative results are shown
+in Table I and discussed in Section VI-E.
+D. Choice of the Hyperparameters
+We computed λ1 , . . . , λ6 as described in [23]. The computed
+values are λ0 = (0.11, 0.30, 0.21, 0.21, 0.21, 0.17). To assess the sensitivity of the reconstruction accuracy, we evaluate the reconstruction error by varying each hyperparameter
+λi , i = 1 . . . 6, from 0.05 to 0.5 within a step of 0.01 and keeping the optimal values which provide the least 3-D reconstruction error. It turns out that for deformations ranging from 2 to
+12 mm per mesh vertex, the variation of the reconstruction error
+
+MALTI AND BARTOLI: COMBINING CONFORMAL DEFORMATION AND COOK-TORRANCE SHADING
+
+1689
+
+Fig. 5. Ex vivo datasets: 3-D reconstruction from a monocular laparoscope using our DSfMS method. First column: Left image from stereo view used to
+compute ground-truth deformation. Second column: Right image from stereo view. This image is used together with the left image to generate ground-truth 3-D
+reconstruction. It is also used as single image to obtain 3-D reconstruction with our method. Third column: Correspondences between the template image and
+right image used for the 3D reconstruction with our method. Fourth column: 3-D reconstruction with our method from single image. Quantitative 3-D errors of
+reconstruction are shown in Table I.
+
+Fig. 6. Pig datasets: 3-D templates of three different organ’s tissues: The bladder, the pericardium, and the left lung. For each template, we indicate in mm the
+size of the box bounding the 3-D shape.
+
+Fig. 7. In vivo pig datasets: 3-D reconstruction from a monocular laparoscope using our DSfMS method. First column: Left image from stereo view used to
+compute ground-truth deformation. Second column: Right image from stereo view. This image is used together with the left image to generate ground-truth
+3-D reconstruction. It is also used as single image to obtain 3-D reconstruction with our method. Third column: Correspondences between template image and
+right image used for the 3-D reconstruction with our method. Fourth column: 3-D reconstruction with our method from single image. Quantitative 3-D errors of
+reconstruction are shown in Table I.
+
+1690
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 6, JUNE 2014
+
+TABLE I
+DETAILED QUANTITATIVE RESULTS FOR DIFFERENT TISSUES
+
+Fig. 9. Ground-Truth datasets (Lung and Bladder): Qualitative comparison
+of MoT–CT and MoT–ON. The former provides results smoother than the
+latter. The difference is more noticeable in the specular regions and their
+neighborhoods.
+
+Fig. 10. Sensitivity of the reconstruction error with respect to the hyperparameters. Each computed hyperparameter has an interval of confidence (displayed
+with vertical dashed lines) in which the reconstruction error is robust to small
+perturbations. Outside this interval, the error grows slightly to reach 1.96 mm
+at most (we recall that the minimal 3-D error is 1.8 mm on average with our
+method). This quantitative study shows that the computed hyperparameters are
+optimal and robust to small perturbations.
+
+is negligible for small perturbations of the optimal values of the
+lambdas (see the interval of small sensitivity in Fig. 10). Moreover, each hyperparameter has an interval around the optimal
+value λ0i where the reconstruction error is almost invariant. This
+observation enhances the fact that the reconstruction error is
+robust to small data noise. Outside the robustness intervals,we
+can observe that the reconstruction error is more sensitive to
+perturbations of the weights of the physical terms: λ1 (conformal), λ4 (reflectance), and λ5 (specular), than to perturbation of
+the weights of the smoothing or reprojection error terms.
+For this reason, the optimal λ0 s at the middle of the robust
+intervals give us a secure margin for reconstruction accuracy.
+They allow us to use the same values independently from the
+used datasets and for the considered range of deformation. The
+considered interval of deformation is completely acceptable for
+early surgery steps when the surgeon deforms the organ to find
+the locations of abnormal tissues.
+E. Quantitative Evaluation and Comparison With Other
+Methods
+
+Fig. 8. Surgery of the uterus with ground-truth. Top left, the 3-D template of
+the human uterus. The size of the box bounding the 3-D shape of the uterus is
+70.40 × 65.50 × 40.10 mm3 . Bottom, the 15 correspondences between the template image and the deformed image. Top right, the 3-D reconstructed deformed
+shape with the proposed method. Quantitative 3-D errors of reconstruction are
+shown in Table I.
+
+Table I summarizes the RMS 3-D errors (RMS error between poses of the vertices) computed on both the ex vivo and
+in vivo datasets for each experimented tissue and with the maximum amount of considered deformations (12 mm on average
+per mesh vertex). The proposed method MoT–CT provides results more accurate than the three compared methods with an
+average of 1.8 mm. MoT–ON presents an average of 2.3 mm,
+
+MALTI AND BARTOLI: COMBINING CONFORMAL DEFORMATION AND COOK-TORRANCE SHADING
+
+1691
+
+Fig. 11. 3-D reconstruction on an in vivo video sequence from a monocular laparoscope using our conformal method. First row: Single 2-D views of uterus
+deformation with a surgery tool. Second row: Point correspondences between the template and deformed images. Third row: 3-D reconstruction using our DSfMS
+method. Each 3-D reconstruction is done using the single view above. The view is given in the laparoscope’s view point. Fourth row: 3-D deformed surface seen
+from a different point of view which provides visualization of the self-occluded part. Fifth row: Zoom in the deformed area.
+
+MoT–LaM presents an average of 3.7 mm and MoT presents
+an average of 5.8 mm. A detailed analysis of the results in
+Table I show that the MoT–CT method has very high performance when compared to others for moist tissues with uniform
+textures. This is the case of the in vivo tissues especially the lung
+and the uterus. For the bladder and the pericardium tissues, it
+has lower performance if we observe the values of the maximum
+errors. This is mainly due to the presence of veins at the surface
+where their reflectance parameters (roughness and Fresnel) are
+different from the rest of the tissue. The detection of such areas
+and the computation of the corresponding reflectance parameters can be a future development of the current approach. For the
+ex vivo liver, the three algorithms have closer performance even
+if the best one remains MoT–CT. This is mainly due to the fact
+that the ex vivo liver has lost its moist characteristic. The worst
+performance is attributed to the ex vivo lung because some areas
+have changed color and texture due to the contact with the air.
+In this case, as for the veins of the bladder and the pericardium,
+the different areas have to be identified before estimating the
+reflectance parameters for each one of them. This identification
+is not obvious and will be part of future work.
+In summary, these results show that combining motion and
+shading cues is better than using only motion cues. Indeed, since
+in surgery, only few correspondences can be established between
+the 3-D template and the deformed image, it is hard for these
+methods to recover all the details of deformation. It appears also
+that the estimation of the Cook–Torrance reflectance model and
+
+its usage in shading performs better than the classic Lambertian
+model and the Oren–Nayar model. Indeed, the moist characteristic of the living organ’s tissue is closer to the Cook–Torrance
+model than to a Lambertian model which assumes perfect diffuse surfaces. The assumption of the Oren–Nayar model is not
+sufficient to represent the specular reflectance. It represents it as
+Lambertian microfacets while the Cook–Torrance represents it
+as mirror-like microfacets. These last statements are further confirmed by Fig. 9 that shows a qualitative comparison between
+MoT–CT and MoT–ON. In this figure, we can appreciate the
+performance of the Cook–Torrance model in the specular regions and their neighborhoods.
+F. More Qualitative Surgery In Vivo Data
+Finally, to highlight the performance of the proposed approach on real surgery data, we use in vivo sequences of a human uterus acquired using a monocular Karl Storz laparoscope.
+The frames are acquired at 30 fps and have a resolution of
+1280 × 720. The 3-D template of the uterus is generated during
+the laparosurgery exploration step as previously described. The
+Cook–Torrance parameters and the light are then calibrated as
+previously described in Section IV. Complex and unpredictable
+deformations may occur on the uterus when the surgeon starts to
+examine it. A set of 500 images of deformations have been used
+for this experiment. An average of 25 correspondences between
+the uterus template and the deformed images were used. They
+
+1692
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 6, JUNE 2014
+
+were generated using SIFT [25]. Outliers and points outside
+the uterus were removed by the method proposed in [26] (see
+Fig. 11, row 2). In Fig. 11, rows 3–4, we show the 3-D reconstructed deformations with the corresponding deformed image
+in row 1. In row 4, we show synthesized views from novel camera views, and show qualitatively that the deformed uterus has
+been reconstructed well.
+VII. CONCLUSION
+In this paper, we presented a new method to reconstruct deforming living tissue in 3-D using a single laparoscopic image and a 3-D geometric and photometric template that is reconstructed in vivo. Our 3-D reconstruction pipeline DSfMS
+presents novel technical contributions and also a new way of
+tackling the 3-D vision problem in laparoscopy. Ex vivo and
+in vivo experimental results show the effectiveness of combining both conformal motion cues and Cook–Torrance reflectance
+priors. We provided quantitative comparison with other methods which combine motion cues with a Lambertian or an Oren–
+Nayar reflectance models.
+We showed that for moist tissue with the same reflectance
+property, the Cook–Torrance model is the best candidate. Future
+developments of our work will be focused on the detection of
+areas with different reflectance parameters.
+REFERENCES
+[1] F. Moreno-Noguer, M. Salzmann, V. Lepetit, and P. Fua, “Capturing 3D
+stretchable surfaces from single images in closed form,” in Proc. Comput.
+Vis. Pattern Recogn., 2009, pp. 1842–1849.
+[2] M. Salzmann, R. Urtasun, and P. Fua, “Local deformation models for
+monocular 3D shape recovery,” in Proc. Comput. Vis. Pattern Recogn.,
+2008, pp. 1–8.
+[3] F. Brunet, R. Hartley, A. Bartoli, N. Navab, and R. Malgouyres, “Monocular template-based reconstruction of smooth and inextensible surfaces,”
+presented at the Asian Conf. Comput. Vis., Queenstown, New Zealand,
+Nov. 8–12, 2010.
+[4] A. Malti, A. Bartoli, and T. Collins, “Template-based conformal shapefrom-motion from registered laparoscopic images,” in Proc. Med. Image
+Understanding Anal. Conf., 2011.
+[5] D. Stoyanov, M. V. Scarzanella, P. Pratt, and G.-Z. Yang, “Real-time
+stereo reconstruction in robotically assisted minimally invasive surgery,”
+in Int. Conf. Med. Image Comput. Comput.-Assisted Intervention, 2011,
+pp. 275–282.
+[6] E. Prados, F. Camilli, and O. Faugeras, “A unifying and rigorous shape
+from shading method adapted to realistic data and applications,” J. Math.
+Imag. Vis., vol. 25, no. 3, pp. 307–328, 2006.
+[7] A. Malti, A. Bartoli, and T. Collins, “Template-based conformal shapefrom-motion-and-shading for laparoscopy,” presented at the Inf. Process.
+Comput. Assisted Intervention, Pisa, Italy, 2012.
+[8] R. L. Cook and K. E. Torrance, “A reflectance model for computer graphics,” in Proc. Spec. Interest Group GRAPHics Interactive Techn., 1981,
+pp. 307–316.
+
+[9] L. Wolff, S. Nayar, and M. Oren, “Improved diffuse reflection models for
+computer vision,” Int. J. Comput. Vis., vol. 30, no. 1, pp. 55–71, 1998.
+[10] L. Maier-Hein, P. Mountney, A. Bartoli, H. Elhawary, D. Elson, A. Groch,
+A. Kolb, M. Rodrigues, J. Sorger, S. Speidel, and D. Stoyanov, “Optical
+techniques for 3D surface reconstruction in computer-assisted laparoscopic surgery,” Med. Image Anal., vol. 17, no. 8, pp. 974–996, 2013.
+[11] M. Hayashibe, N. Suzuki, and Y. Nakamura, “Intraoperative fast 3d shape
+recovery of abdominal organs in laparoscopy,” presented at the Int. Conf.
+Med. Image Comput. Comput.-Assisted Intervention, Tokyo, Japan, 2002.
+[12] M. Hayashibe, N. Suzuki, and Y. Nakamura, “Laser-scan endoscope system for intraoperative geometry acquisition and surgical robot safety management.,” Med. Image Anal., vol. 10, pp. 509–519, 2006.
+[13] J. Penne, K. Holler, M. Sturmer, T. Schrauder, A. Schneider, R.
+Engelbrecht, H. Feubner, B. Schmauss, and J. Hornegger, “Time-of-flight
+3-d endoscopy,” in Proc. Int. Conf. Med. Image Comput. Comput.-Assisted
+Intervention, 2009, pp. 467–474.
+[14] G. Hager, B. Vagvolgyi, and D. Yuh, “Stereoscopic video overlay with
+deformable registration,” in Proc. Med. Meets Virt. Reality, 2007.
+[15] J. Totz, P. Mountney, and D. S. G. Yang, “Dense surface reconstruction
+for enhanced navigation in MIS,” in Proc. Int. Conf. Med. Image Comput.
+Comput.-Assisted Intervention, 2011, pp. 89–96.
+[16] R. Zhang, P.-S. Tsai, J. E. Cryer, and M. Shah, “Shape from shading: A
+survey,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 21, no. 8, pp. 690–
+706, Aug. 1999.
+[17] L. Zhang, B. Curless, A. Hertzmann, and S. M. Seitz, “Shape and motion
+under varying illumination: Unifying structure from motion, photometric
+stereo, and multi-view stereo,” in Proc. Int. Conf. Comput. Vis., 2003,
+pp. 618–625.
+[18] C. Wu, K. Varanasi, Y. Liu, H.-P. Seidel, and C. Theobalt, “Shadingbased dynamic shape refinement from multi-view video under general
+illumination,” in Proc. Int. Conf. Comput. Vis., 2011, pp. 1108–1115.
+[19] A. Malti and A. Bartoli, “Estimating the Cook–Torrance BRDF parameters
+in vivo from laparoscopic images,” presented at the Workshop Augment.
+Environ. Int. Conf. Med. Image Comput. Comput.-Assisted Intervention,
+Nice, France, 2012.
+[20] D. Nistèr, “An efficient solution to the five-point relative pose problem,”
+IEEE Trans. Pattern Anal. Mach. Intell., vol. 26, no. 6, pp. 756–770, Jun.
+2004.
+[21] G. Zou, J. Hu, X. Gu, and J. Hua, “Area-preserving surface flattening using
+lie advection,” in Proc. Int. Conf. Med. Image Comput. Comput.-Assisted
+Intervention, 2011, pp. 335–342.
+[22] D. Yoo, “Three-dimensional morphing of similar shapes using a template
+mesh,” Int. J. Precis. Eng. Manuf., vol. 10, no. 1, pp 55–66, 2009.
+[23] B. Compte, A. Bartoli, and D. Pizarro, “Constant flow sampling: A method
+to automatically select the regularization parameter in image registration,”
+presented at the 5th Workshop Biomed. Image Registrat., Nashville, TN,
+USA, 2012.
+[24] A. Chhatkuli, A. Bartoli, A. Malti, and T. Collins, “Live image parsing in
+uterine laparoscopy,” in Proc. IEEE Int. Symp. Biomed. Imag., 2014.
+[25] D. G. Lowe, “Distinctive image features from scale-invariant keypoints,”
+Int. J. Comput. Vis., vol. 60, no. 2, pp. 91–110, 2004.
+[26] P. F. Alcantarilla and A. Bartoli, “Deformable 3D reconstruction with an
+object database,” in Proc. Brit. Mach. Vis. Conf., 2012, pp. 133.1–133.12.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

@@ -1,0 +1,1099 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+91
+
+A Prediction Model for Functional Outcomes in
+Spinal Cord Disorder Patients Using Gaussian
+Process Regression
+Sunghoon Ivan Lee, Student Member, IEEE, Bobak Mortazavi, Student Member, IEEE, Haydn A. Hoffman,
+Derek S. Lu, Charles Li, Brian H. Paak, Jordan H. Garst, Mehrdad Razaghy, Marie Espinal,
+Eunjeong Park, Member, IEEE, Daniel C. Lu, and Majid Sarrafzadeh, Fellow, IEEE
+
+Abstract—Predicting the functional outcomes of spinal cord disorder patients after medical treatments, such as a surgical operation, has always been of great interest. Accurate posttreatment prediction is especially beneficial for clinicians, patients, care givers,
+and therapists. This paper introduces a prediction method for postoperative functional outcomes by a novel use of Gaussian process regression. The proposed method specifically considers the
+restricted value range of the target variables by modeling the
+Gaussian process based on a truncated Normal distribution, which
+significantly improves the prediction results. The prediction has
+been made in assistance with target tracking examinations using
+a highly portable and inexpensive handgrip device, which greatly
+contributes to the prediction performance. The proposed method
+has been validated through a dataset collected from a clinical cohort pilot involving 15 patients with cervical spinal cord disorder.
+The results show that the proposed method can accurately predict
+postoperative functional outcomes, Oswestry disability index and
+target tracking scores, based on the patient’s preoperative information with a mean absolute error of 0.079 and 0.014 (out of
+1.0), respectively.
+Index Terms—Functional outcomes, gaussian process regression
+(GPR), handgrip, prediction, spinal cord disorder, target tracking,
+truncated normal distribution.
+
+I. INTRODUCTION
+HERE are approximately 400 000 patients suffering from
+spinal cord disorder in the United States, with nearly
+15 000 new patients each year [1], [2]. The chronic or traumatic degeneration in the spine results in reduction of the spinal
+canal diameter and compresses the spinal cord, which impairs
+the transmission of electrical signals and results in partial or
+
+T
+
+Manuscript received January 22, 2014; revised September 19, 2014; accepted
+November 6, 2014. Date of publication November 20, 2014; date of current
+version December 31, 2015.
+S. I. Lee, B. Mortazavi, E. Park, and M. Sarrafzadeh are with the Computer
+Science Department and the Wireless Health Institute, University of California Los Angeles, Los Angeles CA 90095 USA (e-mail: silee@cs.ucla.edu;
+bobakm@cs.ucla.edu; ejpark@cs.ucla.edu; majid@cs.ucla.edu).
+H. A. Hoffman, D. S. Lu, C. Li, B. H. Paak, J. H. Garst, M. Razaghy, and
+M. Espinal are with the Department of Neurosurgery, University of California
+Los Angeles, Los Angeles, CA 90095 USA (e-mail: hhoffman@mednet.ucla.
+edu; dslu@mednet.ucla.edu; chli@mednet.ucla.edu; bhpaak@gmail.com; jordanhaywardgarst@gmail.com; mehrdad.mro@gmail.com; marie.espinal1@
+gmail.com).
+D. C. Lu is with the Department of Neurosurgery and the Department of
+Orthopedic Surgery, University of California Los Angeles, Los Angeles, CA
+90095 USA (e-mail: dclu@mednet.ucla.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2372777
+
+complete loss of sensory and/or motor function [1]. The physiological symptoms of spinal cord disorder that are associated
+with hand movements include the loss of hand dexterity, numbness, stiffness, weakness, fatigue, and termor. As a consequence,
+patients with spinal disorder often have problems coordinating fine movements using hand muscles, which restricts various daily activities such as eating, bathing, or lifting small
+objects [3].
+There exist various methods that quantify physical conditions
+and/or the level of motor deficits of spinal disorder patients such
+as radiological imaging (e.g., X-ray, MRI, and CT) [4], clinicians observations (e.g., finger-to-nose or heel-to-shin examinations) [5], and patient-reported functional outcomes [6]–[8].
+Among these techniques, patients’ self-ratings of perceived level
+of motor function and quality of life, such as the Oswestry disability index (ODI) [6] and short form 36 (SF-36) [7], have
+been widely used as primary measures for clinical effectiveness
+[8] since the fundamental objective of medical treatment is to
+improve the well being of patients [9].
+Predicting the patient-reported functional level after medical
+treatments (e.g., surgical operations, rehabilitation, or medication) has always been of great interest [10]-[12]. Regression
+based on various demographic and clinical variables has been the
+most commonly used prediction platform since patient-reported
+outcomes are often close to real values. Most existing works
+employ regression models that assume a predefined relationship (i.e., often linear) between the predictors and the outcome.
+Although these methods can be implemented easily and provide
+clear interpretability, they have two major shortcomings. First,
+the assumption of a predefined relationship (e.g., polynomial or
+exponential) may not necessarily be true because one form of
+measure may be more sensitive at a certain range of physical
+conditions than others. Second, these types of regression methods focus on fitting the data points to minimize the prediction
+error, and as a result, they produce a single best value rather
+than providing a probabilistic prediction (i.e., predictive distribution); predictive distribution is especially important since it
+provides a comprehensive summary about the prediction. For
+instance, the predictive distribution can be utilized to more accurately model the distribution of target variables with restricted
+value range, as will be discussed in the remaining of this paper.
+This paper introduces a prediction method for postoperative
+functional outcomes using Gaussian process regression (GPR),
+which specifically addresses the aforementioned shortcomings
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+92
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+of the existing prediction methods. Additionally, the proposed
+method introduces a novel modeling of GPR based on a truncated Normal distribution, which is designed to consider the
+restricted value range of the target variable. The proposed prediction method is performed in assistance with a simple target
+tracking examination using a lightweight and inexpensive handgrip device, which contribute significantly to prediction performance. Target tracking based on the grip strength is known to
+effectively quantify the motor condition of patients with hand
+movement deficits such as Parkinson’s disease [13], stroke [14],
+chronic inflammatory demyelinating polyneuropathy (CIDP)
+[15], and spinal cord disorder [16]. Note that the proposed
+method is not only limited to the spinal cord disorder population but can also be applied to other ailments as this paper
+provides the design and parametrization details of applying GPR
+for motor function prediction.
+II. RELATED WORKS
+Predicting perceived motor function and health-related quality of life in spinal disorder patients has been of great interest
+[10]–[12]. Authors in [10] used multivariate linear regression to
+find correlation to the health-related instrument: Sickness Impact Profile (SIP68). Similar studies have been performed in [11]
+and [12], where the authors have used hierarchical multiple linear regression and step-wise linear regression as the prediction
+models, respectively. Both studies compared the life satisfaction to various demographic and clinical parameters including
+gender, age, and number of rehospitalizations.
+Prediction of perceived motor function is also an active research topic in other ailments carrying motor deficits. For example, Veerbeek et al. [17] reviewed 48 articles on prediction
+of functional outcomes in patients with stroke. All studies reviewed by Veerbeek et al. [17] employed either linear or logistic regression for prediction. Similarly, Soh et al. [18] reviewed
+29 articles that predict health-related quality of life in Parkinson’s disease. This paper reports that multivariate regression
+was the most frequently used prediction platform followed by
+step-wise linear regression and hierarchical multivariate linear
+regression.
+Although the aforementioned works examine various variables for predicting self-reported functional outcomes, these
+prediction models suffer from the shortcomings discussed in
+the previous section. GPR has recently received much attention as a solution to these problems in various fields including
+biomedical engineering [19] and clinical research [20]. To the
+best of the authors’ knowledge, this paper is the first attempt to
+apply GPR in predicting postoperative functional outcomes in
+patients with movement disorders.
+III. MATERIALS
+A. Cohort Clinical Trial
+This paper validates the prediction methods using a dataset
+collected from a 24-month-long cohort trial. A total of 34 cervical spinal cord disorder patients with hand movement deficits
+were recruited through the UCLA Spine Center. Seven of these
+
+patients decided to drop out of the study, and nine patients
+were new patients whose three months postoperative data has
+not yet been collected. Data collected from three patients were
+corrupted and removed from the study due to either mistakes
+during the data collection process or malfunction of the system
+itself. As a consequence, this study is validated through a dataset
+collected from 15 patients (mean age of 62.3 and a std. dev. of
+13.1). All patients have received a surgical decompression operation that alleviates the nerve pressure on the spine, performed
+by a single neurosurgeon. The examination procedure was approved by the UCLA institutional review board, and all patients
+provided consent to participate in the study.
+B. Measure of Self-Reported Motor Function
+There exist various forms of self-reported functional outcomes. The ODI has been used as one of the primary conditionspecific assessment tools for general spinal cord disorder patients [6] as well as patients with upper limb deficits [21]. The
+ODI is a survey consisting of ten questionnaires regarding the
+level of pain in the affected area and the degree of disabilities
+in everyday activities such as sleeping, self-care, sex life, social
+life, and traveling [21]. Each question has five or six answer
+choices, and patients must select the one that best describes the
+effect of pain in performing these activities. The accumulated
+score is linearly scaled to [0, 1] based on the number of available
+choices, where zero indicates completely disabled conditions in
+performing the specified activity, and one indicates completely
+healthy condition.
+C. Demographic and Clinical Variables
+The objective of this paper is to introduce a prediction method
+for postoperative functional outcomes based on a patient’s preoperative information. Various clinical and demographic variables are considered in this study based on previous findings
+[22]: age, narrowest diameter of the spinal canal before surgery,
+and months after injury. The narrowest diameter of the spinal
+canal is measured using the conventional X-ray imaging. The
+number of months after injury is reported by patients.
+D. Measure of Objective Fine-Motor Function
+The prediction of postoperative condition is performed in assistance with a especially designed handgrip device and target
+tracking tests, which have been validated for its clinical effectiveness in quantifying hand motor function [16]. The handgrip
+device is illustrated in Fig. 1(a). All tracking tests are normalized to the patient’s maximum voluntary contraction, which
+represents the maximum grip strength that a patient can voluntarily exert, in order to accommodate patients with different grip
+strengths.
+The test is performed on two different target functions as
+shown in Fig. 1(b): sinusoidal and step functions. The sinusoidal
+function is known to examine the motor-learning capability for
+fine muscle control, and the step function is known to investigate
+a patient’s ability to predict and execute relatively rapid hand
+movements [23]. As the test begins, the target within the screen
+
+LEE et al.: PREDICTION MODEL FOR FUNCTIONAL OUTCOMES IN SPINAL CORD DISORDER PATIENTS USING GAUSSIAN PROCESS
+
+93
+
+TABLE I
+SUMMARY OF IMPORTANT NOTATIONS USED IN THIS PAPER
+Symbol
+n
+d
+X
+y
+x∗
+y∗
+ρ, ρ 
+α, α
+β, β
+g
+r
+h
+
+Fig. 1. (a) Handgrip device using in this study to quantify the hand motor
+capacity of cervical spinal disorder patients. (b) Two target functions used in
+this study: sinusoidal (left) and step (right).
+
+moves toward the left at a constant speed. The blue circle is
+always located in the middle of the horizontal axis, but its vertical position varies according to the applied grip strength. The
+length of the test is 45 s. The objective of the test is to minimize
+the error between the target and the patient’s response. Mean
+absolute error (MAE) is the most frequently used motor measure [23], which computes mean absolute difference between
+the target and the patient’s response over the period of the test.
+This paper follows the general system performance theory that
+all dimensions of human performance are in a form for which
+a higher numerical value represents superior performance [24].
+Therefore, the Mean absolute accuracy (MAA), which is computed as (1 − MAE), is used as the primary metric for quantifying motor level. Patients were asked to repeat the tracking tests
+three times, and the average MAA of the three tests was used as
+the final measure.
+E. Longitudinal Study
+Patients were asked to visit the clinic at least once prior to the
+operation. Then, patients were scheduled to have a follow-up
+visit at least three months after the surgery, since a three-month
+period is a clinically meaningful time for recovery [8]. Both
+self-reported functional outcomes and the target tracking results
+were collected at each clinical visit.
+IV. PREDICTION METHODOLOGY
+This section discusses the prediction method in detail, which
+estimates the postoperative conditions of patients given their
+preoperative information. The independent variables (or predictors) include preoperative ODI scores (denoted as ρ), preoperative MAA scores of sinusoidal (denoted as α) and step tracks
+(denoted as β), age (denoted as g), narrowest diameter of the
+spinal canal before surgery (denoted as r), and months after
+injury (denoted as h). Two dependent (or target) variables are
+considered in this study: postoperative ODI score (denoted as
+ρ ) and equally weighted average of postoperative MAA scores
+of sinusoidal and step tracks (i.e., 12 (α + β  )). Some of the
+important notations used in the rest of this paper are listed in
+Table I.
+A. Background
+Prediction problems often involve a finite set of independent variables X (i.e., preoperative data of patients) and the
+
+Description
+Number of data points (patients)
+Size of feature dimension
+n × d training design matrix
+n × 1 training observation vector
+1 × d testing vector
+prediction variable
+ODI score at pre-, postsurgery
+Sinusoidal MAA at pre-, postsurgery
+Step MAA at pre-, postsurgery
+Age
+Narrowest diameter of spinal canal
+Months after injury
+
+associated noisy observation of a dependent variable y (i.e.,
+postoperative data of patients). X is an n × d matrix, where n
+represents the number of data points (i.e., the number of patients
+in this context) and d represents the size of variable dimension.
+X can be written as X = {xi |i = 1, ..., n} where xi is a vector
+of dimension d and y is the target (or observation) vector of
+size n. The relationship between the input vector and the output
+variable can be written as
+yi = f (xi ) + ε
+
+(1)
+
+where fi = f (xi ) is the latent (hidden) variable that is a function
+of the data belonging to the patient i, and ε represents the noise
+added to the observed variables. Then, the prediction problem
+can be stated as the following: given a training dataset D =
+{X, y}, find the best estimate of the dependent variable y∗ of a
+new testing set.
+Since the dependent variables are close to real values, the
+prediction problem can be formalized in a regression setting.
+GPR is a nonparametric regression model that constructs a relationship between X and y based on the geometric positions of
+xi ∀i within the feature space. y is considered as a collection of
+samples from an n-variate Gaussian distribution, and it allows
+GPR to provide not only the expected value of f∗ = f (x∗ ), but
+also the variance of f∗ .
+B. GPR
+This section briefly reviews the fundamental concepts of
+GPR; the reader is referred to [25] for an in-depth review. The
+formal definition of a Gaussian process is a collection of a
+finite number of random variables, which has a joint Gaussian distribution [25], and it can be completely defined by its
+mean function E[f (x)] and a covariance function (also known
+as kernel function) k(x, x ): f (x) ∼ GP (E[f (x)], k(x, x )).
+This study employs the squared exponential covariance function, which is defined as
+
+
+1
+
+2
+ T
+
+k(x, x ) = σf exp − (x − x ) M (x − x )
+2
+where σf2 represents the signal variance and M = diag()−2
+where  = {k |k = 1, ..., d}. k represent characteristic lengthscale for each input dimension, and M forms a d × d matrix
+
+94
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+with its diagonal consisting of 1/2k and zero elsewhere. These
+parameters define the relationship between each of the independent variables and the target variable; it allows different
+relationships for different independent variables.
+Given the training dataset D = {X, y} and the testing input
+vector x∗ , the joint distribution of the observed dependent variable y and the latent variable f∗ can be written in a matrix form
+as
+ 
+  
+
+y
+μ
+K(X, X) + σn2 I K(X, x∗ )
+∼N
+,
+f∗
+K(x∗ , X)
+μ∗
+K(x∗ , x∗ )
+where K(X, x∗ ) is a n × 1 vector that represents covariance
+between each data point in X and x∗ . K(X, X), K(x∗ , X),
+and K(x∗ , x∗ ) are also defined in a similar manner. I is an
+identity matrix and σn2 is the variance in the observed noise
+ε in (1) assuming that ε is an independently and identically
+distributed Gaussian distribution: ε ∼ N (0, σn2 ). A collection
+of free parameters θ = {, σf2 , σn2 } is named hyperparameters.
+A method for determining the hyperparameters from training
+data will be discussed in Section IV-C.
+The conditional distribution of the latent variable f∗ is also a
+Gaussian: f∗ = f∗ |X, y, x∗ ∼ N (μf ∗ , σf2 ). Note that μf ∗ rep∗
+resents the expected value of the latent variable, and the variance σf2 can be used to compute the confidence range about
+∗
+the prediction. These two values can be computed based on the
+multivariate Gaussian theorem as
+μf ∗ = E(f∗ |X, y, x∗ )
+
+
+	−1
+= μ∗ + K(x∗ , X) K(X, X) + σn2 I (y − μ)
+
+σf2 = K(x∗ , x∗ )
+∗
+
+(2)
+
+
+	−1
+−K(x∗ , X) K(X, X) + σn2 I K(X, x∗ ).
+
+Then, the expected value and the variance of the prediction
+variable y∗ can be easily computed as μy ∗ = μf ∗ and σy2 ∗ =
+σf2 + σn2 , respectively.
+∗
+
+C. Hyperparameters
+There exist various methods to find the values of hyperparameters θ = {, σf , σn } such as maximizing a posteriori estimates
+or the Markov chain Monte Carlo method [25]. This paper employs a method that integrates over the hyperparameters to produce the conditional distribution of the latent variable f∗ , which
+is known to be more robust to relatively small sized training
+sets. This method approximates the continuous integration over
+the hyperparameters using a discrete summation, and the reader
+is directed to [26] for more detail information.
+D. Truncated-GPR
+The limitation of applying GPR for predicting postoperative
+ODI and MAA scores is raised by the fact that the prediction
+variable y ∗ assumes a Gaussian distribution, which in theory
+has a distribution over an infinite range. However, the values of
+ODI and MAA scores are restricted to be within [0, 1], and GPR
+clearly does not account for this restricted range.
+
+In this study, a novel mapping procedure is proposed to allow
+predictions to be made in the restricted range of the prediction
+variables, which is built on the fundamentals of GPR. This
+mapping procedure can be divided into two major steps: 1)
+evaluating the latent variable f∗ with prior knowledge that the
+training observation variable y has a range of [0, 1], and 2) the
+mapping from the output latent variable f∗ to y∗ . For simplicity,
+the following derivation of p(y∗ |X, y, x∗ ) assumes noise-free
+observations, i.e., ε = 0 and y = f (X) as opposed to (1). The
+addition of noise variance will be discussed afterwards.
+The prediction variable y∗ is assumed to be a real-valued
+variable that follows Gaussian distribution within its restricted
+range [0, 1]. Thus, the mapping function between the latent and
+the observed variable is defined as the following [27]:
+y∗ = f∗ , if 0 ≤ f∗ ≤ 1.
+
+(3)
+
+y∗
+
+is modeled to follow a two-sided truncated
+In other words,
+Gaussian distribution. The probability density function of y∗
+given the distribution of f∗ can be written as the following:
+y∗ |μf ∗ , σf ∗ ∼ T N (μf ∗ , σf ∗ , a = 0, b = 1)
+
+
+
+
+=
+
+1
+
+
+Φ
+
+σ
+
+φ
+
+f∗
+
+1 −μ
+σ
+
+f∗
+
+y ∗ −μ
+
+
+
+σ
+
+−Φ
+
+f∗
+
+f∗
+
+
+
+,
+
+f∗
+
+−μ
+σ
+
+if 0 ≤ y∗ ≤ 1
+
+f∗
+
+(4)
+
+f∗
+
+0,
+
+otherwise
+
+where T N represents the truncated Gaussian (Normal) distribution, and φ(·) and Φ(·) represent the probability density function
+and the cumulative distribution function of the standard Gaussian distribution, respectively.
+The first step of the mapping procedure (i.e., the inference
+step that evaluates f∗ ) can be formulated as
+
+
+p(f∗ |X, y , x∗ ) = p(f∗ |X, x∗ , f )p(f |X, y  )df
+(5)
+where p(f∗ |X, x∗ , f ) is the equation for predicting the latent
+variable as in (2) assuming noiseless observation (i.e., f = y),
+and p(f |X, y ) represents the posterior probability of the latent
+variable f given the training data. The relationship between f
+and y can be defined as f = y based on the definition of the
+mapping function in (3) and the fact that the observed training
+data y is already in the range [0, 1]. In other words, the mapping
+from y to f is deterministic, and thus, f is independent of X
+given y . Then, the posterior probability can be defined as
+p(f |X, y ) = p(f |y )
+= δ(f − y )
+where δ(·) is a Dirac delta function. Substituting the aforementioned equation into (5) yields
+
+p(f∗ |X, x∗ , f )δ(f − y  )df
+p(f∗ |X, y  , x∗ ) =
+= p(f∗ |X, x∗ , f )|f =y
+which summarizes that the inference of the latent variable is
+identical to the conventional GPR procedure by substituting the
+observed values y  into f .
+
+LEE et al.: PREDICTION MODEL FOR FUNCTIONAL OUTCOMES IN SPINAL CORD DISORDER PATIENTS USING GAUSSIAN PROCESS
+
+The second step of the mapping procedure, i.e., the mapping
+from f∗ to y∗ , is already defined in (3). The mean and the
+variance of each output y∗ can be, respectively, computed as
+μy  ∗ = E(y∗ |μf ∗ , σf ∗ )
+
+
+
+
+−μ f
+1−μ f
+∗
+∗
+φ σ
+−φ σ
+f∗
+f
+
+ ∗  · σf , and
+= μf ∗ + 
+∗
+1−μ f
+−μ f
+Φ σ ∗ −Φ σ ∗
+f∗
+
+
+σy2  = σf2
+∗
+
+∗
+
+1+
+
+−μ f
+σf
+
+∗
+
+∗
+
+
+
+f∗
+
+
+
+1−μ f
+1−μ f
+∗
+∗
+·
+φ
+−
+σf
+σf
+σf
+∗
+ ∗ 
+
+ ∗
+1−μ
+−μ
+Φ σ f∗ − Φ σ f∗
+
+·φ
+
+−μ f
+
+
+
+∗
+
+f∗
+
+
+
+
+
+f∗
+
+
+
+ φ μ f ∗ − φ 1−μ f ∗  2 
+σf
+σf
+ ∗ 
+ ∗ 
+.
+−
+1−μ
+−μ
+Φ σ f∗ − Φ σ f∗
+f∗
+
+information; the coefficient of determination was equal to 0.766
+with p < 1.69 × 10−7 .
+The prediction performance of GPR is evaluated using an
+LOOCV. The entire data are divided into a training dataset
+Di = {X i , y i } and a testing dataset x∗,i at each iteration i of
+LOOCV. At each iteration, the feature selection algorithm is performed on the training data, which eventually performs another
+(inner) layer of an LOOCV to select the best feature subset as
+discussed in Section IV-E. The GPR is trained on the dimensionreduced training data, and a prediction is made on x∗,i to produce
+μy  ∗, i and σy  ∗, i based on (6). This approach, which completely
+isolates the testing set from selection of features and parameters, provides a fair estimate of prediction performance rather
+than an optimistic estimate [29]. The same evaluation procedure
+has been applied to the three benchmarking models considered
+for comparison: multivariate linear regressions (MLR), support
+vector regression (SVR), and K-nearest neighbors regression
+(KNN).
+
+f∗
+
+(6)
+The addition of noise variance to the latent variable will simply replace μf ∗ and σf2 with μf ∗ = μf ∗ and σy2 ∗ = σf2 + σn2 ,
+∗
+∗
+respectively.
+E. Feature Selection
+A wrapper-based feature selection algorithm is employed to
+reduce redundancies in the training set of independent variables.
+It evaluates feature subsets in the predefined feature searching
+space, and selected a feature subset that produces the best regression performance [28]. This study defines the feature searching space based on exhaustive searching, which considers all
+possible combinations of feature subsets. Each feature set in
+the searching space is evaluated as the following. The training
+dataset {X, y} is further divided into a learning set {X l , y l }
+and a validation set {xv , yv } using a leave-one-out cross validation (LOOCV). During each iteration of the LOOCV, the
+learning set is trained using the GPR and a prediction is made
+on the validation variable xv . Then, the mean standardized log
+loss (MSLL) [25] is used to evaluate each feature subset
+1
+log p(yv ,j |X l,j , y l,j , xv ,j )
+n j =1
+n
+
+η=−
+
+95
+
+(7)
+
+where p(yv ,j |X l,j , y l,j , xv ,j ) represents the predictive probability of the validation label at each LOOCV iteration j, which
+can be computed using (4). The feature subset that produces the
+minimum MSLL is selected.
+V. EXPERIMENTAL SETUP
+This paper predicts postoperative physiological condition
+of patients using two different measures: postoperative ODI
+and MAA scores. A more comprehensive MAA is considered by averaging the sinusoidal MAA and step MAA, i.e.,
+y = 12 (α + β  ), rather than predicting MAAs for sinusoidal and
+step tracks separately. Preliminary investigation of postoperative MAA scores showed that these two tracks share redundant
+
+VI. EXPERIMENTAL RESULTS
+A. Prediction of Postoperative ODI
+The prediction results are summarized in Fig. 2. The x-axis of
+Fig. 2(a) represents the actual ODI that the patient evaluated after
+the surgery and the y-axis represents the predicted mean ODI
+(μy  ∗ ) with confidence range of one standard deviation (σy  ∗ )
+based on (6). Note that the prediction variable follows a truncated Gaussian distribution, and thus, the variance (or standard
+deviation) does not provide any information regarding the percentile of the predicted values; it simply measures the amount
+of dispersion from the predicted mean. Fig. 2(b) depicts the
+Bland–Altman plot of the predicted mean and the ground truth.
+The bias and the limit of agreements were, respectively, computed as −0.025 and 0.196, which showed that the two methods were systematically producing similar results. Furthermore,
+there was no trend along the x-axis and the variability of the
+difference was consistent. This emphasizes that the prediction
+model produced consistent predictions for different ranges.
+The numerical evaluation of the prediction is summarized in
+Table II using the coefficient of determination (R2 ), the mean
+absolute difference (MAD) between the predicted mean and the
+ground truth, the p-value, and the MSLL as in (7). Table II
+compares the results of the proposed truncated GPR, which
+considers the restricted range of the dependent variables as in
+(6), against the conventional GPR as in (2). Truncated GPR
+provided superior prediction performance with MAD of 0.079
+(out of maximum MAD of 1.00) compared to the conventional
+GPR with MAD of 0.112. The prediction performances of the
+proposed method were also compared to the three benchmarking prediction models: MLR, KNN regression, and SVR with
+the radial basis function kernel. MLR assumes oversimplified
+linear relationships between the independent and the dependent
+variables, and as a consequence, it achieved the worst MAD
+of 0.148. SVR is a nonparametric model similar to GPR. Especially, the radial basis function kernel SVR is considered
+identical to GPR since the kernel function can be defined exactly as (2). Although the examined SVR employed a simplified
+
+96
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+Fig. 2. Prediction of postoperative ODI using the proposed truncated GPR. (a) Scatter of predicted mean with one standard deviation, which achieved MAD of
+0.079, R 2 of 0.716, MSLL of 3.83, and p < 4.7 × 10−5 . (b) Bland–Altman plot of the predicted mean with the bias of −0.025 and the limit of agreement of
+0.196.
+TABLE II
+SUMMARY OF THE NUMERICAL EVALUATION OF VARIOUS TECHNIQUES USED IN THIS STUDY FOR PREDICTING ODI (LEFT) AND MAA (RIGHT) SCORES
+Prediction
+
+ODI
+
+MAA
+
+Method
+
+MAD
+
+R2
+
+MSLL
+
+p-value
+
+MAD
+
+R2
+
+MSLL
+
+p-value
+
+Truncated GPR
+Conventional GPR
+MLR
+SVR
+KNN
+
+0.079
+0.112
+0.148
+0.117
+0.121
+
+0.668
+0.443
+0.081
+0.448
+0.437
+
+3.83
+3.96
+N/A
+N/A
+N/A
+
+4.7 × 10 −5
+3.5 × 10 −3
+0.136
+5.0 × 10 −3
+5.8 × 10 −3
+
+0.014
+0.015
+0.027
+0.019
+0.024
+
+0.591
+0.588
+0
+0.497
+0.067
+
+1.87
+1.86
+N/A
+N/A
+N/A
+
+2.8 × 10 −4
+3.3 × 10 −4
+0.148
+6.3 × 10 −4
+0.017
+
+Note that N/A stands for “not available.”
+
+TABLE III
+SUMMARY OF THE FEATURE SETS SELECTED DURING THE LOOCV FOR
+PREDICTING ODI AND MAA
+Predicting ODI
+Selected Features
+ρ, α
+ρ, α , r
+ρ, α , β
+ρ, α , h
+
+MEAN AND THE
+
+Predicting MAA
+
+TABLE IV
+STANDARD DEVIATION OF HYPERPARAMETERS (AT THE
+MODE) DURING THE LOOCV
+Predicting ODI
+
+Freq.
+
+Selected Features
+
+Freq.
+
+10
+3
+1
+1
+
+ρ, α , g
+ρ, α , β , r
+ρ, α , g , r
+ρ, β , r
+ρ, r
+
+11
+1
+1
+1
+1
+
+Freq. represents the frequency of the selected feature set.
+
+ρ
+α
+β
+g
+r
+h
+σf
+σn
+
+kernel function (i.e., k(x, x ) = exp(−(x − x )T M (x − x )),
+where M = γI), SVR produced comparable prediction performance (i.e., MAD of 0.117) to the conventional GPR. KNN regression is another nonparametric method, which also produced
+comparable MAD of 0.121. These three methods only provide
+single-valued predictions rather than probabilistic predictions
+and assume that the dependent variables follow Gaussian distributions. It implies that these methods cannot be configured to the
+restricted value range of the predictor variables, and thus, lead
+to inferior prediction performances compared to the proposed
+truncated GPR. Note that MSLL is not available for these three
+regression models as they do not make probabilistic predictions.
+A one-way analysis of variance was performed on the preoperative and the postoperative ODI values, and produced
+p < 0.188 with MAD of 0.145, which supports the necessity
+
+Predicting MAA
+
+Mean ± Std. Dev
+
+Freq.
+
+Mean ± Std. Dev
+
+Freq.
+
+0.25 ± 0.06
+0.01 ± 0.05
+0.05± N/A
+N/A
+1.1 ± 0
+4.5± N/A
+0.63 ± 0.03
+1.0 · 10 −4 ±
+2.9 · 10 −2 0
+
+15
+15
+1
+0
+3
+1
+15
+
+0.40 ± 0.08
+0.23 ± 0.01
+0.12 ± 0.08
+0.31 ± 0.02
+4.80 ± 8.78
+N/A
+0.75 ± 0.03
+9.8 · 10 −6 ±
+1.4 · 10 −1 7
+
+15
+13
+2
+12
+4
+0
+15
+
+15
+
+15
+
+of a prediction model. This can be considered as a result of an
+elementary prediction model that assumes no difference in ODI
+values. It is noteworthy that MLR produced results that are inferior compared to this simple model, which seems to be caused
+by the heavily nonlinear relationships between predictors (other
+than the preoperative ODI) and the postoperative ODI.
+As discussed in Section V, GPR predictions were made in an
+LOOCV manner and as a result, n different prediction models
+(i.e., selected features and the values of hyperparameters) were
+created. The selected features and the values of hyperparameters
+at the mode (i.e., most likely hyperparamters) are summarized
+in Tables III and IV, respectively. Table III shows that {ρ, α} is
+the most frequently selected feature set and is also a subset of all
+
+LEE et al.: PREDICTION MODEL FOR FUNCTIONAL OUTCOMES IN SPINAL CORD DISORDER PATIENTS USING GAUSSIAN PROCESS
+
+97
+
+Fig. 3. Prediction of postoperative MAA using the proposed truncated GPR. (a) Scatter of predicted mean with one standard deviation, which achieved MAD of
+0.014, R 2 of 0.591, MSLL of 1.87, and p < 2.8 × 10−4 . (b) Bland–Altman plot of the predicted mean with the bias of −6.0 × 10−4 and the limit of agreement
+of 0.047.
+
+other selected feature sets. This demonstrates that there exists
+a consistent pattern within the constructed regression models.
+Table IV shows that ρ , α , σf , and σn were the hyperparameters
+that were used more than 12 times (i.e., 80%) to construct prediction models during an LOOCV. Small variances of the selected parameter values support that the selected values were
+consistent. Furthermore, ρ = 0.25 and α = 0.10 characterize
+relatively flexible (nonlinear) covariance function rather than
+simple linear relationship. As a consequence, the noise parameter is reduced to σn = 1.0 × 10−4 .
+In order to quantify the contributions of the target tracking results in predicting ODI, the prediction procedure was performed
+with α and β being removed from the feature set. This allows the
+comparison between a feature set that contains the target tracking results (see Table II) and a feature set constructed solely
+based on demographic and clinical variables. The prediction results without hand motor scores achieved an MAD of 0.118, a
+R2 of 0.297, an MSLL of 3.89, and a p < 0.0166. These results
+show that incorporating the handgrip test for predicting postoperative functional outcomes significantly improves the accuracy
+(i.e., MAD by 0.039).
+
+The proposed truncated GPR model produced the most superior results (MAD of 0.014 with p < 2.8 × 10−4 ) compared to
+other benchmarking models (see Table II). However, the differences in MAD and MSLL values compared to the conventional
+GPR were negligible due to extremely small σf2 . Consequently,
+∗
+the truncated GPR, the conventional GPR, and SVR produced
+comparable prediction performances.
+MLR and KNN regression produced MAD of 0.027 and
+0.024, respectively. Considering that the elementary prediction
+model, which assumes no difference in MAA after the surgery,
+produced MAD of 0.024 with p < 0.128, both MLR and KNN
+regression model did not much improve the prediction accuracy. In particular, MLR produced results that are worse than
+this simple mapping function, which again support the needs
+for a nonlinear kernel in predicting postoperative conditions of
+these patients.
+The selected features are summarized in Table III, which
+shows that {ρ, α, g} is the most frequently selected feature subset. Furthermore, Table IV also shows that ρ , α , g , σf , and σn
+are the features that were selected at least 12 times (i.e., 80%)
+during the LOOCV iterations. Similarly to the ODI results, the
+values of hyperparameters characterize relatively flexible covariance function with small noise variance σn = 9.8 × 10−6 .
+
+B. Prediction of Postoperative MAA
+A similar procedure has been taken for predicting postoperative MAA. The results are illustrated in Fig. 3(a) and (b),
+which show that data points #5 and #15 produced the largest
+errors in the mean prediction. Patient #5 was the patient whose
+hand motor score decreased with the largest drop, and patient
+#15 was the patient whose hand motor score increased with
+the largest gain. As a consequence, the prediction model have,
+respectively, overpredicted and underpredicted the MAA scores
+for these patients. This result may be due to the relatively small
+size of the examined data, which does not effectively construct
+models for these possibly outlying patients. Nonetheless, the
+prediction results of postoperative MAA were much more accurate compared to ODI as summarized in Table II. Furthermore,
+the bias and the limit of agreement of the Bland–Altman plot
+in Fig. 3(b) were −6.0 × 10−4 and 0.047, respectively, which
+support higher consistency compared to ODI prediction.
+
+VII. DISCUSSION AND CONCLUSION
+This paper introduces a prediction method for postoperative
+functional outcomes by a novel use of GPR. Two functional
+outcomes are considered in this paper: ODI and the target tracking score. The proposed method has been compared against
+three widely used benchmarking prediction models (i.e., MLR,
+SVR, and KNN regression), and showed superior prediction
+performance.
+By predicting the postoperative outcomes using preoperative
+data, it is assumed that the surgical operation performed on
+the patient produces a constant success pattern. The patients
+in this study have received the surgical operation from a
+single neurosurgeon, and thus, this assumption is valid to an
+extent. The constructed model fundamentally incorporates this
+pattern of surgical results, which may vary depending on the
+
+98
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+preoperative condition of the patient. Consequently, the model
+reported in this paper may not produce the same result on
+patients performed by other surgeons (especially when the data
+size is small) as the surgical skill can be varied. However, the
+proposed method can be easily applied to individual surgeons,
+and moreover, the problem of variation in surgical skills among
+different surgeons can be resolved as a large-scale dataset is
+incorporated to generalize the pattern.
+This study enables new opportunities for accurate prediction
+of postoperative conditions of individuals with neuromuscular
+deficits using GPR. It further enables clinicians to perform more
+ubiquitous and convenient screening (using the handgrip device)
+for predicting a patient’s functional level before the medical
+treatment, which can be especially beneficial to the patients,
+their care givers, and physical therapists.
+REFERENCES
+[1] H. Al-Nashash, N. Fatoo, N. Mirza, R. Ahmed, G. Agrawal, N. Thakor,
+and A. All, “Spinal cord injury detection and monitoring using spectral
+coherence,” IEEE Trans. Biomed. Eng., vol. 56, no. 8, pp. 1971–1979,
+Aug. 2009.
+[2] L. Sekhon and M. G. Fehlings, “Epidemiology, demographics, and
+pathophysiology of acute spinal cord injury,” Spine, vol. 26, no. 24S,
+pp. S2–S12, 2001.
+[3] H. K. Lim, D. C. Lee, W. B. McKay, M. M. Priebe, S. A. Homes, and
+A. M. Sherwood, “Neurophysiological assessment of lower-limb voluntary control in incomplete spinal cord injury,” Spinal Cord., vol. 43,
+pp. 283–290, 2005.
+[4] J. A. Tracy and J. D. Bartleson, “Cervical spondylotic myelopathy,” The
+Neurologist, vol. 16, pp. 176–187, 2010.
+[5] M. H. Lipper, J. H. Goldstein, and H. M. Do, “Brown-sequard syndrome
+of the cervical spinal cord after chiropractic manipulation,” Amer. J. Neuroradiol., vol. 17, pp. 1349–1352, 1998.
+[6] J. A. Kopec, “Measuring functional outcomes in persons with back pain:
+A review of back-specific questionnaires,” Spine, vol. 15, pp. 3110–3114,
+2000.
+[7] C. Bombardier, “Outcome assessments in the evaluation of treatment of
+spinal disorders: Summary and general recommendations,” Spine, vol. 25,
+no. 24, pp. 3100–3103, 2000.
+[8] J. A. Finkelstein, “Response shift following surgery of the lumbar spine,”
+Master’s thesis, University of Toronto, Toronto, ON, Canada, 2010.
+[9] E. M. Adang, G. Kootstra, G. L. Engel, J. P. van Hooff, and H. L. Merckelbach, “Do retrospective and prospective quality of life assessments
+differ for pancreas-kidney transplant recipients?” Transplant Int., vol. 11,
+pp. 11–15, 1998.
+[10] M. W. Post, L. P. de Witte, F. W. van Asbeck, A. J. van Dijk, and A. J.
+Schrijvers, “Predictors of health status and life satisfaction in spinal cord
+injury,” Arch. Phys. Med. Rehabil., vol. 79, no. 4, pp. 395–401, 1998.
+[11] M. P. Dijkers, “Correlates of life satisfaction among persons with spinal
+cord injury,” Arch. Phys. Med. Rehabil., vol. 80, no. 8, pp. 867–876, 1999.
+[12] M. Tonack, S. L. Hitzig, B. C. Craven, K. A. Campbell, K. A. Boschen,
+and C. F. McGillivray, “Predicting life satisfaction after spinal cord injury
+in a canadian sample,” Spinal Cord, vol. 46, pp. 380–385, 2008.
+[13] S. D. Pradhan, B. R. Brewer, G. E. Carvell, P. J. Sparto, A. Delitto,
+and Y. Matsuoka, “Assessment of fine motor control in individuals with
+Parkinson’s disease using force tracking with a secondary cognitive task,”
+J. Neurol. Phys. Therapy, vol. 34, no. 1, pp. 32–40, 2010.
+[14] S. K. Naik, C. Patten, N. Lodha, S. A. Coombes, and J. H. Cauraugh, “Force
+control deficits in chronic stroke: grip formation and release phases,” Exp.
+Brain Res., vol. 211, no. 1, pp. 1–15, 2011.
+[15] S. Lee, H. Ghasemzadeh, B. Mortazavi, and M. Sarrafzadeh, “A pervasive
+assessment of motor function: A lightweight grip strength tracking system,” IEEE J. Biomed. Health Informat., vol. 17, no. 6, pp. 1023–1030,
+Nov. 2013.
+[16] R. Getachew, S. Lee, J. Kimball, A. Yew, D. Lu, C. Li, J. Garst, N.
+Ghalehsari, B. Paak, M. Razaghy, M. Espinal, A. Ostowari, A. Ghavamrezaii, S. Pourtaheri, I. Wu, M. Sarrafzadeh, and D. Lu, “Utilization of a
+novel digital measurement tool for quantitative assessment of upper extremity motor dexterity: A controlled pilot study,” J. NeuroEng. Rehabil.,
+vol. 11, no. 1, pp. 1–9, 2014.
+
+[17] J. M. Veerbeek, G. Kwakkel, E. E. van Wegen, J. C. Ket, and M. W.
+Heymans, “Early prediction of outcome of activities of daily living after
+stroke: A systematic review,” Stroke, vol. 42, no. 5, pp. 1482–1488, 2011.
+[18] S.-E. Soh, M. E. Morris, and J. L. McGinley, “Determinants of healthrelated quality of life in parkinsons disease: A systematic review,” Parkinsonism Related Disorders, vol. 17, no. 1, pp. 1–9, 2011.
+[19] O. Stegle, S. Fallert, D. J. C. MacKay, and S. Brage, “Gaussian process
+robust regression for noisy heart rate data,” IEEE Trans. Biomed. Eng.,
+vol. 55, no. 9, pp. 2143–2151, Sep. 2008.
+[20] T. M. Hope, M. L. Seghier, A. P. Leff, and C. J. Price, “Predicting outcome and recovery after stroke with lesions extracted from MRI images,”
+NeuroImage: Clinical, vol. 2, pp. 424–433, 2013.
+[21] J. Fairbank and P. B. Pynsent, “The oswestry disability index,” Spine,
+vol. 25, no. 22, pp. 2940–2953, 2000.
+[22] L. T. Holly, P. G. Matz, P. A. Anderson, M. W. Groff, R. F. Heary, M. G.
+Kaiser, P. V. Mummaneni, T. C. Ryken, T. F. Choudhri, E. J. Vresilovic,
+and D. K. Resnick, “Clinical prognostic indicators of surgical outcome
+in cervical spondylotic myelopathy,” J. Neurosurg.: Spine, vol. 11, no. 2,
+pp. 112–118, 2009.
+[23] R. Jones, Measurement of Sensory-Motor Control Performance Capacities: Tracking Tasks. Boca Raton, FL, USA: CRC Press, 2000.
+[24] G. Kondraske, A Working Model for Human System-Task Interfaces. Boca
+Raton, FL, USA: CRC Press, 1995.
+[25] C. E. Rasmussen and C. K. I. Williams, Gaussian Processes for Machine
+Learning. Cambridge, MA, USA: MIT Press, 2006.
+[26] V. Pietilainen, “Approximations for integration over the hyperparameters
+in Gaussian processes,” Master’s thesis, Aalto University, Espoo, Finland,
+2010.
+[27] W. H. Greene, Censored Data and Truncated Distributions in Palgrave
+Handbook of Economics. New York, NY, USA: Palgrave Macmillan, 2006.
+[28] I. Guyon and A. Elisseeff, “An introduction to variable and feature selection,” J. Mach. Learn. Res., vol. 3, pp. 1157–1182, Mar. 2003.
+[29] L. Palmerini, S. Mellone, G. Avanzolini, F. Valzania, and L. Chiari, “Quantification of motor impairment in Parkinson’s disease using an instrumented timed up and go test,” IEEE Trans. Neural Syst. Rehabil. Eng.,
+vol. 21, no. 4, pp. 664–673, Jul. 2013.
+
+Sunghoon Ivan Lee (S’12) received the Ph.D. degree
+in computer science from the University of California
+Los Angeles, Los Angeles, CA, USA, in 2014.
+He is currently a Postdoctoral Research Associate
+in the Department of Physical Medicine & Rehabilitation, Harvard Medical School, Boston, MA, USA.
+His main research interests include wearable body
+sensors, biomedical signal processing, data analytics, and user interface design for smart and mobile
+health applications.
+
+Bobak Mortazavi (S’12) received the Ph.D. degree
+from the University of California Los Angeles, Los
+Angeles, CA, USA, in 2014.
+After receiving the Ph.D. degree, he joined the
+Yale University School of Medicine, New Haven,
+CT, USA, as a Postdoctoral Associate in 2014. His
+research interests include wearable sensors, embedded systems, and machine learning applications for
+wireless health research, developing systems and predictions for personalized health applications.
+
+Eunjeong Park (M’07) received the Ph.D. degree
+in computer science and engineering from the Seoul
+National University, Seoul, Korea, in 2006.
+She is currently a Research Manager with Wireless
+Health Institute, University of California, Los Angeles, CA, USA and a Research Professor at the Embedded System Research Center, Ewha WomansUniversity, Seoul. Her current research interests include
+healthcare systems, intelligent medical informatics,
+and mobile computing.
+
+LEE et al.: PREDICTION MODEL FOR FUNCTIONAL OUTCOMES IN SPINAL CORD DISORDER PATIENTS USING GAUSSIAN PROCESS
+
+Daniel C. Lu is currently an Associate Professor of
+neurosurgery and orthopedic surgery at the University of California Los Angeles (UCLA), Los Angeles,
+CA, USA. As the Principal Investigator of the Neuroplasticity and Repair Laboratory and the Director
+of UCLA Neuromotor Recovery and Rehabilitation
+Center, his research interests include modulating the
+neuronal circuitry and networks of the spinal cord in
+the treatment of neuromotor disorders. His research
+is funded by the National Institutes of Health and Department of Defense. His clinical expertise involves
+minimally invasive techniques in the surgical management of degenerative, traumatic, neoplastic, and spinal disorders.
+
+99
+
+Majid Sarrafzadeh (M’82–SM’92–F’96) received
+the Ph.D. degree in electrical and computer engineering from the University of Illinois at UrbanaChampaign, Champaign, IL, USA, in 1987.
+From 1987 to 2000, he served as a Professor
+in the Electrical and Computer Engineering Department, Northwestern University, Evanston, IL, USA.
+In 2000, he joined the faculty at Computer Science
+Department, University of California Los Angeles
+(UCLA), Los Angeles, CA, USA, where in 2014, he
+became a Distinguished Professor of computer science. He serves as the Codirector for the UCLA Wireless Health Institute and
+the BRITE center on Minority Health Disparities. His research interests include
+wireless health research, embedded systems, and the design and implementation
+of novel analytic algorithms for wireless health applications.
+
+Haydn Hoffman, Derek Lu, Charles Li, Brian Paak, Jordan Garst,
+Mehrdad Razaghy, and Marie Espinal photographs and biographies not available at the time of publication .
+
+

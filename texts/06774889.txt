@@ -1,0 +1,1084 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+687
+
+Two-Phase Greedy Pursuit Algorithm for Automatic
+Detection and Characterization of Transient
+Calcium Signaling
+Chen Kan, Kay-Pong Yip, and Hui Yang∗ , Member, IEEE
+
+Abstract—Ca2 + plays an important role in the regulation of cellular functions. Local calcium events, e.g., calcium sparks, not only
+bring insights into Ca2 + signaling but also contribute to the understanding of various cellular processes. However, it is challenging to
+detect calcium sparks, due to their transient properties and high
+level of nonstationary noises in microscopic images. Most of existing algorithms tend to have limitations for the detection of calcium
+sparks, e.g., empirically defined hard thresholds or poor applicability to nonstationary conditions. This paper presents a novel
+two-phase greedy pursuit (TPGP) algorithm for automatic detection and characterization of calcium sparks. In Phase I, a coarsegrained search is conducted across the whole image to identify the
+predominant sparks. In Phase II, adaptive basis function model is
+developed for the fine-grained representation of detected sparks.
+It may be noted that the proposed TPGP algorithms overcome the
+drawback of hard thresholding in most of previous approaches.
+Furthermore, the morphology of detected sparks is effectively modeled with multiscale basis functions in Phase II, thereby facilitating
+the analysis of physiological features. We evaluated and validated
+the TPGP algorithms using both real-word and synthetic images
+with multiple noise levels and varying baselines. Experimental results show that TPGP algorithms yield better performances than
+previous hard-thresholding approaches in terms of both sensitivities and positive predicted values. The present research provides
+the community a robust tool for the automatic detection and characterization of transient calcium signaling.
+Index Terms—Adaptive basis function modeling, biomedical
+imaging, calcium sparks, greedy pursuit.
+
+I. INTRODUCTION
+ALCIUM signaling impacts most of cellular functions, including cell motility, growth, and proliferation [1]. Known
+as a multifunctional biological messenger, Ca2+ regulates fundamental biological processes (e.g., gene transcription) by binding activities with different types of target proteins. Local calcium events not only bring insights into the calcium signaling
+but also disclose underlying cellular mechanisms [2]. In recent
+
+C
+
+Manuscript received January 17, 2014; accepted March 13, 2014. Date of
+publication March 18, 2014; date of current version March 2, 2015. This work
+was supported in part by the America Heart Association Grant-in-Aid and the
+National Science Foundation (CMMI-1266331 and IOS-1146882).
+C. Kan and H. Yang are with the Department of Industrial and Management
+Systems Engineering, University of South Florida, Tampa, FL 33620 USA
+(∗ e-mail of corresponding author: huiyang@usf.edu).
+K.-P. Yip is with the Department of Molecular Pharmacology and Physiology, University of South Florida, Tampa, FL 33620 USA (e-mail:
+dyip@health.usf.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2312293
+
+years, enormous efforts have been made to record such events
+using confocal microscopes and various fluorescent indicators.
+However, local calcium events (i.e., calcium sparks) are transient and only last for one tenth of a second. The spark is usually
+restrained in a small area (around 2 μm in diameter) and spans
+only a few microns [2], [3]. In addition, microscopic images
+are generally contaminated with electronic noises. The intrinsic
+properties of calcium sparks and high-level background noises
+in microscopic images pose significant challenges for automatic
+detection and characterization of transient Ca2+ signaling.
+In the literature, not only line-scan (X-t) confocal images but
+also two-dimensional (2-D) (XY-t) confocal image sequences
+are recorded to analyze local calcium events [3]. Due to the
+slow scanning rate in XY-t images (∼1 s/frame), fast line-scan
+images (∼2 ms/line) are better suited for the analysis of transient
+calcium sparks. In the line-scan image, a fixed line on the cell
+is repeatedly scanned using a laser beam. The image is then
+assembled by stacking the successively obtained lines. Although
+only one-dimensional (1-D) spatial information is attained for
+each scan, line-scan images have sufficient temporal resolution
+due to the fast scanning rate. In this study, we focus on detecting
+and characterizing calcium sparks in line-scan (X-t) confocal
+images.
+In early studies, calcium sparks are visually detected and manually analyzed by experimental physiologists [2]. However, this
+manual approach is subject to human bias and generally results
+in large type I and type II errors. In other words, a number of
+eye-identified sparks are false (because of electronic noises) and
+large numbers of true sparks are not detected (due to the transient
+properties of sparks). Hence, there was an increasing awareness
+to develop automatic methods for improving the accuracy of
+detection. A pioneering work was reported by Cheng et al. [4].
+Cheng’s method implements a “double-threshold” algorithm to
+identify calcium sparks in line-scan images. After the filtering
+of noises, pixel values >1.5 standard deviation of the overall image (strong threshold) are marked as potential sparks. Further,
+Ca2+ sparks are identified as the connected areas exceeding a
+user-defined criterion (weak threshold). Cheng’s method is better than manual detection and provides an automatic approach to
+handle large datasets. This method is implemented in Interactive
+Data Language (later modified into an ImageJ plug-in [5]) and
+widely distributed for automatic detection of calcium sparks.
+However, it was shown that Cheng’s method can only work
+well for the images with low level of noises [6]. The performance is deteriorating quickly in the presence of high level of
+noises.
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+688
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Therefore, a number of algorithms were developed to modify
+Cheng’s method and improve the performance of spark detection. Among them, Bankhead’s method [6] was shown to achieve
+a superior performance and widely adopted for the detection
+of Ca2+ sparks. Specifically, Bankhead’s method considered
+not only noises but also nonstationary baselines. The line-scan
+images are iteratively smoothed with 1-D Gaussian filter for
+denoising and estimating the baseline. After subtracting the
+baseline from denoised images, a strong threshold is applied
+to mark potential spark regions. Further, a weak threshold (i.e.,
+40% of the maximum in each spark region) is used to identify sparks. Note that Bankhead’s algorithm sticks to Cheng’s
+double-threshold approach. In addition, algorithmic parameters
+are empirically chosen, e.g., strong and weak thresholds. Most
+importantly, spark morphology is distorted by multiple steps of
+image filtering and variance stabilization [6].
+In addition to the double-threshold algorithms, it may be
+noted that the match-filter algorithm [7] denoises the image
+with a customized filter, i.e., “template spark.” However, the
+match-filter approach does not specifically consider the nonstationary baseline. Also, a proper “template” needs to be set up
+beforehand. The detection performance is influenced by the correctness of “template spark.” If the morphology of Ca2+ sparks
+does not match the “template,” this algorithm will not work well
+as expected. However, the morphology of calcium sparks varies
+significantly in the line-scan images.
+In this study, we aim to address the limitations in existing approaches (i.e., hard thresholding, empirical selection of parameters, and nonstationary baseline) and develop novel two-phase
+greedy pursuit (TPGP) algorithms for automatic detection and
+characterization of calcium sparks in line-scan images. Specifically, our contributions are as follows:
+1) The 2-D discrete wavelet transform (2-D DWT) algorithm
+for image denoising and baseline subtraction: Most of the
+line-scan images are contaminated by random noises and
+varying baselines. The noise level of images varies from
+low to high. Also, the fluorescence baseline of images can
+be nonstationary. We develop an effective 2-D DWT preprocessing algorithm to denoise the images and subtract
+the nonstationary baseline.
+2) An iterative approach for the detection of calcium sparks:
+As opposed to the traditional thresholding approach, we
+propose to iteratively detect the predominant sparks. Once
+a predominant spark is detected, the region of interest
+(ROI) around this spark will be subtracted from the image. The residual image will then be used for the detection
+in the next iteration. The process repeats until the stop criterion is satisfied. The stop criterion is based on a reference
+line that is set up based on the estimation of the noise level
+within nonspark regions of residual images.
+3) Model-based representation of variable morphologies of
+Ca2+ sparks: The morphology of Ca2+ spark varies in
+the line-scan image. If the spark is evoked away from
+the scan line, it is more likely to have a small amplitude and irregular morphology (e.g., multiple peaks). This
+poses significant challenges for the detection and characterization. We developed the multiscale adaptive basis
+
+Fig. 1.
+
+Flowchart of the developed research methodology.
+
+function model to represent the variable morphology of
+Ca2+ sparks. The basis function model effectively represents and characterizes the properties of detected sparks.
+The features of Ca2+ sparks, e.g., full width at half maximum (FWHM), reveals important information regarding
+cellular functions.
+As opposed to empirical parameter selection in many previous methods, this study estimates model parameters from
+the data. The reminder of this paper is organized as follows:
+Section II introduces the research methodology. Section III
+presents the materials and experimental design. Section IV contains the results, and Section V presents the discussion and
+conclusions arising out of this study.
+II. RESEARCH METHODOLOGY
+The research methodology is schematized as shown in Fig. 1.
+First, the line-scan image is preprocessed to remove noises and
+nonstationary baseline. Then, a TPGP algorithm will be developed to not only detect but also represent calcium sparks. In
+Phase I, a coarse-grained matching will be conducted across the
+whole image to capture the predominant spark. A wide ROI will
+be obtained around the location of the detected spark. In Phase
+II, we will refine the edge of calcium spark. As such, the wide
+ROI shrinks to form a tight ROI. Further, a fine-grained representation (i.e., 2-D multiscale adaptive basis function model)
+will be developed to model the spark within the tight ROI. It
+may be noted that we aim to compactly represent the spark
+morphology with an optimal set of basis functions. To that end,
+this tight ROI will be subtracted from the image and the TPGP
+algorithm will go to Phase I for the search of next significant
+spark. This two-phase pursuit will repeat a new iteration until
+the stop criteria is satisfied.
+A. Image Preprocessing
+The image preprocessing consists of two major steps, i.e.,
+image denoising and baseline subtraction. First, we will remove
+random electronic noises in the line-scan image. Second, the
+nonstationary baseline is estimated and subtracted to obtain
+smooth and baseline-free image for the detection of sparks. It
+may be noted that 2-D DWT is specifically used for both steps
+of image preprocessing in this study.
+Conventional time-domain and frequency-domain analysis
+tend to have limitations to capture nonstationary and transient
+
+KAN et al.: TPGP ALGORITHM FOR AUTOMATIC DETECTION AND CHARACTERIZATION OF TRANSIENT CALCIUM SIGNALING
+
+689
+
+posed into a series of detail subimages (i.e., GL H , GH L , and
+GH H ) and an approximation (i.e., GL L ).
+The step of denoising removes high-frequency noises by
+thresholding the wavelet coefficients of detail subimages. The
+soft thresholding (Γsoft ) shrinks the coefficient as follows:
+Γsoft (Gd
+
+Fig. 2.
+
+Flow diagram of 2-D DWT.
+
+behaviors in the 1-D signals or 2-D images [8]. Wavelet transformation provides an effective time-frequency representation
+of nonstationary line-scan images using a pyramid-structured
+decomposition [9]. As shown in Fig. 2, the image G (size =
+S × T ) is first decomposed horizontally by 1-D DWT into
+two subimages (GL and GH ). Further, the 1-D DWT is applied along the vertical direction of GL and GH . As a result,
+four subimages (GL L , GL H , GH L , and GH H ) are obtained
+after the first level of 2-D DWT decomposition. Note that the
+low-frequency component of the original image G is captured
+in GL L (approximation). The high-frequency components are
+captured in GL H (horizontal detail), GH L (vertical detail), and
+GH H (diagonal detail). Mathematically, horizontal 2-D DWT
+decompositions (i.e., filtered and down-sampled along rows of
+G) are represented as
+
+GL (s, k) =
+G (s, t) · L (2k − t)
+(1)
+t
+
+GH (s, k) =
+
+
+
+G (s, t) · H (2k − t)
+
+(2)
+
+t
+
+where k = 1, 2, . . . , T /2 is the temporal index of subimages,
+s = 1, 2, . . . , S and t = 1, 2, . . . , T are the spatial index and
+temporal index of the original image. Similarly, the vertical 2D DWT decompositions (i.e., filtered and down-sampled along
+columns of GL and GH ) are represented as:
+
+GL L (w, k) =
+GL (s, k) · L (2w − s)
+(3)
+s
+
+GL H (w, k) =
+
+
+
+
+(4)
+
+GH (s, k) · L (2w − s)
+
+(5)
+
+GH (s, k) · H (2w − s)
+
+(6)
+
+s
+
+GH H (w, k) =
+
+
+
+= sgn (Gd
+
+sub )
+
+· Max {(|Gd
+
+sub |
+
+− THR) , 0}
+
+(7)
+where Gd sub represents the detail subimages (including
+GL H , GH L , and GH H ) and THR is the threshold. If the
+absolute values of Gd sub are less than the threshold, they
+will be set to zeros. Otherwise, the larger ones will be set
+to sgn (Gd sub ) · (|Gd sub | − THR). Such a soft thresholding keeps the major components in each detail subimage and
+removes random noises. In the present investigation, we decomposed the calcium-spark image G into four levels for the
+denoising purpose. To this end, the denoised image will be
+reconstructed with the use of significant coefficients in detail
+subimages and all coefficients in the approximation.
+In the step of baseline subtraction, we first estimate the baseline of the line-scan image using 2-D DWT decomposition.
+Notably, the varying fluorescent baseline is a nonstationary
+stochastic process. In other words, it is mainly resulted from
+the Brownian motion of cells and molecules in fluorescence.
+This process show self-similar behaviors that are effectively
+delineated by the scaling properties of wavelet transform. Similar to the denoising step, 2-D DWT decomposes the image
+G into multiple levels. In this paper, the depth of decomposition is chosen to be 10 based on the baseline characteristics
+in experimentally collected images. After wavelet decomposition, the varying baseline is then reconstructed using only the
+approximation (GL L ) and horizontal details (GL H ). All other
+details are set to zeros. The approximation subimage GL L is
+chosen because the varying baseline resides primarily in the
+low-frequency range. Notably, horizontal details (GL H ) are the
+details of horizontal low-frequency components (GL ) along the
+vertical direction. Therefore, both the approximation (GL L ) and
+horizontal details (GL H ) are retained to reconstruct the baseline, which includes not only the low-frequency component in
+the temporal dimension but also maintain the variations along
+the spatial dimension.
+Finally, the reconstructed baseline is subtracted from the denoised image. After two steps of image denoising and baseline
+subtraction, the preprocessed image is used as input data to the
+TPGP algorithm for the detection of calcium sparks.
+B. TPGP Algorithm
+
+GL (s, k) · H (2w − s)
+
+s
+
+GH L (w, k) =
+
+sub )
+
+s
+
+where w = 1, 2, . . . , S/2 is the spatial index of subimages after
+down-sampling. In the next level, GL L is further decomposed
+into four subimages. As such, the line-scan image G is decom-
+
+In a recent study, we developed a multiscale adaptive basis function model for the compact representation of threedimensional (3-D) cardiac signals [10]. A greedy heuristic, i.e.,
+matching pursuit, is employed to estimate an optimal set of basis functions that collectively represent the signals. Although
+greedy pursuit is shown to be effective for the compact representation of dynamic signals [11], [12], only a small amount of
+studies extended this approach to 2-D images. For examples,
+Cao et al. [13] developed a sparse representation based classification algorithm based on orthogonal matching pursuit for
+
+690
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fig. 4. Superposition of multiple 2-D Gaussian functions to approximate a
+nonregular morphology.
+
+Fig. 3.
+
+Flowchart of the developed TPGP approach.
+
+classifying chromosomes from multicolor fluorescence in situ
+hybridization images. Hsu et al. [14] used the method of matching pursuit to recognize road signs. The images are recorded by
+the camera mounted on a moving vehicle.
+However, it is noteworthy that most of previous researches
+focused on the detection of visible targets and fixed patterns,
+e.g., different shapes of road signs [14]. Few previous works
+were aimed at the detection of transient patterns in the 2-D microscopic images. Unlike previous cases, local calcium events
+are transient and the morphology varies significantly. In this
+study, we developed the TPGP algorithm for the effective detection and characterization of calcium sparks in microscopic
+images. As shown in the Fig. 3, the TPGP algorithm consists of
+two phases, namely coarse-grained matching and fine-grained
+representation that will be detailed in the following two sections.
+1) Phase I—Coarse-Grained Matching: In Phase I, the objective of coarse-grained matching is to locate the calcium sparks
+with the use of iterative pattern matching, as opposed to the traditional double-threshold approach. As shown in Fig. 3, we first
+perform the coarse-grained matching to locate the sparks and
+delineate the spark regions (i.e., ROIs). It is well known that a
+line-scan image consists of several million pixels or more, but
+ROIs only count a very small portion. Therefore, it is not necessary to represent the whole image using basis function models
+that will be highly redundant and computationally expensive.
+The coarse-grained matching is achieved by shifting and
+translating a wavelet function ψ (x) across the whole image.
+A family of wavelet ψ τ ,a,θ is defined by shifting, scaling and
+rotating the mother wavelet ψ (x) as follows:
+
+
+x−τ
+1
+ψ τ ,a,θ = √ ψ θ
+(8)
+a
+a
+where a is the scaling factor, θ is the rotation factor, and
+τ = (τs , τt ) are the shifting factors along spatial and temporal dimensions. Despite the variability of spark morphology,
+
+most of calcium sparks manifest approximately as Gaussian
+profiles [4], [15]. Thus, 2-D Gaussian wavelet is used in this
+study. After shifting and translating the 2-D Gaussian function
+ψ (x) across the whole image, we obtain the Phase I coefficients
+as follows:
+
+
+
+x−τ
+1
+(p1)
+= G, ψ τ ,a,θ  =
+G (s, t) √ ψ θ
+W
+dsdt
+a
+a
+(9)
+where the operation · represents the inner product. The predominant spark is identified at the location (a0 , b0 ) that gives the
+largest coefficient in W (p1) . A wide ROI centering on (a0 , b0 )
+is then defined for the Phase II, i.e., fine-grained representation.
+2) Phase II—Fine-Grained Representation: The objective
+of Phase II is to develop a fine-grained representation of detected
+calcium sparks using a compact set of multiscale basis functions.
+As shown in Fig. 3, a tight ROI is first defined in the beginning of
+Phase II by shrinking the wide ROI to the edge of calcium spark,
+which is accomplished by canny edge detector [16]. Then, we
+develop a multiscale adaptive basis function model to represent
+the tight ROI–Gl (s, t), where subscript l indicates the local
+ROI.
+It is worthy to mention that Gaussian basis function models
+are not limited to approximate only the Gaussian morphology.
+Indeed, the superposition of multiple bell-shaped bases is capable of representing any morphology. As shown in Fig. 4, a
+nonregular surface with multiple peaks can be modeled by the
+summation of three Gaussian functions. Mathematically, every
+fine-grained detail of an irregular surface can be captured if
+sufficient Gaussian bases are involved.
+In Phase II, the fine-grained representation is to model the
+calcium spark within the tight ROI as the superposition of K
+multiscale basis functions
+Gl =
+
+K
+
+
+(p2)
+
+Wi
+
+Φi (x|τ , Σ)
+
+(10)
+
+i=0
+
+where Φ(x|τ , Σ) is the 2-D Gaussian basis function as follows:
+
+
+1
+1
+T
+−1
+(x
+−
+τ
+)
+Φ(x|τ , Σ) =
+exp
+−
+Σ
+(x
+−
+τ
+)
+1
+1
+2
+(2π) 2 |Σ| 2
+(11)
+where τ = (τs , τt ) are the 
+shifting factors along
+spatial
+and
+
+σs2
+ρσs σt
+temporal dimensions, Σ =
+is the covariρσs σt
+σt2
+ance matrix, and |Σ| is the determinant of Σ. Variances σs2
+and σt2 influence the scales of 2-D Gaussian function along
+spatial and temporal dimension, respectively. The covariance
+ρσs σt (−1 < ρ < 1) affects the orientation of the 2-D Gaussian
+profile. Here, the objective is to minimize the representation error between calcium sparks and basis function models with an
+
+KAN et al.: TPGP ALGORITHM FOR AUTOMATIC DETECTION AND CHARACTERIZATION OF TRANSIENT CALCIUM SIGNALING
+
+691
+
+Fig. 6. Illustration of Phase II; (a) the wide ROI that contains the detected
+spark; (b) detected edge of the spark region; (c) the wider ROI shrinks to match
+detected edge; (d) the approximated tight ROI.
+
+Fig. 5. (a) Flowchart of constructed three-level dictionary; (b) Orientations of
+four molecules in level 1 (for molecule 4, submolecules in level 2 are shown in
+shadowed region).
+
+optimal set of parameters {w, K, Φ}
+	
+
+
+	
+K
+	
+	
+
+	
+	
+(p2)
+W i Φi (x|τ , Σ)	, {w, K, Φ} . (12)
+argmin 	Gl −
+	
+	
+i=0
+
+It may be noted that Φ(x) represents a general basis function, which is in the Gaussian form in this investigation.
+For a specific application, a dictionary is composed by shifting, rotating and scaling the basis function, i.e., Dict =
+{Φj (x|τ j , Σj ), j = 1, 2, . . . , N }, where N is the total number of bases. Note that it is highly redundant to define τ j , Σj
+continuously in a range of interest. For the numerical computation, the dictionary is constructed by discretizing the parameters
+of basis function. Therefore, this process is analogous to the selection of an optimal combination of words [i.e., Φj (x)] from
+the dictionary to represent the characteristics of Gl within the
+tight ROIs.
+Further, we constructed a tree-structured dictionary to improve the computational efficiency of TPGP algorithms. The
+tree-structured dictionary groups basis functions with similar
+properties in the same subtree. A molecule is generated to represent each subtree [17], [18]. As a result, the data are projected
+onto molecules to identify the best-matching subtree. Then, the
+search goes along this subtree until reaching a leaf node (i.e., a
+specific basis function).
+In this investigation, we constructed a three-level dictionary
+based on the orientation of basis functions [see Fig. 5(a)]. As
+shown in Fig. 5(b), four subtrees (i.e., molecules) are first created in the level 1 and denoted as Mi , i= 1, 2, 3 and 4. Their
+orientation θm are − π4 , 0, π4 , and π2 , respectively. In the level
+2, each subtree
+SMik with ori
+ is extended to submolecules
+entations θ ∈ θm − π8 , θm + π8 [see Fig. 5(b)]. The number
+of submolecules k depends on the discretization of the orientation range of interests. In level 3, each node SMik expands
+the basis function with the same orientation to submolecules
+SMik n in multiple scales. There are a total number of 2500
+atoms in leaf nodes at the level 3. However, the tree-structure
+
+dictionary improves the computational efficiency by searching
+optimal basis functions along one tree branch, as opposed to
+an exhaustive search of all leaf nodes (2500 atoms). Note that
+if a best-matching subtree is selected in the level 1, other subtrees are discarded. An optimal submolecule in the level 2 is
+identified by best matching the orientation of calcium spark. Finally, the calcium spark is projected onto multi-scale bases with
+the same orientation to seek the best-matching submolecule in
+the level 3. As such, the computational efficiency of TPGP algorithm is significantly improved with the use of the tree-structured
+dictionary.
+To achieve a sparse solution to the optimization function [see
+(12)], it requires a combinatorial search of K possible basis
+functions (K  N ) from the dictionary to find the global minimum. As this problem is potentially intractable, we have utilized
+an iterative procedure of greedy pursuit [11], [12]. The greedy
+pursuit strategy starts from an initial approximation f (0) = 0,
+dictionary {Φj (x|τ j , Σj ), j = 1, 2, . . . , N }, and image residual R(0) = Gl , i.e., the tight ROI region of calcium spark. In
+the first iteration, the algorithm greedily searches the dictionary
+to find an optimal basis function that maximizes the correlation
+with R(0) as follows:
+
+
+
+
+
+
+ (0) (γ 0) 
+ = argmax  R(0) , Φj  , Φj ∈ Dict. (13)
+ R ,Φ
+j
+
+Then, the approximation is updated, i.e., f (1) =
+R(0) , Φ(γ 0) Φ(γ 0) , and the new image residual will be
+calculated as R(1) = R(0) − R(0) , Φ(γ 0) Φ(γ 0) .Similarly,
+the approximation f (k +1) and image residual R(k +1) in the
+k + 1 iteration will be given by
+f
+
+(k +1)
+
+=
+
+k
++1 
+
+
+
+R(i) , Φ(γ i) Φ(γ i)
+
+(14)
+
+i=0
+
+
+
+R(k +1) = R(k ) − R(k ) , Φ(γ k ) Φ(γ k ) .
+
+(15)
+
+l will
+After K iterations, the representation of calcium spark G
+be achieved as the superposition of K optimally selected basis
+functions
+l =
+G
+
+K
+−1
+
+
+
+
+R(i) , Φ(γ i) Φ(γ i) + R(K ) .
+
+(16)
+
+i=0
+
+As shown in Fig. 6(a), a wide ROI centering on (a0 , b0 ) is
+obtained from Phase I. Then, the Canny method is used to
+detect the edge of spark region [see Fig. 6(b)]. As a result, the
+wide ROI shrinks to the edge of spark and form a tight ROI [see
+Fig. 6(c)]. Note that greedy pursuit iteratively searches for an
+optimal basis function to represent the calcium spark within the
+
+692
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+tight ROI. As a result, the spark is modeled by the addition of
+the selected optimal bases from K iterations [see Fig. 6(d)]. It is
+noteworthy that spark characteristics, e.g., morphology, location
+and scales, are captured by the basis function model for feature
+analysis. To this end, the tight ROI will be subtracted from the
+whole image and the TPGP algorithm returns to Phase I to
+identify the next predominant spark (see Fig. 3).
+Therefore, the greedy pursuit strategy will identify the most
+predominant spark in every step. However, there is a need
+to define the stopping criteria for the process of greedy pursuit, because the number of sparks is limited in real-world
+images. If the cell membrane does not have any activity of
+calcium sparks, we assumed that peak amplitudes in the base
+image (i.e.,
+spark activity) are normally distributed, i.e.,
+
+ without
+A ∼ N μ, σ 2 , where μ and σ are the mean and standard deviation. For the detection of calcium sparks, the following hypotheses are formulated:
+H 0 : The detected peak is not a calcium spark
+H 1 : The detected peak is a calcium spark
+
+Notably, the amplitude of a calcium spark is generally
+greater than the peaks in the base image, representing intra2+
+cellular
+ Ca release events. The test statistic is calculated as
+z0 = Ai − Ā /s, where Ai is the amplitude of the ith detected peak, and Ā and s are, respectively, the sample mean and
+standard deviation of peak amplitudes in the base image. The
+amplitudes of calcium sparks are generally greater than random
+peaks in the base image and are distributed at the right tail of the
+normal curve. Hence, this is the right-sided test and the p-value is
+approximately estimated as p = 1 − Φ (z0 ) = 1 − Pr(z < z0 ).
+The p-value approach is to provide a confidence estimate on the
+likelihood of a detected peak to be a calcium spark. The smaller
+the p-value, the stronger evidence to reject the null hypothesis H0 . If a significant level α is specified, all detected peaks
+with p-values less than α are declared as calcium sparks at the
+significant level α. In practice, researchers can opt to define a
+higher significant level so as to make sure all true calcium sparks
+are captured. For conservative researchers (e.g., false positives
+impact the results significantly), it will be preferred to define a
+smaller significant level to avoid false positives.
+III. MATERIALS AND EXPERIMENTAL DESIGN
+A. Materials
+To evaluate the developed TPGP algorithm, this study used
+both synthetic images and real-world images collected from live
+cell experiments. The experimental images are acquired in the
+Department of Molecular Pharmacology and Physiology at the
+University of South Florida. The membrane permeable Ca2+ sensitive fluorescent dye (fluo-4 acetoxymethyl ester, 10 μM)
+is used to monitor the subcellular calcium transients in intact
+vascular smooth muscles of perfused afferent arteriole isolated
+from rats. The confocal line-scan images are recorded by Leica
+TCS-SP5 inverted confocal microscope with a 63x PL-APO
+objective (N.A. 1.2, water immersion). The line-scanning rate
+
+is 512 pixel/line at 2 ms intervals. Each experimental image
+consists of 512 × 8192 pixels. The size of each pixel is 0.075 μm.
+The synthetic image Gsyn (s, t) contains four components
+Gsyn (s, t) = Gcell
+
+vol (s, t)
+
++ Gbaseline (s, t) + Gnoise (s, t)
+
++ Gspark (s, t)
+
+(17)
+
+where Gcell vol , Gbaseline , Gnoise , and Gspark represent the cellular volume, the nonstationary baseline, the random noise, and
+the calcium sparks, respectively. The size of synthetic image
+Gsyn is 512 × 8192 pixels, which is the same as the dimension
+of experimentally collected images.
+As shown in Fig. 7(a), 2-D Gaussian functions are adopted
+to simulate the calcium sparks Gspark . The higher the amplitudes, the brighter they appear on the image. Fig. 7(b) shows the
+simulation of nonstationary baseline Gbaseline along the temporal dimension with the fractional Brownian motion (fBm).
+Note that fBm is a continuous Gaussian process controlled by
+the Hurst parameter (0 < H < 1). As such, we simulated ten
+different realizations of fBm processes. Then, we will generate the cell volume and random noises at different levels. The
+synthetic image [see Fig. 7(c)] is obtained by the superposition
+of cellular volume Gcell vol , nonstationary baseline Gbaseline ,
+random noise Gnoise , and calcium sparks Gspark . It may be
+noted that the noises in line-scan images are mainly Poissondistributed photon (shot) noises. However, Cheng et al. [4] and
+Wegner et al. [15] show that photon noises can be sufficiently
+approximated with the use of Gaussian distribution. Notably,
+the variation of brightness in Fig. 7(c) is pertinent to the nonstationary fBm in Fig. 7(b).
+B. Experimental Design
+As shown in Fig. 8, the performance of TPGP algorithms
+is evaluated with respect to two major factor groups, i.e., background properties and spark properties in this study. In the group
+of background properties, ten realizations of fBm are simulated
+to mimic the nonstationary baseline. In addition, we generated
+12 levels of background signal-to-noise ratio (SNR in decibel),
+i.e., −29.5, −26.0, −23.5, −20.0, −15.5, −12.0, −9.5, −6.0,
+−3.5, 0, 1.9, and 10.4 to test the algorithmic robustness to noises.
+In total, there are 12 × 10 = 120 synthetic images generated.
+In the group of spark properties, we varied the levels of five
+factors in 2-D Gaussian profiles, including amplitude (ΔF/F0 ),
+spatial variance, temporal variance, covariance, and location.
+The variations of five factors are randomly generated within the
+predefined range to simulate various kinds of spark morphology.
+For example, the amplitudes (ΔF/F0 ) of calcium sparks vary
+widely for different cells. Cheng et al. show that the amplitudes
+of calcium sparks are around 0.2–2 in their experiments [2].
+In addition, we varied the covariance function of 2-D Gaussian
+distribution to simulate the rotation of calcium sparks and exponential rise/decay along spatial and temporal dimensions. It
+is worthy to mention that the proposed basis function model
+in Phase II is capable of approximating any morphology. In
+the simulation study, 2-D Gaussian morphology is employed
+without the loss of generality.
+
+KAN et al.: TPGP ALGORITHM FOR AUTOMATIC DETECTION AND CHARACTERIZATION OF TRANSIENT CALCIUM SIGNALING
+
+693
+
+Fig. 7. One example of the synthesis of nonstationary and noisy spark images: (a) calcium sparks; (b) fractional Brownian motion; (c) the superposition of
+cellular volume, nonstationary baseline, random noise, and calcium sparks; (d) image denoising and baseline subtraction by 2-D DWT.
+
+ber of true sparks that are not detected. A sensitivity of 100%
+indicates that all of the true sparks are successfully detected.
+The PPV represents the probability that the predicted positives are true positives and it is computed as
+PPV =
+
+Fig. 8.
+
+Cause-and-effect diagram for the evaluation of TPGP algorithms.
+
+For each synthetic image, we randomly distributed 50 sparks
+and their morphologies are varied by changing the levels of five
+factors in spark properties. In total, there are 120 images that
+have different nonstationary baselines, noise-to-signal ratio, and
+spark morphology.
+C. Performance Measures
+To statistically measure the algorithmic performance, both
+sensitivity (SEN) and positive predicted value (PPV) are computed from each of 120 images. It may be noted that our simulation experiments provide the distribution of performance measures for each SNR (i.e., mean ± std), as opposed to a single
+number in most of previous investigations. The SEN measures
+the probability that true sparks in the image are successfully
+detected and it is calculated as
+True Positives
+TP
+=
+(18)
+SEN =
+TP + FN
+Total Actual Positives
+where true positive (TP) represents the number of true sparks
+that are detected, and false negative (FN) represents the num-
+
+True Positives
+TP
+=
+TP + FP
+Total Predicted Positives
+
+(19)
+
+where false positive (FP) is the predicted positives that are not
+true sparks. A 100% PPV suggests that all of the detected sparks
+are true sparks.
+In addition, R-square (R2 ) is used to statistically measure the
+representation performance in Phase II, i.e., how well the basis
+function model fits the calcium spark within the tight ROI. If the
+R2 is close to 100%, the model prediction perfectly matches the
+real-world data. R2 is a sufficient measure of the goodness of
+fit. For example, if k basis functions are involved and the image
+(k )
+residual is Rl (s, t), the R2 is calculated as
+  (k )2
+(s, t)
+s 
+t Rl
+R2 = 1 − 
+(20)
+2 (s, t)
+G
+s
+t
+l
+where Gl , Rl , s, and t are defined in Section II. The R2 is a
+statistical measure that represents the proportion of variability
+in a data set that can be explained by the basis function model,
+thereby providing the information about the goodness of fit.
+IV. RESULTS
+This present investigation made an attempt to address the
+limitations in existing approaches (i.e., hard thresholding, empirical selection of parameters, and nonstationary baseline) and
+develop a novel TPGP algorithm for automatic detection and
+characterization of calcium sparks in line-scan images. Furthermore, we evaluated the developed TPGP algorithm using both
+synthetic images and experimentally collected images, and the
+algorithmic performances are compared with the Bankhead’s
+algorithm [6].
+
+694
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fig. 9. (a) Amplitudes of iteratively identified peaks from the preprocessed
+synthetic image; (b) p-values of the identified peaks versus iterations.
+
+A. Synthetic Images
+Fig. 7 shows an example of synthetic image. Note that each
+image consists of 50 simulated sparks with various amplitudes
+and morphologies. The synthetic image [see Fig. 7(c)] is the superposition of cellular volume, nonstationary baseline, random
+noise, and calcium sparks. As mentioned in Section II-A, we
+first preprocess the synthetic image with 2-D DWT to reduce
+noises and estimate the nonstationary baseline. Fig. 7(d) shows
+the image after the preprocessing. It is noteworthy that the SNR
+is 0 dB in Fig. 7(c) and most of the sparks are visually identifiable in Fig. 7(d) (i.e., the preprocessed image). However, there
+are also some bright spots due to the presence of noises. As
+the noise level increases, these spots will lead to potential false
+positives.
+Then, the TPGP algorithm is applied to the preprocessed image [i.e., see Fig. 7(d)] for the detection of calcium sparks. As
+shown in Fig. 9, the greedy pursuit approach iteratively searches
+for the predominant peak. Fig. 9(a) shows that the spark amplitude is decreasing with respect to the iteration. After 50 iterations, the gradient of amplitude variations becomes stable. If we
+conducted >50 iterations (e.g., 100) in Phase I, it is shown that
+the TPGP detects the peak of random noises. Fig. 9(b) shows the
+p-values of the identified peaks. The significant level is selected
+as α =0.05 (red dashed line). The first 50 detections under the
+red dashed line are determined as sparks in the confidence level
+of 100 (1 − 0.05) % = 95%.
+Fig. 10 shows the PPV and SEN of both TPGP algorithm
+(blue solid line) and Bankhead’s algorithm (tuned parameters
+in red dashed line and default setting in green dotted line) on
+120 synthetic images. In each level of SNR, mean and standard
+deviation of performance metrics are calculated from ten images
+(i.e., ten different fBM realizations). The mean value is denoted
+as the center of each bar, and the standard deviation is shown as
+the width above and below the center.
+For the TPGP algorithm (blue solid line), it may be noted
+that the mean values of PPV and SEN are increasing when the
+SNR increases. In the low noise levels, e.g., SNR > −3.5 dB,
+both PPV and SEN are shown to have small standard deviations.
+Note that nearly 100% are yielded for both performance measures in the last two levels of SNR. As the noise level increases,
+a steep decreasing may be noted for the mean values of both
+performance metrics and the standard deviation is becoming
+larger. In the eighth level (SNR = −6.0 dB), the TPGP algorithm achieves >90% PPVs and >80% SENs. When the SNR
+decreases to −20 dB, the mean values of PPV and SEN are only
+
+Fig. 10. Mean and standard deviation of performance metrics for both TPGP
+algorithm and Bankhead’s algorithm (tuned and default settings) on the 120
+synthetic images: (a) PPV versus SNR; (b) SEN versus SNR.
+
+20% and 15%. When the noise level gets extremely large (i.e.,
+SNR = −29.5, −26, and −23.5 dB), the mean values of PPV
+and SEN are decreased below 10. It may be noted that a PPV of
+8% and a SEN of 2% are achieved for SNR = −29.5.
+For the Bankhead’s algorithm, we also conducted experiments and show the performance metrics on the 120 synthetic images for the purpose of comparison. Two versions of
+Bankhead’s algorithm, i.e., default setting (green dotted line)
+and fine-tuned parameters (red dashed line) are applied. In finetuned Bankhead’s algorithm, the tuned threshold is set to be 6 to
+maximize the performance. As shown in Fig. 10, the default setting of Bankhead’s algorithm (green dotted line) results in a large
+number of false positives (i.e., high SENs but extremely low
+PPVs). The tuned parameter of Bankhead’s algorithm achieves
+good SENs without sacrificing PPVs greatly. Note that the PPV
+of TPGP algorithm is significantly better than the Bankhead’s
+methods (fine-tuned and default setting of parameters) in every
+SNR level. In terms of SEN, Bankhead’s algorithm (fine-tuned)
+yields better performances in high SNRs from −6.0 to 0 dB,
+but worse than the TPGP algorithm in low SNRs from −29.5
+to −6 dB. In real-word physiological experiments, high SNR is
+rare and low-medium SNR is more common due to the present
+constraints in imaging techniques. Although Bankhead’s algorithm (default setting) yields better SENs, this is at the expenses
+of extremely low PPV. The overall performance is evaluated using both SEN and PPV. We should not look at the SEN or PPV
+alone. The proposed TPGP algorithm outperforms Bankhead’s
+algorithm in terms of overall performance in this simulation
+study.
+The results of simulation experiments show that the TPGP
+algorithm outperforms Bankhead’s algorithm. For Bankhead’s
+
+KAN et al.: TPGP ALGORITHM FOR AUTOMATIC DETECTION AND CHARACTERIZATION OF TRANSIENT CALCIUM SIGNALING
+
+695
+
+Fig. 11. Implementation of the developed TPGP algorithm on experimental image 1; (a) raw image; (b) calcium sparks detected by the TPGP algorithm (marked
+on the denoised image); (c) detection results from Bankhead’s algorithm.
+
+Fig. 12. (a) Amplitudes of detected peaks versus iterations in Phase I; (b) pvalues of detected peaks versus iterations in Phase I; (c) R-square versus number
+of bases (K) used in Phase II.
+
+algorithm, thresholding the images is more likely to be impacted
+by noise levels. Note that Bankhead’s algorithm cannot achieve
+good PPV and SEN simultaneously. A high sensitivity will lead
+to unacceptable PPVs, and a high PPV is only achieved at the
+cost of significantly decreased sensitivities. However, the TPGP
+algorithm overcomes the drawback of thresholding method and
+achieves better PPV/SEN at the same time. Thus, the TPGP
+algorithm is shown to be more robust to various noise levels and
+nonstationary baseline in the detection and characterization of
+calcium sparks.
+B. Experimental Images
+Furthermore, the TPGP algorithm is evaluated on experimental images and the results are compared with Bankhead’s algorithm. Fig. 11 shows the results for one experimental image. As
+shown in Fig. 11(a), the raw image is contaminated by noises
+and nonstationary baseline (bright and dark regions). We first
+preprocessed the raw image using 2-D DWT to reduce noises
+and subtract the baseline. Then, the TPGP algorithm is implemented on the preprocessed image to detect calcium sparks.
+Fig. 11(b) shows the sparks that are iteratively identified by the
+TPGP algorithm. The edge of every spark is marked with yellow colors and the number by each spark indicates the order of
+detection [see Fig. 11(b)].
+Fig. 12(a) shows the variation of amplitudes of iteratively detected peaks. It may be noted that the decreasing trend of peak
+amplitudes reaches the plateau phase after the 18th iteration.
+However, the detection continuous until 40th iteration so as to
+obtain the base image that is spark-free. Because of the lack
+
+of ground truth in experimental images, the question now becomes “what is the confidence level for the detected peak to be
+a calcium spark?” Fig. 12(b) shows the corresponding p-value
+of each detected peak. The smaller the p-value is, the stronger
+evidence to reject the null hypothesis (i.e., H0 : the detected
+peak is not a calcium spark). In this investigation, a significant
+level at α = 0.05 is shown as the dashed line in Fig. 12(b). As a
+result, a total of 18 peaks are identified as calcium sparks at the
+confidence level of 95%. Notably, users can opt to define a specific significant level. If it is desired to include as many potential
+sparks as possible, the user opt to use a bigger significance level
+(e.g., α = 0.1). On the other hand, a smaller significance level
+(e.g., α = 0.01) will be preferred to reduce false positives. In
+addition, Fig. 12(c) shows the representation error (i.e., R2 values) for a spark within the tight ROI that is varied with respect
+to the number of bases in Phase II. It is shown that a sufficient
+approximation (R2 > 99.5%) is achieved with four bases.
+Also, Bankhead’s algorithm is applied to the same experimental image. Fig. 11(c) shows that Bankhead’s algorithm captured
+26 peaks that are taken as calcium sparks without confidence
+levels. It is noteworthy that the TPGP algorithm establishes the
+confidence level on the detection of calcium sparks using the
+p-value approach. As aforementioned, the smaller the p-value
+is, the stronger evidence the detected peak is a calcium spark.
+The TPGP algorithm yields 18 sparks that have the p-values less
+than 0.05. However, such a confidence level is not available in
+Bankhead’s algorithm. In addition, Bankhead’s method focuses
+on the detection and does not provide a fine-grained representation of the detected sparks. These 18 sparks from TPGP algorithm [see Fig. 11(b)] are corresponding to the larger white spots
+[see Fig. 11(c)] identified by Bankhead’s algorithm. Nonetheless, Bankhead’s algorithm yields more false positives due to the
+thresholding approach. For example, some of Bankhead’s detections contain only a few pixels that are resulted from noises.
+
+C. Computational Complexity
+As shown in Table I, we have compared the running times of
+TPGP and Bankhead’s algorithm. The experiments were done
+on the desktop computer with Intel Core 2 CPU, 4.00 GB RAM
+
+696
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+TABLE I
+RUNNING TIMES OF TPGP AND BANKHEAD’S ALGORITHM
+
+and Windows 7 platform. The algorithms are evaluated on
+images with three different sizes, i.e., 512 × 512, 512 ×
+2048 (used in Bankhead’s paper [6]) and 512 × 8192 (used
+in this study). It should be noted that Bankhead’s algorithm
+is only aimed at detection. However, the proposed TPGP algorithm focuses on the detection and representation. Thus,
+we reported running times for TPGP Phase I (i.e., detection),
+Bankhead’s algorithm, and TPGP Phase I+II (i.e., detection and
+representation).
+Notably, Phase I detection of TPGP takes 0.404 s to screen a
+512 × 2048 image and locate the predominant spark in the first
+iteration. Nonetheless, the running time of two-Phase TPGP is
+not as fast as the Bankhead’s algorithm, but provides a finegrained representation of calcium sparks that is not available
+in the Bankhead’s approach. The running time of Phase II representation in TPGP depends on the number of basis function
+used. It may be noted that two-phase TPGP takes 8.241s for both
+detection and representation. In fact, the representation with four
+bases achieves the R2 value of more than 99.5% [see Fig. 12(c)].
+Also, all of these automatic algorithms are used for off-line detection of calcium sparks. The computational efficiency is not
+as strictly required as online algorithms in real-time applications. The TPGP algorithm has an attractive feature to provide
+both detection and representation of calcium sparks. Further, experimental results show that the TPGP algorithm yields better
+performances (i.e., PPV and SEN) than traditional approaches,
+while Bankhead’s algorithm tends to have more false positives.
+V. CONCLUSION AND DISCUSSIONS
+This study developed a TPGP algorithm. In Phase I, a coarsegrained search is conducted across the whole image to identify
+the predominant sparks. In Phase II, a fine-grained representation is developed for the detected sparks using multiscale adaptive basis function model. Most of previous algorithms have
+certain limitations for the detection of calcium sparks, e.g., empirically defined thresholds and the problem of robustness in the
+presence of heavy noises or nonstationary baselines. This paper made an attempt to address these limitations and enable: 1)
+an accurate detection of calcium sparks with various morphologies, 2) effective discerning of calcium sparks with various noise
+levels and wandering baselines, and 3) the characterization of
+detected sparks for the extraction of physiological features.
+First, the developed TPGP algorithm is shown to yield good
+performances using synthetic images. Both PPV and sensitivity
+are greater than 90% in low noise levels. The performances
+are robust when the image is contaminated by the higher level
+
+of noises. For the noisy image (SNR = −6.0 dB), 80% and
+76.7% are achieved for SEN and PPV, respectively. In contrast,
+Bankhead’s algorithm fails to achieve good results for both PPV
+and SEN simultaneously. It is shown that the proposed TPGP
+algorithm is capable of maximizing the number of true positives
+while controlling the rate of false positives, thereby overcoming
+the limitations in existing approaches.
+In addition to the detection, the proposed TPGP algorithm
+develops the fine-grained representation of sparks in Phase II.
+It may be noted that the representation with basis function models can be further used for the physiological analysis. Because
+the greedy pursuit is capable of approximating various morphologies of calcium sparks, the TPGP algorithm can be easily
+extended to identify other local calcium events, e.g., puffs and
+sparklets. In a nutshell, the developed TPGP algorithm provides
+a robust method for automatic detection and characterization
+of local calcium events and has great potentials to benefit the
+research of calcium signaling.
+ACKNOWLEDGMENT
+The authors would like to thank anonymous reviewers and
+the editor for providing constructive comments and suggestions
+on our work in this present study.
+REFERENCES
+[1] D. E. Clapham, “Calcium signaling,” Cell, vol. 131, pp. 1047–1058, 2007.
+[2] H. Cheng and W. J. Lederer, “Calcium sparks,” Physiol. Rev., vol. 88,
+pp. 1491–1545, 2008.
+[3] K. Yip and J. S. K. Sham, “Tracking stars: Automated two-dimensional
+analysis of Ca 2 events. Focus on “automated region of interest analysis of
+dynamic Ca2 signals in image sequences,” Amer. J. Physiol. Cell Physiol.,
+vol. 303, pp. C233–C235, 2012.
+[4] H. Cheng, L. Song, and N. Shirokova A. Gonzalez, E.Lakatta, E. Rios,
+M. Stern,, “Amplitude distribution of calcium sparks in confocal images:
+theory and studies with an automatic detection method,” Biophys. J.,
+vol. 76, pp. 606–617, 1999.
+[5] E. Picht, A. V. Zima, L. A. Blatter, and D. M. Bers, “SparkMaster: Automated calcium spark analysis with ImageJ,” Amer. J. Physiol. Cell Physiol., vol. 293, pp. C1073–C1081, 2007.
+[6] P. Bankhead, N. C. Scholfield, T. M. Curtis, and J. G. McGeown, “Detecting ca sparks on stationary and varying baselines,” Amer. J. Physiol. Cell
+Physiol., vol. 301, pp. C717–C728, 2011.
+[7] C. Kong, C. Soeller, and M. Cannell, “Increasing sensitivity of Ca spark
+detection in noisy images by application of a matched-filter object detection algorithm,” Biophys. J., vol. 95, pp. 6016–6024, 2008.
+[8] H. Yang, S. T. S. Bukkapatnam, and R. Komanduri, “Nonlinear adaptive
+wavelet analysis of electrocardiogram signals,” Phys. Rev. E, vol. 76, pp.
+026214-1–026214-8, 2007.
+[9] S. G. Chang, B. Yu, and M. Vetterli, “Adaptive wavelet thresholding for
+image denoising and compression,” IEEE Trans. Image Process., vol. 9,
+no. 9, pp. 1532–1546, Sep. 2000.
+[10] G. Liu and H. Yang, “Multiscale adaptive basis function modeling of spatiotemporal vectorcardiogram signals,” IEEE J. Biomed. Health Informat.,
+vol. 17, no. 2, pp. 484–492, Mar. 2013.
+[11] S. S. Chen, D. L. Donoho, and M. A. Saunders, “Atomic decomposition
+by basis pursuit,” SIAM J. Sci. Comput., vol. 20, pp. 33–61, 1998.
+[12] S. G. Mallat and Z. Zhang, “Matching pursuits with time-frequency dictionaries,” IEEE Trans. Signal Process., vol. 41, no. 12, pp. 3397–3415,
+Dec. 1993.
+[13] H. Cao, H. W. Deng, M. Li, and Y. P. Wang, “Classification of multicolor
+fluorescence in situ hybridization (M-FISH) images with sparse representation,” IEEE Trans. Nanobiosci., vol. 11, no. 2, pp. 111–118, Jun.
+2012.
+[14] S. Hsu and C. Huang, “Road sign detection and recognition using matching
+pursuit method,” Image Vis. Comput., vol. 19, pp. 119–129, 2001.
+
+KAN et al.: TPGP ALGORITHM FOR AUTOMATIC DETECTION AND CHARACTERIZATION OF TRANSIENT CALCIUM SIGNALING
+
+[15] F. Wegner, M. Both, and R. Fink, “Automated detection of elementary
+calcium release events using the a trous wavelet transform,” Biophys. J.,
+vol. 90, pp. 2151–2163, 2006.
+[16] C. Park, J. Z. Huang, J. X. Ji, and Y. Ding, “Segmentation, inference and
+classification of partially overlapping nanoparticles,” IEEE Trans. Pattern
+Anal. Mach. Intell., vol. 35, no. 3, pp. 669–681, Mar. 2013.
+[17] L. Daudet, “Sparse and structured decompositions of signals with the
+molecular matching pursuit,” IEEE Trans. Audio, Speech, Language Process., vol. 14, no. 5, pp. 1808–1816, Sep. 2006.
+[18] P. Jost, P. Vandergheynst, and P. Frossard, “Tree-based pursuit: Algorithm
+and properties,” IEEE Trans. Signal Process., vol. 54, no. 12, pp. 4685–
+4697, Dec. 2006.
+
+Chen Kan received the B.S. degree in electrical engineering from the China University of Mining and
+Technology, Beijing, China, in 2010, and the M.I.E.
+degree in industrial engineering in 2012 from the
+University of South Florida, Tampa, USA, where he
+is currently working toward the Ph.D. degree in the
+Department of Industrial and Management Systems
+Engineering.
+His current research interests include spatiotemporal statistics, complex system diagnostics and prognostics, data mining, statistical process control, and
+medical image processing.
+
+697
+
+Kay-Pong Yip received the Ph.D. degree in physiology and biophysics from the University of Southern
+California, Los Angeles, USA, in 1991.
+He is currently a Professor with the Department
+of Molecular Pharmacology and Physiology, University of South Florida, Tampa, USA. His current
+research interests include developing and applying
+confocal fluorescence microscopy, laser-based video
+microscopy, and flash photolysis of caged compounds
+to study renal cellular function in situ and in vivo. He
+is currently involved in investigating the regulation
+of water channels (aquaporin-2) trafficking in kidney collecting duct by antidiuretic hormone (vasopressin), the role of integrins and Ca2 + microdomains in
+mechanical signal transduction in renal vascular smooth muscle, and cellular
+mechanisms of pressure natriuresis and its relationship with the development of
+hypertension.
+Hui Yang (M’08) was born in Nanjing, China. He
+received the B.S. and M.S. degrees in electrical and
+computer engineering with honors from China University of Mining and Technology, Beijing, China, in
+2002 and 2005, respectively, and the Ph.D. degree in
+industrial engineering and management from Oklahoma State University, Stillwater, USA, in 2009.
+He is currently an Assistant Professor with the Department of Industrial and Management Systems Engineering, University of South Florida, Tampa, USA.
+His current research interests include sensor-based
+modeling and analysis of complex systems for process monitoring, system informatics, quality improvement, and performance optimization, with special
+focus on nonlinear stochastic dynamics, and the resulting chaos, multifractal,
+self-organization, long-range dependence behaviors.
+Dr. Yang has received several research awards such as the IBM Best Paper
+Award in 2011 IEEE Annual Conference of Engineering in Medicine and Biology Society, and the Industrial Engineering Research Conference Best Paper
+Awards (Manufacturing and Design Track in 2009, Computer and Information
+Systems Track in 2010, Computer and Information Systems track in 2014). Currently, he is the board member of Data Mining section and Quality, Statistics and
+Reliability section of INFORMS, Also, he is the guest editor for IEEE Intelligent
+Systems and Information Systems and e-Business Management (Springer), and
+a professional member of IEEE, IIE, AHA, ASEE and INFORMS.
+
+

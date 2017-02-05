@@ -1,0 +1,1368 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+2465
+
+A Segmentation Algorithm for Quantitative Analysis
+of Heterogeneous Tumors of the Cervix
+With 18F-FDG PET/CT
+Wei Mu, Zhe Chen, Wei Shen, Feng Yang, Ying Liang, Ruwei Dai, Ning Wu∗ , and Jie Tian∗ , Fellow, IEEE
+
+Abstract—As positron-emission tomography (PET) images have
+low spatial resolution and much noise, accurate image segmentation is one of the most challenging issues in tumor quantification.
+Tumors of the uterine cervix present a particular challenge because of urine activity in the adjacent bladder. Here, we propose
+and validate an automatic segmentation method adapted to cervical tumors. Our proposed methodology combined the gradient
+field information of both the filtered PET image and the level set
+function into a level set framework by constructing a new evolution
+equation. Furthermore, we also constructed a new hyperimage to
+recognize a rough tumor region using the fuzzy c-means algorithm
+according to the tissue specificity as defined by both PET (uptake)
+and computed tomography (attenuation) to provide the initial zero
+level set, which could make the segmentation process fully automatic. The proposed method was verified based on simulation and
+clinical studies. For simulation studies, seven different phantoms,
+representing tumors with homogenous/heterogeneous—low/high
+uptake patterns and different volumes, were simulated with five
+different noise levels. Twenty-seven cervical cancer patients at different stages were enrolled for clinical evaluation of the method.
+Dice similarity coefficients (DSC) and Hausdorff distance (HD)
+were used to evaluate the accuracy of the segmentation method,
+while a Bland–Altman analysis of the mean standardized uptake value (SUVmean) and metabolic tumor volume (MTV) was
+used to evaluate the accuracy of the quantification. Using this
+Manuscript received December 23, 2014; revised May 9, 2015; accepted
+May 9, 2015. Date of publication May 14, 2015; date of current version
+September 16, 2015. This work was supported by the National Basic Research Program of China (973 Program) under Grant 2011CB707700, the
+National Natural Science Foundation of China under Grant 81227901, Grant
+61231004, the Chinese Academy of Sciences Fellowship for Young International Scientists under Grant 2013Y1GB0005, the National High Technology
+Research and Development Program of China (863 Program) under Grant
+2012AA021105, the “Guangdong Province-Chinese Academy of Sciences”
+comprehensive strategic cooperation program under Grant 2010A090100032
+and Grant 2012B090400039, the NSFC-NIH Biomedical collaborative research
+program under Grant 81261120414, the Beijing Natural Science Foundation
+under Grant 4132080, the Fundamental Research Funds for the Central Universities under Grant 2013JBZ014, the National Basic Research Program of
+China under Grant 61301002 and Grant 61302025, the Chinese Academy of
+Sciences Visiting Professorship for Senior International Scientists under Grant
+2010T2G36, and the Chinese Academy of Sciences Key deployment program
+under Grant KGZD-EW-T03. Asterisk indicates corresponding author.
+W. Mu, Z. Chen, W. Shen, R. Dai are with the Key Laboratory of Molecular
+Imaging, Institute of Automation, Chinese Academy of Sciences.
+F. Yang is with the School of Computer and Information Technology, Beijing
+Jiaotong University.
+Y. Liang is with the Cancer Institute and Hospital, Chinese Academy of
+Medical Sciences.
+∗ N. Wu is with the Cancer Institute and Hospital, Chinese Academy of
+Medical Sciences, Beijing 100190, China (e-mail: cjr.wuning@vip.163.com).
+∗ J. Tian is with the Key Laboratory of Molecular Imaging, Institute of Automation, Chinese Academy of Sciences, Beijing 100190, China (e-mail: tian@
+ieee.org).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2433397
+
+method, the DSCs and HDs of the homogenous and heterogeneous
+phantoms under clinical noise level were 93.39 ± 1.09% and
+6.02 ± 1.09 mm, 93.59 ± 1.63% and 8.92 ± 2.57 mm, respectively. The DSCs and HDs in patients measured 91.80 ± 2.46%
+and 7.79 ± 2.18 mm. Through Bland–Altman analysis, the SUVmean and the MTV using our method showed high correlation
+with the clinical gold standard. The results of both simulation and
+clinical studies demonstrated the accuracy, effectiveness, and robustness of the proposed method. Further assessment of the quantitative indices indicates the feasibility of this algorithm in accurate
+quantitative analysis of cervical tumors in clinical practice.
+Index Terms—Cervical tumor segmentation, Fuzzy-C-Means
+(FCM), improved level set method, Positron-emission tomography/computed tomography (PET/CT) images.
+
+I. INTRODUCTION
+ERVICAL cancer was the third most common cancer and
+the fourth most common cause of cancer death in women
+worldwide in 2012 [1]. Accurate diagnosis of cervical cancer
+is very important. Positron-emission tomography/computed tomography (PET/CT) has played an important role in oncology
+because of its high specificity and sensitivity. As a noninvasive functional imaging modality, PET can reflect the metabolic
+characteristics of the tumors at the molecular level, especially
+the quantitative analysis characteristic can provide diagnostic
+information and assist in planning therapy.
+One of the most widely used indices for uptake quantification
+in PET images is the standardized uptake value (SUV), which
+quantifies the metabolism of tumors by measuring the 18 F-FDG
+uptake within the tumor region and normalizing to the dosage
+of injected 18 F-FDG and a scale factor representing the patient’s
+size (such as body weight or body surface area). Another important index is the metabolic tumor volume (MTV), which
+has been proved to be an independent prognostic factor for tumor recurrence in patients with cervical cancer [2]. Recently,
+another series of semiquantitative indices, textural parameters,
+focusing on describing the relationships between the intensity
+of the voxels and their spatial position within the region of interest (ROI) [3], have been shown to reflect the heterogeneity
+of tumors, and can be used to predict therapy response [4] and
+patient outcome [5]. Unfortunately, although some of these indices are robust to segmentation, some are greatly dependent on
+the accurate delineation of the target volumes [6]. In addition,
+the definition of the tumor boundary plays a vital role in radiation therapy, which is a common treatment in oncology. On the
+one hand, the boundary should be kept as compact as possible
+to minimize damage to the nearby healthy tissues. On the other
+
+C
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+2466
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+hand, the boundary must include the entire extent of the tumors
+[7]. In clinical practice, the widely used segmentation method
+is manually delineation by physicians. However, this method
+is time consuming and subjective, and the introduced interobserver variance causes difficulty in comparing the quantitative
+indices acquired in different institutions. Therefore, automatic
+and accurate segmentation is desirable.
+Currently, the segmentation methods for PET images are divided into four main categories. First, due to the nature of PET
+images (i.e., low spatial resolution but high contrast), thresholdbased segmentation techniques are proposed, and become the
+most widely used methods mainly because of their simplicity
+of implementation and use. These methods are usually divided
+into two main groups: fixed thresholding and adaptive thresholding. For fixed thresholding, the common used thresholds are
+SUV = 2.5 and 40% of the SUVmax (the maximum SUV of
+the ROI) in clinical use [8]. For adaptive thresholding, many
+techniques try to find a more optimal threshold by minimizing the intraclass variance (i.e., Otsu method [9]), or applying
+an iterative thresholding method based on calibrated threshold–
+volume curves at varying S/B ratio acquired through phantoms
+[10]–[12]. Nevertheless, finding an optimal threshold is still a
+challenging task for threshold-based segmentation techniques.
+Second, taking advantage of the fuzzy boundaries of uptake regions in PET images, a series of methods based on fuzzy set
+theory have been developed, such as fuzzy-c-means (FCM) [13],
+fuzzy locally adaptive Bayesian [14], [15], fuzzy connectedness,
+and fuzzy hidden Markov models [16], [17]. These methods are
+quite suitable for fuzzy boundaries, and usually perform well on
+the segmentation of PET images. Third, region-based segmentation methods, which include region growing [18] and graphbased [19] methods, also attract much attention. Most of these
+methods are based on the assumption that the lesions should
+be homogeneous [20], and may not obtain a satisfied results on
+heterogeneous tumors usually. Therefore, many researches are
+focused on improving the traditional region-based method to
+adapt to the heterogeneous tumors in recent years, and some of
+them obtained stratified results [21]. The fourth kind of methods, represented by level set and active contours [22]–[25], are
+based on the boundary of the object. Though how to locate the
+boundaries in the noisy and low-resolution PET images is challenging, these methods could overcome the restricted condition
+of homogeneity and obtain more accurate results.
+Compared to other tumors, cervical tumor segmentation
+presents more challenges because the tumor is isoattenuating
+to the normal cervical stroma on CT images [26], and the urine
+in the adjacent bladder has a similar signal intensity to the tumor on PET images [27]. It is difficult to localize the tumor
+from CT images and to isolate the tumor region from the effect of the bladder on PET images with most of the present
+algorithms alone. Until now, there is a little literature concerning the cervical tumor segmentation. Miller and Grigsby
+used the traditional threshold-based segmentation techniques,
+but manual ROI placement to eliminate the bladder was needed
+in many cases [28]. Roman-Jimenez et al. proposed a fusionand Gaussian-mixture-based classification (FGMC) method to
+separate the bladder and tumor semiautomatically on the basis
+
+of visual interpretation [29]. Arbonès et al. applied a level set
+method based on the Chan–Vese (CV) model [30] to delineate
+heterogeneous PET-positive areas, but postprocessing was also
+needed to exclude the bladder [31].
+In this study, we propose a cervical tumor segmentation algorithm that can separate the bladder automatically and delineate
+the cervical tumor accurately. This method consists of two major steps: first, recognizing the rough tumor region (RTR) on a
+newly constructed hyperimage according to the tissue specificity
+to provide the initial contour of the tumor; second, delineating
+the accurate boundaries of the cervical tumor with an improved
+level set method based on the gradient fields of the PET image and the level set function (LSF). The proposed method is
+validated on both phantom simulation and clinical studies to
+demonstrate its effectiveness and robustness.
+II. MATERIALS AND METHODS
+A. CV Model
+The traditional level set method is suitable for the delineation
+of the heterogeneous and multicentric PET-positive volumes, as
+it can represent contours of complex topology and handle topological changes during evolution, such as merging of multiple
+regions. As a typical region-based active contour model, the CV
+model [30] is widely used in segmentation. This model extracts
+the objects by minimizing the Mumford–Shah [32] energy function using region properties in a level set framework, and the
+LSF evolution equation is
+∂φ
+= δ(φ)
+∂t
+
+
+× α · div(∇φ/|∇φ|) − v − λ1 (I − c1 )2 + λ2 (I − c2 )2
+(1)
+where φ is the LSF, I is the image data (i.e., the PET images in
+this work), α, ν, λ1 , and λ2 are positive parameters. c1 and c2
+are the average intensities of the regions inside and outside of
+the zero level set, respectively,
+
+c1 (φ) = average(I(φ > 0))
+(2)
+c1 (φ) = average(I(φ < 0))
+which can be expressed as follows:
+	
+⎧
+· H(φ(x)) dx
+⎪
+Ω I(x)
+⎪
+	
+⎪
+⎨ c1 (φ) =
+H(φ(x))
+dx
+Ω
+	
+⎪
+· (1 − H(φ(x))) dx
+⎪
+⎪ c2 (φ) = Ω I(x)
+	
+⎩
+Ω (1 − H(φ(x))) dx
+where Ω is the domain of the image, and H is
+⎧
+1
+⎪
+⎪
+⎨
+Hε (z) = 0
+⎪
+⎪
+⎩
+1/2 [1 + z/ε + 1/πsin(πz/ε)]
+
+(3)
+
+if z > ε
+if z < ε
+if|z| < ε.
+(4)
+
+MU et al.: SEGMENTATION ALGORITHM FOR QUANTITATIVE ANALYSIS OF HETEROGENEOUS TUMORS OF THE CERVIX
+
+2467
+
+Fig. 1. Top left corners of (a) and (c) are the slices of the Gaussian-filtered PET images, and the top left corners of (b) and (d) are their gradient fields. The main
+parts of the four figures are the corresponding partial enlargements of the areas enclosed by the red squares.
+
+The Dirac delta function δ is approximated by the following
+smooth function δε [33]:
+⎧
+
+
+ 
+⎨ 1 1 + cos πx , |x| ≤ ε
+ε
+δε (x) = 2ε
+(5)
+⎩
+0,
+|x| > ε.
+However, due to the accumulation of the urine, the cervical
+tumor has similar signal intensity to the adjacent bladder on PET
+images. Therefore, the classical CV model cannot separate the
+bladder and tumor. That is to say, when the evolution reaches the
+convergence, the segmentation results may include the bladder.
+Therefore, an improvement is greatly desired.
+B. Modified Level Set Method
+The level set method delineates the contour by the zero level
+set in higher dimension, and formulates the motion of the contour as the evolution of the LSF [34]. For a given initial contour
+(i.e., the zero level set, ZLS), the evolution should push the zero
+level set to the boundary of the object. Given the fact that the
+centers of the bladder lumen and the tumor have a higher intensity than the periphery on the Gaussian filtered PET images
+[see Fig. 1(a) and (c)], the gradient fields of the boundary of
+the bladder and tumor should be opposite [see Fig. 1(b) and
+(d)]. Therefore, an evolution equation adapted to cervical tumor
+segmentation could be constructed as follows:
+
+
+∂φ(x)
+= −λ (Iσ − c1 )2 + (Iσ − c2 )2
+∂t
+·tanh( cot < ∇φ(x), ∇Iσ > ) · sgn(δε 1 (φ)) (6)
+where Iσ represents the Gaussian filtered PET images using
+a Gaussian kernel with a standard deviation σ, λ > 0, < ∗ >
+
+stands for the angle between the two vectors (within the range
+of 0–π), and | ∗ | stands for the magnitude of the vector. The
+definition of c1 and c2 are similar to CV model, and can be
+represented as the following equations in the 3D PET image
+segmentations:
+	
+⎧
+y, z) · Hε 2 (φ(x, y, z))dxdydz
+⎪
+Ω Iσ (x,
+⎪
+	
+⎪
+⎨ c1 (φ) =
+Ω Hε 2 (φ(x, y, z))dxdydz
+	
+⎪
+Iσ (x, y, z) · (1 − Hε 2 (φ(x, y, z)))dxdydz
+⎪
+⎪
+	
+.
+⎩ c2 (φ) = Ω
+Ω (1 − Hε 2 (φ(x, y, z)))dxdydz
+(7)
+The term sgn(δ[φ]) is to ensure the expansion is performed
+in the narrow band around the ZLS. In order to regularize the
+LSF, Gaussian filter is applied after each iteration according to
+[35]
+φ = Gσ ∗ φ
+
+(8)
+
+where Gσ is a Gaussian kernel also with a standard deviation
+σ as the aforementioned, and ∗ stands for the convolution operation. The initial function φ0 is a binary step function, and
+defined by
+
+c0 ,
+if x ∈ R0
+φ0 (x) =
+(9)
+−c0 , otherwise
+where c0 is a positive constant (we set c0 to 2 in this study), and
+R0 is the area inside the initial contour of tumor.
+The curve of the evolution function
+L = tanh ( cot(θ)),
+as plotted in Fig. 2, has the following properties:
+
+(10)
+
+2468
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+The final LSF can be obtained by the aforesaid iterative process, and the voxels within the region where ϕ > 0 are extracted.
+The step length Δt was set to equal to σ in our study.
+C. Automatic Definition of the Initial Tumor Contour
+In order to define the initial tumor contour (i.e., ZLS), the
+RTR is needed to be recognized first. Taking advantage of the
+fuzzy boundaries of uptake regions in PET images, the FCM
+algorithm could be used. The FCM method was proposed by
+Dunn [36] and later improved by Bezdek [37]. In general, the
+FCM method divides the image into c clusters by minimizing
+the following objective function:
+JFCM =
+
+N 
+C
+
+
+(uij )m xi − cj 2 , 1 ≤ m < ∞
+
+(13)
+
+i=1 j =1
+
+Fig. 2.
+
+Curve of the function L.
+
+1) For θ within 0–π/2, which means the gradient field of
+Iσ and the LSF is coincident, the sign of this function is
+positive. The smaller the angle is, the larger the increment
+of L is.
+2) For θ within the range of π/2–π, which means the gradient
+fields of Iσ and the LSF is opposite, the expansion of the
+ZLS will be stopped. The larger the angle is, the larger the
+decrement of L is.
+At the beginning of the evolution, the voxels of the narrow
+band around the ZLS has similar intensities with the voxels
+inside of the initial contour, making the magnitude adjustment
+term {−λ(I − c1 )2 + (I − c2 )2 } positive, which is similar to
+the CV model. At the same time, the gradient fields of the LSF
+and the Iσ around the ZLS are coincident, and L is also positive.
+Both of the two positive terms increase the LSF, and the ZLS
+could expand. The smaller the angle is, the larger the increment
+of the LSF is, and the larger the probability of the expansion of
+the ZLS is. When the ZLS reaches the boundary of the tumor
+and the bladder, the magnitude adjustment term is positive, but
+L is negative for the gradient fields of LSF and Iσ around the
+ZLS are opposite. Therefore, the expansion of the ZLS will be
+stopped. When the ZLS reaches the boundary of the tumor and
+the background, L is near to zero, and the magnitude adjustment
+term is negative. Both of them can ensure the termination of the
+expansion more effectively at the boundary of the tumors.
+Finally, the largest connected region constituted by the voxels, whose LSFs are positive, is the ROI. By applying median
+filtering, we can delineate the cervical tumor.
+The aforesaid evolution equation can be implemented with
+a finite-difference scheme. Considering the 3-D case, the timedependent LSF φ(x, y, z, t) can be given in discretized form
+φni,j,k with spatial index (i, j, k) and temporal index n. Then, (6)
+can be discretized as the following finite-difference equation:
++1
+− φni,j,k
+φni,j,k
+
+Δt
+
+= L(φni,j,k )
+
+(11)
+
+which can be expressed as follows:
++1
+= φni,j,k + Δt · L(φni,j,k ), n = 0, 1, 2, ...
+φni,j,k
+
+(12)
+
+where xi is the ith measured data of dimension d, cj is the
+d-dimension center of the jth cluster, uij is the degree to which
+data element xi belongs to cluster cj , m is the factor to adjust the
+membership degree weighting effect (m = 2 in this study), and
+∗ stands for the Euclidian norm. The fuzzy clustering result is
+calculated by iteratively optimizing this objective function with
+the update of uij and cj by
+uij =
+
+C
+k =1
+
+
+
+1
+x i −c j 
+x i −c k 
+
+ m 2−1 ,
+
+N
+cj =
+
+m
+i=1 uij xj
+N
+m
+i=1 uij
+
+, 1 ≤ i ≤ N, 1 ≤ j ≤ C.
+
+(14)
+
+
+
+The iteration will not stop until maxij ukij+1 − ukij  < ε,
+where ε is the termination criterion within the range of 0–1
+(10−5 was used in our study), and k is the iteration steps.
+According to the tissue specificity, which refers to the fact
+that bladder content and the cervical tumor have similar degrees
+of FDG uptake compared with other surrounding tissues, but
+different structural information due to different levels of attenuation on CT, we could construct a hyperimage utilizing both
+the metabolic and anatomic information. For each voxel of this
+hyperimage, three features are considered: the SUV normalized to the SUVmax on PET images, the Hounsfield unit (HU)
+density values normalized to the maximum HU values on CT
+images, and the product of the aforesaid two features. Then, the
+constructed hyperimage can be divided into four regions (see
+Fig. 3) based on the tissue specificity: 1) a region with high
+SUV and moderate HU that corresponds to the tumor (regions
+delineated in blue); 2) a region with high SUV and low HU
+that corresponds to the bladder contents (regions delineated in
+green); 3) a region with low SUV and moderate HU that corresponds to the other soft tissues (regions delineated in red); and
+4) a region with low SUV and low HU that corresponds to the
+background.
+The detailed description of the proposed methodology to define the initial tumor contour is given as follows.
+1) Localization of the cervical tumor: The whole PET images
+were processed by Gaussian filtering. Then, SUVpeak (a
+local average SUV value in a group of voxels surrounding
+
+MU et al.: SEGMENTATION ALGORITHM FOR QUANTITATIVE ANALYSIS OF HETEROGENEOUS TUMORS OF THE CERVIX
+
+2469
+
+commonly used in clinical practice) [8] in the RTR were
+regarded as R0 in the initial LSF φ0 to ensure the inclusion
+of the all the center of the tumor.
+D. Datasets and Validation
+
+Fig. 3. Diagram of the four different kinds of regions in the constructed
+hyperimage.
+
+2)
+
+3)
+
+4)
+
+5)
+
+6)
+
+the voxel with SUVmax [38]) of each slice along the axial
+direction was calculated, and the corresponding curve was
+smoothed and plotted as Fig. 4(a). The slices corresponding to the two adjacent valleys in front of and after the last
+significant peaks [pointed by the red arrows in Fig. 4(a)]
+were the slices including cervical tumor. Similarly, the
+SUVpeak of each slice along the coronal and sagittal directions could also be obtained, and the slices between
+two adjacent valleys in front of and after the main peaks
+[pointed by the red arrows in Fig. 4(b) and (c)] were used
+to define a smaller region (as Fig. 3).
+Constructing the hyper-image: The construction needed
+to up sample the PET images to CT resolution first so that
+each voxel in PET images corresponded to only one voxel
+in CT images. Then, the hyperimage was constructed using the normalized SUV, HU, and their product.
+Separation of the RTR: The constructed hyperimage was
+partitioned into four clusters using the FCM method. For
+each of the obtained clusters, a simple morphological operation (erosion and dilation with a proper kernel) was
+performed, and the largest connected component was extracted.
+Distinction of the RTR: In order to find the RTR from the
+four clusters, the mean attribute values of each cluster was
+calculated. The cluster with the largest sum of the SUV
+and HU was the RTR in our study. For some exceptional
+cases, we needed to consider the location of each cluster
+as the cervix is close to the back of the body.
+Determination of the final RTR: Given that the obtained
+RTR may include the bladder wall, as it has similar intensity with the tumor both in CT images and PET images due
+to their similar attenuation and the partial volume effect,
+an erosion operation was performed. Then, we acquired
+the final RTR by down sampling to the PET resolution.
+Definition of the initial tumor contour: The voxels
+with SUV larger than 40% of the SUVmax (threshold
+
+1) Phantom Simulation Study: Since it is difficult to obtain
+the ground truth in PET imaging, phantom simulations were
+used to validate the efficiency of segmentation methods. We
+used a part of an anthropomorphic abdomen phantom containing a urinary bladder and a cervix, which was derived from a
+whole-body CT scan of a human patient. In order to verify the
+efficiency and robustness of the proposed method, we simulated
+both homogeneous and heterogeneous tumors, whose groundtruth segmentations were available from CT images.
+a) Homogeneous Tumor Phantoms: The SUV of the background compartment (the normal part of the cervix) was set to
+0.5. Two spheres with 4-voxel radii (with volumes of 268 voxels)
+representing tumors were both set with SUVs equal to 4, making tumor-to-background ratios (TBRs) equal to 8, and bladder
+lumen-to-tumor ratios (BTRs) equal to 1 and 2. Another two tumors, represented by spheres with 6-voxel radii (with volumes
+of 905 voxels) were set with SUVs equal to 8, making TBRs
+equal to 16, and BTRs equal to 1 and 2. These four phantoms
+were referred to phantom a, b, c, and d, respectively.
+b) Heterogeneous Tumor Phantoms: To isolate the effects
+of tumor shape and homogeneity, we created three irregularly
+shaped tumor phantoms of different volumes (349, 934, and
+2105 voxels) with an averaged intensity histogram generated
+from 27 clinical cervical tumors, which were represented by
+phantom e, f, and g, respectively. Each voxel of the simulated
+tumors was chosen randomly to have an SUV drawn from this
+histogram [39]. The shape and volume of the tumors were based
+on clinical PET images. The simulation of the bladder was
+similar to that of the tumor. The SUV of the cervix was set to
+10% of the SUVmin of the tumor.
+The simulation, which was done with a PET camera (ECAT
+EXACT HR+, CTI Siemens, Knoxville TN, USA), was reconstructed using the ordered subsets expectation maximization algorithm with five iterations, and the anisotropic resolution was
+5.47 mm × 5.47 mm × 3.27 mm. Considering the noise in the
+raw PET data (i.e., the sinogram data), we used a common noise
+model to simulate the noise in the simulation study as follows:
+S ∗ = S + σ × N (0, 1),
+
+(15)
+
+where S is the simulated noise-free raw PET data, S ∗ is the simulated noise raw PET data, and N(0,1) represents the standard
+normal distribution. Assuming the measurement noise is subject
+to a Poisson distribution, σ can be modeled by
+
+S
+σ=α
+,
+(16)
+ΔT
+where α is a proportionality constant that determines the noise
+level and ΔT is the scan time. In our study, α was set to 0,
+0.4, 0.8, 1.0, and 1.2, and 20 realizations for each noise level
+were simulated. Fig. 5 illustrated the simulation results of the
+
+2470
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 4. Per-slice SUVpeak of a PET scan, where the horizontal axis indicates the slice number along the axial, coronal, and sagittal directions, respectively, the
+vertical axis represents the SUVpeak of the corresponding slice. The slices between the two red arrows include the cervical tumor.
+
+Fig. 5.
+
+Simulation results of the homogenous and heterogeneous phantoms on different noise levels before Gaussian filtering.
+
+homogenous and heterogeneous phantoms on different noise
+levels before Gaussian filtering.
+2) Clinical PET/CT Studies: This retrospective study was
+approved by the institutional review board of Cancer Institute
+and Hospital, Chinese Academy of Medical Sciences, and the
+absence of informed consent was also approved for the anonymous analysis of the data. Clinical PET/CT datasets were from
+27 patients with squamous cell carcinoma of the uterine cervix at
+different stages. Patients had been injected with 200–400 MBq
+of 18 F-FDG, depending on body weight. The PET/CT images
+(GE Discovery ST16 PET-CT, GE Healthcare, Milwaukee WI,
+USA) were acquired 50–90 min after the intravenous administration of the radioactive tracer. Each PET acquisition measured 128 × 128 × 207 voxels with anisotropic resolution of
+5.47 mm × 5.47 mm × 3.27 mm, while each CT acquisition
+measured 512 × 512 × 207 voxels with anisotropic resolution
+of 0.98 mm × 0.98 mm × 3.27 mm.
+The PET images were converted into SUV by normalizing
+the activity of the voxel to the dosage of injected 18 F-FDG and
+the patient body weight. The ground-truth segmentations were
+constructed by averaging the segmentations results delineated
+by two experienced physicians.
+
+3) Evaluation Criteria: To evaluate the accuracy of the segmentation, two common metrics, dice similarity coefficient
+(DSC) [40], and Hausdorf distance (HD) [41] were used to
+perform direct comparison between the segmented volume and
+the ground truth.
+Assuming the autosegmented tumor and the ground truth are
+denoted by U1 and U2 , respectively. DSC is expressed as follows:
+DSC(U1 , U2 ) = 2
+=
+
+|U1 ∩ U2 |
+|U1 | + |U2 |
+
+2 · TPFV
+(FPVF + TPVF) + (FNVF + TPVF)
+(17)
+
+where TPVF, FPVF, and FNVF stands for the true positive,
+false positive, and false negative volume fractions, respectively.
+This metric measures the spatial overlap between the segmented
+object and the ground truth. The higher the DSC is, the more
+accurate the segmentation method is.
+HD is a metric that measures the distance of the most mismatched boundary points between the segmented tumor and the
+
+MU et al.: SEGMENTATION ALGORITHM FOR QUANTITATIVE ANALYSIS OF HETEROGENEOUS TUMORS OF THE CERVIX
+
+2471
+
+Fig. 6. Mean DSCs and HDs and the relative standard deviations obtained over different phantoms using the LS–GF method (a)–(g) at different noise levels.
+(a)–(d) are homogeneous phantoms with different radii, TBRs and BTRs: (a) four voxels, 8:1,1:1; (b) four voxels, 8:1, 2:1; (c) six voxels, 16:1,1:1; (d) six voxels,
+16:1. 2:1. (e)–(g) are heterogeneous phantoms with volumes of 349, 934, and 2,105 voxels, respectively.
+
+ground truth, and is defined as follows:
+HD(X, Y ) = H(∂U1 , ∂U2 )
+
+
+= max sup inf d(x, y), sup inf d(x, y)
+x∈X y ∈Y
+
+y ∈Y x∈X
+
+(18)
+where ∂ denotes the boundary of segmented volumes such that
+X = ∂U1 and Y = ∂U2 , d is the Euclidean distance between x
+and y, sup and inf denote supremum and infimum. As a shape dissimilarity metric, the lower HD means the segmented volumes
+has a more similar shape to the ground truth, which indicates
+that the segmentation method is more accurate.
+To evaluate the accuracy of the quantification of the cervical
+tumors based on the proposed method, the clinically significant
+quantitative measures, the SUVmean (the mean SUV of the delineated volume) and the MTV obtained from the autosegmented
+tumors were compared with the reference values obtained from
+the ground-truth segmentation using Bland–Altman analysis,
+
+which calculates the mean and 95% confidence interval (CI) of
+the difference.
+III. EXPERIMENTS AND RESULTS
+The proposed method was implemented in Matlab R2012a on
+a desktop with an Intel(R) Core(TM) i5–650 @ 3.20-GHz CPU
+using 4 GB of RAM, and the reconstruction of the simulated
+PET images was implemented in Matlab R2012a on an Intel(R)
+Xeon(R) CPU E5–2420 v2 @ 2.20 GHz-CPU using 32 GB of
+RAM.
+We compared the proposed method with several traditional
+methods, such as the classical level set method based on CV
+models, the traditional fixed thresholding method using 40% of
+the SUVmax (T40%), the Otsu method [9], and random walk
+(RW) [19]. Given the segmentation results obtained by the CV
+method may include the bladder, which leads to the inaccurate
+quantitative analysis, we compared it with our method (hereafter, referred to as the “LS–GF method”) in qualitative. Given
+
+2472
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 7. Quantitative comparison of the DSCs and HDs among different methods using different RTRs on heterogeneous phantom g. The horizontal axis, RTR%
+represents for the area of RTR/area of cervix ×100%, the vertical axis of (a) represents the mean and standard deviation of DSCs of the 20 realizations of phantom
+g at noise 0.4, and the vertical axis of (b) represents the mean and standard deviation of HDs.
+
+the T40%, Otsu, and RW methods did not possess the ability to
+separate tumor from the bladder lumen, we performed them in
+the cervix region for the quantitative comparison.
+A. Phantom Simulation Study
+Since the simulated tumor was placed in the area of the eroded
+cervix, we regarded the eroded cervix as the RTR, and the phantom simulation study was mainly used to evaluate the proposed
+LS–GF method in terms of delineating the cervical tumor. Similarly, T40%, Otsu, and RW methods were also performed in
+the cervix of the simulated PET images.
+Fig. 6 displays the mean DSCs, HDs, and the corresponding
+standard deviations of the 20 realizations for each phantom at
+different noise levels using the proposed method. As the figure
+illustrates, the proposed LS–GF method performs better with
+DSC rates higher than 90% for the larger simulated tumors
+(phantoms c, d, f, and g), while the HDs are less than 11 mm
+(about 2 voxel) at all noise levels. For the smaller simulated
+tumors (phantoms a, b, and e), the proposed method can obtain
+nice results with DSC larger than 90% and HD smaller than
+11 mm at the low noise levels.
+In order to present the improvement of the proposed LS–GF
+method compared to traditional level set method, we performed
+the two methods on the same case with the same ZLS under
+a series of different iteration numbers, which was shown in
+Fig. 8(a). From this figure, we can see that the evolution of
+the proposed method could be stopped at the boundary of the
+tumor adjacent to the bladder, while the CV model could not.
+The segmentation results obtained with the proposed method
+and other three different methods based on simulated phantom
+g are given in Fig. 9(a), from which we can see the edge of the
+segmentation result obtained by the proposed method is more
+closely to the gold standard.
+The quantitative comparisons of different methods based on
+homogeneous phantoms and heterogeneous phantoms are listed
+in Tables I and II. It is apparent that the proposed method performs well for both homogeneous and heterogeneous phantoms
+
+with DSCs high than 92% and DSCs less than 11 mm, which
+is much better than the other three methods under all of the different noise levels. At the same time, Students’ t-test was also
+performed to validate the significance of the proposed method.
+For both the homogeneous and heterogeneous phantoms, the
+differences of DSCs and HDs are statistically significant at
+all the different noise levels: between the LS–GF and T40%
+(p < 0.05), between the LS–GF and RW (p < 0.05), and between the LS–GF and Otsu (p < 0.05).
+The aforeasaid experiments were performed assuming that
+the RTR was appropriate, including the entire tumor but excluding the bladder, which is difficult to achieve using current
+algorithms in clinical use. The RTR is usually obtained with erosion to exclude the signal produced by the bladder, which may
+cause the RTR to be too small to include the entire object. The
+dependence on RTR of these methods should be evaluated. We
+extracted RTRs of different sizes from the cervix in our study,
+and performed a group of experiments based on these RTRs.
+Fig. 7 shows the quantitative comparison of the mean DSCs and
+HDs obtained by the different methods on different RTRs on the
+heterogeneous phantom with the largest tumor at clinical noise
+level (i.e., α = 0.4).
+From this figure, we find that even when the RTR is very small
+(40% of the real cervix mask), the proposed LS–GF method also
+gives a good result (the DSC is nearly 90%) compared to other
+methods (the DSC is less than 80%), which means our method
+is more robust for different RTRs.
+B. Clinical PET/CT Studies
+The automatic recognition method of the RTR based on the
+improved FCM method was satisfactory in 24 of 27 datasets.
+For the other three cases that part of the tumor was excluded, R0
+could be substituted by rough manual delineation, which did not
+affect the final segmentation results. Based on the extracted R0 ,
+the proposed LS–GF method produced satisfactory segmentation results in all of the clinical studies. The cervix region that
+the other three methods were performed in was segmented from
+
+MU et al.: SEGMENTATION ALGORITHM FOR QUANTITATIVE ANALYSIS OF HETEROGENEOUS TUMORS OF THE CERVIX
+
+2473
+
+Fig. 8. Qualitative comparisons of the evolution results under different iteration numbers between the proposed LS–GF method and the traditional level set
+method based on CV model: (a) and (b) are the segmentation results based on simulated phantom g at noise 0.4; (c) and (d) are the segmentation results based on
+a clinical case.
+
+Fig. 9. Cervical tumor segmentation results (delineated in blue) obtained with different methods in simulated phantom g at noise 0.4 (a) and three different
+clinical cases (b)–(d). For each case from left to right: a random slice of input PET images, the gold standard and the corresponding segmentation by our LS–GF
+method, T40%, Otsu, and RW.
+
+2474
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+TABLE I
+QUANTITATIVE COMPARISONS OF DIFFERENT METHODS ON HOMOGENEOUS PHANTOMS UNDER DIFFERENT NOISE LEVEL
+
+@
+
+@
+@
+
+Noise 0
+P-value
+Noise 0.4
+P-value
+Noise 0.8
+P-value
+Noise 1.0
+P-value
+Noise 1.2
+P-value
+∗
+
+DSC(%)
+
+HD(mm)
+
+LS-GF
+
+T40%
+
+Otsu
+
+RW
+
+LS-GF
+
+T40%
+
+Otsu
+
+RW
+
+93.23 ± 1.32
+
+92.10 ± 0.21
+< 10 −6 ∗
+91.02 ± 0.61
+< 10 −6 ∗
+90.40 ± 1.57
+1.50 × 10 −2 ∗
+88.13 ± 1.91
+6.57 × 10 −6 ∗
+85.95 ± 4.00
+< 10 −6 ∗
+
+89.45 ± 2.69
+< 10 −6 ∗
+90.56 ± 1.94
+< 10 −6 ∗
+88.71 ± 1.91
+< 10 −6 ∗
+86.42 ± 2.82
+< 10 −6 ∗
+86.48 ± 4.37
+3.96 × 10 −3 ∗
+
+88.36 ± 1.41
+< 10 −6 ∗
+90.38 ± 1.41
+< 10 −6 ∗
+90.24 ± 1.75
+1.74 × 10 −5 ∗
+88.13 ± 1.91
+6.65 × 10 −4 ∗
+85.95 ± 4.00
+< 10 −6 ∗
+
+6.02 ± 1.09
+
+7.71 ± 0
+< 10 −6 ∗
+7.71 ± 0
+< 10 −6 ∗
+11.05 ± 8.81
+1.50 × 10 −2 ∗
+16.19 ± 8.75
+< 10 −6 ∗
+20.40 ± 10.94
+< 10−6 ∗
+
+7.71 ± 0
+3.37 × 10 −6 ∗
+7.71 ± 0
+3.92 × 10 −5 ∗
+14.93 ± 9.30
+5.56 × 10 −4 ∗
+22.26 ± 11.21
+< 10 −6 ∗
+23.47 ± 11.87
+1.07 × 10 −6 ∗
+
+7.71 ± 0
+9.08 × 10 −6 ∗
+7.71 ± 0
+7.73 × 10 −5 ∗
+11.05 ± 8.81
+1.10 × 10 −3 ∗
+16.14 ± 8.75
+7.54 × 10 −6 ∗
+20.40 ± 10.94
+3.96 × 10 −6 ∗
+
+93.39 ± 1.09
+91.71 ± 2.34
+90.40 ± 2.49
+88.67 ± 2.83
+
+6.02 ± 1.09
+7.27 ± 1.42
+7.88 ± 0.60
+9.08 ± 0.27
+
+The difference between the T40% (or Otsu, RW) and the LS-GF is significant at the 0.05 level.
+
+TABLE II
+QUANTITATIVE COMPARISONS OF DIFFERENT METHODS ON HETEROGENEOUS PHANTOMS UNDER DIFFERENT NOISE LEVEL
+
+@
+
+@
+@
+
+Noise 0
+P-value
+Noise 0.4
+P-value
+Noise 0.8
+P-value
+Noise 1.0
+P-value
+Noise 1.2
+P-value
+∗
+
+DSC(%)
+
+HD(mm)
+
+LS-GF
+
+T40%
+
+Otsu
+
+RW
+
+LS-GF
+
+T40%
+
+Otsu
+
+RW
+
+93.07 ± 2.00
+
+90.91 ± 2.32
+2.38×10−5 ∗
+90.84 ± 2.53
+< 10−6 ∗
+87.87 ± 2.36
+< 10−6 ∗
+86.58 ± 2.74
+< 10−6 ∗
+83.95 ± 4.35
+< 10−6 ∗
+
+90.77 ± 2.10
+< 10−6 ∗
+91.55 ± 1.54
+< 10−6 ∗
+89.86 ± 3.35
+< 10−6 ∗
+88.61 ± 3.48
+7.76×10−5 ∗
+87.01 ± 6.63
+2.65×10−4 ∗
+
+90.60 ± 2.60
+2.53×10−6 ∗
+91.36 ± 1.74
+< 10−6 ∗
+89.68 ± 2.29
+< 10−6 ∗
+87.94 ± 3.00
+< 10−6 ∗
+87.53 ± 3.54
+< 10−6 ∗
+
+8.64 ± 2.84
+
+12.74 ± 3.12
+< 10−6 ∗
+13.18 ± 2.84
+< 10−6 ∗
+12.47 ± 4.92
+1.78×10−6 ∗
+14.39 ± 2.08
+4.99×10−6 ∗
+15.04 ± 3.83
+< 10−6 ∗
+
+10.12 ± 1.91
+< 10−6 ∗
+10.61 ± 2.73
+1.26 × 10−6 ∗
+10.77 ± 4.32
+< 10−6 ∗
+14.44 ± 2.46
+3.63 × 10−6 ∗
+14.60 ± 4.38
+1.20 × 10−3 ∗
+
+9.35 ± 1.86
+4.70 × 10−3 ∗
+9.35 ± 1.86
+0.039 ∗
+10.99 ± 4.70
+10−6 ∗
+13.73 ± 2.79
+2.60 × 10−3 ∗
+16.14 ± 1.26
+< 10−6 ∗
+
+93.59 ± 1.63
+92.02 ± 2.88
+90.93 ± 3.35
+89.27 ± 3.66
+
+8.92 ± 2.57
+9.08 ± 2.14
+10.75 ± 2.95
+10.94 ± 2.73
+
+The difference between the T40% (or Otsu, RW) and the LS-GF is significant at the 0.05 level.
+
+the CT images by a semiautomated Skeleton cuts method [42],
+and the segmentation results obtained by the three methods were
+based on the best parameters for our datasets.
+Fig. 8(c) and (d) show the segmentation results of the clinical
+cases based on the proposed LS–GF method and the traditional
+level set method. Similar to the simulation studies, we could
+also find that the proposed method could separate the tumor
+from the adjacent bladder while the CV model could not.
+Another series of qualitative comparisons between the proposed method and the T40%, Otsu, RW are provided in
+Fig. 9(b)–(d), which shows the initial PET images of three typical patients and their corresponding segmentation results. Tumor b represents the tumors with obvious heterogeneity, tumor
+c has the similar intensity with the bladder, while the concentration of bladder is much higher than tumor d. Segmentations
+of both tumors c and d are affected by the adjacent bladders to a
+large extent. Due to the heterogeneity, the segmentation results
+of T40% method only include part of the tumors. Due to the
+partial volume effect, the segmentation results of the other three
+methods include the signal of the bladder. In brief, our method
+brings more competitive results than others.
+In order to test the robustness of the LS–GF method, quantitative comparisons of the DSC and HD between it, T40%,
+Otsu, RW, and the standard reference of the 27 clinical datasets
+with the gold standard are shown in Table III. We can see that
+our LS–GF method produces an obviously larger DSC (more
+
+TABLE III
+QUANTITATIVE COMPARISON OF DIFFERENT METHODS ON CLINICAL STUDIES
+Method
+
+DSC (%)
+
+HD (mm)
+
+LS-GF
+T40%
+P-value
+Otsu
+P-value
+RW
+P-value
+
+91.80 ± 2.46
+67.00 ± 12.90
+< 10−6 ∗
+80.48 ± 6.78
+1.13 × 10 −6 ∗
+82.10 ± 5.50
+2.34 × 10 −5 ∗
+
+7.79 ± 2.18
+15.59 ± 10.78
+6.41 × 10 −4 ∗
+16.24 ± 9.17
+2.32 × 10−4 ∗
+13.87 ± 7.12
+7.23 × 10 −3 ∗
+
+∗
+The difference between the T40% (or Otsu, RW) and the LS-GF is
+significant at the 0.05 level.
+
+than 90%, which is generally accepted as excellent) and smaller
+HD (5.61–9.97 mm, about 1–2 voxel), while the DSCs of other
+methods are less than 85%, and the HDs are more than 11 mm
+(2 voxel). The Student’s t-test of the DSCs and HDs between
+the LS–GF method and T40% (p < 0.05), Otsu (p < 0.05), RW
+(p < 0.05) both indicated significant differences.
+Additionally, the LS–GF method has the smallest standard
+deviation, which means it was stable across all the 27 tested
+clinical studies.
+Figs. 10 and 11 show the Bland–Altman analysis of the
+SUVmean and the MTV obtained from different methods performed on the 27 clinical datasets versus the reference values. As
+
+MU et al.: SEGMENTATION ALGORITHM FOR QUANTITATIVE ANALYSIS OF HETEROGENEOUS TUMORS OF THE CERVIX
+
+2475
+
+Fig. 10. Bland–Altman plots of the difference of the SUVmean of tumors obtained by different automatic methods and the gold standard. The red solid line is the
+zero difference line. (a)–(d) show the SUVmean agreement between the LS–GF method, T40% method, Otsu method, RW method, and gold standard, respectively.
+
+illustrated in Fig. 10(a), Bland–Altman analysis of SUVmean
+obtained by the proposed method compared with the gold standard shows 96% (26 of 27) points within 1.96 SDs (i.e., the 95%
+limits of agreement), with a bias of 0.10 and 1.96 SD limits of
+agreement of −0.24 and 0.43. Fig. 10(b)–(d) show the Bland–
+Altman analysis of SUVmean obtained by the T40% method,
+Otsu method, and RW method compared with gold standard.
+Only the Otsu method has 96% points within CI, with the bias,
+and the ±1.96 SD of 0.27, −0.77, and 1.32, respectively. Fig. 11
+gives the Bland–Altman analysis of MTV obtained by the proposed method and the other three methods compared with the
+gold standard. For the proposed method shown in Fig. 11(a),
+only one difference outside the 95% limits of agreement, the bias
+is only −1.67 cm3 , and the 1.96 SD is −16.37 to 13.10 cm3 . All
+of the rest three plots also have 96% points within CI, with biases of −39.70 cm3 , −15.90 cm3 , −16.03 cm3 , and the ±1.96
+SD of −98.84 and 19.45 cm3 , −67.71 and 35.90 cm3 , −57.18
+and 25.12 cm3 , respectively. From the aforesaid description,
+we can find that both the proposed method and the Otsu method
+have a good agreement with the gold standard, but the proposed
+method produces the smallest bias. Additionally, according to
+Figs. 10(a) and 11(a), the max absolute differences of SUVmean
+and MTV within the CI are −0.14 and −16.37 cm3 (both represented by solid blue circles), which are negligible compared
+to the corresponding average values 3.54 and 104.9 cm3 , and
+are acceptable in clinical practice. Therefore, we can conclude
+
+that our method has the best agreement with the gold standard
+compared to other three methods.
+IV. DISCUSSION
+In this paper, we have proposed an automatic cervical tumor
+segmentation algorithm for the delineation of cervical tumors in
+PET/CT images. This method can be summarized as follows: 1)
+the construction of a novel evolution equation based on gradient
+fields to delineate the object automatically; 2) the construction
+of a hyperimage utilizing the anatomical and metabolic information to define the initial contour of the tumor. Owing to the
+aforesaid innovations, we were able to segment cervical tumors
+accurately and automatically, which is clinically relevant. Furthermore, we have also evaluated the feasibility of this algorithm
+in clinical practice by assessing the quantitative indices.
+For the proposed LS–GF method, two hyperparameters, i.e., λ
+and σ, need to be determined for a given c0 (c0 = 2 in our study).
+In fact, the larger the λ is, the larger the probability that the voxel
+belongs to the background is, which results to partitioning the
+fuzzy boundary of the tumor to the background with larger
+probability. In other words, the segmented tumor is smaller. On
+the contrary, the smaller the λ is, the larger the segmented tumor
+is, which is shown in Fig. 12. Therefore, it is important to set λ
+properly. The choice of λ is influenced by the quality of the PET
+image and the size of the tumor. In real clinical applications, a
+
+2476
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 11. Bland–Altman plots of the difference of the MTV of tumors obtained by different automatic methods and gold standard versus the mean of the two
+variables. The red solid line is the zero difference line. (a)–(d) show the MTV agreement between the LS–GF method, T40% method, Otsu method, RW method,
+and the gold standard, respectively.
+
+Fig. 12. Relationship between λ and the size of the segmented tumor on the
+clinical datasets. The horizontal axis represents the different value of λ, and the
+vertical axis represents the ratio of the segmented tumor volume to the gold
+standard.
+
+certain amount of training datasets (five random patients were
+chosen in this study) are needed to find the proper λ. For different
+λ, the mean DSCs and HDs can be obtained as shown in Fig. 13.
+From this figure, we could find when λ was set around 0.5,
+we could obtain nice results with larger DSC and smaller HD.
+Additionally, because of the introduction of the Gaussian filter,
+the effect of the noise on LS–GF method is largely removed,
+
+especially for larger tumors, which can be seen from Fig. 6.
+Even if the image is degenerated seriously at noise level of 1.2 as
+Fig. 5, we could also obtain an acceptable segmentation results.
+In order to investigate the effect of the standard deviation σ,
+we performed additional experiments using a series of different
+σ values on five random clinical datasets. The obtained mean
+DSCs, HDs, and the corresponding standard deviations of five
+random patients under different σ are shown in Fig. 14. The
+figure illustrates that when σ was set within the range [0.5, 1],
+the DSCs approached greater than 90% (accepted as excellent),
+and the HDs are also small (about 1–2 voxels) and stable.
+Tables I–III show that our method gives a much better results both in simulated studies and clinical studies compared to
+traditional T40%, Otsu, and RW methods, and the differences
+between our method and the traditional methods are statistically
+significant based on the Student’s t-test both in the simulated
+studies at all the different noise levels and the clinical studies,
+which means the improvement of the new method is significant.
+However, when comparing the three tables, we can find that all
+the four methods perform well in the simulated studies. This is
+because the RTRs in the simulated studies include little signal
+of the bladder in our simulation, since the original intent of the
+simulation studies is to validate the accuracy of the method in
+the isolated tumors without the effect of the surrounding tissues.
+However, due to the short distance between the bladder and the
+cervix and the partial volume effect in the clinical studies, the
+
+MU et al.: SEGMENTATION ALGORITHM FOR QUANTITATIVE ANALYSIS OF HETEROGENEOUS TUMORS OF THE CERVIX
+
+2477
+
+Fig. 13. Profiles of mean DSCs and HDs obtained under different λ. The horizontal axis stands for λ, the vertical axis of (a) represents the mean and standard
+deviation of DSCs of the five cases, and the vertical axis of (b) represents the mean and standard deviation of HDs obtained from the five cases.
+
+Fig. 14. Mean DSCs and HDs of the random five cases obtained under different σ. The horizontal axis stands for sigma, the vertical axis of (a) represents the
+mean and standard deviation of DSCs, and the vertical axis of (b) represents the mean and standard deviation of HDs obtained from the five cases.
+
+border of the cervix may include the signal belonging to bladder,
+which means, even if the RTR is exactly the accurate cervix, the
+three traditional methods T40%, Otsu, and RW might not delineate the tumor accurately, as illustrated by the segmentation
+results shown in Fig. 9(c) and (d). This effect can be decreased
+by the erosion of RTR, which may lead to the RTR too small to
+include the whole tumor. However, the three traditional methods could only be performed in the given region, which leads to
+insufficient segmentations. On the contrary, the LS–GF method
+achieves the final segmentation by expanding the ZLS centered
+on the RTR, and acting on the whole image rather than just the
+given regions, which could guarantee the sufficient segmentation under the premise of excluding the bladder. Fig. 7 shows the
+quantitative comparison between these methods using different
+RTRs. Therefore, no matter how small the RTR is, the proposed
+method could obtain good results as long as RTR includes all
+the centers of the tumor.
+Due to the introduction of the L term into the classical CV
+model, the proposed method possesses the advantage of separating the tumor and bladder automatically. Fig. 8 shows the
+detailed evolution processes of the proposed method and the
+classical CV model, from which we can see the LS–GF method
+
+could exclude the bladder lumen successfully when the method
+achieves the convergence compared to traditional CV models.
+In other words, another important improvement of the proposed
+method is its automatic separating capacity besides its accuracy.
+To validate the clinical application significance of the proposed method, we conducted indirect comparison of clinically
+significant quantitative measures SUVmean and MTV with
+Bland–Altman plots. From Figs. 10 and 11, we can find that
+the proposed method produces the smallest bias and standard
+deviation, and more than 95% points are within the consistent interval. Additionally, the max absolute differences of SUVmean
+and MTV within the consistent interval are too small (only
+3.95% and 15.6%) to be neglected compared to the corresponding average values. In brief, the proposed method has a high
+agreement with the clinical gold standard, and can be applied in
+clinical cervical tumor segmentation.
+The most common used method in the CC segmentation is the
+traditional threshold-based segmentation techniques. However,
+the interactive morphologic operation and manual operation are
+needed to eliminate the bladder for every cases as Miller and
+Grigsby used [28], which is time consuming and subjective.
+Subsequently, Roman-Jimenez et al. proposed a semiautomatic
+
+2478
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 15. Cervical tumor segmentation results obtained with different methods of two typical clinical cases. The red part means the tumor while the green part
+means the bladder. For each case from left to right are: the gold standard, the corresponding segmentation by Arbones’s Method and our LS–GF method.
+
+method by combining the region-growing adaptive threshold
+method (RGAT) and fusion- and Gaussian-mixture-based classification (FGMC) method to separate the bladder and tumor. On
+the one hand, the RGAT suffers from poor reproducibility [43];
+on the other hand, it was necessary to decide whether to perform FGMC visually for each case. In addition, the voxel seed,
+the location of which may affect the final segmentation results,
+was needed to be selected by interactive program. Compared to
+the aforesaid methods, our method could obtain the final segmentation results automatically and quickly without interactive
+manual interpretation, which is meaningful for the following
+quantitative analysis of large datasets. Recently, Arbonès et al.
+proposed an automatic tumor segmentation in cervical cancer
+based on the CV models and post-processing [31]. This method
+obtains the final tumor through detecting and removing the bladder from the positive areas (i.e., the results of the CV method).
+The detection of the bladder is based on the assumption that it
+is the largest segmented object. When we tested this method on
+one of our clinical dataset whose tumor is larger than the bladder in the positive areas, we found this method may confuse
+the bladder and tumor, such as Fig. 15(a2). Additionally, this
+method only segmented part of the tumors in many of our cases,
+such as Fig. 15(b2). Moreover, this method performs poor on
+our datasets due to the low resolution. Though it could obtain the
+tumor through interpolation, it takes much longer time (about
+40 min) compared to our method (about 4 s) for every cases
+under the same environment. Therefore, our method performs
+better both in accuracy and efficiency.
+This method could also work well in the experiments of
+segmenting rectum cancer, which is also affected by the adjacent bladder in some cases. For other pathologies, such as
+lung tumors with heart or mediastinum physiological uptake
+
+and head and neck tumors with nearby uptake, the proposed
+LS–GF method could also work well based on the accurate initial contour. It should be noted that the automatic definition of
+the initial contour based on the FCM may not be applicable
+because of the different tissue specificities, which needs further
+study in the future.
+V. CONCLUSION
+An automatic segmentation algorithm for the quantitative
+analysis of cervical tumors was proposed and evaluated. Experiments on both phantom and clinical studies demonstrate the
+accuracy, effectiveness, and robustness of the LS–GF method.
+Further assessment of the quantitative indices indicates the feasibility of this method for accurate quantitative analysis of cervical
+tumors in clinical practice.
+REFERENCES
+[1] I. A. f. R. o. Cancer, World Cancer Report 2014, Lyon, France: International Agency for Research on Cancer Press, 2014.
+[2] B. S. Kim et al., “The prognostic value of the metabolic tumor volume in
+FIGO stage IA to IIB cervical cancer for tumor recurrence: Measured by
+F-18 FDG PET/CT,” Nucl. Med. Mol. Imag., vol. 45, pp. 36–42, 2011.
+[3] S. Chicklore et al., “Quantifying tumour heterogeneity in 18F-FDG
+PET/CT imaging by texture analysis,” Eur. J. Nucl. Med. Mol. Imag.,
+vol. 40, pp. 133–140, 2013.
+[4] I. El Naqa et al., “Exploring feature-based approaches in PET images for predicting cancer treatment outcomes,” Attern Recog., vol. 42,
+pp. 1162–1171, 2009.
+[5] M. Hatt et al., “18F-FDG PET uptake characterization through texture
+analysis: Investigating the complementary nature of heterogeneity and
+functional tumor volume in a multi-cancer site patient cohort,” J. Nucl.
+Med., vol. 56, pp. 38–44, 2015.
+[6] M. Hatt et al., “Robustness of intratumour 18F-FDG PET uptake heterogeneity quantification for therapy response prediction in oesophageal
+carcinoma,” Eur. J. Nucl. Med. Mol. Imag., vol. 40, pp. 1662–1671, Oct.
+1, 2013.
+
+MU et al.: SEGMENTATION ALGORITHM FOR QUANTITATIVE ANALYSIS OF HETEROGENEOUS TUMORS OF THE CERVIX
+
+[7] M. MacManus et al., “Use of PET and PET/CT for radiation therapy
+planning: IAEA expert report 2006–2007,” Radiother. Oncol., vol. 91,
+pp. 85–94, 2009.
+[8] U. Nestle et al., “Practical integration of [18 F]-FDG-PET and PET-CT in
+the planning of radiotherapy for non-small cell lung cancer (NSCLC): The
+technical basis, ICRU-target volumes, problems, perspectives,” Radiother.
+Oncol., vol. 81, pp. 209–225, 2006.
+[9] N. Otsu, “A threshold selection method from gray-level histograms,” Automatica, vol. 11, pp. 23–27, 1975.
+[10] L. Drever et al., “Iterative threshold segmentation for PET target volume
+delineation,” Med. Phys., vol. 34, pp. 1253–1265, 2007.
+[11] J. A. van Dalen et al., “A novel iterative method for lesion delineation and
+volumetric quantification with FDG PET,” Nucl. Med. Commun., vol. 28,
+pp. 485–493, 2007.
+[12] W. Jentzen et al., “Segmentation of PET volumes by iterative image thresholding,” J. Nucl. Med., vol. 48, pp. 108–114, 2007.
+[13] S. Belhassen and H. Zaidi, “A novel fuzzy C-means algorithm for unsupervised heterogeneous tumor quantification in PET,” Med. Phys., vol. 37,
+pp. 1309–1324, 2010.
+[14] M. Hatt et al., “A fuzzy locally adaptive Bayesian segmentation approach
+for volume determination in PET,” IEEE Trans. Med. Imag., vol. 28, no.
+6, pp. 881–893, Jun. 2009.
+[15] M. Hatt et al., “Accurate automatic delineation of heterogeneous functional volumes in positron emission tomography for oncology applications,” Int. J. Radiation Oncol. Biol. Phys., vol. 77, pp. 301–308, May 1
+2010.
+[16] M. Hatt et al., “Fuzzy hidden Markov chains segmentation for volume determination and quantitation in PET,” Phys. Med. Biol., vol. 52,
+p. 3467, 2007.
+[17] Y. Guo et al., “Automatic lung tumor segmentation on PET/CT images
+using fuzzy Markov random field model,” Comput. Math. Method Med.,
+vol. 2014, art. id. 401201, 6 pages, 2014. doi: 10.1155/2014/401201
+[18] E. Day et al., “A region growing method for tumor volume segmentation
+on PET images for rectal and anal cancer patients,” Med. Phys., vol. 36,
+pp. 4349–4358, 2009.
+[19] U. Bagci et al., “Joint segmentation of anatomical and functional images:
+Applications in quantification of lesions from PET, PET-CT, MRI-PET,
+and MRI-PET-CT images,” Med. Image Anal., vol. 17, pp. 929–945, 2013.
+[20] B. Foster et al., “A review on segmentation of positron emission tomography images,” Comput. Biol. Med., vol. 50, pp. 76–96, 2014.
+[21] F. Hofheinz et al., “An automatic method for accurate volume delineation
+of heterogeneous tumors in PET,” Med. Phys., vol. 40, p. 082503, 2013.
+[22] M. Abdoli et al., “Contourlet-based active contour model for PET image
+segmentation,” Med. Phys., vol. 40, p. 082507, 2013.
+[23] D. Markel et al., “Novel multimodality segmentation using level sets and
+Jensen-Rényi divergence,” Med. Phys., vol. 40, p. 121908, 2013.
+[24] C.-Y. Hsu et al., “Automatic segmentation of liver PET images,” Comput.
+Med. Imag Graph., vol. 32, pp. 601–610, 2008.
+[25] X. Geets et al., “A gradient-based method for segmenting FDG-PET
+images: Methodology and validation,” Eur. J. Nucl. Med. Mol. Imag.,
+vol. 34, pp. 1427–1438, Sep. 1, 2007.
+[26] H. K. Pannu et al., “CT evaluation of cervical cancer: Spectrum of disease
+1,” Radiographics, vol. 21, pp. 1155–1168, 2001.
+
+2479
+
+[27] K.-P. Wong et al., “Improved derivation of input function in dynamic
+mouse [18 F] FDG PET using bladder radioactivity kinetics,” Mol. Imag.
+Biol., vol. 15, pp. 486–496, 2013.
+[28] T. R. Miller and P. W. Grigsby, “Measurement of tumor volume by PET
+to evaluate prognosis in patients with advanced cervical cancer treated by
+radiation therapy,” Int. J. Radiat. Oncol., vol. 53, pp. 353–359, 2002.
+[29] G. Roman-Jimenez et al., “Segmentation and characterization of tumors
+in 18F-FDG PET-CT for outcome prediction in cervical cancer radiochemotherapy,” presented at the Image-Guidance and Multimodal Dose
+Planning in Radiation Therapy: A MICCAI Workshop, Nice, France, 2012.
+[30] T. F. Chan and L. A. Vese, “Active contours without edges,” IEEE Trans.
+Image Process., vol. 10, no. 2, pp. 266–277, Feb. 2001.
+[31] D. R. Arbonès et al., “Automatic FDG-PET-based tumor and metastatic
+lymph node segmentation in cervical cancer,” in Proc. SPIE Med. Imag.,
+2014, pp. 903441–903441–8.
+[32] D. Mumford and J. Shah, “Optimal approximations by piecewise smooth
+functions and associated variational problems,” Commun. Pure Appl.
+Math., vol. 42, pp. 577–685, 1989.
+[33] C. Li et al., “Distance regularized level set evolution and its application to image segmentation,” IEEE Trans. Image Process., vol. 19,
+no. 12, pp. 3243–3254, Dec. 2010.
+[34] J. A. Sethian, Level Set Methods and Fast Marching Methods: Evolving
+Interfaces in Computational Geometry, Fluid Mechanics, Computer Vision, and Materials Science, vol. 3. Cambridge, U.K.: Cambridge Uni.
+Press, 1999.
+[35] K. Zhang et al., “Active contours driven by local image fitting energy,”
+Attern. Recogn, vol. 43, pp. 1199–1206, 2010.
+[36] J. C. Dunn, “A fuzzy relative of the ISODATA process and its use in
+detecting compact well-separated clusters,” J. Cybern., vol. 3, pp. 32–57,
+1973.
+[37] J. C. Bezdek, Pattern Recognition With Fuzzy Objective Function Algorithms. Norwell, MA, USA: Kluwer, 1981.
+[38] M. C. Adams et al., “A systematic review of the factors affecting accuracy of SUV measurements,” Am. J. Roentgenol, vol. 195,
+pp. 310–320, 2010.
+[39] F. J. Brooks and P. W. Grigsby, “The effect of small tumor volumes on
+studies of intratumoral heterogeneity of tracer uptake,” J. Nucl. Med.,
+vol. 55, pp. 37–42, 2014.
+[40] L. R. Dice, “Measures of the amount of ecologic association between
+species,” Ecology, vol. 26, pp. 297–302, 1945.
+[41] P. Cignoni et al., “Metro: Measuring error on simplified surfaces,” Comput.
+Graph. Forum, vol. 17, pp. 167–174, 1998.
+[42] D. Xiang et al., “Skeleton cuts—An efficient segmentation method for
+volume rendering,” IEEE Trans. Vis. Comput. Graph., vol. 17, no. 9,
+pp. 1295–1306, Sep. 2011.
+[43] M. Hatt et al., “Metabolically active volumes automatic delineation
+methodologies in PET imaging: Review and perspectives,” Cancer/Radiothérapie, vol. 16, pp. 70–81, 2011.
+
+Authors’, photographs and biographies not available at the time of publication.
+
+

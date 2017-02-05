@@ -1,0 +1,1062 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+449
+
+Toward Quantitative Assessment of Rheumatoid
+Arthritis Using Volumetric Ultrasound
+Kunlin Cao∗ , David M. Mills, Member, IEEE, Ralf G. Thiele, and Kedar A. Patwardhan
+
+Abstract—Goal: Rheumatoid arthritis (RA) is characterized by
+inflammation within the joint space as well as erosion or destruction
+of the bone surface. We believe that volumetric (3-D) ultrasound
+imaging of the joints in conjunction with automated image-analysis
+tools for segmenting and quantifying the regions of interest can
+lead to improved RA assessment. Methods: In this paper, we describe our proposed algorithms for segmenting 1) the 3-D bone
+surface and 2) the 3-D joint capsule region. We improve and extend previous 2-D bone extraction methods to 3-D and make our
+algorithm more robust to the intensity loss due to surface normals facing away from incident acoustic beams. The extracted
+bone surfaces coupled with a joint-specific anatomical model are
+used to initialize a coarse localization of the joint capsule region.
+The joint capsule segmentation is refined iteratively utilizing a
+probabilistic speckle model. Results: We apply our methods on 51
+volumes from 8 subjects, and validate segmentation results with
+expert annotations. We also provide the quantitative comparison of
+our bone detection with magnetic resonance imaging. These automated methods have achieved average sensitivity/precision rates of
+94%/93% for bone surface detection, and 87%/83% for joint capsule segmentation. Segmentations of normal and inflamed joints
+are compared to demonstrate the potential of using proposed tools
+to assess RA pathology at the joint level. Conclusion: The proposed
+image-analysis methods showed encouraging results as compared
+to expert annotations. Significance: These computer-assisted tools
+can be used to help visualize 3-D anatomy in joints and help develop
+quantitative measurements toward RA assessment.
+Index Terms—bone surface, 3-D, image analysis, joint capsule,
+musculoskeletal, rheumatoid arthritis, segmentation, synovium,
+ultrasound, volumetric.
+
+I. INTRODUCTION
+A. Motivation
+HEUMATOID arthritis (RA) is one of the most common
+and serious forms of arthritis. It affects about 1.5-million
+Americans and may be responsible for 22% of all deaths from
+arthritis and other rheumatic conditions [1]. RA of joints typically involves swelling and inflammation within the joint capsule region. Inflammation of the synovial membrane results in
+synovitis, which may lead to erosion of the bony cortex. Early
+detection of such changes at the joint level is essential in gaining
+
+R
+
+Manuscript received December 30, 2014; revised June 28, 2015; accepted July
+16, 2015. Date of publication August 4, 2015; date of current version January
+16, 2016. This work was supported by GE Healthcare Ultrasound Point-of-Care.
+Asterisk indicates corresponding author.
+∗ K. Cao is with the GE Global Research Center, Niskayuna, NY 12309
+USA (e-mail: cao@ge.com).
+D. M. Mills is with the GE Global Research Center.
+K. A. Patwardhan was with the GE Global Research Center. He is now with
+Samsung Research.
+R. G. Thiele is with the School of Medicine and Dentistry, University of
+Rochester Medical Center.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2463711
+
+access to appropriate treatment as early as possible. However, it
+is difficult for practitioners to objectively assess disease activity at the point-of-care (POC). In current research and clinical
+practice, treatment decisions are commonly based on scores
+(e.g., “DAS28” score [2], [3]), which are generated from physical examinations of affected joints to assess the tenderness and
+swelling. These clinical scores cannot directly measure disease
+activity at the joint level.
+Conventional radiography (CR)—or X-ray has proven useful for clinicians to assess discrete bony destruction (erosions),
+which are associated with the later stages of RA. Unfortunately,
+CR lacks sensitivity to assess changes of synovial soft tissue
+early in the course of disease. Diagnostic and therapeutic efforts
+for RA are frequently directed at early disease. Accordingly,
+several imaging modalities have been explored including magnetic resonance imaging (MRI) and ultrasound (US). Both MRI
+and US perform better at assessing soft tissue as well as bony
+erosions than CR [5]–[7]. Compared to MRI, US has advantages
+of lower cost, faster speed, and better portability, which make it
+readily usable in many rheumatology POC clinics.
+The conventional 2-D US is a popular POC imaging modality
+for RA assessment [5]. However, 2-D US imaging is unable to
+capture the underlying 3-D anatomy accurately, and it requires
+extensive training and experience in order to make an objective assessment. It is also challenging to image the same 2-D
+plane over multiple patient visits. 3-D US has been considered
+for the assessment of musculoskeletal disease to improve operator variability. Clinical research has shown good to excellent
+agreement between 2-D US and 3-D US relating to both joint
+inflammation and bone erosion [8]–[10]. 3-D US has also been
+shown to have lower interobserver variability than 2-D US in
+the detection of inflammation in the joint, and thus, may help
+operators to make objective assessment in RA multicenter studies [11]. The key advantage of 3-D US imaging is the ability
+to perform volumetric quantification of inflammatory changes
+in the joint [12], which adds considerable value to the precise
+clinical assessment of disease activity. We believe that automated analysis and quantification of pathology-related features
+in 3-D US images could improve the diagnosis and treatment
+workflow for RA. This paper presents methods for automated
+segmentation of bone surfaces and joint capsule regions from
+3-D US scans of small finger joints. The extracted bone surfaces together with a joint-specific anatomical model provide
+the basis for segmenting the joint capsule region.
+B. Literature Review
+Image segmentation techniques developed for medical ultrasound scans in various clinical domains have been reviewed
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+450
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+in [13]–[15]. In recent decades, much literature has been
+devoted to the problem of automated bone extraction in 2-D and
+3-D US images for different medical applications [16]–[26].
+Several research groups have made efforts in bone contour
+segmentation from US scans utilizing image intensity and gradient information. Daanen et al. [16] introduced a method for
+modeling image information with a fuzzy logic process, and
+delineating the osseous interface by incorporating prior knowledge of the bone appearance in US scans. Alfiansyah et al. [17]
+used an active contour model to extract bone contours in US
+slices, and improved the method by applying a gradient vector
+flow in the narrow band around the evolved contour [18]. To
+address its application in serial US image segmentation, they
+obtained the initial contour for the next slice from the retrospective results of previous slices. Kowal et al. [19] presented an
+automatic approach for bone contours detection in B-mode US
+based on depth weighted adaptive thresholding and morphological operations. Foroughi et al. [20] used a dynamic programming
+technique for bone contour segmentation based on intensity and
+local gradient information in 2-D US images, which is computationally inexpensive and suitable for real-time applications.
+However, these methods have mostly been applied to 2-D slices,
+and therefore, are limited to cross-sectional analysis.
+3-D freehand US is a common technique, which is based
+on a set of 2-D cross-sectional US acquisitions. The set of US
+slices together with probe’s spatial position and orientation information acquired from a sensor comprise a 3-D data. Zhang
+et al. [21] proposed a direct surface extraction method from 3-D
+freehand US images by fitting an approximating radial basis
+function to the group of nonuniform data samples. Lopez-Perez
+et al. [22] adapted and enhanced the active contour model involved in [17] to detect bone contours in freehand US slices
+with irregular spacing between each other, and then, reconstruct
+the 3-D bone surface from the bone contours with a tensor product B-spline approximation. A recent study used eigenanalysis
+of the multiscale Hessian matrix to enhance sheet-like structures (e.g., large bone surfaces) in 3-D freehand US, and extracted bone surfaces using a singular value thresholding [23].
+In practice, the inconsistent speed of freehand scanning may
+lead to nonuniform bone surface resolution, and the quality of
+the extracted bone surface can vary from scan to scan, as image
+acquisition is heavily dependent on the operator.
+Hacihaliloglu et al. [24] assessed the potential of using phase
+congruency to enhance the bone visualization in volumetric US
+scan acquired with a 3-D probe, and they further utilized the
+local phase features to segment the bone surface [25], [26].
+In general, local phase information is well suited for ultrasound
+edge detection because it is invariant to changes in image brightness or contrast. However, we have observed in our experiments
+that local phase based edge detection enhanced bone as well as
+spurious edges equally when bone surfaces appear blurry or noticeable acoustic artifacts exist, and the algorithm takes a longer
+time for edge computation in 3-D due to the multiresolution and
+multiorientation filtering scheme.
+Synovitis quantification through measuring the synovial volume in patients with RA has been studied using a computerassisted segmentation method with MRI scanning [27]. Our
+
+Fig. 1. Sonographically observed anatomy of an MCP joint (derived from [4]).
+The triangular region enclosed by the dash line is defined as the joint capsule
+region.
+
+previous studies have investigated the validity and feasibility of
+automatic bone and joint-region (containing synovial tissues)
+segmentation in volumetric US [28]. As far as we are aware,
+there have been no other previous attempts to apply automated
+image analysis algorithms for volumetric segmentation of the
+joint space toward synovitis quantification using 3-D US.
+In this paper, we propose to 1) improve and extend the method
+presented in [20] for 2-D bone extraction to 3-D US volumes
+and make our method more robust to the intensity loss due
+to surface normals facing away from incident acoustic beams
+and 2) perform automated segmentation of the joint capsule region based on the typical sono-anatomy of metacarpophalangeal
+(MCP) joints [4] (illustrated in Fig. 1) and using the detected
+bone location as context. The segmented bone surface and joint
+capsule region can be used to help visualize the 3-D anatomy of
+regions of interest in joints and help develop measures toward
+RA assessment.
+Our preliminary work on extracting the bone surface and joint
+capsule region was described in [28]. The work presented in this
+paper provides a complete description of our automated segmentation approaches. This paper extends our previous work by
+describing how to preprocess the 3-D US images for bone segmentation, comparing segmentation accuracy of bone surfaces
+against MRI for a reference case, and providing validation results on a wider collection of US datasets. This paper also examines the segmented structures in normal and inflamed joints—to
+illustrate the potential of using computer-assisted tools to assess
+RA pathology at the joint level.
+The rest of the paper is organized as follows: Section II-A
+introduces the data acquisition for experiments in this study.
+Section II-B describes the automated 3-D bone extraction in
+detail. The segmentation approach of joint capsule region is
+presented in Section II-C. We demonstrate the performance of
+proposed techniques using validation results on real patient data
+in Section III. We cover the discussion of our current work
+and future directions in Section IV, and conclude this paper in
+Section V.
+II. MATERIALS AND METHODS
+A. Data Acquisition
+In order to generate preliminary data toward motivating the
+use of volumetric ultrasound in RA, 51 3-D datasets of 11 joints
+
+CAO et al.: TOWARD QUANTITATIVE ASSESSMENT OF RA USING VOLUMETRIC ULTRASOUND
+
+451
+
+Fig. 2. Illustration of the “triplane” view obtained from a volumetric ultrasound scan centered at the same location.
+
+in eight subjects were obtained (four subjects with rheumatic
+disease). The high-frequency 3-D US equipment was used
+(Voluson-i and RSP-6-16 probe, GE Healthcare, Wauwatosa,
+WI, USA). Joints examined included eight MCP joints and three
+metatarsophalangeal (MTP) joints. We placed the patient’s hand
+or foot in a waterbath when required, to align the joint capsule
+region with the focal depth of the transducer. US studies were
+performed by a rheumatologist certified in musculoskeletal US,
+with 20 years of US experience. An example of the volumetric
+ultrasound scan is shown in Fig. 2. The image spatial resolution
+is 0.1 mm × 0.1 mm × 0.1 mm.
+
+Fig. 3. Illustration of bone extraction steps on an example slice in azimuthal
+xz plane. Top row: (a) B-mode US image, (b) Gaussian smoothed image, (c)
+negated LoG filtered image, and (d) reflection image. Bottom row: (e) shadow
+image, (f) shadow derivative image, (g) bone likelihood image, and (h) detected
+bone surfaces overlaid on (a).
+
+B. Bone Surface Extraction
+Foroughi et al. [20] have shown a bone contour extraction
+method on 2-D US slices. In this study, we extend the method to
+3-D US volumes. The bone surface is first enhanced in the 3-D
+US image using its reflection property. When the bone surface
+is near perpendicular to the direction of ultrasound waves, it
+generates a strong acoustic reflection that creates a bright ridge
+with some thickness [29]. To model this property, the Laplacian
+of Gaussian (LoG) operator is applied on the image. Negative
+values of LoG output correspond with bright ridge locations.
+Therefore, negative values are negated, and the rest is set to
+zero. The resulting image L is added to the Gaussian smoothed
+image G, providing us the reflection number R [20]
+R(x, y, z) = G(x, y, z) + L(x, y, z)
+
+(1)
+
+where (x, y, z) represents the 3-D coordinates of a voxel in
+the volume along the azimuthal, elevational, and axial axes,
+respectively (illustrated in Fig. 6). A binary mask is generated
+from the smoothed image G such that those voxels with intensity
+values smaller than a threshold are marked as invalid and will
+be neglected in subsequent processing. In our experiments, all
+images are normalized to [0, 1] and the threshold is set to 0.3.
+Fig. 3(a)–(d) shows an example slice (in azimuthal xz plane)
+of the original US image, Gaussian smoothed image, output of
+negated LoG image, and reflection image, respectively.
+In addition, due to large mismatches in the acoustic
+impedance at the bone interface, only a small portion of ultrasound energy passes through the bone surface, which results
+in the dark area below the bone [30]. We utilize this property by
+calculating the average intensity below a voxel for each imaging
+beam as
+z max
+G (x, y, z0 )
+(2)
+SH(x, y, z) = z 0 =z
+zmax − z + 1
+where z is the index along axial (imaging) direction, zmax is the
+dimension along axial direction, and SH represents the shadow
+
+Fig. 4. Illustration of intensity drop-off as the bone curves away from the
+incident acoustic beam direction. Arrow in left figure indicates areas of intensity
+drop-off. θ in right figure is the angle between the surface normal and the imaging
+direction.
+
+value for each voxel, as shown in Fig. 3(e). The largest discrepancy happens near the bone surface since the shadow values
+below the bone are near zero, while high intensities of the bone
+region rapidly raise the shadow values around bone surface.
+Shadow values change slowly above the bone because adding
+a relatively larger number on a nontrivial distribution will not
+change the mean obviously. The bone surface is effectively enhanced by applying a directional derivative on the shadow valued image along the axial direction. Fig. 3(f) shows the shadow
+derivative image D. Note that in images R and D, values at
+invalid voxel locations are set to zero. A bone likelihood image
+Cbone is generated by
+Cbone (x, y, z) = R(x, y, z) ∗ D(x, y, z)
+
+(3)
+
+which is shown in Fig. 3(g). Fig. 3(h) illustrates the detected
+bone surfaces (marked in green and red) overlaid on the US
+image of Fig. 3(a).
+In our experiments, we noticed that at regions where the
+bone surface curves away from the imaging direction, there is
+intensity loss, which makes it very challenging to detect the bone
+surface accurately. Fig. 4 left shows an example of such case with
+intensity drop-off at the arrow pointing region. This intensity
+drop-off happens because the surface normal may not lie in the
+2-D slice, as illustrated in Fig. 4 right. We, therefore, utilize
+implicit 3-D information afforded by the volumetric image and
+propose a method to correct the intensity loss by assuming a
+
+452
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+simple model
+I(x) = I  (x) · cos(θ)
+
+(4)
+
+where I  (x) is the incident acoustic intensity, which we want
+to estimate on the bone surface point x = (x, y, z), I(x) is
+the observed image intensity, and θ is the angle between
+the surface normal n̂x and the imaging direction (shown in
+Fig. 4 right). Here, n̂x is the implicit normal computed as:
+n̂x = ∇I(x)/|∇I(x)|, where ∇I(x) denotes the 3-D gradient
+vector at x. By solving (4), we obtain the intensity-corrected image I  . Considering the orientation of bone surfaces in US scans,
+the intensity correction is only performed where 0◦ < θ < 75◦ .
+Fig. 5(b) shows the intensity-corrected image derived from (a).
+The subsequent processing steps (Gaussian smoothing, LoG filtering, calculations of reflection, shadow, and bone likelihood
+images) are carried out on this corrected image I  . Fig. 5(c) and
+(d) shows the bone likelihood images before and after the correction respectively. Fig. 5(e)–(h) illustrates the improvement in
+bone surface extraction by applying this intensity correction.
+We assume there is at most 1 pixel representing bone at
+each scan line. Then, detecting the bone surface is a single
+terrain surface search problem in our case. Directly applying
+a greedy search method as in [20] on each individual slice of
+3-D data would not capture the 3-D smoothness of the bone
+surface. In this study, we use a dynamic programming approach
+with a modified cost function that incorporates 3-D smoothness constraints—to find the optimal path Pz on each slice (in
+azimuthal xz plane). The path consists of at most three different
+regions: bony region (with bone pixels), boneless region (without bone pixels), and the jump section (jumps between bony
+and boneless regions). As described in [20], an additional row
+is added on each slice to represent the boneless region. If a path
+passes through the addition row across some scan lines, it means
+there are no bone pixels on those scan lines. The modified 3D cost function to be optimized is a linear combination of the
+internal cost Eint and the external costs Eextx and Eexty .
+Cost(x) = (wx + wy )Eint + (1 − wx )Eextx + (1 − wy )Eexty
+(5)
+where wx and wy are weighting factors on the internal cost
+when processing the bone curves in the azimuthal xz plane and
+elevational yz plane, respectively. In the experiments of this
+study, we set wx = wy = 0.8.
+Eint is the internal cost defined as one minus the bonelikelihood Cbone for the bony region and a constant otherwise.
+
+1 − Cbone , bone region
+Eint =
+(6)
+0.6,
+otherwise.
+Eextx and Eexty are the external costs that enforce smoothness
+constraints
+⎧
+2
+⎪
+dPz
+⎪
+⎪
+α
+−
+tan
+θ
+||
+||
++ γx , if bony
+x
+xz
+⎪
+⎨
+dx
+Eextx = Jx ,
+if jumping (7)
+⎪
+⎪
+⎪
+⎪
+⎩
+otherwise
+αx Dx 2 ,
+
+Eext y
+
+⎧
+2
+⎪
+dPz
+⎪
+⎪
+αy ||
+− tan θy z || + γy ,
+⎪
+⎨
+dy
+= Jy ,
+⎪
+⎪
+⎪
+⎪
+⎩
+αy Dy 2 ,
+
+if bony
+if jumping (8)
+otherwise.
+
+The external energy terms regularize the smoothness and connectivity of the path. The derivatives of the 2-D bone contour in
+the azimuthal xz and elevational yz planes are given by dPz /dx
+and dPz /dy, respectively. Small negative scalars (γx and γy ) are
+used to encourage larger connected bone curves by reducing the
+cost. We add 3-D constraint terms tan θxz and tan θy z in Eextx
+and Eexty , respectively. Here, θxz and θy z are the angles between
+the incident acoustic ray and the projection of 3-D normal n̂x
+on the xz and yz planes, respectively. Therefore, tan θxz and
+tan θy z describe the derivatives of the actual bone curve on xz
+and yz planes. We utilize the derivative information of bone
+curves to guide our search direction, and constants αx and αy
+weight the deviation of the first order derivatives of the searched
+path from the actual path in the azimuthal plane and elevational
+plane respectively. Dx and Dy correspond to the smoothness
+costs in the boneless region. Jx and Jy represent the jump costs
+between bony and boneless regions (refer to [20]). In our experiments, these parameters are set as αx = 0.4, γx = −0.4,
+αy = 0.1, γy = −0.1, and Jx = Jy = Dx = Dy = 1.
+The dynamic programming search for the best fitting bone
+surface is then carried out starting from the central (azimuthal)
+slice with the assumption that Eexty is zero. Once we have a bone
+contour in the central slice, we can proceed with the dynamic
+programming search moving away from the central slice in both
+directions using the cost function specified in (5), which includes
+the smoothness terms along both xz and yz planes. Note that
+although the dynamic programming search proceeds slice by
+slice to maintain computational efficiency, the cost function to
+be minimized is designed to incorporate 3-D information. Since
+we have an initial bone contour in the central slice, we can define
+a smaller span of search range in neighboring slices to shorten
+the running time. This search strategy is illustrated in Fig. 6.
+C. Joint Capsule Region Segmentation
+Once we detect the bone surface from the scan of a joint, a
+joint-specific anatomical model may be used to design priors
+or seeds for segmenting the joint capsule region. The capsule
+region of MCP joints lies between the bones forming a joint,
+which is shown in Fig. 1. Based on the sonographically observed
+anatomical structure of an MCP joint [4], we design a novel
+method for automatically segmenting the joint capsule region.
+This method starts from setting the initial seeds for capsule
+segmentation utilizing a simple anatomical model of the MCP
+joint. In each azimuthal slice, we first fit a line to the bone contour using a weighted lease-squares fitting, as shown in Fig. 7(a).
+This straight line intersects bone surface with two points (A and
+B). Then, we find the lowest point (C) of the detected bone
+contour. All voxels that lie inside the triangle ABC and above
+the detected bone surface provide a coarse localization of the
+joint capsule region and serve as the initial seeds for the segmentation.
+
+CAO et al.: TOWARD QUANTITATIVE ASSESSMENT OF RA USING VOLUMETRIC ULTRASOUND
+
+453
+
+Fig. 7. Illustration of joint capsule region segmentation. (a) Line (marked in
+blue) fitted to the bone contour using weighted least-squares intersects the bone
+surface at two points (A and B). A third point (C) is given by the lowest bone
+surface detection. The region inside the triangle formed by these points and
+above the bone surface (red overlay) is used as an initial guess for the joint
+capsule region segmentation. (b) Example slice of the Fisher–Tippett image of
+σ i2 (x). (c) J-divergence image (low values imply high statistical similarity with
+the initial seed region). (d) Final segmentation of the joint capsule region (red
+overlay) using geodesic active contour level-sets with the gradient vector flow.
+
+Fig. 5. Illustration of the improvement in bone surface extraction after correcting drop-off effects. (a) Original US image and (b) intensity corrected image.
+Bone likelihood images (c) before and (d) after correction. Bone detections (e)
+before and (f) after correction (red overlay). 3-D surface renderings (g) before
+and (h) after correction (marked in green and yellow). The red arrows point to
+the same region with intensity loss.
+
+Fig. 6. Illustration of search strategy in the dynamic programming search
+for bone surface. This procedure starts from central slice (with red overlay
+indicating the bone contour) and proceeds search moving away from the central
+slice in both directions along y-axis (slices with yellow overlays indicating
+boundaries of the search range).
+
+We apply the geodesic active contour level set framework to
+further evolve the initial capsule region and obtain the segmentation. A general framework for level set evolution equation can
+be described as [31]
+∂φ (x, t)
+= λ1 Fprop (x, t) |∇φ (x, t)|
+∂t
++ λ2 Fcurv (x, t) |∇φ (x, t)|
+→
+−
++ λ3 F adv (x, t) · ∇φ (x, t)
+
+(9)
+
+where the evolved contour is represented by the zero level set
+of the function φ (x, t). Here, the propagation term, curvature
+term, and advection term are formed as: Fprop (x, t) = gI (x),
+→
+−
+Fcurv (x, t) = κ(x, t)gI (x), and F adv (x, t) = ∇gI (x), respectively. gI is the speed function, and κ denotes the mean
+curvature. λ1 , λ2 , and λ3 control the weights of the three
+terms. In our experiments, the three weighting factors are set
+as λ1 = λ2 = λ3 = 1. In order to increase the capture range of
+level sets, we replace the gradient field in advection term with
+the gradient vector flow (GVF) field of the speed image [32]:
+→
+−
+F adv (x, t) = GVF(gI (x)).
+Usually the speed function gI decreases monotonically with
+the gradient magnitude of the intensity image. However, speckle
+degrades the quality of B-mode US images severely. Therefore,
+reducing speckle in US scans is important for the image feature
+extraction. Probabilistic modeling of speckle and feature detection in US images based on the information theory have
+been derived in [33]. Here, we utilize a probabilistic speckle
+model using the Fisher–Tippett distribution to extract important
+gradient features. The joint capsule region is assumed to be homogeneous, and hence, we can compute a single Fisher–Tippett
+reflectivity parameter σc2 for all voxels in the initial seed or
+current capsule region.
+
+(e2I (x) − 1)dx
+2
+σc = x∈Ω c 
+(10)
+2 x∈Ω c dx
+where Ωc denotes the initial (or current) capsule region. The
+Fisher–Tippett distribution parameter σi2 (x) is also computed
+using (10) for each voxel x (denoted by suffix i) using a small
+3-D patch (Ωi ) around it. Fig. 7(b) shows a slice of the Fisher–
+Tippett image of σi2 (x). The Kullback–Leibler (KL) distance
+(or relative entropy) is used to measure
+ the difference between
+two distributions p and q: D(p||q) = p(x)ln(p(x)/q(x))dx.
+Since the KL distance is asymmetric, one can symmetrize the
+
+454
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+KL distance by computing the J-divergence from each Ωi to
+Algorithm 1. MCP Joint Capsule Region Segmentation
+Algorithm
+1. Extract initial seed region based on the detected bone
+surface and anatomical model of MCP joint.
+2. Set current iteration k = 0. Set the initial seed region as
+current seed region.
+3. While k < maximum number of iterations kmax
+4. Estimate a single Fisher–Tippett reflectivity
+parameter σc2 for all voxels in current seed region.
+5. Estimate distribution parameter of σi2 (x) for each
+voxel using a small 3D patch around it.
+6. Compute J-divergence map Jci measuring the
+distance from each σi2 (x) to σc2 .
+7. Compute speed image gI by passing Jci map through
+a sigmoid filter.
+8. Estimate Jci distribution inside the current seed
+region; automatically select additional seeds if a
+neighboring region belongs to the distribution.
+9. Feed speed image and seed image into geodesic
+active contour level set framework with the GVF
+field; evolve current seed region and refine the joint
+capsule region segmentation.
+10. If the change in capsule volume < 	 or the change in
+σc2 > η, where 	 and η are specified stopping criteria,
+stop. Otherwise k = k + 1, current segmentation
+result is served as the seed region for next iteration,
+and jump to step 3.
+
+Ωc [33]
+Jci (x) =
+
+σ2
+σ 2 (x)
+D(c||i) + D(i||c)
+= −1 + 2 c + i 2 . (11)
+2
+2σi (x)
+2σc
+
+This J-divergence image [illustrated in Fig. 7(c)] is passed
+through a sigmoid filter that performs an inverse intensity
+mapping. This mapping produces a speed image for level set
+based segmentation such that the level set will march rapidly
+on the homogeneous region and will stop on the contour.
+The current result from level set segmentation is served as the
+initial region for next iteration of the joint capsule region refinement. Its regional distribution parameter σc2 is recalculated, and
+thus, the J-divergence and speed images are updated. The Jci
+distribution inside the current seed region is then estimated and
+additional seed regions may be automatically selected if a region
+belongs to the distribution (within 95% confidence intervals)
+and lies in the neighborhood of current seed region (Hausdorff
+distance <0.5 mm). The refinement procedure is stopped once
+the change in σc2 is large, or the change in the capsule volume
+is insignificant, or it reaches the maximum refinement iteration.
+Fig. 7(d) shows the joint capsule region segmentation (marked
+in red) overlaid on an US image slice.
+The MCP joint capsule region segmentation algorithm is summarized in Algorithm 1.
+
+Fig. 8. Collage of 2-D slices from 3-D bone extraction results on scans from
+multiple subjects. Expert annotations (marked in red) and algorithm detections
+(marked in green) are overlaid. Yellow overlay indicates a perfect match between
+the two.
+
+III. RESULTS
+A. Bone Surface Extraction Accuracy
+We applied the proposed bone extraction method to 51 volumes of 11 different joints. Fig. 8 shows the extracted bone surface contours (green overlay) from representative slices of some
+3-D volumes. For a quantitative validation, we used expert annotations on all scans to evaluate our algorithm performance. The
+expert annotations were served as the groundgtruth and marked
+on three 2-D slices per volume. The groundtruth markings (red
+overlay) and corresponding algorithm detections (green overlay) can be visually inspected in Fig. 8 (yellow overlay indicates
+exact match between reference and the automated detection).
+Segmentation accuracy and robustness were qualitatively
+evaluated based on the comparison of groundtruth markings
+and automated detections. We measured the average unsigned
+distance of the extracted bone with respect to the expert labeling
+as the detection error. For a detection tolerance of 0.5 mm, we
+observed the detection sensitivity (proportion of actual positives
+which are correctly identified as such) and precision (proportion
+of true positives against all detected positives). These validation
+results are grouped by joint and listed in Table I. The average
+detection error is 0.13 mm through all cases, with 94% sensitivity and 93% precision. Of the 11 joints, there are 5 normal and
+6 inflamed joints. The detection accuracy of the bone surfaces
+in normal and inflamed joints are listed in the last row in Table I
+(with ∼ 1% difference).
+Accuracy of US bone surface segmentation in 3-D geometry is also validated against the bone surface extractions from
+an MRI scan. We used a user-guided level set segmentation
+scheme in Insight Toolkit (ITK)-SNAP [34] to segment the bone
+structure in MRI data, and extracted the bone surfaces close
+to the dorsum of the hand. Fig. 9 illustrates the bone surface
+segmentations from US and MRI of the same normal subject.
+Rigid registration was applied to align the segmentations from
+
+CAO et al.: TOWARD QUANTITATIVE ASSESSMENT OF RA USING VOLUMETRIC ULTRASOUND
+
+455
+
+TABLE I
+VALIDATION RESULTS OF BONE SURFACE EXTRACTION THROUGH 51
+3-D US VOLUMES
+Joint
+
+Vol
+No.
+
+Detect. Error
+(mm)
+
+Sensitivity
+
+Precision
+
+1 (MCP /N)
+2 (MCP /N)
+3 (MCP /I)
+4 (MCP /N)
+5 (MCP /I)
+6 (MCP /N)
+7 (MCP /I)
+8 (MCP /I)
+9 (MTP /N)
+10 (MTP /I)
+11 (MTP /I)
+Avg.
+Avg. (N / I)
+
+12
+12
+6
+1
+5
+2
+2
+2
+2
+2
+5
+
+0.122 ± 0.022
+0.097 ± 0.017
+0.121 ± 0.030
+0.117
+0.213 ± 0.086
+0.155 ± 0.001
+0.093 ± 0.004
+0.070 ± 0.004
+0.216 ± 0.047
+0.143 ± 0.012
+0.123 ± 0.039
+0.13
+0.14 / 0.13
+
+0.942 ± 0.050
+0.983 ± 0.041
+0.944 ± 0.104
+0.995
+0.882 ± 0.103
+0.920 ± 0.047
+0.995 ± 0.004
+0.997 ± 0.002
+0.794 ± 0.099
+0.893 ± 0.023
+0.953 ± 0.065
+0.94
+0.93 / 0.94
+
+0.979 ± 0.014
+0.973 ± 0.017
+0.969 ± 0.020
+0.991
+0.864 ± 0.037
+0.909 ± 0.012
+0.983 ± 0.010
+0.974 ± 0.008
+0.784 ± 0.114
+0.903 ± 0.043
+0.940 ± 0.062
+0.93
+0.93 / 0.94
+
+(N: Normal; I: Inflamed).
+
+Fig. 9. Comparison of bone surface extractions from MRI and US scans of
+the same normal subject. Bone surface extractions (marked in green and red)
+from (a) MRI and (b) US scans. (c) Overlay of bone surfaces from MR (marked
+in gold) and US (marked in light yellow). The mean distance between the two
+segmentations is 0.09 ± 0.09 mm.
+
+Fig. 10. Capsule segmentation results from multiple subjects. The initial seeds
+(top row) and final segmentations (bottom row) are marked in green.
+
+US and MRI. The mean distance between these two segmentations is 0.09 ± 0.09 mm.
+B. Joint Capsule Region Segmentation Accuracy
+Fig. 10 shows the initial seeds (top row) using our simple
+anatomical prior, and the final segmentations based on the probabilistic speckle modeling (bottom row). Again, for quantitative validation, we used expert annotations from representative
+slices containing the capsule region. 39 of the 51 scans from
+eight joints are suitable for joint capsule identification. For each
+of these 39 volumes, we obtained expert annotations of joint
+
+Fig. 11. Collage of 2-D slices from 3-D joint capsule region segmentation
+results on scans from multiple subjects. Expert annotations (marked in red) and
+detections (marked in green) are overlaid. Yellow overlay indicates a perfect
+match between the two.
+TABLE II
+VALIDATION MEASUREMENTS OF JOINT CAPSULE REGION SEGMENTATION
+THROUGH 39 3-D US VOLUMES
+Joint
+
+Vol
+No.
+
+Sensitivity
+
+Precision
+
+1 (MCP /N)
+2 (MCP /N)
+3 (MCP /I)
+4 (MCP /N)
+5 (MCP /I)
+6 (MCP /N)
+7 (MCP /I)
+8 (MCP /I)
+9 (MTP /N)
+10 (MTP /I)
+11 (MTP /I)
+Avg.
+Avg. (N / I)
+
+10
+12
+6
+1
+0
+2
+2
+2
+0
+0
+4
+
+0.793 ± 0.098
+0.832 ± 0.109
+0.903 ± 0.068
+0.863 ± 0.000
+—
+0.922 ± 0.016
+0.909 ± 0.007
+0.796 ± 0.123
+—
+—
+0.911 ± 0.035
+0.87
+0.85 / 0.88
+
+0.869 ± 0.059
+0.785 ± 0.136
+0.855 ± 0.063
+0.906 ± 0.000
+—
+0.708 ± 0.024
+0.835 ± 0.020
+0.767 ± 0.199
+—
+—
+0.890 ± 0.033
+0.83
+0.82 / 0.84
+
+(N: Normal; I: Inflamed).
+
+capsule region on three 2-D slices. The groundtruth markings
+(red overlay) and corresponding algorithm detections (green
+overlay) can be visually inspected as illustrated in Fig. 11 (yellow overlay indicates exact match between reference and the
+automated detections). Detection sensitivity and precision were
+grouped by joint and listed in Table II. The proposed algorithm
+achieved average sensitivity and precision rates of about 87%
+and 83%, respectively. Of the 8 joints, there are 4 normal and 4
+inflamed joints. The detection accuracy of joint capsule regions
+in normal and inflamed joints are listed in the last row in Table II
+(with ≤ 3% difference).
+The algorithm for joint capsule region segmentation is designed according to the MCP model. Since the MTP joint has
+similar anatomy as the MCP, the proposed algorithm is able
+to extract the joint capsule region in MTP joints (Joint #11 in
+Table II).
+Our algorithms were implemented using experimental nonoptimized code leveraging the ITK library [35] in C++. Using a
+laptop with 8 GB of RAM, the bone extraction algorithm took
+∼5 s for a 200 × 100 × 100 size volume. The run time for
+joint capsule region segmentation varies on scans of joints with
+and without inflammation. For normal joint scans, the algorithm
+took ∼40 s to segment the joint capsule region for a 200 × 30 ×
+100 size volume. For inflamed joint scans, the algorithm needs
+to run for more iterations so as to segment the enlarged joint
+
+456
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Fig. 12. 3-D renderings of the extracted bone surfaces (marked in green and
+yellow) from diseased subjects. Red arrows point to the bone erosion regions.
+
+Fig. 13. Examples of bone surface and joint capsule region segmentations
+from a normal joint (left column) and an inflamed joint (right column). (a) and
+(b) shows the US images. (c) and (d) shows the bone (marked in orange) and
+joint capsule region (marked in aqua) segmentations. (e) and (f) shows 3-D
+renderings of the extracted bone surfaces (marked in yellow) and joint capsule
+regions (marked in peru color).
+
+capsule region and costs ∼155 s for a 200 × 30 × 100 size
+volume.
+C. Visualization of Normal and Inflamed Joints
+Synovitis in joints which are affected by rheumatoid arthritis
+may attack synovial joints, and cause inflammatory responses
+of the capsule around the synovium. Once the inflammatory
+reaction is established, the cartilage and the underlying bone
+begins to disintegrate. Fig. 12 illustrates three examples of bone
+erosion in inflamed joints. Fig. 13(a) and (b) shows examples
+of a normal joint and an inflamed synovial joint, respectively.
+Their bone and joint capsule region segmentation results and 3D renderings are shown in the second and third rows of Fig. 13.
+Measurements extracted from the segmented results can be used
+to quantify the shape/volume changes of the synovial joint,
+which may help assess rheumatoid arthritis.
+IV. DISCUSSION
+Dynamic programming provides an optimal solution for curve
+detection in 2-D slices, but may not give the optimal 3-D surface solution. We added a constraint term Eexty in (8) between
+the bone detections in consecutive slices to help regularize the
+surface shape in 3-D. The main reason we chose dynamic
+
+programming over some global optimal solutions like graph
+cuts [36] or graph search [37] methods is due to the run time.
+Dynamic programming can achieve real time detection in 2-D
+slices. Provided with detections on a previous slice, the shortest
+path detection on the current slice is only performed in small
+search range, which will further reduce the computation cost.
+On the other hand, many graph-based algorithms employ a maxflow/min-cut optimization, which may be more computationally
+intensive to solve the 3-D surface segmentation problem. We
+have tried some global optimal solutions such as graph search
+to find the bone surface which generated similar results but took
+5–7 times longer.
+Ultrasound is safe and widely available worldwide. The use
+of ultrasound as a research and clinical imaging tool has increased steadily over the last two decades. In particular, musculoskeletal ultrasound is routinely used by a growing number of
+rheumatologists in clinical practice. The goal of our study is developing computer-assisted tools to improve overall diagnostic
+efficiency by enabling diagnosis at the rheumatologist’s office
+and avoiding costly and time consuming referrals. This may
+require some extra exam time in the rheumatology clinic, but
+with fast and efficient ultrasound systems and algorithms, we
+also hope to minimize this extra time. In addition, the computerassisted tools may help reduce subjectivity, which is a barrier to
+the acceptance of ultrasound-based diagnosis in the clinic.
+Computer-assisted tools presented here and future analysis
+will also enable the correlation of serial exams and tracking
+of relevant imaging biomarkers within the joint capsule region
+from serial exams. Using such tools at the point of care would
+enable and empower providers to achieve an objective, operator
+independent assessment of the disease activity. Treatment could
+be adjusted where necessary, and expensive treatment may not
+be needed for other patients.
+V. CONCLUSION
+In this study, we describe automated methods for extracting
+bone surfaces and segmenting the capsule region at the joint
+level using 3-D ultrasound scans. The experiments presented in
+this paper were designed to evaluate the performance of these
+algorithms and ultimately to show the potential of using such
+automated methods for RA assessment in the rheumatologist’s
+clinic. The proposed methods have shown encouraging results as
+compared to expert annotations. The extracted bone surface can
+help visualize 3-D bone anatomy and help identify bone erosion
+regions in inflamed joints. Noticeable changes were observed
+through comparing size measurements between normal and inflamed joint capsule regions. These results and observations
+have demonstrated the feasibility of using the proposed imageanalysis tools in volumetric ultrasound scans toward quantitative
+assessment of RA. Additional validation work needs to be done
+before these methods can be used in clinical practice and the
+team is pursuing this through additional studies.
+ACKNOWLEDGMENT
+The authors would like to thank F. Lin, N. Halmann, and
+B. Jaworski for helpful discussions.
+
+CAO et al.: TOWARD QUANTITATIVE ASSESSMENT OF RA USING VOLUMETRIC ULTRASOUND
+
+REFERENCES
+[1] Centers for Disease Control and Prevention. (2014, Mar. 17).
+Arthritis-related statistics,” http://www.cdc.gov/arthritis/data_statistics/
+arthritis_related_stats.htm
+[2] M. L. Prevoo et al., “Modified disease activity scores that include twentyeight-joint counts. development and validation in a prospective longitudinal study of patients with rheumatoid arthritis,” Arthritis Rheumatism,
+vol. 38, no. 1, pp. 44–48, 1995.
+[3] A. K. Brown et al., “Presence of significant synovitis in rheumatoid
+arthritis patients with disease-modifying antirheumatic drug-induced clinical remission: Evidence from an imaging study may explain structural
+progression,” Arthritis Rheumatism, vol. 54, no. 12, pp. 3761–3773,
+2006.
+[4] N. Boutry et al., “Metacarpophalangeal joints at US in asymptomatic volunteers and cadaveric specimens,” Radiology, vol. 232, no. 3,
+pp. 716–724, 2004.
+[5] R. J. Wakefield et al., “The value of sonography in the detection
+of bone erosions in patients with rheumatoid arthritis: A comparison
+with conventional radiography,” Arthritis Rheumatism, vol. 43, no. 12,
+pp. 2762–2770, 2000.
+[6] M. Ostergaard and M. Szkudlarek, “Imaging in rheumatoid arthritis—
+Why MRI and ultrasonography can no longer be ignored,” Scand. J.
+Rheumatol., vol. 32, no. 2, pp. 63–73, 2003.
+[7] M. Magnani et al., “Ultrasonography detection of early bone erosions
+in the metacarpophalangeal joints of patients with rheumatoid arthritis,”
+Clin. Exp. Rheumatol., vol. 22, no. 6, pp. 743–748, 2004.
+[8] J. Strunk et al., “Interobserver agreement in two- and three-dimensional
+power doppler sonographic assessment of synovial vascularity during antiinflammatory treatment in patients with rheumatoid arthritis,” Ultraschall
+Med., vol. 28, no. 4, pp. 409–415, 2007.
+[9] E. Filippucci et al., “Ultrasound imaging for the rheumatologist. XX.
+Sonographic assessment of hand and wrist joint involvement in rheumatoid
+arthritis: Comparison between two- and three-dimensional ultrasonography,” Clin. Exp. Rheumatol., vol. 27, pp. 197–200, 2009.
+[10] E. Filippucci et al., “Hyaline cartilage involvement in patients with gout
+and calcium pyrophosphate deposition disease. An ultrasound study,” Osteoarthritis Cartilage, vol. 17, no. 2, pp. 178–181, 2009.
+[11] E. Naredo et al., “Three dimensional volumetric ultrasonography. Does
+it improve reliability of musculoskeletal ultrasound?” Clin. Exp. Rheumatol., vol. 28, pp. 79–82, 2010.
+[12] T. Kang et al., “The evolution of ultrasound in rheumatology,” Therapeutic
+Adv. Musculoskeletal Dis., vol. 4, no. 6, pp. 399–411, 2012.
+[13] J. A. Noble and D. Boukerroui, “Ultrasound image segmentation: A survey,” IEEE Trans. Med. Imag., vol. 25, no. 8, pp. 987–1010, Aug. 2006.
+[14] V. Shrimali et al., “Current trends in segmentation of medical ultrasound
+B-mode images: A review,” IETE Techn. Rev., vol. 26, no. 1, pp. 8–17,
+2009.
+[15] K. Saini et al., “Ultrasound imaging and image segmentation in the area
+of ultrasound: A review,” Int. J. Adv. Sci. Technol., vol. 24, pp. 41–60,
+2010.
+[16] V. Daanen et al., “A fully automated method for the delineation of osseous interface in ultrasound images,” in Medical Image Computing and
+Computer-Assisted Intervention, LNCS 3216. Springer, 2004, pp. 549–
+557.
+[17] A. Alfiansyah et al., “Automatic segmentation of hip bone surface in
+ultrasound images using an active contour,” Comput. Assisted Radiol.
+Surg., 2006.
+[18] A. Alfiansyah et al., “Deformable model for serial ultrasound images
+segmentation: Application to computer assisted hip athroplasty,” in Proc.
+13th Int. Conf. BioMed. Eng., 2009, pp. 1073–1076.
+[19] J. Kowal et al., “Automated bone contour detection in ultrasound B-mode
+images for minimally invasive registration in computer-assisted surgeryan in vitro evaluation,” Int. J. Med. Robot. Comput. Assisted Surg., vol. 3,
+no. 4, pp. 341–348, 2007.
+[20] P. Foroughi et al., “Ultrasound bone segmentation using dynamic programming,” in Proc. IEEE Ultrason. Symp., 2007, pp. 2523–2526.
+[21] Y. Zhang et al., “Direct surface extraction from 3D freehand ultrasound
+images,” in Proc. IEEE Vis., 2002, pp. 45–52.
+[22] L. Lopez-Perez et al., “Bone surface reconstruction using localized freehand ultrasound imaging,” in Proc. Annu. Int. Conf. IEEE Eng. Med. Biol.
+Soc., 2008, pp. 2964–2967.
+[23] Z. Fanti et al., “Preliminary results in large bone segmentation from 3D
+freehand ultrasound,” Proc. Spie, vol. 8922, pp. 89220F-1–89220F-8,
+2013.
+
+457
+
+[24] I. Hacihaliloglu et al., “Enhancement of bone surface visualization from
+3D ultrasound based on local phase information,” in Proc. IEEE Ultrason.
+Symp., 2006, pp. 21–24.
+[25] I. Hacihaliloglu et al., “Bone surface localization in ultrasound using image phase-based features,” Ultrasound Med. Biol., vol. 35, no. 9,
+pp. 1475–1487, 2009.
+[26] I. Hacihaliloglu et al., “Automatic bone localization and fracture detection from volumetric ultrasound images using 3-D local phase features,”
+Ultrasound Med. Biol., vol. 38, no. 1, pp. 128–144, 2012.
+[27] A. S. Chand et al., “Quantifying synovitis in rheumatoid arthritis using
+computer-assisted manual segmentation with 3 tesla MRI scanning,” J.
+Magn. Reson. Imag., vol. 33, no. 5, pp. 1106–1113, 2011.
+[28] K. A. Patwardhan et al., “Automated bone and joint-region segmentation
+in volumetric ultrasound,” in Proc. IEEE Int. Symp. Biomed. Imag., 2012,
+pp. 1327–1330.
+[29] A. K. Jain and R. H. Taylor, “Understanding bone responses in B-mode
+ultrasound images and automatic bone surface extraction using a Bayesian
+probabilistic framework,” Proc. SPIE, vol. 5373, pp. 131–142, 2004.
+[30] D. V. Amin et al., “Ultrasound registration of the bone surface for surgical
+navigation,” Comput. Aided Surg., vol. 8, no. 1, pp. 1–16, 2003.
+[31] X. Han et al., “A topology preserving level set method for geometric
+deformable models,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 25,
+no. 6, pp. 755–768, Jun. 2003.
+[32] C. Xu and J. L. Prince, “Snakes, shapes, and gradient vector flow,” IEEE
+Trans. Image Process., vol. 7, no. 3, pp. 359–369, Mar. 1998.
+[33] Z. Wang et al., “Registration of ultrasound images using an informationtheoretic feature detector,” in Proc. IEEE Int. Symp. Biomed. Imag., 2007,
+pp. 736–739.
+[34] P. A. Yushkevich et al., “User-guided 3D active contour segmentation of
+anatomical structures: Significantly improved efficiency and reliability,”
+Neuroimage, vol. 31, no. 3, pp. 1116–1128, 2006.
+[35] L. Ibanez et al., The ITK Software Guide, 1st ed., Kitware, Inc., Clifton
+Park, NY, USA, 2003.
+[36] Y. Y. Boykov and M. P. Jolly, “Interactive graph cuts for optimal boundary
+& region segmentation of objects in N-D images,” IEEE Int. Conf. Comput.
+Vis., vol. 1, 2001, pp. 105–112.
+[37] Q. Song et al., “Optimal multiple surface segmentation with shape and
+context priors,” IEEE Trans. Med. Imag., vol. 32, no. 2, pp. 376–386, Feb.
+2013.
+Kunlin Cao received the B.S. degree in electronics
+and information engineering from Sichuan University, Chengdu, China, in 2005, and the M.S. and Ph.D.
+degrees in electrical and computer engineering from
+The University of Iowa, Iowa City, IA, USA, in 2008
+and 2012, respectively.
+Since 2012, she has been working as a Research
+Scientist at the Biomedical Image Analysis Laboratory, the GE Global Research Center, Niskayuna, NY,
+USA. She has coauthored more than 30 international
+scientific publications, and has two U.S. patents. Her
+research interests include multidimensional image analysis, image registration
+and fusion, image segmentation, object detection and tracking, computer vision,
+and functional information quantification.
+David M. Mills (M’02) was born in Banner Elk, NC,
+USA, in 1972. He received the B.S. degree in engineering (summa cum laude) from LeTourneau University, Longview, TX, USA, in 1994 and the Ph.D.
+degree in biomedical engineering from Duke University, Durham, NC, USA, in 2000.
+In 2000, he joined the Ultrasound Lab of the General Electric–Global Research Center in Niskayuna,
+NY, USA, as an Engineer to continue research and
+development of medical ultrasound transducers. His
+research interests include the design of medical ultrasound transducers using PZFlex for simulations of both piezoelectric and
+cMUT-based transducers. Another research interest include new clinical applications for ultrasound that are enabled by real-time 3D ultrasound imaging,
+visualization algorithms, and customized user-interfaces to meet specific user
+needs. He has also led a multiyear advanced technology program on ultrasound
+drug delivery using microbubbles. He has authored several publications and
+numerous conference presentations in these areas and holds more than 20 U.S.
+patents related to medical ultrasound.
+
+458
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Ralf G. Thiele completed medical school in Frankfurt, Germany, in 1991 and fellowship training in
+rheumatology at Dartmouth College, Hanover, NH,
+USA, in 2003.
+He has trained first in abdominal and thyroid ultrasound starting in 1990 and later specialized in musculoskeletal ultrasound. He was certified in musculoskeletal ultrasound in 1995 in Germany (DEGUM),
+and in rheumatologic ultrasound in 2013 with the
+American College of Rheumatology (RhMSUS). He
+joined the faculty of the University of Rochester,
+Rochester, NY, USA, Allergy/Immunology and Rheumatology Division in 2006
+and currently working as an Associate Professor of Medicine. His research interests include sonographic diagnosis and outcomes assessment of crystal arthritis,
+osteoarthritis, rheumatoid arthritis and spondyloarthropathy.
+Dr. Thiele has served as Chair of the musculoskeletal section of the American
+Institute of Ultrasound in Medicine, Chair of the ultrasound task force of the
+American College of Rheumatology and has developed and chaired educational
+ultrasound courses at the University of Rochester, Cooper University Hospital,
+the American Institute of Ultrasound in Medicine and the American College
+of Rheumatology. He has developed imaging algorithms, practice guidelines
+and certification in musculoskeletal ultrasound with the American Institute of
+Ultrasound in Medicine, the Society of Radiologists in Ultrasound, OMERACT,
+and the American College of Rheumatology.
+
+Kedar A. Patwardhan received the B.E. degree in
+instrumentation and control engineering from the
+University of Pune, Pune, India, in 2001 and the
+M.S. and Ph.D. degrees from the University of Minnesota, Minneapolis, MN, USA, in 2004 and 2007,
+respectively.
+From 2007 through 2015, he was a Scientist at
+the GE Global Research Center and he is currently a
+Senior Chief Engineer at Samsung Research India–
+Bangalore, Bengaluru, India, where he leads the research and development of next generation clinical
+Ultrasound applications. He has more than ten years of experience in medical
+image analysis and computer vision and regularly serves as a referee for reputed
+IEEE journals and conferences in these areas. He has coauthored more than 20
+peer-reviewed scientific publications as well as ten patents.
+
+

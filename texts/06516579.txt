@@ -1,0 +1,922 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+247
+
+Dynamic Dictionary for Combined EEG
+Compression and Seizure Detection
+Hoda Daou, Student Member, IEEE, and Fabrice Labeau, Senior Member, IEEE
+
+Abstract—A novel technique for real-time electroencephalogram
+(EEG) compression is proposed in this paper. This technique makes
+use of the redundancy between the different frequency subbands
+present in EEG segments of one channel. It uses discrete wavelet
+transform (DWT) and dynamic reference lists to compute and send
+the decorrelated subband coefficients. Set partitioning in hierarchical trees (SPIHT) is also used as source coder. Experimental
+results showed that the proposed method can not only compress
+EEG channels in one dimension (1−D), but also detect seizurelike activity. A diagnostics-oriented performance assessment was
+performed to evaluate the performance of both the compression
+and detection capabilities of the proposed method. In this paper,
+we show that the algorithm can positively detect seizure sections in
+the recordings at bitrates down to 2 bits per sample.
+Index Terms—Compression, electroencephalogram, epilepsy,
+seizure detection, set partitioning in hierarchical trees (SPIHT),
+wavelet transform(WT).
+
+I. INTRODUCTION
+LECTROENCEPHALOGRAPHY is the monitoring or
+recording of electrical activity in the brain. Electroencephalographm (EEG) recording can result in huge amounts
+of data to be stored and/or transmitted, which calls for efficient
+compression techniques.
+EEGs are used to visualize and analyze brain activity. While
+reading EEG signals, redundancy is highly visible in a single channel between different time segments. This correlation
+should be exploited when building a compression algorithm.
+Many 1−D compression algorithms are suggested to efficiently code EEG signals. These systems aim at minimizing
+mean-squared-error (MSE)-based distortion measures. However, when dealing with biomedical signals, distortion should
+take into account the diagnostic application of these signals.
+In this paper, we suggest a system that is able to both efficiently compress and extract important activity that has medical
+significance.
+
+E
+
+Manuscript received November 1, 2012; revised March 14, 2013; accepted
+May 6, 2013. Date of publication May 15, 2013; date of current version December 31, 2013. This work was supported by the Natural Sciences and Engineering
+Research Council and industrial and government partners, through the Healthcare Support through Information Technology Enhancements (hSITE) Strategic
+Research Network.
+The authors are with the Department of Electrical and Computer Engineering, McGill University, Montral, QC H3A 2A7, Canada (e-mail:
+hoda.daou@mail.mcgill.ca; fabrice.labeau@mcgill.ca).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2263198
+
+EEG signal compression techniques include the use of linear
+predictors (LPs) [1]. In this technique, the autocorrelation autoregressive method is used to calculate the LP coefficients. A
+combination of both neural network and LPs are used to achieve
+lossless compression of EEG signals [2], [3].
+Iterative function sets and genetic algorithms are also used to
+compress EEG signals [4]. This compression technique involves
+the use of sets of linear transformations to provide an approximation of the signal. Only the transformations’ parameters are
+stored to code the signal.
+A method that uses classified signature and envelope vector
+sets is also proposed for compressing EEG signals [5]. This
+technique uses gain/shape vector quantization; however, it assumes that both the transmitter and the receiver have the same
+clustered signature and envelope vectors, thus not all overhead
+is accounted for.
+Many compression algorithms use wavelet transform (WT)
+to decompose a signal and take advantage of the properties of
+these coefficients in energy compaction. WT provides multiresolution, locality, and compression when combined with zero-tree
+coding techniques. It was shown that choosing an appropriate mother wavelet gives better performance results than when
+using an arbitrary wavelet [6], [7]. WT can be combined with
+efficient coding techniques, such as embedded zero-tree wavelet
+(EZW) [8], that take advantages of this transform’s characteristics. Set partitioning in hierarchical trees (SPIHT) has also been
+used, both in 1-D [9], and 2-D [10], [11], to compress scalp
+EEG recordings.
+Another type of WT where the signal is passed through more
+filters, wavelet packet transform (WPT), is used by CardenasBarrera et al. to segment and decompose the EEG Signals [12].
+The compression algorithm is mainly composed of thresholding of the low-relevance coefficients, then applying quantization
+and run-length coding (RLC). However, calculating the proper
+threshold is the main issue in this model, the value should preserve the signal characteristics and keep the distortion within
+acceptable limits.
+Overall, these schemes can reach a compression percentage
+of 39% to 62% for lossless techniques and 81% to 89%, with
+average percent root mean square difference (PRD) of 5.7% and
+9.4%, respectively, using lossy techniques [13], [12]. Previously
+suggested methods study the performance in compression using
+classic distortion measures such as PRD and signal to noise
+ratio (SNR). However, as previously mentioned, the diagnostic
+application of EEG signals should also be taken into account
+both when analyzing and compressing these signals.
+EEGs are widely used in the diagnosis of epilepsy, brain injuries, and abnormalities. A very common application of EEGs
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+248
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+is automatic seizure detection. Automatic detection systems are
+commonly used to localize seizure activity in the EEG recordings. When recording EEGs, a person usually monitors the
+patient in order to identify possible seizures. However, since
+recordings are done over many channels and for a long duration, it is very impractical for a person to monitor all these
+signals [14]. Automatic detection plays an important role in
+identifying segments of the recordings, where it is very likely
+that a seizure took place [15].
+There are several techniques that were suggested for the
+detection of seizures. All these techniques aim at identifying
+segments that deviate from the normal behavior of the recording [15]. Parameters like the relative amplitude compared to
+background signals and the duration of the waves are used to
+detect seizures [16]. The background is chosen to be long enough
+to represent the current state of the EEG and not to be much affected by short duration events such as epileptic spikes. The relative average amplitude is the ratio of the mean of peak-to-peak
+amplitudes in the current segment to the mean of peak-to-peak
+amplitudes in what is regarded as the background. The background is defined as a 30-s block of data that ends 1 min earlier
+than the current segment. This is used to somewhat guarantee
+that the amplitudes of the potential seizure EEG are compared
+with what is almost certainly nonseizure behavior [15]. These
+techniques aim at highlighting certain sections that are important for later review by an expert. Thus, these sections should
+be very well preserved after compression.
+When dealing with biomedical signals that are critical for
+accurate medical diagnosis, a very important criterion in compression is how to measure distortion [15]. A distortion measure
+should be very well correlated with the perception of the end
+user. A very common and objective distortion measure is the
+MSE. Although this criterion does not reflect the user experience with the decoded data, testing has showed that systems
+built on optimizing performance based on this measure have
+proven to have good perceptual quality [17]. MSE is widely
+used as distortion criterion in applications such as digital audio,
+images and entertainment video [17]. However, when dealing
+with medical data, this measure does not consider the medical
+nature of the data. In such cases, since this data will be used
+in medical diagnosis, it is more important that a computable
+objective measure be able to predict or provide a measure of diagnostic accuracy [17]. For this reason, in this paper, the results
+of an automatic seizure detection system are used as criterion in
+studying the compression performance.
+
+A. Contribution
+This paper presents a lossy EEG compression scheme that
+focuses on the temporal redundancy between different EEG segments present in one channel. Previously suggested compression
+techniques focus on extracting the correlation present within the
+same time segment. However, in EEG recordings, different EEG
+segments can display similar features and characteristics. Thus,
+this similarity or redundancy should be removed when building
+a compression scheme.
+
+The organization of this paper is described in the following
+paragraphs.
+First, a new technique to remove the redundancy between WT
+coefficients using frequency subband prediction is studied. This
+method focuses on the low-frequency (LF) similarities between
+the different EEG segments in one channel. It attempts to explore
+the possible presence of theta and delta rhythms, and make use
+of their redundancy in a single EEG channel across time. The
+detailed description of this technique is given in Section II.
+Section III presents a description of two different datasets that
+are used to test our method.
+A sudden sustained change in the high frequencies indicates
+that the signal’s characteristics have changed. This information
+can be used to detect seizure-like activity. Thus, Section IV
+proposes a simple modification to the algorithm described in
+Section II, which can help in detecting seizures. By using the
+same computation blocks, the system is able to both compress
+and extract important information from the recordings at the
+same time. Section IV highlights the detection parameters that
+are used to flag important sections of the recordings. In order to
+assess the detection capability of our system, different statistical
+measures are used; these measures are described in Section V.
+Our method combines compression and seizure detection,
+which is an innovative technique that enables flagging seizure
+sections and generating alarms while compressing the signals.
+It also allows a better assessment of the compression system by
+evaluating its ability to retain relevant information. Results that
+highlight the compression and detection capabilities of our suggested method are shown in Section VI. These results also highlight how detection changes with different compression rates in
+order to test the performance of both the compression system
+in retaining information and the detection system in the presence of distortion. A detailed analysis of the results is given
+in Section VII. This paper concludes with suggestions for improvements.
+II. METHODS
+This section presents a method for coding the DWT coefficients of the EEG segments in order to compress the data.
+One-second segments are used in order to study and extract the
+redundancy between these epochs in time. Coefficients at the LF
+subbands are coded differently than the HF ones since we note a
+lot of redundancy between the EEG segments in a single channel
+at low frequencies. The suggested method uses reference lists
+that contain the DWT coefficients of certain selected segments
+in order to extract and remove the correlation. The lists keep
+updating dynamically to adapt to the changes in the EEG, such
+as artefacts, seizures, change of patient’s state of mind, etc. A
+detailed explanation of this algorithm is given next.
+In this section, the different EEG rhythms and a method to
+extract these waves are first presented. A method to code the
+two lowest frequency waves, where there is most redundancy, is
+then described in Section II-B. Section II-C presents a detailed
+explanation on building and dynamically updating the reference
+lists used in the coding process. A suggested modified version
+of SPIHT used to code the high frequency (HF) waves is shown
+
+DAOU AND LABEAU: DYNAMIC DICTIONARY FOR COMBINED EEG COMPRESSION AND SEIZURE DETECTION
+
+249
+
+in Section II-D. This section ends with a description of the
+overhead required for decoding the data at the receiver’s side.
+A. Brain Waves Separation
+Brain activity of EEG signals is usually divided into five main
+frequency rhythms: delta (0–4 Hz), theta (4–7 Hz), alpha (8–12
+Hz), beta (12–30 Hz), and gamma (30–100 Hz) [18, p.33]. An
+EEG segment is characterized by the presence or absence of
+certain rhythms. They help identify the functional states of the
+brain, sleep stage, and can even aid in detecting abnormalities.
+Dividing the EEG into different subbands can help localize and identify these frequency rhythms. This can be done
+using DWT, which has been used extensively for feature extraction and physiological pattern recognition in EEG. Depending
+on the state of the patient, certain waves are present and thus
+certain frequency subbands have higher energy than others. In
+addition, these waves tend to naturally extend over several segments, therefore, EEG wave separation can be used to highlight
+the similarities between the segments, extract redundancy, and
+compress EEG signals.
+EEG signals are usually recorded at around 200 Hz sampling
+frequency for scalp electrodes recordings. Applying a 5-level
+DWT on such signals gives six frequency subbands. The two
+lowest subbands that correspond to the coefficients at subbands
+5 and 6 cover frequencies between 0 and 7 Hz. These frequencies
+vary depending on the sampling frequency and the DWT level
+used. These two lowest subbands correspond to theta and delta
+waves, respectively [18, p.33].
+B. Coding of LF Coefficients
+As mentioned previously, for the purpose of compression,
+the correlation found between the DWT subband coefficients of
+different segments should be exploited and reduced to achieve
+good performance. A simple prediction scheme can be used to
+reduce this redundancy and give very low residuals with low
+variance compared to the original DWT coefficients.
+To achieve good decorrelation of the segments at low frequencies, the DWT coefficients used in the decorrelation process should be properly chosen. These values are selected from a
+reference list, Rs of subband s, that contains DWT coefficients
+of certain selected segments. The list serves as a dictionary to
+be used for better decorrelation. It should be noted that since
+these references are in the DWT domain and the time domain
+segments are of short duration, introducing shifts does not affect
+performance.
+The block diagram shown in Fig. 1 shows the first step in
+the coding process. For each EEG segment at index i, the correlation coefficient rs [i, l] between the coefficients of subband
+s of segment index i and all references in Rs is calculated.
+The equation for the correlation coefficient is shown in (1), as
+
+Fig. 1. Calculating the correlation coefficient between the DWT coefficients
+C s [i] and all members of the dictionary Rs .
+
+Fig. 2.
+
+Coding steps based on the value of max l rs [i, l].
+
+shown at the bottom of the page; where M is the total number
+of coefficients in Rs [l] and Cs [i]. Cs [i] is a column vector that
+contains the DWT coefficients of subband s of segment i. This
+is done for l going from 1 to the maximum number of references
+in Rs , denoted as NR , and i from 1 to the total number of EEG
+segments used in the coding.
+The maximum value maxl rs [i, l], at index Is , is then compared with a certain threshold, Ts , of the DWT coefficients at
+subband level s. It should be noted that the value of Ts is fixed
+for every DWT subband s that is used either in the compression
+or detection parts of the suggested method.
+The block diagram in Fig. 2 explains the second step in the
+coding process. If maxl rs [i, l] is larger than Ts , prediction is
+used to decorrelate the DWT coefficients at subband s. The
+residual for the DWT coefficients of segment i at subband s is
+equal to
+ds [i] = Cs [i] − ws Rs [Is ]
+
+where Rs [Is ] is the chosen reference that is the most correlated
+with Cs [i]. The coefficient ws is calculated using pseudoinverse
+that guarantees to find the minimum (Euclidean) norm solution
+ws = R+
+s [Is ]Cs [i]
+
+M
+
+(3)
+
+where R+
+s [Is ] is the pseudoinverse of Rs [Is ], with
+RTs [I s ]
+R+
+[I
+]
+=
+s
+s
+Rs [I s ]2 .
+
+
+M
+(Cs [i, k]Rs [l, k]) − ( M
+k =1 Cs [i, k])(
+k =1 Rs [l, k])
+
+
+
+M
+M
+M
+2
+2
+2
+2
+k =1 Cs [i, k] − (
+k =1 Cs [i, k])
+k =1 Rs [l, k] − (
+k =1 Rs [l, k])
+
+rs [i, l] = 
+M
+
+(2)
+
+M
+
+k =1
+
+(1)
+
+250
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+(a)
+
+We decide to append a weight to each reference that increases
+with age and decreases with increasing number of uses so that
+the references having the largest weight are updated. For this
+purpose, for a given reference l, the dynamic update should
+depend on two factors: count of number of uses of the reference,
+c[l], and the age of the reference, a[l]. These factors are used to
+calculate a reference weight, rw [l]. Based on the values of the
+weight, the reference list is updated.
+Several equations were tested and (4) was selected
+
+(b)
+
+rw [l] = a[l] − 2c[l]
+
+Fig. 3. Example of (a) 1−D SPIHT and (b) modified 1−D SPIHT in case
+C 5 is coded using prediction. (a) Zero-Tree hierarchy of SPIHT. (b) Zero-Tree
+hierarchy of modified SPIHT.
+
+When maxl rs [i, l] is smaller than Ts , a certain change occurred in the signal’s characteristics. This segment is thus uncorrelated to previous segments at the specific frequency subband,
+and should be coded independently of the other segments.
+SPIHT in 1−D [9], [19] is used to code the DWT coefficients
+and the decoded values of these coefficients at subband s are
+added to Rs to record this change in the signal’s characteristics. More details regarding coding the uncorrelated subband
+frequencies are explained in Section II-D.
+As previously mentioned, SPIHT in 1−D is used to code the
+DWT coefficients. SPIHT is a coding algorithm that exploits
+the relationships between the wavelet coefficients across the
+different scales at the same spatial location in the wavelet subbands [20], [19]. Exact bit usage control can be achieved using
+the SPIHT algorithm. A prespecified bit-rate or quality requirement can be used as criterion to stop the encoding and decoding
+process at any instance [19] which adds controllability on the
+compression rate imposed on the system.
+C. Dynamic Update
+For segment at index i = 1, SPIHT in 1−D [9], [19] is used to
+code the DWT coefficients. The coded output is both sent to the
+receiver and decoded at the sender’s side to reconstruct the DWT
+coefficients. The decoded coefficients of subband s are added to
+Rs . This is done to ensure both the sender and receiver are using
+the same references in both the coding and decoding processes.
+The same thing is repeated when there is low correlation between
+a certain frequency subband of the segment at index i and the
+elements in the corresponding reference list.
+The number of references in the reference lists cannot increase beyond a certain value in order to be able to code and
+send the index of the chosen reference to the receiver for decoding. The references should be able to adapt to the changes in
+the characteristics of the EEG recordings. Therefore, they need
+to be updated accordingly without increasing the sizes of the
+lists.
+This update should keep track of the changes in the characteristics of the signals, while preserving references that are used
+very often. Thus, references that have rarely been chosen and
+are old compared to other references, i.e., were added to the list
+a long time ago, should be replaced by new references.
+
+(4)
+
+where a[l] and c[l] are both initialized to 0 when a new reference
+is added to the list. The count of number of uses of a specific
+reference, c[l], is incremented when the reference at index l in the
+list is chosen for computing and sending the decorrelated DWT
+coefficients for the corresponding subband. The age factor, a[l],
+is always incremented for each encoded segment. The reference
+lists are thus regenerated with time due to this dynamic update.
+The compression system is able to adapt to the changes in the
+EEG recordings and thus can be applied on long periods of
+recording without degradation of performance.
+It is important to note that the receiver is able to build the
+same reference lists with the same exact value of rw of each
+reference to guarantee the same dynamic update. Each item is
+added to the list when an index of 0 is received; otherwise, c[l]
+of the specific reference is updated.
+D. Coding of the Uncorrelated and HF Coefficients Using a
+Modified Version of SPIHT
+As seen in the previous sections, the DWT coefficients of
+the two lowest frequency subbands, C5 and C6 , are coded using prediction in case of high correlation at the corresponding
+subbands. The remaining DWT coefficients that were found to
+be uncorrelated or at HF subbands are coded using a modified
+version of SPIHT in 1−D. This version of SPIHT simply disregards the coefficients at subband s where high correlation was
+found. It still takes advantage of the zero-tree property of the
+DWT coefficients.
+In this modified version, the subband levels used and thus the
+number of children of each are modified in both the encoder and
+decoder depending on which subbands are being coded. Fig. 3
+shows an example of coding all coefficients except the ones at
+subband 5 using Modified SPIHT, for a segment of size 128 and
+DWT level 5. The same thing is applied for subband 6.
+E. Overhead
+The advantage of prediction is that the residuals have a much
+lower variance and dynamic range than the subband coefficients.
+However, this comes at the expense of longer overhead.
+When sending each segment, two additional pieces of information should be sent
+1) Reference ID: this ID, Is , is the index of the most highly
+correlated reference in the reference list. It is used by
+the receiver to know which values to use in decoding the
+residual.
+
+DAOU AND LABEAU: DYNAMIC DICTIONARY FOR COMBINED EEG COMPRESSION AND SEIZURE DETECTION
+
+2) Quantized prediction weight: to reduce the number of bits
+used to quantize the prediction weight, ws , a quantization block was added when computing the residual at
+the sender’s side. Thus, the sender computes ws using
+pseudoinverse, quantizes it to get ŵs , then computes the
+residual and sends Is , quantized coefficient, ŵs , and the
+residual ds [i], to the receiver. When Is = 0, i.e., no prediction is applied, there is no need to send a weight.
+Huffman coding is used to entropy code the quantized index Is and weight ws that are essential to decode the residual
+and reconstruct the DWT coefficients at the decoders’ side. The
+probabilities of occurrence of each symbol of Is and ws were
+calculated over 1 h of recording and were used in constructing
+the optimal Huffman dictionary of these symbols. This reduced
+the number of bits used by almost 20%. In addition, a dynamic arithmetic encoder is used to entropy code the quantized
+residuals.
+III. DATASETS
+This section presents a detailed description of the datasets
+used in testing both the compression and seizure detection capabilities of the suggested method.
+A. Dataset 1- MIT dB
+The first set of data, CHB-MIT Scalp EEG Database, was collected at the Children’s Hospital Boston. This dataset consists of
+EEG Scalp recordings from pediatric subjects with intractable
+seizures [21]. Testing was done on 91 patients, with ages varying
+between 6 and 22 years. Each patient can have multiple seizures
+during recording, ranging from a single seizure to seven seizures.
+This dataset is sampled at 256 Hz and 16 bits used in the recording’s precision. During recording, events of seizures that were
+experienced by the patients were also judged by experts. For
+each confirmed clinical seizure, an expert annotated the signals starting from the earliest change in EEG that is associated
+with the onset of the seizure [22], [23]. Since these recordings
+are annotated by physicians, they are used both to evaluate the
+compression and detection performance of the system.
+B. Dataset 2- MNI dB
+To test the compression performance of the system, testing is
+also done on recordings acquired at the Montreal Neurological
+Institute (MNI dB) from 9 patients using 29 channels, 200 Hz
+sampling frequency and 16 bits were also used in the recording’s
+precision. It should be noted that these recordings were acquired
+for the purpose of this study and are not publicly available.
+IV. SEIZURE DETECTION
+Abrupt amplitude changes and rhythmic activity have both
+been extensively used in the detection of seizures [14], [16]. The
+suggested compression algorithm saves the LF characteristics
+of certain EEG segments in a list or dictionary. This dictionary
+is later used to remove the redundancy and better code the DWT
+1 Patients
+
+01 to 05, 07, 09, 11, 18, 20, 22 and 23, were used in the testing.
+
+251
+
+coefficients. The same can be applied on higher frequencies to
+track changes in the recordings.
+As seen in the previous section, the dictionary is updated when
+there is low or no correlation in the low frequencies. Thus, a reference list update reflects a certain change in the characteristics
+of the recordings. This change can have an important meaning in
+detection. However, the changes in the recording should be relatively sustained in duration in order to have a significance. Thus,
+the update of the list should be done at a fast rate in a certain
+period of time for the changes to indicate an important event.
+In the following sections, a slight modification is added to the
+compression scheme in order to track changes at high frequencies and detect important events.
+A. Detection Parameters
+Data used in testing the detection capability of the suggested
+system (MIT dB) were sampled at 256 Hz, and a 5-level DWT is
+applied on 256-length segments (more details about the datasets
+in MIT dB are given in Section III). When analyzing this algorithm on one patient’s recording, DWT levels 2 and 3 showed
+the highest variation during the onset of a seizure. These DWT
+scales correspond to frequencies between 16 and 64 Hz. Thus,
+the same dynamic list update technique, explained in the previous section, is applied on these two subband frequencies to
+track important variations.
+For each one second segment two criteria are tested: whether
+or not there was an update in the reference lists of these subband coefficients and the relative voltage amplitude explained in
+Section I [16]. Several different thresholds were used to test the
+relative average amplitude. If the value of the relative average
+amplitude is larger than the threshold then this criterion is met.
+In order to find the proper detection parameters, testing was
+first done on a single record of one patient and the appropriate
+durations and thresholds used for the different detection parameters were optimized on this single record. The detection
+parameters are as follows
+1) Segment Detection(SDi ): for every 1 s segment, when
+the two criteria are met at either one of the DWT levels or
+both, SDi of segment at index i is set to 1.
+2) Preliminary Detection (P Dj ): This measure studies larger
+sections of the recordings. It is used to see if the activity is
+sustained in a single channel. For each five consecutive 1-s
+segments, if more than three positive SD occur, then we
+have a preliminary detection. Thus, P Dj , where j refers
+to the index of a 5-s section, is set to one.
+3) Multichannel Preliminary Detection (P DjM C ): P Dj is
+first computed for each channel then summed up to cover
+all the channels used in the recording. If the total of all
+channels is larger than 1, which means there was a positive
+preliminary detection in more than one channel, P DjM C
+is set to 1, otherwise, it is set to 0. This is used to eliminate
+false positives (FPs) due to artifacts.
+4) Multichannel Seizure Detection (SDkM C ): When looking
+at the preliminary detections of all channels, i.e., P DjM C ,
+for every nine consecutive P DjM C , if 5 or more preliminary detections are found, this indicates a multichannel
+
+252
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+detection. The value of SDkM C is set to 1, otherwise, it is
+set to 0. The section annotated by SDkM C covers the total
+nine consecutive P DjM C .
+All these different levels of detection aim at minimizing the
+false detections and at looking at the activity present in more
+than one channel. Electrodes on the scalp are placed close to
+each other. The larger the number of electrodes used in the
+recording, the more the seizure activity is visible in a larger
+number of channels. However, if an artifact is coming from an
+electrode, such as electrode displacement or faulty electrode,
+the strange behavior of the channel will not affect the detection
+system. In addition, the sudden change in the signals should be
+sustained for a few seconds to have a diagnostic significance.
+Otherwise, it could be just small movement. Thus, looking at
+a large number of consecutive segments enables us to not only
+examine sustained behavior but also to prevent the shorter ones
+from being detected.
+In order to evaluate and test a detection system, statistical
+parameters are used to show how accurate the system is in identifying seizure segments. However, even if the system is very
+accurate, the number of false detections should also be minimized. False detections are defined as events that are nonseizure
+but were identified by the system as seizure activity. Thus, two
+important criteria are used to evaluate a detection system: true
+positives (TPs) and false positives (FPs). These two measures
+help first in fine tuning the system’s parameters and of course
+in identifying whether the system is reliable to be used as first
+step in diagnosis.
+V. STATISTICAL MEASURES USED IN DETECTION ANALYSIS
+Seizure detection capability is used to first evaluate the suggested detection algorithm and to evaluate the performance of
+the EEG compression mechanism in terms of postcompression
+seizure detection capability.
+Seizure activity in the EEG recordings of the MIT dB dataset
+is annotated by medical experts [21]. There are several testing
+scenarios used. This is done to first analyze the information
+loss from compression (scenario A), study the suggested detection algorithm (scenario B), and compare with a widely used
+automatic seizure detection system (scenario C).
+The testing scenarios A, B, and C are described in the following sections. The TPs and FPs are defined for each scenario.
+(A) Stellate Harmonie System with signals at different bit
+rates:
+Stellate Harmonie (Stellate, Montreal Canada) is an EEG acquisition system that is used in several hospitals for long-term
+monitoring and event detection. Several events can be detected
+using this system, more importantly the detection of seizure-like
+activity, detected using the ICTA-S 2 pattern detector [15]. The
+system does not replace diagnosis of epileptic discharges. It provides alarms and flagging of important sections of recording that
+should be reviewed by physicians for further analysis [15]. Detection on scalp recordings is based on an algorithm suggested
+in 2005 by Saab and Gotman [24].
+2 ICTA-S pattern detector is the preprocessor of Stellate Harmonie System
+that is used to detect seizures on scalp EEG recordings.
+
+Ground truth is taken as the total number of detections found
+when testing the original EEG records. The following provides
+a definition of the statistical measures used to analyze the detections.
+1) True Positive (T P ): There is at least one minute overlap
+between a flagged section in the compressed file and a
+flagged section in the original file.
+2) False Positive(F P ): The section was flagged in the compressed recording but does not overlap, or overlaps for
+less than a minute, with the flagged sections in the original recording.
+(B) Suggested Algorithm compared to Physician’s
+Annotations:
+In this scenario, we analyze the strength of the suggested
+method by comparing with the experts’ analysis of the data.
+The statistical measures are defined as follows.
+1) T P : There are 10 s or more of overlap between a flagged
+section found by the suggested system and the ground
+truth sections defined by the physicians.
+2) F P : The section was flagged by the suggested algorithm
+but does not overlap for 10 s or more with the flagged
+sections defined by the physicians.
+(C) Harmonie System compared to Physician’s Annotations:
+Same ground truth as in the previous section is used. The following provides a definition of the statistical measures.
+1) T P : There are 10 s or more of overlap between a flagged
+section found by Harmonie and the ground truth sections
+defined by the physicians.
+2) F P : The section was flagged by Harmonie but does not
+overlap for 10 s or more with none of the sections flagged
+by the physicians.
+In all three scenarios, the number of FPs is used to highlight
+the number of sections the EEG technician needs to analyze
+before disregarding them as false detections. As for the TPs, the
+total number of TPs is divided by the total number of flagged
+sections in the chosen ground truth to highlight the percentage
+with respect to true detections.
+VI. RESULTS
+As previously mentioned, EEG recordings of different patients are used in the testing. The first dataset, MIT dB, explained in Section III-A, is annotated by physicians and thus
+the annotations can be used to evaluate the suggested detection
+method. A second dataset, MNI dB, explained in Section III-B,
+is also used to evaluate the compression method. The variety in
+datasets, different sampling frequencies, and number of channels, is very important in providing a good evaluation of the
+suggested method.
+A. Compression Results
+Segments of 256 samples are used since extensive testing has
+shown that this value gives good performance in both detection and compression algorithms. Several wavelet families were
+also tested in computing DWT and biorthogonal 4.4 wavelet
+proved to give best results compared to Haar and Daubechies. In
+addition, after testing several values for the maximum number
+
+DAOU AND LABEAU: DYNAMIC DICTIONARY FOR COMBINED EEG COMPRESSION AND SEIZURE DETECTION
+
+253
+
+Fig. 4. Effect of varying T 5 and T 6 on the update rate of R5 and R6 ,
+respectively.
+
+of references in the lists, the maximum is chosen to be equal
+to 7.
+The prediction weights and the reference IDs used in the
+decorrelation are first quantized using 3 bits then Huffman coding is used to code the alphabets of both parameters.
+The threshold Ts used in the reference update was chosen to
+be equal to 0.7 for the DWT coefficients at subband level s = 6,
+which corresponds to the reference list R6 , and 0.65 for the
+DWT coefficients at subband level s = 5, which corresponds to
+the reference list R5 . The percentage of update of the reference
+lists is around 35% for both subbands. When the thresholds
+are low, prediction gives high residuals and the overhead increases due to the fact that we would be sending more weights
+as overheads. However, high thresholds guarantee low residuals but cause a high number of updates in the reference lists.
+In such cases, almost all segments are coded with SPIHT. The
+effect of varying these two thresholds on the update rate of the
+corresponding list is shown in Fig. 4. The thresholds T5 and T6
+were varied between the values 0.45 and 0.75 and tested on all
+12 patients of MIT dB. The plot in Fig. 4 shows that the average
+reference list update for both R5 and R6 is equal to around 35%
+when T5 and T6 are equal to 0.65 and 0.7, respectively.
+To study the performance of the algorithm, PRD is first used
+to measure the distortion added by the compression. The PRD
+of EEG segment s[i] at index i are equal to
+
+PRD[i] =
+
+N
+2
+n =1 (s[i, n] − š[i, n])
+N
+2
+n =1 s[i, n]
+
+× 100
+
+(5)
+
+where š[i, n] is the reconstructed EEG segment at index i at
+sample n.
+Fig. 5 shows the compression performance of the suggested
+algorithm and SPIHT in 1−D which has been previously used
+to compress both EEG and ECG signals [9], [19]. As previously mentioned in Section II-B, exact bit usage control can be
+achieved with SPIHT, which enables us to perform compression
+at different rates. This figure shows the mean, with the 25 and
+75 percentiles, for all 12 patients of the MIT dB and 9 patients
+of the MNI dB. The 25 and 75 percentiles are used to show how
+the results vary between the patients.
+
+Fig. 5. Compression performance of the suggested method and SPIHT for
+different compression ratios.
+
+Fig. 6. Effect of varying T 2 and T 3 on the seizure detection results. The plots
+show the values of the 25 and 75 percentiles.
+
+B. Detection Results
+Results of the testing scenarios described in Section IV are
+shown in this section. For the suggested algorithm, the threshold
+Ts was chosen to be equal to 0.3 for the DWT coefficients at
+subband level s = 3, which corresponds to the reference list R3 ,
+and 0.25 for the DWT coefficients at subband level s = 2, which
+corresponds to the reference list R2 . The threshold of relative
+average amplitude was set to 3. These values have shown to give
+good detection with low number of false detections compared
+with other values.
+Fig. 6 shows the effect of varying these two thresholds on the
+percentage of TPs. To study the effect of T2 , we set T3 and the
+relative voltage amplitude threshold to 0.2 and 2 to limit their
+
+254
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+TABLE I
+DETECTION RESULTS OF TESTING SCENARIO A
+
+TABLE III
+DETECTION RESULTS OF TESTING SCENARIO C
+
+TABLE II
+DETECTION RESULTS OF TESTING SCENARIO B
+
+(a)
+
+(b)
+
+effect, and vary T2 between 0.15 and 0.45. As for finding the
+optimal value of T3 , we set T2 to be equal to 0.25 and vary T3 .
+As shown in this Figure, choosing values of 0.25 and 0.3 for
+T2 and T3 results in a percentage of TPs equal to around 70%,
+when averaging between all seizures of all patients. These values
+also limit the number of FPs to an acceptable value. Increasing
+these values not only increases the TPs, but also causes a high
+increase of FPs. The same is done to find the optimal value of the
+threshold of the relative voltage amplitude. It should be noted
+that the TPs in Fig. 6 are found using scenario B.
+Tables I, II, III, and Fig. 7 show the results of seizure detection for different bit rates. The different rates were achieved by
+applying compression on the patients’ recordings and setting
+the allowed bit rates for SPIHT encoding to be equal to 2 and
+4 bps. These results are also used to study the ability of the
+compression system in retaining important information that lies
+within the data.
+VII. DISCUSSION
+From Fig. 5, we notice that there is an improvement in performance for both databases used in the testing. SPIHT is designed
+for optimal progressive transmission, in which data are compressed in multiple passes of progressively higher detail. This
+characteristic is lost in our method; however, better performance
+
+Fig. 7. Scatter plots of TP versus PRD for scenarios A, B, and C . (a) Scenarios
+B (*) and C (o) at 2 bps. (b) Scenarios B (*) and A (+) at 2 bps.
+
+can be achieved by looking at the redundancy found between
+the different EEG epochs.
+Table I shows the detection results of Stellate Harmonie with
+EEG compressed at different bit rates. There is a loss of 19.16%
+for the section annotations at 4 bps and a loss of 31.41% at 2 bps.
+The number of false positive for the channel detections is very
+low for both bit rates. For many patients, there was very small
+loss in detection at both bit rates. In addition, almost all patients
+show a small number of false detections. This testing scenario
+is used to highlight the effect of compression on the seizure
+detection capability of Stellate Harmonie System. Its resilience
+to the distortion added by the compression system is compared
+to the suggested detection method, results shown in Table II.
+When comparing the average percentage of TPs between the
+two systems, it is clear that the suggested system outperforms
+Stellate Harmonie at both compressed bit rates (4 and 2 bps).
+However, the number of FPs is higher. It should be noted that in
+Tables I, II and III, the last row shows the average percentage of
+TPs and the average number of FPs. In addition, the total number
+of seizures for each patient, found using Stellate Harmonie (see
+Table I) and that are annotated by physicians (see Tables II and
+III), are shown in the results’ tables.
+
+DAOU AND LABEAU: DYNAMIC DICTIONARY FOR COMBINED EEG COMPRESSION AND SEIZURE DETECTION
+
+Results shown in Table II reflect the ability of the suggested
+algorithm to detect seizure activity. For all bit rates, the rate
+of true detection is around 90%. The number of FPs is also a
+bit high. There are on average ten falsely annotated sections
+for each patient. However, it is very easy for the technicians to
+disregard these FPs when reading the recordings with the output
+of the system [14].
+Patients 9, 10, and 11 show a small decrease in detection
+at higher bit rates. The added distortion from compression is
+not evenly distributed among the segments. When a relatively
+high percentage of distortion occurs at the background and/or
+the actual segments where the seizure takes place, the corresponding seizure section is not detected. It might be feasible, as possible improvement, to dynamically allocate higher
+number of bits to the segments where most likely a seizure
+took place in order to improve both compression and detection
+performance.
+Table III shows the detection results of Stellate Harmonie
+when taking the physicians annotations as ground truth. When
+testing the original data, the percentage of TPs is equal to
+85.42%. This value is 7.63% lower than the suggested algorithm, on average, however Stellate Harmonie is able to give
+almost half the number of FPs on average, except for a bitrate of
+2 bps where we have almost the same average number in both
+scenarios.
+Fig. 7 shows the scatter plots of the results of scenarios A, B,
+and C. Each point of the scatter plot refers to a patient, and thus
+only 12 points are shown in the plot. When applying compression on the patients’ recordings, different PRD percentage is
+achieved for different patients. This scatter plot is used to show
+the relationship between each patient’s added distortion and
+seizure detection. Scenario B, where the suggested algorithm
+is tested taking the physician’s annotations as ground truth, is
+shown in every plot in order to better compare with Stellate Harmonie system. The suggested algorithm remains almost constant
+with increase in PRD. Stellate Harmonie shows more correlation with PRD. As the distortion increases, the percentage of
+TP drops. The same is observed when testing with a bit rate of
+4 bps. This shows that the suggested algorithm is not affected
+by the distortion added by the compression. However, testing
+with a larger number of patients is required to better show the
+relation between PRD and detection.
+
+VIII. CONCLUSION
+Temporal correlation between different EEG segments in
+1−D EEG channels was explored in this paper and a technique
+to make use of this redundancy was suggested. EEG segments
+can be grouped based on certain features for manual classification and abnormality detection [25]. This grouping of similar
+segments is applied indirectly in the proposed scheme in the
+usage of reference lists. In addition, the dynamic update of the
+reference lists enables the algorithm to adapt to the changes in
+EEG recordings. The reference lists and the dynamic update
+of these lists make this algorithm an innovative technique in
+compressing EEG signals.
+
+255
+
+The suggested method proved to be able to detect seizure-like
+activity at a high rate in both original and compressed signals.
+However, the number of false detections was high. Thus, the
+algorithm should be improved to lower the number of false
+detections while keeping the same high TPs rate. In order to do
+that, improvements should be added to the update process of the
+reference lists and to the preliminary detection. An additional
+feature can be also used.
+Combining compression and seizure detection enables us to
+allocate different resolutions to the EEG segments based on
+their importance. Sections where suspicious activity is detected
+should have higher resolution and thus information that is relevant for detection accuracy will be better preserved.
+ACKNOWLEDGMENT
+The authors would like to thank Prof. Jean Gotman and his
+team at the Montreal Neurological Institute of McGill University
+for their help in using Stellate Harmonie system.
+REFERENCES
+[1] N. S. Pradhan and D. Narayana Dutt, “Data compression by linear prediction for storage and transmission of EEG signals,” Int. J. Biomed. Comput.,
+vol. 35, no. 3, pp. 207–217, 1994.
+[2] N. Sriraam, C. Eswaran, “Context based error modeling for lossless compression of eeg signals using neural networks,” J. Med. Syst., vol. 30,
+pp. 439–448, 2006.
+[3] N. Sriraam, C. Eswaran, “An adaptive error modeling scheme for the
+lossless compression of EEG signals,” IEEE Trans. Inf. Technol. Biomed.,
+vol. 12, no. 5, pp. 587–594, Sep. 2008.
+[4] S. Mitra and S. Sarbadhikari, “Iterative function system and genetic algorithm based EEG compression,” Med. Eng. Phys., vol. 19, no. 7, pp. 605–
+617, 1997.
+[5] H. Gurkan, U. Guz, and B. S. Yarman, “EEG signal compression based
+on classified signature and envelope vector sets,” Online, vol. 37, no. 2,
+pp. 351–363, 2009.
+[6] M. Nielsen, E. Kamavuako, M. Andersen, M. Lucas, and D. Farina, “Optimal wavelets for biomedical signal compression,” Med. Biol. Eng. Comput., vol. 44, pp. 561–568, 2006.
+[7] K. Srinivasan and M. Reddy, “Selection of optimal wavelet for lossless
+EEG compression for real-time applications,” in Proc. 2nd Nat. Conf.
+Bio-mech., IIT Roorkee, India, 2009, pp. 241–245.
+[8] V. R. Dehkordi, H. Daou, and F. Labeau. (2011, Nov.). A channel differential EZW coding scheme for EEG data compression. IEEE Trans.
+Inf. Technol. Biomed., [Online]. 15(6), pp. 831–838, Available:http:
+//dx.doi.org/10.1109/TITB.2011.2171703
+[9] G. Higgins, B. McGinley, N. Walsh, M. Glavin, and E. Jones, “Lossy
+compression of EEG signals using SPIHT,” Electron. Lett., vol. 47, no. 18,
+pp. 1017–1018, Sep. 2011.
+[10] H. Daou and F. Labeau, “Pre-processing of multi-channel EEG for improved compression performance using SPIHT,” in Proc. 34th Annu. Int.
+Conf. IEEE Eng. Med. Biol. Soc. (EMBS), San Diego, CA, USA, Aug./Sep.
+2012, pp. 2232–2235.
+[11] K. Srinivasan and M. Reddy. (2010). Efficient preprocessing technique for
+real-time lossless EEG compression. Electron. Lett., [Online]. 46(1), pp.
+26–27, Available:http://link.aip.org/link/?ELL/46/26/1
+[12] J. Cardenas-Barrera, J. Lorenzo-Ginori, and E. Rodriguez-Valdivia, “A
+wavelet-packets based algorithm for EEG signal compression,” Inf. Health
+Social Care, vol. 29, no. 1, pp. 15–27, 2004.
+[13] A. J. Casson and E. Rodriguez-villegas, “Data reduction techniques to
+facilitate wireless and long term AEEG epilepsy monitoring,” in Proc.
+3rd Int. IEEE EMBS Conf. Neural Eng., May 2007, pp. 298–301.
+[14] Y. Khan and J. Gotman, “Wavelet based automatic seizure detection in intracerebral electroencephalogram,” Clin. Neurophysiol., vol. 114, pp. 898–
+908, 2003.
+[15] H. Daou and F. Labeau, “Performance analysis of a 2-D EEG compression
+algorithm using an automatic seizure detection system,” in Proc. Asilomar
+Conf. Signals, Syst. Comput., Pacific Grove, CA, USA, Nov. 2012.
+
+256
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+[16] J. Gotman, “Automatic recognition of epileptic seizure in the EEG,” Clin.
+Neurophysiol., vol. 54, pp. 530–540, 1982.
+[17] P. Cosman, R. Gray, and R. Olshen, “Evaluating quality of compressed
+medical images: SNR, subjective rating, and diagnostic accuracy,” Proc.
+IEEE, vol. 82, no. 6, pp. 919–932, Jun. 1994.
+[18] E. Niedermeyer and F. L. DaSilva, Electroencephalography, 5th ed. Baltimore, MD, USA: Williams & Wilkins, 2005, vol. 7.
+[19] D. Y. Kim, Z. Lu, and W. A. Pearlman, “Wavelet compression of ECG
+signals by the set partitioning in hierarchical trees algorithm,” IEEE Trans.
+Biomed. Eng., vol. 47, no. 7, pp. 849–856, Jul. 2000.
+[20] C. S. D. Rawat and S. Meher, “A hybrid coding scheme combining SPIHT
+and SOFM based vector quantization for effectual image compression,”
+Eur. J. Sci. Res., vol. 38, no. 3, pp. 425–440, 2009.
+[21] A. L. Goldberger, L. A. N. Amaral, L. Glass, J. M. Hausdorff,
+P. C. Ivanov, R. G. Mark, J. E. Mietus, G. B. Moody, C.-K. Peng, and
+H. E. Stanley, “Physiobank, physiotoolkit, and physionet: Components of
+a new research resource for complex physiologic signals,” Circulation,
+vol. 101, no. 23, pp. 215–220, 2000.
+[22] A. Shoeb and J. Guttag, “Application of machine learning to epileptic
+seizure detection,” 2010.
+[23] A. Shoeb, “Application of machine learning to epileptic seizure onset
+detection and treatment,” Ph.D. dissertation, Massachusetts Institute of
+Technology, Cambridge, USA, 2009.
+[24] M. E. Saab and J. Gotman, “A system to detect the onset of epileptic
+seizures in scalp EEG,” Clin. Neurophysiol., vol. 116, no. 2, pp. 427–442,
+Feb. 2005.
+[25] R. Agarwal and J. Gotman, “Long-term EEG compression for intensivecare settings,” IEEE Eng. Med. Biol., vol. 20, no. 5, pp. 23–29, Oct. 2001.
+
+Hoda Daou (S’02) received the Bachelor of Computer and Communication Engineering degree from
+Notre Dame University, Zouk Mosbeh, Lebanon, in
+2006, and the Master of Engineering degree in electrical and computer engineeringfrom the American
+University of Beirut, Beirut, Lebanon, in 2008. She
+is currently working toward the Ph.D. degree from the
+Department of Electrical and Computer Engineering,
+McGill University, Montreal, QC, Canada.
+From June 2008 to June 2009, she was a Customized Performance Solutions Technical Architect
+at Nokia Siemens Networks, Beirut. She is also a Research Assistant in the
+Department of Electrical and Computer Engineering, McGill University. Her
+current research interest includes data compression, more specifically compression of electroencephalographic recordings.
+
+Fabrice Labeau (SM’07) received the Electrical Engineer, the Diplôme d’études spécialisées en Sciences Appliquées, orientation Télécommunications,
+and the Ph.D. degrees from Université catholique
+de Louvain (UCL), Louvain-La-Neuve, Belgium, in
+1995, 1996, and 2000, respectively.
+He is an AssociateProfessor in the Department of
+Electrical and Computer Engineering, McGill University, Montreal, QC, Canada, where he holds the
+NSERC/Hydro-Qubec Industrial Research Chair in
+Interactive Information Infrastructure for the Power
+Grid. From 1996 to 2000, he was with the Communications and Remote Sensing
+Laboratory of UCL. From January to March 1999, he was a VisitingScientist
+to the Signal and Image Department (TSI) of ENST Paris. His research interests include signal processing applications to e-health and energy management,
+multirate processing, joint source channel coding, data compression, and errorcontrol coding.
+He was part of the organizing committee of IEEE International Conference on Acoustics, Speech, and Signal Processing 2004 in Montreal and is/was
+Technical Program Committee Cochair for the IEEE Vehicular Technology Conference in the Fall of 2006 and 2012, and the IEEE International Conference
+on Image Processing 2015. He currently is the Executive Vicepresident of the
+IEEE Vehicular Technology Society. He has held several administrative and
+management positions at McGill University, including Associate Department
+Chair, Associate Dean, and Interim Chair. He currently serves as the Chair of
+the Montreal IEEE Signal Processing Society chapter.
+
+

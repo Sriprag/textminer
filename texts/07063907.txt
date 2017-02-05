@@ -1,0 +1,1532 @@
+1234
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+Hierarchical Classification of Large-Scale Patient
+Records for Automatic Treatment Stratification
+Kuizhi Mei, Jinye Peng, Ling Gao, Naiquan (Nigel) Zheng, and Jianping Fan
+
+Abstract—In this paper, a hierarchical learning algorithm is
+developed for classifying large-scale patient records, e.g., categorizing large-scale patient records into large numbers of known
+patient categories (i.e., thousands of known patient categories) for
+automatic treatment stratification. Our hierarchical learning algorithm can leverage tree structure to train more discriminative
+max-margin classifiers for high-level nodes and control interlevel
+error propagation effectively. By ruling out unlikely groups of patient categories (i.e., irrelevant high-level nodes) at an early stage,
+our hierarchical approach can achieve log-linear computational
+complexity, which is very attractive for big data applications. Our
+experiments on one specific medical domain have demonstrated
+that our hierarchical approach can achieve very competitive results on both classification accuracy and computational efficiency
+as compared with other state-of-the-art techniques.
+Index Terms—Automatic treatment stratification, category
+hierarchy, large-scale patient record classification, max-margin
+tree classifiers, novel category detection.
+
+I. INTRODUCTION
+OR a given disease, there could have many treatment
+choices because different treatment choices may have different pros and cons, and the effectiveness for different treatment choices varies for different patients, e.g., different patients
+should have different treatments according to the variations of
+their sickness levels, their health conditions, and their social attributes such as life styles. For a given patient, identifying his/her
+best-matching patient category (i.e., the patient category with
+similar sickness levels, social attributes, and treatments) from
+large numbers of known patient categories seems a promising solution for determining his/her customized (personalized)
+treatment plan [1]–[4]. Unfortunately, the number of patient
+categories for automatic treatment stratification could be very
+
+F
+
+Manuscript received October 8, 2014; revised January 16, 2015 and February
+19, 2015; accepted March 5, 2015. Date of publication March 19, 2015; date of
+current version July 23, 2015. This work was supported by the National Natural Science Foundation of China under Grant 61272285, 61373176, National
+High-Technology Program of China (863 Program, Grant 2014AA012301,
+2012AA010904), Program for Changjiang Scholars and Innovative Research
+Team in University (IRT13090), and Program of Shaanxi Province Innovative
+Research Team (2014KCT-17).
+K. Mei is with the Institute of Artificial Intelligence and Robotics, Xi’an Jiaotong University, Xi’an 710049, China (e-mail: meikuizhi@mail.xjtu.edu.cn).
+J. Peng and L. Gao are with the School of Information Science and Technology, Northwest University, Xi’an 710069, China (e-mail: pjy@nwu.edu.cn;
+gl@nwu.edu.cn).
+N. (Nigel) Zheng is with the Center of Biomedical Engineering, University
+of North Carolina at Charlotte, NC 28223 USA (e-mail: nzheng@uncc.edu).
+J. Fan is with the Department of Computer Science, University of North
+Carolina at Charlotte, NC 28223 USA (e-mail: jfan@uncc.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2015.2414876
+
+large; thus, the state-of-the-art machine learning tools are still
+intractable for this task (i.e., identifying large-scale patient categories for automatic treatment stratification). Identifying largescale patient categories still poses tremendous challenges if a
+flat approach is simply employed: 1) If there are N patient categories, the relevant space for automatic treatment assignment
+is very sparse (i.e., there are 2N − 1 potential assignments)
+and such sparseness makes the decision boundaries of N oneversus-rest (OVR) binary classifiers terribly irregular with huge
+uncertainty. 2) For a given patient category, the process for classifier training may seriously suffer from the problem of huge
+sample imbalance (i.e., negative samples from other N − 1 patient categories may significantly outnumber positive samples
+from the given patient category), which may mislead the process for classifier training and result in unreliable OVR binary
+classifier with low accuracy rate. 3) For a given patient (which
+is described by his/her patient record), the computational cost
+for identifying the best-matching patent category grows linearly
+with the number of patient categories N , which is unacceptable
+for large-scale patient categories identification. 4) The intercategory correlations are completely ignored.
+One way to address these issues suffered by the flat approach is to integrate a tree structure to organize large numbers
+of patient categories hierarchically in a coarse-to-fine fashion
+[5]–[25], and such a hierarchical approach may provide multiple advantages: 1) Making coarse-to-fine predictions along a
+tree of node classifiers can efficiently rule out unlikely groups of
+patient categories (i.e., irrelevant high-level nodes) at an early
+stage, thus the hierarchical approach can achieve log-linear computational complexity O(log N ) for automatic treatment assignment, which is very attractive for large-scale patient categories
+identification. 2) For a given nonleaf node, its classifier focuses
+on discriminating a small number of sibling child nodes; thus,
+the complexity for classifier training can be reduced significantly
+(by restricting the hypothesis spaces for classifier training) while
+enhancing the discrimination power of the node classifier dramatically. 3) By partitioning each node into a small number of
+child nodes, we can effectively tune the classifier parameters and
+locally select the negative instances and the category-specific
+feature subsets, which may significantly improve the discrimination power of the node classifiers for achieving more accurate
+treatment assignment.
+Although the hierarchical approach may provide many advantages, it may seriously suffer from the following problems:
+1) Interlevel error propagation: the classification errors at the
+parent node will transport to its child nodes and propagate along
+the tree structure until the leaf nodes [22], [23]. 2) Unadaptive
+to new patient categories: when new patient categories appear,
+
+2168-2194 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+MEI et al.: HIERARCHICAL CLASSIFICATION OF LARGE-SCALE PATIENT RECORDS FOR AUTOMATIC TREATMENT STRATIFICATION
+
+huge computational costs are required for relearning the tree
+structure and retraining the hierarchical tree classifiers.
+To tackle the issue of interlevel error propagation, some
+researchers have proposed hierarchical hinge loss function to
+jointly optimize the node classifiers at multiple levels [22],[23].
+Although such a hierarchical hinge loss function can explicitly interpret the passive fact of interlevel error propagation, it
+does not provide proactive solution for controlling the interlevel
+error propagation effectively. Thus, it is very attractive to develop new algorithm that is able to leverage the tree structure to
+train more discriminative classifiers for high-level nodes, so that
+the tree classifiers can control the interlevel error propagation
+effectively.
+Most existing techniques for tree (hierarchy) construction and
+hierarchical classifier training assume that datasets are static, but
+most datasets of patient records are dynamic: new patient categories may appear over time and new patient records are continuously added to the existing patient categories. Thus, there is
+an urgent need to develop new solutions to generalize both the
+tree structure (hierarchy) and the tree classifiers to the appearances of new patient categories without significant retraining.
+It is also worth noting that detection of new patient categories
+becomes more challenging in the scenario of large-scale patient
+categories identification because the state-of-the-art techniques
+may not be able to distinguish: 1) their classification errors for
+large numbers of known patient categories; 2) evolving outliers
+for large numbers of known patient categories or drifting patient
+categories; and 3) the appearances of new patient categories.
+Thus, it is not a trivial task for leveraging large-scale patient categories identification to support automatic treatment
+assignment: 1) The number of patient categories for automatic
+treatment assignment could be very large, distinguishing between large numbers of patient categories is inherently more
+complex than distinguishing between just a few; 2) large intracategory variations and large intercategory similarity are typical
+in the medical domain; and 3) dynamics of large-scale patient
+categories: new patient categories may appear over time and
+more patient records with different medical properties may be
+collected for some known patient categories.
+Based on these observations, a hierarchical learning algorithm is developed in this paper to train max-margin tree classifiers over a category hierarchy. In summary, we have made
+the following contributions in this paper: 1) A category hierarchy is constructed for organizing large numbers of patient
+categories hierarchically in a coarse-to-fine fashion, and it is
+further used for identifying interrelated learning tasks automatically and training max-margin tree classifiers hierarchically.
+2) Our hierarchical learning algorithm can leverage the category
+hierarchy to learn more discriminative max-margin classifiers
+for high-level nodes and control interlevel error propagation effectively. 3) Our cost-sensitive learning algorithm can leverage
+the tree structure to detect new patient categories more accurately and learn their discriminative classifiers more effectively.
+Our experiments on one particular medical domain of anterior
+cruciate ligament (ACL) disease [26]–[35] have demonstrated
+that our hierarchical approach can achieve very competitive results comparing to other state-of-the-art techniques. By learning
+
+1235
+
+from informative and compact medical knowledge discovered
+from large-scale patient records (i.e., transforming large-scale
+patient records into large numbers of patient categories and
+treatment assignments), our data-driven system can allow clinicians to: 1) significantly narrow down the potential choices
+of various treatment plans and prescribe the customized (personalized) ones for their patients; and 2) accurately assess the
+effectiveness of various treatment plans from long-term track
+data (patient records) and design best-matching practices for
+treating their patients.
+This paper is organized as follows: In Section II, a brief review
+of some relevant work is presented. In Section III, we introduce
+our work on feature extraction for multimodal patient record
+representation. In Section IV, a new algorithm is developed for
+category hierarchy construction. In Section V, a hierarchical
+learning algorithm is presented to train large-margin tree classifiers over the category hierarchy. In Section VI, a cost-sensitive
+learning algorithm is developed to detect new patient categories
+and learn their classifiers incrementally. Our experimental results on algorithm evaluation are given in Section VII, and we
+conclude this paper in Section VIII.
+II. RELATED WORK
+In this section, we briefly review some relevant researches.
+When large numbers of classes come into view, the taxonomies
+are leveraged to improve the accuracy as well as the efficiency
+of the classification systems [14]–[19], [36]. By integrating the
+taxonomies to leverage the interlevel correlations for hierarchical classifier training, the hierarchical approach [5]–[25] can
+achieve log-linear computational complexity for large-scale data
+classification. The taxonomies can roughly be categorized into
+four types: 1) semantic ontology [14]–[19], [36]; 2) label tree
+[20], [21]; 3) decision tree [37]–[39]; and 4) hierarchical binary
+classification tree [13].
+The semantic ontology, which exploits the interclass semantic
+correlations in the label space, has widely been used for organizing large numbers of classes [14]–[19], [36]. Some researchers
+have integrated the semantic ontology to support hierarchical
+classifier training [5]–[11], [40]. Because the common space
+for classifier training and data classification is the feature space
+rather than the label space [41], such semantic ontology (which
+is predefined in the label space rather than the feature space)
+may not be able to provide a good environment for hierarchical
+classifier training.
+Gao and Koller [13] have developed a hierarchical binary
+classification tree by organizing a set of binary classifiers in
+a tree structure or directed acyclic graph structure, where the
+node classifiers and the partitions of the label set were learned
+simultaneously by performing max-margin optimization. One
+drawback of such hierarchical binary classification tree is that
+the computational cost for determining the optimal binary classifier for each node could be very high, i.e., for the current node
+with m object classes, the cost for searching the optimal binary
+2
+).
+classifier is proportional to O(Cm
+Label tree [20], [21], which exploits the interclass correlations directly in the feature space, has received enough attentions
+recently. To construct a label tree (class hierarchy) for N classes,
+
+1236
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+one has to train N OVR binary classifiers in advance and, then,
+obtain a confusion matrix by evaluating all these N OVR binary classifiers over a validation set. The confusion matrix is
+then utilized as a surrogate to approximate the interclass correlations for label tree construction. However, learning N OVR
+binary classifiers is very computationally expensive, especially
+when the number of classes N is large. In addition, such an
+OVR approach often suffers from the problem of huge sample
+imbalance, e.g., for a given class (positive class), the negative
+instances from other N − 1 classes (negative class) heavily outnumber its positive instances. The negative instances from other
+N − 1 classes may have huge diversity; thus, the negative instances may easily control and mislead the process for classifier
+training and result in unreliable OVR binary classifiers, which
+will further produce a misleading confusion matrix for label tree
+construction. By integrating a top-down approach for clustering
+tree induction [39], Vens et al. [37] and Schietgat et al. [38]
+have developed two interesting approaches to learn multilabel
+decision tree classifiers over the clustering tree hierarchically.
+The problem of hierarchical data classification, especially hierarchical text classification, has been extensively investigated
+[5]–[11]. An important ingredient in a hierarchical data classification problem is the loss function for evaluating the classifier’s
+performance. The hierarchical loss function, which is able to
+reflect the taxonomy structure, has been proposed in the past
+[22], [23]. Even the hierarchical loss function can explicitly
+capture the following fact: “we do not require the hierarchical
+classification algorithms be able to make fine-grained distinctions when they are unable to make coarse-grained ones”;
+none of them has provided a proactive solution for controlling the interlevel error propagation effectively. Chen et al. [24]
+have developed an effective approach to achieve more reliable
+solution for hierarchical classifier training by seamlessly integrating support vector machines with hierarchical output space
+decomposition. To deal with high-dimensional data classification, Tibshiriani and Hastie [25] have built a binary decision tree
+(margin tree) in a top-down manner.
+III. MULTIMODAL PATIENT RECORD REPRESENTATION
+To evaluate the performance of our hierarchical classification algorithm on large-scale patient categories identification,
+this paper focuses on one specific medical domain of ACL disease [26]–[35] because ACL injury is still the leading cause
+of life-long motion disability. It is worth emphasizing that our
+hierarchical classification algorithm is also suitable for dealing
+with other types of diseases and the relevant patient records.
+The description information for each ACL patient and his/her
+ACL injuries may come from multiple raw data sources in different modalities [35]: 1) CT, MRI, or X-ray images of the
+patient’s knee joints; 2) videos that capture the movements of
+the patient’s knee joints; 3) the patient’s metadata such as age,
+medical history, and feedbacks, etc.; 4) doctors’ diagnoses of
+the patient’s ACL injury type and level; 5) numeric data such as
+the patient’s weight and height; 6) heart rate and blood pressure
+before and after exercises; 7) muscle condition and strength;
+and 8) the patient’s social attributes such as jobs, life styles and
+hobbies. Note that points 3–8 are usually described in texts.
+
+Such multimodal patient record representation should be able
+to provide necessary information to best facilitate treatment of
+ACL injuries. Our previous work [35] has indicated that accurate characterization of a patient’s knee joint and its structural,
+material, and motion properties are critical to proper diagnosis
+of ACL injuries.
+Employing exercise therapy during ACL rehabilitation
+demonstrated beneficial and positive in pain severity and functional disability, and clinicians used various types of exercises to
+minimize anterior knee pain and muscle loss, strengthen hip and
+thigh musculature, enhance balance and stability, and minimize
+the risk of future injuries [26]–[34]. Multiple weight bearing exercises are used to collect his/her motion patterns for different
+daily physical activities [35]. The videos are captured when ACL
+patients perform the most common motor tasks; the changes in
+structural and material properties and joint motion and loading
+patterns are further extracted from these videos. Capturing and
+integrating such structural, material, and motion properties of
+human knee joints can allow us to evaluate the effectiveness of
+various ACL treatment plans effectively.
+By interactively or automatically aligning such patientspecific knee bones and joints (joint surfaces, insertions, ligaments, and tendons) with their motion patterns, more effective
+features are extracted to: 1) characterize the patients’ ACL injury levels and the changes on both the functions of human
+knee joints and their structural, material, and motion properties;
+2) evaluate the effectiveness of various treatment plans for ACL
+reconstruction and rehabilitation according to the changes of
+functions of human knee joints; and 3) support more accurate
+patient classification according to their ACL injury levels and
+the changes of the functions of their knee joints.
+We have also extracted other patient-specific social, physical,
+and biological attributes relevant to ACL injuries, treatments,
+and recoveries, which include: 1) job and related activities;
+2) sport hobbies and related activities; 3) weight, height, and
+body mass index; 4) daily diet, exercises, and the balance between diet and exercise; 5) diagnosis and treatment prescribed
+by clinicians; 6) daily activities and life styles; 7) exercise instruments; 8) gender; 9) muscle condition and strength; 10)
+patient self-evaluations of their knee joint functions; and 11)
+leg-dominance (left leg-dominant patients are different from
+right leg-dominant patients). Even these social attributes may
+not be indicative of ACL injuries directly, they may seriously
+affect the effectiveness of ACL treatments and are critical for
+clinicians to prescribe optimal (customized) treatment plans for
+ACL patients. Thus, it is necessary to include these social attributes for patient record representation. Such a multimodal
+patient record (including knee-specific information and other related social attributes) can provide a good data-driven platform
+to discover useful medical knowledge for achieving better diagnose and treatments of ACL injuries. The attributes (features)
+for multimodal patient record representation are summarized in
+Table I.
+IV. CATEGORY HIERARCHY LEARNING
+Given N patient categories and their relevant patient records,
+we are interested in learning a category hierarchy T = (C, E),
+
+MEI et al.: HIERARCHICAL CLASSIFICATION OF LARGE-SCALE PATIENT RECORDS FOR AUTOMATIC TREATMENT STRATIFICATION
+
+1237
+
+TABLE I
+ATTRIBUTES (FEATURES) FOR MULTIMODAL PATIENT RECORD REPRESENTATION
+Modality (Type)
+
+Attributes (Features)
+
+Visual Features
+
+4096-D 2D SIFT, 256-D color histogram, 256-D 6D motion vectors, 4096 3D SIFT, 27-D color moments,
+128-D histogram of curvatures, 512-D GIST
+construction, painting, ceiling, cutting, drawing, plumbing, cooking, washing, tasting,
+pilot, talking, delivering, cleaning, hair cutting, car washing, car repair, moving, etc.
+basketball, soccer, football, baseball, jogging, dance, yoga, volleyball, skating,
+water skiing, arm wrestling, jumping rope, bike-riding, skateboarding, surfing, tennis,
+hockey, throwing heavy objects for distance, running, rock climbing, boxing, etc.
+bathing, dressing, eating, feeding, housework, shopping, transportation, care of others,
+care of kids, home maintenance, cleanup, walking, carry-on walking, etc.
+diet, marital status, number of family members, children in household, house size and styles, behaviors,
+education, tenure on home, social class, self-actualizers, self-confident risk-takers, motoring,
+esteem seekers, strivers, contented conformers, traditionalists, travel, future plans, etc.
+age, aggressiveness, control attitudes, dependability, egocentrism, emotional expression,
+fairness, leadership, physical appearance, regard for rules, team spirit, etc.
+injury levels, treatment plans, injury types, etc.
+heart rate, blood pressure, weight, height, gender, etc.
+
+Job Activities
+Sport Activities
+
+Daily Activities
+Life Styles
+
+Social Attributes
+Doctor Diagnosis
+Body Attributes
+
+which comprises a set of nodes C and a set of edges E, where
+each nonleaf node c ∈ C is associated with a set of patient categories L(c) ⊆ {1, . . . , N }. For each nonleaf node, one particular multiclass classifier fc is learned, and it is used to select the
+best-matching child node (from other B − 1 sibling child nodes)
+to follow at next level of the category hierarchy. For a given node
+c, it contains only a subset of the patient categories for its parent
+node. Two parameters are defined for our category hierarchy:
+1) its depth H, i.e., number of layers; and 2) its branches B,
+i.e., number of child nodes under a parent node. These two parameters H and B should satisfy the constraint: N  B H . By
+using different parameters B and H, we can generate various
+category hierarchies with different tree configurations TB ,H .
+In this section, we present the details on learning the category
+hierarchy via partitioning large numbers of patient categories
+hierarchically. Our category hierarchy construction algorithm
+contains two key components: 1) estimating the intercategory
+correlations; and 2) learning the tree structure via hierarchical
+clustering of large numbers of patient categories according to
+their intercategory correlations.
+For each feature subset, one particular base kernel is defined
+to calculate the intercategory correlation between two patient
+categories. For a given feature subset f l , its base kernel κl (i, j)
+for characterizing the correlation between the ith and the jth
+patient categories is defined as
+
+
+
+dist f l i , f l j
+(1)
+κl (i, j) = exp −
+σl
+where σl is the bandwidth parameterwhich is chosen by using the self-tuning technique and dist f l i , f l j is the distance
+between the ith and jth patient categories for the lth feature
+subset; f l i and f l j are the feature values for the ith and jth
+patient categories.
+It is worth noting that the intercategory correlations, which are
+calculated under different feature subsets with different modalities are not directly comparable, we need to project them onto
+a common space with maximum cross-modal correlations and
+such optimal projection direction is obtained automatically by
+
+performing kernel canonical correlation analysis [42]. After
+such optimal projection direction is obtained, we can project
+all these intercategory correlations (which are characterized by
+various base kernels under different feature subsets) onto the
+optimal projection direction (common space) to maximize their
+cross-modal correlations. Finally, all these projected intercategory correlations under different feature subsets (different base
+kernels) are integrated:
+κ(i, j) =
+
+τ
+
+
+αl κl (i, j),
+
+l=1
+
+τ
+
+
+αl = 1
+
+(2)
+
+l=1
+
+where τ is the total number of feature subsets (base kernels).
+For large numbers of patient categories, their intercategory
+correlations can be used as a proxy to determine their intercategory separability. The interrelated patient categories are more
+difficult to be separated; thus, they should be assigned into the
+same coarse-grained group of patient categories to avoid early
+incorrect partitioning at a high-level node of the category hierarchy, e.g., partitioning mistakes at the high-level nodes are
+more critical because of interlevel error propagation. For the
+current nonleaf node c with M patient categories, a spectral
+clustering method is used to partition its M patient categories
+into B groups (i.e., B child nodes at next level) by minimizing
+intergroup correlations and maximizing intragroup correlations:
+
+min ψ(c, B) =
+
+B
+
+s(Gl , Gc /Gl )
+l=1
+
+
+
+s(Gl , Gl )
+
+(3)
+
+where Gc = {Gl |l = 1, . . . , B} is used to represent B groups
+(clusters) of M patient categories for the current nonleaf node
+c, and Gc /Gl is used to represent other B − 1 groups in Gc except Gl . The cumulative intergroup correlations s(Gl , Gc /Gl )
+is defined as
+s(Gl , Gc /Gl ) =
+
+
+
+
+
+i∈G l j ∈G c /G l
+
+κ(i, j)
+
+(4)
+
+1238
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+where i and j are two patient categories. The cumulative intragroup correlations s(Gl , Gl ) is defined as
+ 
+κ(i, j).
+(5)
+s(Gl , Gl ) =
+i∈G l j ∈G l
+
+The optimal solution for patient category clustering in (3) is
+finally achieved by solving multiple eigenvalue equations.
+This spectral clustering process is applied recursively until
+a complete tree is created, e.g., each leaf node contains one
+single patient category. Note that if the set of patient categories
+L(c) for the current nonleaf node c has less than B patient
+categories, then only |L(c)| child nodes are generated. Thus, the
+fine-grained patient categories, which share significant common
+properties but contain subtle differences, are finally assigned
+into B sibling leaf nodes under the same parent node. Fig. 1 is
+used to illustrate the process for hierarchical clustering of large
+numbers of patient categories explicitly, where the diversity of
+colors is used to characterize the significance of differences on
+the intercategory correlations within each tree node.
+By organizing large numbers of patient categories in a coarseto-fine fashion, our category hierarchy can provide a good environment to determine the interrelated learning tasks automatically (i.e., the learning tasks for training the classifiers for B
+sibling child nodes under the same parent node are strongly interrelated) and reduce the classification cost significantly by ruling out the unlikely groups of patient categories (i.e., irrelevant
+high-level nodes) at an early stage. Our category hierarchy can
+further be used to leverage the tree structure to learn max-margin
+tree classifiers hierarchically and make multitask learning to be
+computationally affordable (i.e., each parent node contains at
+most B sibling child nodes).
+V. HIERARCHICAL CLASSIFIER TRAINING AND PARALLELISM
+A bottom-up hierarchical approach is developed for training
+max-margin tree classifiers over the category hierarchy in parallel: 1) For the fine-grained patient categories at the sibling leaf
+nodes under the same parent node, they share significant common properties but contain subtle differences; thus, a multitask
+learning algorithm is used to train their max-margin classifiers
+jointly. 2) For the coarse-grained groups of patient categories at
+the sibling nonleaf nodes under the same parent node, a hierarchical classifier training algorithm is developed to leverage tree
+structure to train their max-margin classifiers hierarchically.
+In the rest of this paper, we use the following definitions
+over the category hierarchy: 1) for a given node cj , p(cj ) is
+used to represent its parent node ci , i.e., ci = p(cj ) and cj ∈
+ci = p(cj ); 2) {s(cj )} is used to represent the set of sibling
+nodes which are sibling with the given node cj and under the
+same parent node ci = p(cj ); and 3) max-margin tree classifiers
+are used to interpret large numbers of SVM classifiers that are
+associated with the tree nodes at different levels of the category
+hierarchy.
+A. Joint Classifier Training for Sibling Leaf Nodes
+To distinguish B sibling fine-grained patient categories (B
+sibling leaf nodes) under the same parent node, a multitask
+learning algorithm is developed to train their SVM classifiers
+
+Fig. 1. Category hierarchy construction by partitioning large numbers of
+patient categories hierarchically according to their intercategory correlations,
+where the values of the intercategory correlations are illustrated on the matrices
+for the latest partitions.
+
+jointly. It is worth emphasizing that our category hierarchy has
+provided a good environment to identify the interrelated learning
+tasks automatically, i.e., the tasks for learning the max-margin
+node classifiers for B sibling fine-grained patient categories
+under the same parent node are strongly interrelated and their
+max-margin classifiers should be trained jointly to enhance their
+discrimination power. A common weight vector W0 is used to
+characterize such intertask relatedness explicitly [43], [40], and
+it is shared among the SVM classifiers for B sibling fine-grained
+patient categories under the same parent node.
+For discriminating a given fine-grained patient category
+cj from its B − 1 sibling fine-grained patient categories
+{s(cj )} under the same parent node ci = p(cj ), we explicitly
+
+MEI et al.: HIERARCHICAL CLASSIFICATION OF LARGE-SCALE PATIENT RECORDS FOR AUTOMATIC TREATMENT STRATIFICATION
+
+separate the common weight vector W0i from the individual
+category-specific weight vector Wj , and its SVM classifier is
+defined as
+fc j (x) = (W0i + Wj )T · x + b
+
+(6)
+W0i
+
+where the first part is the common weight vector
+shared
+among B sibling fine-grained patient categories {s(cj )} under
+the same parent node ci = p(cj ), the second part is the individual category-specific weight vector Wj for the given finegrained patient category cj .
+Given the labeled patient records for B sibling fine-grained
+patient categories {s(cj )} under the same parent node ci =
+p(cj ), Ω = {xlj , yjl |l = 1, . . . , S, cj ∈ p(cj )}, training the interrelated SVM classifiers for B sibling fine-grained patient categories {s(cj )} is then achieved by optimizing a joint objective
+function:
+⎧
+⎫
+S 
+B
+B
+⎨ 
+⎬
+
+min C
+ξjl + β1
+ Wj 2 +β2  W0i 2
+(7)
+⎩
+⎭
+l=1 j =1
+
+j =1
+
+subject to:
+l
+i
+T
+l
+l
+l
+∀Sl=1 ∀B
+j =1 : yj (W0 + Wj ) · xj + b ≥ 1 − ξj , ξj > 0
+
+(8)
+
+where ξjl indicates the training error rate, β1 and β2 are the
+positive regularization parameters, and C is the penalty term.
+By optimizing the joint objective function, the SVM classifier for the given fine-grained patient category cj is finally
+determined as
+⎛
+S 
+B
+τ
+
+
+α̂m κm (xlj , x)
+β̂jl yjl
+fc j (x) = sign ⎝
+l=1 j =1
+
++
+
+S
+
+l=1
+
+βjl yjl
+
+τ
+
+
+m =1
+
+
+αm κm (xlj , x)
+
+(9)
+
+m =1
+
+where the first part is used to characterize the common weight
+vector shared among B sibling fine-grained patient categories
+{s(cj )} under the same parent node ci = p(cj ), the second part
+is used to characterize the individual category-specific weight
+vector for one particular fine-grained patient category cj .
+By learning two different sets of kernel coefficients (i.e.,
+weights of feature subsets) α and α̂ simultaneously, our multitask learning algorithm can automatically determine two separable feature subspaces (by using different weights for the
+feature subsets): 1) the common feature subset shared among
+B sibling fine-grained patient categories; and 2) the individual
+category-specific feature subset for one particular fine-grained
+patient category. This feature subspace selection process can
+provide useful information: Each patient category can be better
+recognized by its customized features, i.e., different weights on
+the shared common feature subsets and the category-specific
+feature subsets.
+By learning two different sets of the weight vectors β and
+β̂ simultaneously, our multitask learning algorithm can automatically establish two different decision boundaries (i.e., two
+different sets of support vectors): 1) the common weight vector shared among B sibling fine-grained patient categories; and
+2) the individual weight vector for one particular fine-grained
+
+1239
+
+patient category. By explicitly separating the common weight
+vector from the individual category-specific weight vector, our
+SVM classifiers can have higher discrimination power on distinguishing the sibling fine-grained patient categories effectively.
+B. Hierarchical Classifier Training for Sibling Nonleaf Nodes
+For B sibling fine-grained patient categories, their parent
+node (i.e., coarse-grained group of patient categories) is used
+to characterize their common medical properties. Thus, the
+common weight vector W0i , which is shared among the sibling
+fine-grained patient categories {s(cj )} at the first level of the
+category hierarchy, is further treated as a prior weight vector for
+their parent node ci = p(cj ) at the second level of the category
+hierarchy, i.e., W0i is further treated as the individual groupspecific weight vector Wi for their parent node ci , Wi = W0i .
+By borrowing the common weight vector W0i to set a prior regularization term and bias the node classifier of the coarse-grained
+group of patient categories ci at the second level of the category hierarchy, our hierarchical classifier training algorithm is
+able to leverage the tree structure for hierarchical training of
+max-margin tree classifiers.
+For discriminating a given coarse-grained group of patient
+categories ci (at the second level of the category hierarchy) from
+its B − 1 sibling coarse-grained groups of patient categories
+{s(ci )} under the same parent node ck = p(ci ) (at the third
+level of the category hierarchy), its SVM classifier is defined as:
+fc i (x) = (W0k + Wi )T · x + b
+
+(10)
+
+where the first part is the common weight vector W0k shared
+among B sibling coarse-grained groups of patient categories
+{s(ci )} under the same parent node ck = p(ci ), the second part
+is the individual group-specific weight vector Wi for the given
+coarse-grained group of patient categories ci .
+Given the labeled patient records for B sibling coarse-grained
+groups of patient categories {s(ci )} under the same parent node
+m
+ck = p(ci ), Ω = {xm
+i , yi |m = 1, . . . , S, ci ∈ p(ci )}, training
+the interrelated SVM classifiers (for B sibling coarse-grained
+groups of patient categories at the second level of the category hierarchy) is then achieved by optimizing a joint objective
+function:
+
+
+B
+S 
+B
+
+
+m
+2
+k 2
+ξi + γ1
+ Wi  +γ2  W0 
+(11)
+min C
+m =1 i=1
+
+i=1
+
+subject to:
+m
+k
+T
+m
+∀Sm =1 ∀B
+i=1 : yi (W0 + Wi ) · xi
+
++ b ≥ 1 − ξim , ξim > 0
+
+(12)
+
+B
+m
+m
+∀Sm =1 ∀B
+i=1 ∀j =1 : fc i (xi ) − fc j (xj )
+
+= yim (W0k + Wi )T · xm
+i
+m
+m
+− yjm (W0i + Wj )T · xm
+j ≥ 0, (yi , xi )
+
+= (yjm , xm
+j ), cj ∈ ci
+i
+∀B
+j =1 : Wi = W0 , cj ∈ ci ,
+
+ξim
+
+(13)
+(14)
+
+where
+indicates the training error rate, γ1 and γ2 are the
+positive regularization parameters, and C is the penalty term.
+
+1240
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+The first constraint in (12) is the traditional constraint for SVM
+classifier training. The second constraint in (12) is the interlevel
+structural constraint and the third constraint in (14) is the interlevel correlation constraint; these two interlevel constraints
+are used to leverage the tree structure for hierarchical classifier
+training.
+The interlevel structural constraint in (13) is used to enforce
+m
+that the training patient record (xm
+i , yi ) should first be assigned
+into the parent node ci = p(cj ) correctly if it can further be
+assigned into the child node cj , cj ∈ ci . One salient aspect of
+hierarchical classification is that the category hierarchy imposes
+specific constraints on the max-margin tree classifiers; thus, the
+interlevel structural constraint in (13) can enforce our multitask
+learning algorithm to learn more discriminative classifiers for
+the high-level nodes on the category hierarchy, so that our maxmargin tree classifiers can effectively control the interlevel error
+propagation and achieve better accuracy rates. The interlevel
+correlation constraint in (14) is used to emphasize another type
+of interlevel correlations, e.g., the group-specific weight vector
+Wi for the parent node ci is directly borrowed from the shared
+common weight vector W0i for its sibling child nodes.
+By optimizing the joint objective function, the SVM classifier
+for the given coarse-grained group of patient categories ci at the
+second level of the category hierarchy is finally determined as
+ S B
+τ
+
+
+fc i (x) = sign
+γ̂im yim
+α̂l κl (xm
+i , x)
+m =1 i=1
+
++
+
+B
+S 
+
+m =1 j =1
+
+β̂jm yjm
+
+l=1
+τ
+
+
+⎞
+
+⎠
+α̂l κl (xm
+j , x)
+
+(15)
+
+l=1
+
+m
+m
+where (yim , xm
+i ) = (yj , xj ) if cj ∈ ci = parent(cj ).
+When the SVM classifiers are available for the sibling coarsegrained groups of patient categories at the second level of the
+category hierarchy, we can repeat above level-by-level process
+to learn the SVM classifiers for the sibling coarse-grained groups
+of patient categories at the third level of the category hierarchy.
+This level-by-level process is further repeated until the root node
+of the category hierarchy is reached.
+By leveraging the tree structure (category hierarchy) for hierarchical classifier training, our max-margin tree classifiers can
+effectively rule out unlikely coarse-grained groups of patient
+categories (i.e., irrelevant high-level nodes) at an early stage,
+which can significantly reduce the computational cost for identifying large-scale patient categories. By enforcing our hierarchical classifier training algorithm to learn more discriminative
+classifiers for the high-level nodes on the category hierarchy, our
+max-margin tree classifiers can control the interlevel error propagation effectively and have high accuracy rates on large-scale
+patient record classification.
+
+VI. HIERARCHICAL DETECTION OF NEW PATIENT CATEGORIES
+AND INCREMENTAL LEARNING
+Most existing techniques for patient recognition are static
+(e.g., they assume that all the patient categories are known at
+the time for classifier training), but collecting large-scale pa-
+
+tient records is open-ended and dynamic: new (unknown) patient categories may appear over time and new patient records
+are continuously added to the known patient categories. When
+new (unknown) patient categories appear, the traditional hierarchical approach may seriously suffer from the problem of
+huge computational cost for relearning the category hierarchy and retraining the max-margin tree classifiers hierarchically. Thus, it is very attractive to develop new solutions to
+adapt both the category hierarchy and the max-margin tree
+classifiers to the new patient categories without significant
+retraining.
+It is also worth noting that detecting the new patient categories becomes more challenging in the scenario of identifying
+large-scale patient categories: 1) distinguishing between large
+numbers of patient categories is inherently more complex than
+distinguishing between just a few; thus, it could be very hard
+to distinguish between the misclassification errors of known
+patient categories and the detection of new patient categories;
+2) large intracategory variations and large intercategory similarity are typical in the medical domain.
+Our max-margin tree classifiers can be used to categorize
+large amounts of patient records into large numbers of known
+patient categories hierarchically. When a given patient record
+goes through our max-margin tree classifiers hierarchically, it
+can sequentially be assigned into one particular nonleaf node
+c at the second level of our category hierarchy. If our maxmargin tree classifiers cannot assign the given patient record
+into anyone of B sibling fine-grained patient categories under
+the selected parent node c in high confidence, the appearance of
+new patient category is detected and a new leaf node is inserted
+under the selected parent node c because of the atomicity of the
+new patient category.
+It is worth noting that 1) the parent node and its node classifier
+on the category hierarchy are used to characterize the common
+medical properties and the common weight vector shared among
+all its sibling child nodes; thus, our large-margin tree classifiers
+can always identify one best-matching parent node c (at the second level of the category hierarchy) for the new patient category
+even its classifier is unavailable at the beginning; and 2) the
+interrelated SVM classifiers for the sibling fine-grained patient
+categories under the selected parent node c can be used to identify the new patient category because they share the same parent
+node c but contain subtle differences on the medical properties.
+To achieve automatic detection of new patient category,
+a cost-sensitive learning process [44], [45] is performed to
+train the cost-sensitive SVM classifiers for the fine-grained
+patient categories at the sibling leaf nodes. Given a set of
+labeled patient records for B sibling fine-grained patient
+categories {s(cj )} under the same parent node ci = p(cj ),
+Ω = {xlj , yjl |l = 1, . . . , S, cj ∈ ci }, training their cost-sensitive
+SVM classifiers is achieved by optimizing a joint cost-sensitive
+objective function:
+⎫
+⎧
+S 
+B
+B
+⎬
+⎨ 
+
+δjl ξjl + β1
+ Wj 2 +β2  W0i 2
+min C
+⎭
+⎩
+l=1 j =1
+
+j =1
+
+(16)
+
+MEI et al.: HIERARCHICAL CLASSIFICATION OF LARGE-SCALE PATIENT RECORDS FOR AUTOMATIC TREATMENT STRATIFICATION
+
+subject to:
+l
+i
+T
+l
+l
+l
+∀Sl=1 ∀B
+j =1 : yj (W0 + Wj ) · xj + b ≥ 1 − ξj , ξj > 0
+
+(17)
+
+where ξjl indicates the training error rate, β1 and β2 are the positive regularization parameters, C is the penalty term, δjl is the
+misclassification cost for the training instance (xlj , yjl ) (i.e., different types of misclassifications should be treated differently),
+and δjl ξjl is the weighted training error rate (empirical risk).
+When the cost-sensitive SVM classifiers are learned for all
+the leaf nodes, our max-margin tree classifiers can be used to
+identify large-scale patient categories and detect new patient
+categories. For a given patient record X, it hierarchically goes
+through our max-margin tree classifiers and sequentially reaches
+one best-matching nonleaf node c at the second level of our
+category hierarchy. Finally, the cost-sensitive SVM classifiers
+for B sibling fine-grained patient categories (i.e., sibling leaf
+nodes) under the selected parent node c are used to determine:
+1) whether the given patient record X can be assigned into one
+of these B sibling fine-grained patient categories (i.e., known
+patient categories) under the selected parent node c; or 2) it
+should be detected as a new (unknown) patient category under
+the selected parent node c.
+For a given test patient record X, it hierarchically goes
+through the max-margin tree classifiers and sequentially reach
+one best-matching nonleaf node c at the second level of the
+category hierarchy. Finally, the cost-sensitive SVM classifiers
+for B sibling fine-grained patient categories (i.e., sibling leaf
+nodes) under the selected parent node c are used to decide:
+1) The given test patient record X is assigned into one of these
+B sibling fine-grained patient category under the selected parent node c if its confidence score with at least one of these B
+sibling fine-grained patient categories is above a given threshold or at least one of these intercategory confidence margins is
+above a given threshold. 2) The given test patient record X is
+detected as a new (unknown) patient category under the selected
+parent node c if its confidence scores with all these B sibling
+fine-grained patient categories are below a given threshold or all
+the intercategory confidence margins are below a given threshold, e.g., the classifier for the selected parent node c and all the
+classifiers for its sibling child nodes give conflicting predictions.
+When a new patient category cnew is identified, a new leaf
+node is inserted under the selected parent node c. To learn the
+discriminative classifier for the new patient category cnew , our
+incremental learning algorithm performs two operations sequentially: 1) learning the SVM classifier for the new patient category
+and updating the interrelated SVM classifiers for its sibling leaf
+nodes if necessary; and 2) updating the SVM classifiers for its
+parent node c and other higher-level nonleaf nodes if necessary.
+To learn the SVM classifier for the new patient category cnew ,
+we borrow the common weight vector W0c from the interrelated
+SVM classifiers for its sibling fine-grained patient categories
+under the same parent node c. Thus, we can define the SVM
+classifier for the new patient category cnew as
+fnew (x) = W T · x + b = (W0c + Wnew )T · x + b.
+
+(18)
+
+1241
+
+By borrowing the shared common weight vector W0c from the
+interrelated SVM classifiers for other sibling fine-grained patient categories, its objective function is then defined as
+
+
+m
+
+1
+c 2
+T
+ W − W0  +η
+[1 − yl (W · xl + b)]
+(19)
+min
+2
+l=1
+
+subject to:
+c
+T
+∀m
+l=1 : yl (W0 + Wnew ) · xl + b ≥ 1 − ξl , ξl > 0
+
+(20)
+
+W0c
+
+where
+is the shared common weight vector, (xl , yl ), l =
+1, . . . , m, are the patient records collected for the new patient
+category cnew , and η is the penalty term.
+The dual problem of the objective function for incremental
+classifier training is then refined as
+⎧
+m 
+m
+τ
+⎨1 
+
+βj βh
+αl yh yj κl (xj , xh )
+min
+⎩2
+j =1
+h=1
+
+−
+
+m
+
+
+l=1
+
+⎛
+
+βh ⎝1 − yh
+
+B
+S 
+
+
+β̂jl yjl
+
+m =1
+
+l=1 j =1
+
+h=1
+
+⎞⎫
+⎬
+α̂m κm (xlj , xh )⎠ (21)
+⎭
+
+τ
+
+
+subject to:
+∀m
+h=1 : 0 ≤ βh ≤ η,
+
+m
+
+
+βh yh = 0.
+
+(22)
+
+h=1
+
+.
+The SVM classifier fnew (x) for the new patient category cnew
+is finally determined as
+⎛
+S 
+B
+
+fnew (x) = (W0 + Wnew )T · x + b = sign ⎝
+β̂jl yjl
+l=1 j =1
+τ
+
+m =1
+
+α̂m κm (xlj , x)
+
++
+
+m
+
+l=1
+
+βl yl
+
+τ
+
+
+
+
+αt κt (xl , x) .
+
+t=1
+
+(23)
+By starting from the shared common weight vector W0c , our
+incremental learning algorithm can significantly reduce: 1) the
+computational cost for training the SVM classifier fnew (x) for
+the new patient category cnew ; and 2) the number of labeled
+patient records m for learning the discriminative classifier for
+the new patient category cnew .
+VII. EXPERIMENTAL RESULTS FOR SYSTEM EVALUATION
+With Institutional Board Review approval, large-scale ACL
+patient records are collected from OrthoCarolina, American
+Sports Medicine Institute, California State University, and
+UNC-Charlotte. We have currently collected more than 3.6 million patient records which have been assigned into 1500 patient categories by our medical consultants and collaborators.
+In this research, our medical consultants and collaborators are
+involved to label patient records and verify the classification
+results. The ACL patient records, which have been verified by
+our medical consultants and collaborators, are used to assess
+the performance of our hierarchical approach for large-scale
+
+1242
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+TABLE II
+CLASSIFICATION ACCURACY (%) COMPARISON BETWEEN OUR MAX-MARGIN TREE CLASSIFIERS, LABEL TREE CLASSIFIERS, AND HIERARCHICAL
+BINARY TREE CLASSIFIERS
+Tree Classifiers
+
+Features for Tree Construction
+
+T3 5 , 2
+
+T1 2 , 3
+
+T6 , 5
+
+T2 , 1 1
+
+Max-Margin Tree Classifiers
+Label Tree Classifiers
+Hierarchical Binary Tree Classifiers
+
+intercategory correlation κ(·, ·)
+output of OVR
+output of binary classifiers
+
+89.15
+71.34
+–
+
+76.28
+59.63
+–
+
+68.14
+54.22
+–
+
+–
+–
+53.69
+
+patient record classification. Each patient category contains at
+least 1400 patient records, where 1200 patient records are used
+as training samples; the residues are used as test samples. The
+training sample sets, which are used to learn the category hierarchy, are further used for hierarchical classifier training. To
+evaluate our algorithm on new patient category detection and
+incremental learning, we partition 1500 patient categories into
+two classes: 1) 1200 patient categories are treated as known
+patient categories; and 2) 300 patient categories are treated as
+new (unknown) patient categories.
+The hierarchical accuracy rate poverall of our max-margin tree
+classifiers is defined as
+⎧
+⎫
+H ⎨
+B
+⎬
+
+
+1
+T Pj + T Nj
+poverall =
+pij , pij =
+(24)
+⎩B
+⎭
+P j + Nj
+i=1
+j =1
+
+Fig. 2. Experimental results on comparing our hierarchical approach with
+label tree approach on the accuracy rates, where the accuracy rate is defined as
+the traditional F1 score.
+
+where pij is the accuracy rate of the classifier fc j (x) for the node
+cj at the ith level of the category hierarchy, T Pj is the number of
+its true positive samples, T Nj is the number of its true negative
+samples, Pj is the number of its positive samples, and Nj is the
+number of its negative samples. By enforcing our hierarchical
+learning algorithm to train more discriminative classifiers at the
+high-level nodes of the category hierarchy to limit the interlevel
+error propagation, our max-margin tree classifiers can achieve
+better accuracy rate for large-scale patient record classification.
+A. Large-Scale Patient Categories Identification
+By integrating our category hierarchy and other tree structures
+for hierarchical classifier training, we compare the performance
+between our max-margin tree classifiers (tree classifiers over our
+category hierarchy) and the label tree classifiers (tree classifiers
+over the label tree) [20], [21]. The hierarchical classification
+accuracy rate as defined in (24) is used as the evaluation metric and the results under different tree configurations TB ,H are
+reported. It is worth noting that the configuration of the hierarchical binary tree classifiers is fixed for N patient categories,
+e.g., B = 2, H = log2 N , T2,log 2 N .
+We tabulate their performance comparison in Table II, where
+the experimental results under different tree configurations
+TB ,H are reported. Our max-margin tree classifiers can outperform the label tree classifiers especially when the tree structure is deeper. The reason is that our max-margin tree classifiers can effectively suppress the interlevel error propagation by
+enforcing to learn more discriminative classifiers for the highlevel nodes on the category hierarchy. The statistical comparison results on the classification accuracy rates for 1200 known
+patient categories are shown in Fig. 2, where 1200 patient cate-
+
+Fig. 3. Experimental results on comparing our hierarchical approach with the
+hierarchical algorithm in [6] on the accuracy rates.
+
+gories are sorted according to their classification accuracy rates
+for our max-margin tree classifiers and illustrated in orders.
+For the same task of large-scale patient categories identification, we have also compared our hierarchical learning algorithm
+with the hierarchical classifier training algorithm in [22], and
+the comparison results are shown in Fig. 3. By adding two
+interlevel constraints for hierarchical classifier training (rather
+than optimizing hierarchical hinge loss function as done in [22]
+and [23]), our hierarchical learning algorithm can obtain more
+discriminative tree classifiers with higher classification accuracy
+rates.
+As shown in Fig. 4, we have also compared our hierarchical approach with two well-known flat approaches: 1) OVR
+approach which trains an OVR binary classifier for each patient category; and 2) pairwise approach which trains (N − 1)
+
+MEI et al.: HIERARCHICAL CLASSIFICATION OF LARGE-SCALE PATIENT RECORDS FOR AUTOMATIC TREATMENT STRATIFICATION
+
+Fig. 4.
+
+1243
+
+Experimental results on the identification accuracy rates: 1) our hierarchical approach; 2) OVR flat approach; 3) pairwise flat approach.
+
+pairwise one-against-other binary classifiers for each patient
+category. Compared with these two well-known flat approaches,
+our hierarchical approach can significantly reduce the computational cost for identifying large-scale patient categories, and it
+can achieve log-linear computational cost: O(logB N ). On the
+other hand, the computational cost for the OVR flat approach approximates as O(N ) and the computational cost for the pairwise
+approach is approximates as O(N 2 ). By integrating the category
+hierarchy to determine subtrees for joint classifier training, our
+hierarchical learning algorithm can effectively tune the classifier parameters and locally select both the negative instances and
+the customized feature subsets, thus it can significantly reduce
+the learning complexity for classifier training while obtaining
+higher discrimination power. On the other hand, the OVR flat
+approach may seriously suffer from the problem of imbalance
+of training instances and the learned binary OVR classifiers may
+have very low discrimination power. The pairwise flat approach
+is able to achieve comparable results, but the computational
+costs for both classifier training and patient record classification are not acceptable for our application of large-scale patient
+categories identification.
+B. Hierarchical Detection of New Patient Categories
+We report our experimental results on new patient category
+detection and compare the performance of our algorithms with
+that of other relevant methods. For new patient category detection, the state-of-the-art methods, which are compared in this
+work, include one-class SVM approach [46], [49], distancebased approach [47], [50], and distribution-based approach [48].
+Two criteria are used for algorithm comparison: 1) accuracy for
+new patient category detection; and 2) computational cost for
+new patient category detection. The accuracy rate for novel category detection pnew is defined as
+pnew =
+
+NT
+Ntotal
+
+TABLE III
+ACCURACY (%) AND COMPUTATIONAL COST (I.E., CPU COST ON SECONDS)
+COMPARISON BETWEEN OUR HIERARCHICAL APPROACH AND OTHER THREE
+TRADITIONAL APPROACHES ON NEW PATIENT CATEGORY DETECTION
+Approach
+
+Computational Cost
+
+94.65
+93.20
+90.21
+88.12
+
+4.079s
+28.35s
+29.25s
+30.56s
+
+Our Hierarchical Approach
+One-class SVM Approach [46]
+Distance-based Approach [47]
+Distribution-based Approach [48]
+
+rates for detecting 300 new patient categories are used as the
+evaluation metric for algorithm comparison. The performance
+of our hierarchical approach for new patient category detection
+is comparable to the other three traditional approaches especially when large numbers of similar patient categories appear.
+The reason is that detecting the parent nodes (which have information available) is much easier than detecting the new patient
+categories themselves (which have no information available).
+Thus our hierarchical approach can achieve higher accuracy
+rates for new patient category detection. In addition, our hierarchical approach can reduce the computational cost dramatically.
+C. Incremental Learning for New Patient Categories
+To learn the discriminative classifiers for the new patient
+categories incrementally, three traditional approaches are used
+for performance comparison: one-shot/zero-shot learning [51],
+[53], [54], zero-data learning [51], and context-based learning
+[41]. Two criteria are used for algorithm comparison: 1) computational cost for incremental learning; and 2) average classification accuracy of our discriminative classifiers on detecting
+the new patient categories. The average classification accuracy
+rate pincrem ental is defined as
+
+(25)
+
+where NT is the number of true positive records for new patient
+categories which are detected correctly, and Ntotal is the total
+number of positive records for the new patient categories.
+For new patient category detection, we tabulate the performance comparison between our hierarchical approach and other
+three traditional approaches in Table III. The average accuracy
+
+Accuracy
+
+1 
+T Pi
+=
+pi , pi =
+i
+100 i=1
+T Ptotal
+100
+
+pincrem ental
+
+(26)
+
+where pi is the accuracy rate of the ith new patient category,
+T Pi indicates the true positive instances for the ith new patient
+i
+is the total
+category which are classified correctly, and T Ptotal
+number of positive instances for the ith new patient category.
+
+1244
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+TABLE IV
+CLASSIFICATION ACCURACY (%) AND COMPUTATIONAL COST (I.E., CPU COST
+ON SECONDS) COMPARISON BETWEEN OUR INCREMENTAL LEARNING
+APPROACH AND OTHER THREE TRADITIONAL APPROACHES
+
+to extract more discriminative features for hierarchical classifier
+training.
+ACKNOWLEDGMENT
+
+Approach
+Our Incremental Learning Approach
+Zero-shot Learning [51]
+Zero-data Learning [52]
+One-shot Learning [53]
+
+Accuracy
+
+Computational Cost
+
+93.14
+84.20
+82.32
+79.56
+
+109s
+218s
+206s
+243s
+
+The authors would like to thank all the reviewers for their
+insightful comments and suggestions to make this paper more
+readable.
+REFERENCES
+
+We tabulate the performance comparison between our incremental learning algorithm and other three traditional approaches
+in Table IV. The average accuracy rate for identifying 300 new
+patient categories is used as the evaluation metric for algorithm
+comparison. The performance of our incremental learning approach is comparable to the other three traditional approaches.
+By borrowing the common weight vector W0c from the interrelated SVM classifiers for the sibling fine-grained patient categories under the same parent node c, our incremental learning
+approach can significantly reduce both the computational cost
+and the number of patient records for incremental learning of
+the discriminative classifiers for the new patient categories.
+VIII. CONCLUSION
+For large-scale patient categories identification, a hierarchical learning algorithm is developed to learn max-margin tree
+classifiers, where a category hierarchy is generated to organize
+large numbers of patient categories hierarchically and supervise
+the level-by-level process for hierarchical classifier training. By
+detecting the parent node for the new patient category rather
+than itself, our hierarchical approach can achieve more accurate detection of new patient category in the scenario of largescale patient categories identification. Our incremental learning
+algorithm can adapt both the category hierarchy and the maxmargin tree classifiers to the new patient categories effectively
+without significant retraining. Our experimental results have
+demonstrated that our hierarchical approach can achieve very
+competitive results on both the classification accuracy and the
+computational efficiency as compared with other state-of-the-art
+techniques.
+The limitations of our hierarchical approach include: 1) Universal Feature Space: All the nodes at different levels on the
+category hierarchy use the same feature set for node partitioning and classifier training. However, large numbers of patient
+categories are extremely diverse in sickness levels, health conditions, and social attributes; thus, using an universal feature space
+may not be sufficient to separate all of the patient categories effectively. It is very attractive to select different feature subsets in
+different modalities for partitioning the nonleaf nodes (coarsegrained groups of patient categories) at different levels of the
+category hierarchy, so that we can achieve more effective partitions (separations) of large-scale patient categories. 2) Quality
+of Features: The quality of features may have significant effects
+on the performance of our hierarchical approach for large-scale
+patient categories identification. Thus, one of our future work is
+
+[1] Z. Huang, M.-L. Shyu, J. M. Tien, M. Vigoda, and D. J. Birnbach,
+“Knowledge-assisted sequential pattern analysis with heuristic parameter
+tuning for labor contraction prediction,” IEEE J. Biomed. Health Informat., vol. 18, no. 2, pp. 492–499, Mar. 2014.
+[2] F. Liu, L. Zhou, C. Shen, and J. Yin, “Multiple kernel learning in the primal
+for multimodal Alzheimers disease classification,” IEEE J. Biomed. Health
+Informat., vol. 18, no. 3, pp. 984–990, May 2014.
+[3] W. M. Ahmed, B. Bayraktar, A. K. Bhunia, E. D. Hirleman, J. P. Robinson,
+and B. Rajwa, “Classification of bacterial contamination using image
+processing and distributed computing,” IEEE J. Biomed. Health Informat.,
+vol. 17, no. 1, pp. 232–239, Jan. 2013.
+[4] W.-L. Chen, C.-D. Kan, C.-H. Lin, and T. Chen, “A rule-based decisionmaking diagnosis system to evaluate arteriovenous shunt stenosis for
+hemodialysis treatment of patients using fuzzy Petri nets,” IEEE J. Biomed.
+Health Informat., vol. 18, no. 2, pp. 703–713, Mar. 2014.
+[5] S. Dumais and H. Chen, “Hierarchical classification of Web content,” in
+Proc. 23rd Annu. Int. ACM SIGIR Conf. Res. Develop. Inf. Retrieval, 2000,
+pp. 256–263.
+[6] L. Cai and T. Hofmann, “Hierarchical document categorization with support vector machines,” in Proc. 13th ACM Int. Conf. Inf. Knowl. Manag.,
+2004, pp. 78–87.
+[7] G. Xue, D. Xing, Q. Yang, and Y. Yu, “Deep classification in large-scale
+text hierarchies,” in Proc. 31st Annu. Int. ACM SIGIR Conf. Res. Develop.
+Inf. Retrieval, 2008, pp. 619–626.
+[8] B. Shahbaba and R. Neal, “Improving classification when a class hierarchy is available using a hierarchy-based prior,” Bayesian Anal., vol. 2,
+pp. 221–238, 2007.
+[9] Koller and M. Sahami, “Hierarchically classifying documents using very
+few words,” in Proc. 14th Int. Conf. Mach. Learning, 1997, pp. 170–178.
+[10] A. K. McCallum, R. Rosenfeld, T. Mitchell, and A.Y. Ng, “Improving text
+classification by shrinkage in a hierarchy of classes,” in Proc. 14th Int.
+Conf. Mach. Learning, 1998, pp. 359–367.
+[11] S. Gopal, Y. Yang, B. Bai, and A. Niculescu-Mizil, “Bayesian models for
+large-scale hierarchical classification,” in Proc. Annu. Conf. Neural Inf.
+Process. Syst., 2012, pp. 2411–2419.
+[12] C. N. Silla Jr. and A. X. Freitas, “A survey of hierarchical classification
+across different application domains,” Data Mining Knowl. Discovery,
+vol. 22, pp. 31–72, 2011.
+[13] T. Gao and D. Koller, “Discriminative learning of relaxed hierarchy for
+large-scale visual recognition,” in Proc. IEEE Int. Conf. Comput. Vision,
+2011, pp. 2072–2079.
+[14] J. Bao, G. Slutzki, and V. Honavar, “A semantic importing approach to
+knowledge reuse from multiple ontologies,” in Proc. AAAI Conf. Artif.
+Intell., 2007, pp. 1304–1309.
+[15] J. Bao, Y. Cao, W. Tavanapong, and V. Honavar, “Integration of
+domain-specific and domain-independent ontologies for colonoscopy
+video database annotation,” in Proc. Int. Conf. Inf. Knowl. Eng., 2004,
+pp. 82–90.
+[16] B. Smith and W. Ceusters, “Ontology as the core discipline of biomedical
+informatics, legacies of the past and recommendations for the future direction of research,” Comput., Philosophy, Cognitive Sci., pp. 1–14, 2005.
+[17] D. M. Pisanelli, Ontologies in Medicine, vol. 102, Studies in Health Technology and Informatics, Amsterdam, The Netherlands: IOS Press, 2004.
+[18] D. M. Pisanelli, D. Zaccagnini, L. Capurso, and M. Koch, “An ontological
+approach to evidence-based medicine and meta-analysis,” Stud. Health
+Technol. Inf., vol. 95, pp. 543–548, 2003.
+[19] C. Rosse and J. Mejino Jr, “A reference ontology for biomedical informatics: The foundational model of anatomy,” J. Biomed. Inf., vol. 36,
+no. 6, pp. 478–500, 2003.
+[20] G. Griffin and P. Perona, “Learning and using taxonomies for fast visual
+categorization,” in Proc. IEEE Conf. Comput. Vision Pattern Recog., 2008,
+pp. 1–8.
+
+MEI et al.: HIERARCHICAL CLASSIFICATION OF LARGE-SCALE PATIENT RECORDS FOR AUTOMATIC TREATMENT STRATIFICATION
+
+[21] S. Bengio, J. Weston, and D. Grangier, “Label embedding trees for large
+multi-class tasks,” in Proc. Annu. Conf. Neural Inf. Process. Syst., 2010,
+pp. 163–171.
+[22] O. Dekel, J. Keshet, and Y. Singer, “Large margin hierarchical classification,” in Proc. 21st Int. Conf. Mach. Learning, 2004, p. 24.
+[23] J. Wang, X. Shen, and W. Pan, “On large margin hierarchical classification with multiple paths,” J. Am. Statist. Assoc., vol. 104, no. 487,
+pp. 1213–1223, 2009.
+[24] Y. Chen, M. M. Crawford, and J. Ghosh, “Integrating support vector
+machines in a hierarchical output space decomposition framework,” in
+Proc. IEEE Int. Geosci. Remote Sensing Symp., pp. 949–952, 2004.
+[25] R. Tibshiriani and T. Hastie, “Margin trees for high-dimensional classification,” J. Mach. Learning Res., vol. 8, pp. 637–652, 2007.
+[26] H. N. Andersen and P. Dyhre-Poulsen, “The anterior cruciate ligament
+does play a role in controlling axial rotation in the knee,” Knee Surgery,
+Sports Traumatol., Arthroscopy, vol. 5, no. 3, pp. 145–149, 1997.
+[27] K. L Markolf, D. I. Burchfield, M. M. Shapiro, M. E. Shepard,
+G. Finerman, and J. Slauterbeck, “Combined knee loading states that
+generate high anterior cruciate ligament forces,” J. Orthopaedic Res.,
+vol. 13, no. 6, pp. 930–935, 1995.
+[28] A. Chaudhari, P. L. Briant, S. L. Bevill, S. Koo, and T. P. Andriacchi,
+“Knee kinematics, cartilage morphology, and osteoarthritis after ACL
+injury,” Med. Sci. Sports Exercise, vol. 40, no. 2, pp. 215–222, 2008.
+[29] T. Andriacchi, P. Briant, S. Bevill, and S. Koo, “Rotational changes at
+the knee after ACL injury cause cartilage thinning,” Clin. Orthopaedics
+Related Res., vol. 442, pp. 39–44, 2006.
+[30] L. Lohmander, A. Ostenberg, M. Englund, and H. Roos, “High prevalence
+of knee osteoarthritis, pain, and functional limitations in female soccer
+players twelve years after anterior cruciate ligament injury,” Arthritis
+Rheumatism, vol. 50, no. 10, pp. 3145–3152, 2004.
+[31] R. van Linschoten, M. van Middelkoop, M. Berger, E. Heintjes,
+M. Koopmanschap, J. Verhaar, B. Koes, and S. Bierma-Zeinstra, “The
+PEX study - Exercise therapy for patellofemoral pain syndrome: Design
+of a randomized clinical trial in general practice and sports medicine,”
+BMC Musculoskelet Disord, vol. 7, pp. 31–37, 2006.
+[32] M. Boling, L. Bolgla, C. Mattacola, T. Uhl, and R. Hosey, “Outcomes of a weight-bearing rehabilitation program for patients diagnosed
+with patellofemoral pain syndrome,” Arch. Phys. Med. Rehab., vol. 87,
+pp. 1428–1435, 2006.
+[33] A. Natri, P. Kannus, and M. Jarvinen, “Which factors predict the longterm
+outcome in chronic patellofemoral pain syndrome? A 7-yr prospective
+follow-up study,” Med. Sci. Sports Exercise, vol. 30, pp. 1572–1577,
+1998.
+[34] E. Witvrouw, L. Danneels, D. Van Tiggelen, T. Willems, and D. Cambier, “Open versus closed kinetic chain exercises in patellofemoral pain:
+A 5-year prospective randomized study,” Am. J. Sport. Med., vol. 32,
+pp. 1122–1130, 2004.
+[35] J. Peng, N. Zheng, and J. Fan, “Leveraging social supports for improving
+personal expertise on ACL reconstruction and rehabilitation,” IEEE J.
+Biomed. Health Informat., vol. 17, no. 2, pp. 370–380, Mar. 2013.
+[36] C. Fellbaum, WordNet: An Electronic Lexical Database, Boston, MA,
+USA: MIT Press, 1998.
+[37] C. Vens, J. Struyf, L. Schietgat, S. Dzeroski, and H. Blockeel, “Decision
+trees for hierarchical multi-label classification,” Mach. Learning, vol. 73,
+pp. 185–214, 2008.
+[38] L. Schietgat, C. Vens, J. Struyf, H. Blockeel, D. Kocev, and S. Dzeroski,
+“Predicting gene function using hierarchical multi-label decision tree ensembles,” BMC Bioinformatics, vol. 11, no. 2, pp. 1–14, 2010.
+[39] H. Blockeel, L. De Raedt, and J. Ramon, “Top-down induction of clustering trees,” Proc. 15th Int. Conf. Mach. Learning, 1998, pp. 55–63.
+[40] J. Fan, Y. Gao, and H. Luo, “Integrating concept ontology and multi-task
+learning to achieve more effective classifier training for multi-level image
+annotation,” IEEE Trans. Image Process., vol. 17, no. 3, pp. 407–426,
+Mar. 2008.
+[41] J. Fan, X. He, N. Zhou, J. Peng, and R. Jain, “Quantitative characterization
+of semantic gaps for learning complexity estimation and inference model
+selection,” IEEE Trans. Multimedia, vol. 14, no. 5, pp. 1414–1428, Oct.
+2012.
+[42] D.R. Hardoon, S. Szedmak, and J. Shawe-Taylor, “Canonical correlation analysis: An overview with application to learning methods,” Univ.
+London, London, U.K., Tech. Rep. CSD-TR-03-02, 2003.
+[43] T. Evgeniou, C. A. Micchelli, and M. Pontil, “Learning multiple tasks
+with kernel methods”, J. Mach. Learning Res., vol. 6, pp. 615–637,
+2005.
+
+1245
+
+[44] J. Chen and D. Warren, “Cost-sensitive learning of large-scale hierarchical
+classification of commercial products,” in Proc. 22nd ACM Int. Conf. Inf.
+Knowl. Manag., 2013, pp. 1351–1360.
+[45] Z. Xu, M. Kuaner, K. Weinberger, and M. Chen, “Cost-sensitive tree of
+classifiers,” in Proc. Int. Conf. Mach. Learning, 2013, pp. 133–141.
+[46] W. Hu, Y. Liao, and V. R. Vemuri, “Robust anomaly detection using
+support vector machine,” in Proc. Int. Conf. Mach. Learning, 2006, pp.
+282–289.
+[47] C. C. Aggarwal and P. S. Yu, “Outlier detection for high dimensional
+data,” in Proc. ACM SIGMOD Int. Conf. Manag. Data, 2001, pp. 37–46.
+[48] E. Eskin, “Anomaly detection over noisy data using learned probability
+distribution,” in Proc. 17th Int. Conf. Mach. Learning, 2000, pp. 255–262.
+[49] C. Campbell and K. P. Bennett, “A linear programming approach to novelty detection,” in Proc. Annu. Conf. Neural Inf. Process. Syst., 2001, pp.
+395–401.
+[50] A. Chaudhary, A. S. Szalay, and A. W. Moore, “Very fast outlier detection
+in large multidimensional data sets,” in Proc. ACM SIGMOD Workshop
+Res. Issues Data Mining Knowl. Discovery, 2002.
+[51] M. Rohrbach, M. Stark, and B. Schiele, ,” Evaluating knowledge transfer and zero-shot learning in a large-scale setting,” in Proc. IEEE Conf.
+Comput. Vision Pattern Recog., 2011, pp. 1641–1648.
+[52] E. Miller, N. Matsakis, and P. Viola, “Learning from one example through
+shared densities transforms,” in Proc. IEEE Conf. Comput. Vision Pattern
+Recog., 2000, pp. 464–471.
+[53] E. Bart and S. Ullman, “Cross-generalization: Learning novel classes from
+a single example by feature replacement,” in Proc. IEEE Conf. Comput.
+Vision Pattern Recog., 2005, pp. 672–679.
+[54] H. Larochelle, D. Erhan, and Y. Bengio, “Zero-data learning of new tasks,”
+in Proc. 23rd Nat. Conf. Artif. Intell., 2008, pp. 646–651.
+[55] M. Zinkevich, A. Smola, M. Weimer, and H. Li, “Parallelized stochastic
+gradient descent,” Proc. Annu. Conf. Neural Inf. Process. Syst., pp. 2592–
+2603, 2010.
+[56] L. Bottou, “Large-scale machine learning with stochastic gradient descent,” in Proc. 19th Int. Conf. Comput. Statist., 2010, pp. 177–186.
+
+Kuizhi Mei received the Ph.D. degree from Xi’an Jiaotong University, Xi’an,
+China, in 2006.
+He is currently a Professor at Xi’an Jiaotong University. His research interests
+include image analysis, embedded vision computing, and statistical machine
+learning.
+Jinye Peng received the Ph.D. degree from Northwestern Polytechnical University, Xi’an, China, in 2002.
+He is currently a Professor at Northwest University, Xi’an. His research interests include image/video analysis and retrieval, face recognition, and medical
+informatics.
+Ling Gao received the Ph.D. degree from Xi’an Jiaotong University, Xi’an,
+China, in 2005.
+He is a Senior Member of China Computer Federation and Vice Chairman of
+Network and Data Communications (CCF TCCOMM). He is currently a professor at Northwest University, Xi’an, China. His research interests include basic
+theories of computer network, network safety, network traffic and performance
+analysis, embedded Internet services. He has published more than 100 papers
+in international conferences and journals.
+Naiquan (Nigel) Zheng received the Ph.D. degree in biomedical engineering
+from the University of Saskatchewan, Saskatoon, SK, Canada, in 1996.
+He is currently an Associate Professor at the University of North Carolina
+at Charlotte, Charlotte, NC, USA. His research interests include biomechanics,
+3-D motion analysis, sports medicine and orthopedic bioengineering, computer
+modeling of human joints, and locomotion.
+
+Jianping Fan received the Ph.D. degree from the Shanghai Institute of Optics
+and Fine Mechanics, Chinese Academy of Sciences, Shanghai, China, in 1997.
+He is currently a Professor at the University of North Carolina at Charlotte,
+Charlotte, NC, USA. His research interests include automatic image/video analysis, medical/health informatics, statistical machine learning, and large-scale
+visual recognition.
+
+

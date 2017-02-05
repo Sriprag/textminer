@@ -1,0 +1,1136 @@
+638
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Adaptive Control of Bivalirudin in the Cardiac
+Intensive Care Unit
+Qi Zhao, Thomas Edrich, Member, IEEE, and Ioannis Ch. Paschalidis∗ , Fellow, IEEE
+
+Abstract—Bivalirudin is a direct thrombin inhibitor used in the
+cardiac intensive care unit when heparin is contraindicated due
+to heparin-induced thrombocytopenia. Since it is not a commonly
+used drug, clinical experience with its dosing is sparse. In earlier
+work [1], we developed a dynamic system model that accurately
+predicts the effect of bivalirudin given dosage over time and patient
+physiological characteristics. This paper develops adaptive dosage
+controllers that regulate its effect to desired levels. To that end,
+and in the case that bivalirudin model parameters are available,
+we develop a Model Reference Control law. In the case that model
+parameters are unknown, an indirect Model Reference Adaptive
+Control scheme is applied to estimate model parameters first and
+then adapt the controller. Alternatively, direct Model Reference
+Adaptive Control is applied to adapt the controller directly without
+estimating model parameters first. Our algorithms are validated
+using actual patient data from a large hospital in the Boston area.
+Index Terms—Adaptive control, bivalirudin, parameter identification, pharmacokinetics.
+
+I. INTRODUCTION
+HE US health care system is viewed as costly and highly
+inefficient. Among the many reform efforts, the meaningful use of Electronic Health Records is invariably seen as a key
+to improving efficiency. In the hospital, the digitization of data
+from medical devices enables the development of algorithms
+that can automate decision making and facilitate treatment. This
+is exactly the goal of this paper which focuses on automating
+dosage decisions for a particular drug—bivalirudin—used in the
+cardiac Intensive Care Unit (ICU).
+Bivalirudin antagonizes the effect of thrombin in the bloodclotting cascade, thereby preventing complications from blood
+clotting. It is currently FDA-approved for short-term anticoagulation of patients undergoing cardiac catheterization to prevent
+
+T
+
+Manuscript received January 28, 2014; accepted September 24, 2014. Date
+of publication October 13, 2014; date of current version January 16, 2015.
+This work was supported by the NIH/NIGMS under Grant R01-GM093147,
+by the National Science Foundation under Grant CNS-1239021 and Grant IIS1237022, by the ARO under Grant W911NF-11-1-0227 and Grant W911NF12-1-0390, by the ONR under Grant N00014-10-1-0952, and by the STAR
+(Surgical ICU TrAnslational Research) Center at Brigham and Women’s Hospital. Asterisk indicates corresponding author
+Q. Zhao is with the Division of Systems Engineering, Boston University,
+Boston, MA 02215 USA (e-mail: zhaoqi@bu.edu).
+T. Edrich is with the Department of Anesthesiology, Perioperative Medicine,
+and General Intensive Care Medicine, Salzburg General Hospital, Salzburg,
+Austria (e-mail: tedrich@partners.org).
+∗ I. C. Paschalidis is with the Department of Electrical & Computer Engineering, Division of Systems Engineering, and also with the Department of
+Biomedical Engineering, Boston University, Boston, MA 02215 USA (e-mail:
+yannisp@bu.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2362761
+
+complications due to undesired blood clots [2]–[5]. Bivalirudin
+is administered to patients who have a contraindication to heparin. It is infused continuously and is eliminated via the kidney
+and by plasma protease-metabolism. It affects the coagulation
+parameters Partial Thromboplastin Time (PTT) and the International Normalized Ratio in a dose-dependent fashion. The PTT
+value is measured in seconds, and it will be used as the output
+one wishes to regulate within a specific range.
+Although not commonly used overall, bivalirudin is finding
+increasing use in the ICU. Residents adjusting the infusion rate
+of bivalirudin may have limited experience, thus, risking overor underdosing. Currently, the drug is regulated empirically or
+with a very simple nomogram [6]. Adequate anticoagulation is
+necessary to avoid the risk of clot formation, but overshooting increases the risk of bleeding. Complicating matters, there
+is considerable inter- and intraindividual variability in the response to bivalirudin. Motivated by these challenges, in earlier work [1], [7], [8], we developed methods for predicting
+future PTT values given past infusion rates and the patient’s
+renal and liver function characteristics. Related work has used
+pharmacokinetic-pharmacodynamic models to model the effect
+of various drugs, see, e.g., [9] and [10]. One of our methods
+in [1] proposes an explicit dynamic system model which was
+shown to produce quite accurate results when tested against
+actual patient data.
+In this paper, we pursue what we view as the natural next
+step. Leveraging the dynamic system model from [1] and [8],
+we seek to synthesize controllers that can regulate the infusion
+rate to drive PTT within a desirable range. Other methodologies such as expert systems have also been used for controlling
+some drugs [11]. We develop two types of control laws. First,
+assuming that a dynamic system model that can predict PTT
+given dosage is completely characterized, we develop a Model
+Reference Control (MRC) law. Model parameters, however, may
+be viewed as not known with certainty, which is due to modeling errors and inter- or intraindividual variability. To overcome
+this problem, we develop an indirect Model Reference Adaptive Control (MRAC) law that identifies the model parameters
+first and then adapts the controller in real time. Furthermore,
+we develop a direct MRAC law that adapts the controller directly without estimating model parameters first, which is more
+efficient. For each case, we present analytical and numerical
+evidence showing that the controllers do drive PTT to the desirable range. Our numerical validation is in fact done using actual
+patient data from the Brigham and Women’s Hospital—a large
+hospital in the Boston area.
+The remainder of this paper is organized as follows. Section II
+presents the dynamic system model that predicts the effect of
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+ZHAO et al.: ADAPTIVE CONTROL OF BIVALIRUDIN IN THE CARDIAC INTENSIVE CARE UNIT
+
+639
+
+1) Bival rate (mg/kg/h): the weight-based bivalirudin injection rate.
+2) GFR (mL/min): the glomerular filtration rate.
+3) SGOT (Units/L): the Serum Glutamic Oxaloacetic
+Transaminase.
+4) SGPT (Units/L): the Serum Glutamic Pyruvic Transaminase.
+5) TBILI (mg/dL): total bilirubin.
+6) ALB (g/L): Albumin.
+7) PLT (K/mcL): Platelet count.
+8) HCT (%): Hematocrit.
+9) FIB (mg/dL): Fibrinogen.
+More detailed description of these physiological variables can
+be found in [1].
+The model of Fig. 1 has a single output—the PTT value—
+which is denoted by y(t). There is also a single state variable
+denoted by x(t). Overall there are 12 unknown parameters, 11
+of which correspond to the various gains and are denoted by
+βi , i = 1, . . . , 11. The initial condition of the system is the 12th
+unknown parameter and is denoted by x(0) (β12 ). The system
+dynamics are
+Fig. 1.
+
+MISO dynamic system model.
+
+ẋ(t) = Ax(t) + Bu(t)
+y(t) = Cx(t) + Du(t)
+
+bivalirudin given dosage and patient physiological information.
+Section III presents the proposed control schemes; Section III-A
+develops the MRC law, whereas Section III-B develops the indirect MRAC law based on the patient model but with unknown
+parameters. Section III-C develops the direct MRAC, which is
+more efficient in adapting the controller. Finally, concluding
+remarks appear in Section IV.
+Notation: We use bold letters to denote vectors and matrices;
+typically, vectors are denoted by lower case letters and matrices
+by upper case letters. Vectors are assumed to be column vectors
+unless explicitly stated otherwise. For economy of space, we
+write x = (x1 , . . . , xn ) for the column vector x ∈ Rn . In addition, we use lower case letters to denote time domain functions
+(e.g., f (t)) and upper case letters to denote Laplace transforms
+(e.g., F (s)).
+
+II. DYNAMIC SYSTEM MODEL FORMULATION
+A. Model
+This section presents a multiple input single output (MISO)
+dynamic system model that attempts to explicitly account for
+the way bivalirudin affects PTT in patients. The model was
+developed and validated in [1]; it is presented here briefly to
+establish the notation and to set the stage for the control schemes
+of Section III.
+The key quantity (response) we would like to predict is the
+PTT at each time t. The dynamic model structure is shown in
+Fig 1. There are nine inputs which are denoted by ui (t), i =
+1, . . . , 9 and correspond to important physiological variables
+used as predictors. More specifically, inputs u1 (t), . . . , u9 (t)
+respectively correspond to
+
+(1)
+
+where A = −β3 , B = [β1 0 · · · 0], C = β2 , and D =
+[0 β4 . . . β11 ]. Clearly, this is a linear time invariant (LTI) dynamic system. The challenge is that we do not know the model
+parameters, and we only have nonuniform sampled inputs u(t)
+and clinical observation values y(t) at certain times t for each
+patient. It is therefore necessary to translate the continuous-time
+system dynamics to discrete-time dynamics before proceeding
+with parameter identification.
+B. Parameter Identification
+Given the highly nonuniform sampled data, two methods were
+introduced to identify model parameters in [1]. First, after converting to discrete-time dynamics, we formulated the parameter
+identification problem as the nonlinear optimization problem of
+minimizing some metric of fitness to a training set of sampled
+data.
+The dataset we used comes from the Surgical ICU Translational Research (STAR) Center at Brigham and Women’s Hospital in Boston. It consists of records for 233 patients including
+the predictors and the output PTT value sampled (nonuniformly)
+over time. We randomly split our dataset into a training set corresponding to 2/3 of the total (155 patients) and a test set corresponding to 1/3 of the total (78 patients). We use the former to
+identify the unknown system parameters and the latter to evaluate the performance of the various control laws we will develop
+in subsequent sections.
+More specifically, let us use a subscript j to denote the model
+primitives, i.e., the state xj (t), output yj (t), and inputs uj (t)
+for each patient j = 1, . . . , N , where N denotes the number
+of patients in the training set. To distinguish between measurements of yj (t) and predictions based on the system dynamics,
+we use yj (t) for the former and ŷj (t) for the latter. Suppose for
+
+640
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Fig. 3.
+Fig. 2. In this dynamic model, the bivalirudin infusion rate u(t) is the only
+controllable input. d(t) is the linear combination of the rest of the inputs.
+
+T
+
+each patient j, we have Tj measurements at times t1j , . . . , tj j ,
+where we adopt the convention t0j = 0 for all j. We can then
+formulate a nonlinear optimization problem of minimizing the
+least-square error
+t
+
+Tj
+
+j
+N 
+
+
+(ŷj (t) − yj (t))2
+
+j =1 t=t 1j
+
+subject to the discretized version of the system dynamics. The
+decision variables are x(0)(= x(t0j ) for all j) and the parameters
+βi , i = 1, . . . , 11. One can easily substitute the expressions from
+the constraints (the system dynamics) into the objective function and obtain a nonlinear optimization problem with no constraints other than some bounds on the decision variables. This
+problem, however, is nonconvex. We applied a Quasi-Newton
+method (BFGS) [12] to obtain optimal values for the model parameters. This yielded a population-wide model in the sense that
+its parameters produced the best fit with the sampled data. Furthermore, and to accommodate variability across patients, we
+used a recursive estimation method (Extended Kalman Filter)
+to estimate the parameter values that best fit a given individual
+patient in real time.
+III. BIVALIRUDIN CONTROL SCHEME
+We now turn to our primary goal of devising a proper controller to keep the PTT value in the range of 60–80 seconds (s).
+According to clinical experience, this range is safe and optimal
+for cardiac surgery patients. For the system we have defined
+in (1), note that the only controllable part is the bivalirudin infusion rate. The rest of the inputs are indicators of patients’
+liver (SGOT, SGPT, TBILI, ALB) and renal function (GFR)
+and include some metrics related to the blood (PLT, HCT, FIB).
+Arguably, these variables are not immediately affected by the
+drug but change over a longer time scale than the one we focus on for controlling PTT through the infusion of bivalirudin.
+Therefore, we consider them as noncontrollable and aggregate
+them in a variable d(t) which is their linear combination with
+the appropriate gains β4 , . . . , β11 (see Fig. 2).
+Ideally, we want to design a reference model which can generate sufficient but safe PTT values driven by a reference input
+signal. Based on the output of the reference model, we want to
+drive our system to perform similarly to the reference model
+
+MRAC structure.
+
+by a proper control signal. Motivated by this, we adopt the socalled continuous-time MRAC scheme. Fig. 3 shows the general
+structure of this control law. Wm (s) denotes an ideal reference
+transfer function that can generate the desired reference output signal. The controllable system is represented by Gp (s, θ ∗p ),
+where θ ∗p is a parameter vector. The objective is to design a
+controller C(s, θ ∗e ), parameterized by θ ∗e , to generate the proper
+control signals that can drive the controllable system to track
+the reference output values.
+Our first controller is an MRC law that is designed assuming
+that the system parameters θ ∗p are known.
+A. Model Reference Control
+By observing the system in Fig. 2, we can rewrite the dynamics of a particular patient as
+ẋp (t) = −β3 xp (t) + β1 u(t)
+
+(2)
+
+yp (t) = β2 xp (t) + d(t)
+
+(3)
+
+where we use u(t), xp (t), and yp (t) to denote the input signal
+(bivalirudin infusion rate), the state variable,and the output
+signal (PTT), respectively, and where d(t) = 9i=2 βi+2 ui (t).
+Clinically, since the renal/liver functions and blood metrics of
+patients do not vary much within a certain period, we do not
+need to measure these physiological variables continuously, and
+we assume that they are constant within the sample interval. By
+observing the clinical data, we find that d(t) is a step-wise signal.
+˙
+Therefore, we assume that the first-order derivative of d(t) (d(t))
+is 0 within the sample interval. By taking the derivative on both
+sides of (3), using (2) to substitute for ẋp (t), and using (3) to
+eliminate ẋp (t), we obtain
+ẏp (t) = −β3 yp (t) + β1 β2 u(t) + β3 d(t).
+
+(4)
+
+In the frequency domain, we have
+Yp (s) =
+
+β1 β2 U (s) + β3 D(s)
+s + β3
+
+where the system output yp (t) (Yp (s)), the input u(t) (U (s)),
+and d(t) (D(s)) can be observed. Hence, in our setting, the
+system transfer function is Gp (s, θ ∗p ) = Yp (s)/U (s), and it is
+parameterized by β1 , β2 , and β3 . In this case, θ ∗p = (β1 , β2 , β3 ).
+Next, we design a reference transfer function Wm (s). We
+take Wm (s) to be a first-order LTI system driven by a reference
+signal r(t):
+Wm (s) =
+
+bm
+Ym (s)
+=
+R(s)
+s + am
+
+ZHAO et al.: ADAPTIVE CONTROL OF BIVALIRUDIN IN THE CARDIAC INTENSIVE CARE UNIT
+
+which is equivalent to
+ẏm (t) = −am ym (t) + bm r(t),
+Ym (s) =
+
+or
+
+(5)
+
+bm
+R(s)
+s + am
+
+for any bounded piecewise continuous signal r(t), where am >
+0, bm = 0 are known. We assume that am , bm , and r(t) are
+chosen so that ym (t) represents the desired output signal.
+Before introducing the MRC law, we start with two definitions
+and a theorem (proven in the Appendix).
+Definition 1: A state xe is said to be an equilibrium state
+of the system ẋ = f (t, x), x(t0 ) = x0 , where x ∈ Rn , f :
+T × B(r) → Rn , T = [t0 , ∞), B(r) = {x ∈ Rn | x < r},
+if f (t, xe ) ≡ 0 ∀t ≥ t0 . We assume that f is such that for every
+x0 ∈ B(r) and every t0 ∈ [0, ∞), the system possesses one and
+only one solution x(t; t0 , x0 ).
+Definition 2: A equilibrium state xe is exponentially stable if
+there exits an α > 0, and for every  > 0 there exists δ() > 0,
+such that x(t; t0 , x0 ) − xe  ≤ e−α (t−t 0 ) , ∀t ≥ t0 whenever
+x0 − xe  < δ().
+Theorem III.1: If we choose am > 0, bm = 0, and r(t) =
+Cr (constant), the reference model equilibrium state ym e =
+bm C r
+a m is exponentially stable.
+We will now design a proper controller u(t) such that all
+signals in the closed-loop system are bounded, and the system
+output yp (t) tracks the reference model output ym (t). The control law should be chosen so that the closed-loop plant transfer
+function from the input r(t) to the output yp (t) is equal to the
+reference model transfer function. Motivated by this, we propose the control law
+C(s, θ ∗e ) = U (s) = −k1∗ YP (s) + k2∗ R(s) − k3∗ D(s)
+or equivalently, in the time domain
+u∗ (t) = −k1∗ yp (t) + k2∗ r(t) − k3∗ d(t)
+
+(6)
+
+where k1∗ , k2∗ , k3∗ are controller coefficients chosen so that
+bm
+Yp (s)
+Ym (s)
+=
+.
+=
+R(s)
+s + am
+R(s)
+
+(7)
+
+Eq. (7) is satisfied, if we select
+k1∗ = −
+
+1
+(β3 − am ),
+β1 β2
+
+MRC control signal becomes max{0, u(t)} with u(t) defined
+as in (8).
+We test the performance of the MRC on the dataset we described in Section II-B. We only use the test set (1/3 of the
+total) for testing since the remaining training set was used for
+model parameter identification. As mentioned previously, d(t)
+(the linear combination of physiological variables at time t) is
+a step-wise signal over time. By applying the parameter identification method outlined in Section II-B, we obtained both
+population-wide parameter values and individual model parameter values.
+We tested the MRC control law on a subset of patients, and
+the results were qualitatively the same in each case. We report
+results from a randomly selected patient who has identified
+model parameters and available input data. To that end, we
+set the reference parameters as am = 10, bm = 700, r(t) = 1.
+Choosing these values keeps the reference PTT value to be 70s,
+which is in the middle of the desirable range. We note that these
+parameter values are simply an example, and physicians have
+the freedom of selecting alternative values depending on the
+stable value and response time they wish to achieve.
+The effect of the MRC law (8) on this randomly selected
+patient is shown in Fig. 4. It can be seen that driven by inputs
+generated by the MRC law, the system output quickly converges to the reference output (top figure). The tracking error
+(e(t) = yp (t) − ym (t)) quickly converges to zero and remains
+at zero (second figure). We also obtain the control signal which
+corresponds to the bivalirudin infusion rate (third figure). The
+MRC control law we introduced is robust to the uncontrollable
+signal d(t) (bottom figure). Although d(t) changes over time,
+the control signal can adapt and drive the system to track the
+reference signal closely.
+We next evaluate the performance of the MRC scheme on
+all patients in the test set we described earlier. For performance
+evaluation, we use three performance metrics. The first one is the
+root mean square error (RMSE), which for patient i is defined
+as
+
+
+T
+t i
+ 
+1 i
+i (t ))2
+(ypi (ti ) − ym
+RMSEi = 
+i
+Ti
+1
+t=t i
+
+k2∗ =
+
+bm
+,
+β1 β2
+
+k3∗ =
+
+β3
+β1 β2
+
+which yields
+u(t) =
+
+641
+
+bm
+β3
+1
+(β3 − am )yp (t) +
+r(t) −
+d(t)
+β1 β2
+β1 β2
+β1 β2
+
+(8)
+
+provided of course that β1 , β2 , β3 = 0, i.e., the system is controllable. Such a transfer function matching guarantees that yp (t) =
+ym (t) ∀t ≥ t0 , when yp (t0 ) = ym (t0 ) or |yp (t) − ym (t)| → 0
+exponentially fast when ym (t0 ) = yp (t0 ) for any bounded reference signal r(t). We also note that, depending on the parameters
+of some patients, this law may yield a negative control signal
+which cannot be implemented in practice (corresponds to “extraction of bivalirudin” from the patient). In such a case, we need
+to set a lower threshold of zero for the control signal. The final
+
+where t1i , . . . , tTi i are the time instants at which we adapt
+the controller for patient i. We define RMSE for the whole
+population ofpatients as the average per patient RMSE, i.e.,
+t
+RMSE= N1t N
+i=1 RMSEi , where Nt is the number of patients
+in the test set. We also define σE i to be the standard deviation
+i
+(t), t = t1i , . . . , tTi i , of patient
+of the errors ei (t) = ypi (t) − ym
+i. Similarly, we define
+σEt as the average standard deviation of
+σE i ’s, i.e., σE = N1t N
+i=1 σE i .
+To capture a notion of “relative” error, we also compute the
+normalized root mean square error (NRMSE) defined for each
+patient i as
+
+
+T
+t i
+ 
+1 i
+i (t ))/y i (t )]2 .
+NRMSEi = 
+[(ypi (ti ) − ym
+i
+m i
+Ti
+1
+t=t i
+
+642
+
+Fig. 4.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Effect of the MRC law derived for and applied to one randomly selected patient.
+
+TABLE I
+PERFORMANCE OF THE MRC (TEST SET)
+value
+RMSE
+σE
+NRMSE
+σN E
+RP
+
+0.84
+0.82
+1.20%
+1.17%
+0%
+
+As with the RMSE, we define the population-wide NRMSE as
+the average of NRMSEi ’s over the patients. Similarly, we also
+define σNEi as the standard deviation of the normalized tracking
+i
+i
+(t))/ym
+(t) for patient i, and σNE as
+errors ei (t) = (ypi (t) − ym
+the average of σNEi ’s over the patients.
+Furthermore, to illustrate the percentage of PTT outliers
+which are outside clinically safe bounds, i.e., not in the interval [ym (t) − 10, ym (t) + 10] during the transient and not in
+the interval [60s, 80s] in steady state, the Risk Percentage (RP)
+for patient i is defined as
+
+RPi =
+
+Nirisk
+Ti
+
+where Nirisk is the number of time instants t1i , . . . , tTi i at which
+the PTT value of patient i is outside the safe bounds. Then,
+RP is defined as the average of RPi ’s over patients. We note
+that this metric is from a clinical perspective the most important
+in assessing the efficacy of our methods. Table I reports the
+performance of the MRC law for the patients in the test set.
+In summary, in the case that model parameters are known, the
+MRC law tracks the reference signal quite well as demonstrated
+by the low RMSE and NRMSE. The RP value is zero, which
+completely assures clinical safety. The corresponding standard
+deviations for RMSE and NRMSE are small as well.
+
+B. Indirect MRAC
+As we mentioned in Section there is significant patient variability in the response to bivalirudin. We have already established [1], that adapting model parameters to individual patients
+leads to improved performance. This suggests that the model
+structure is largely accurate but model parameters of an individual patient can deviate from population-wide parameter values.
+To better assess the effect of this variability, we test the performance of the MRC law derived using parameter values of
+a specific patient when applied to another patient with different model parameters. Fig. 5 plots the MRC law performance
+for such a case. The top figure shows that there exists a large
+gap between the reference output signal and the system output
+signal. In addition, the system output is outside the safe range.
+We also tested the MRC law derived using parameter values
+of a specific patient against all patients in the test set. Table II
+reports the results. We note that RMSE, NRMSE, and RP are
+substantially higher (and clinically unacceptable) than those in
+Table I. The difference of course is due to the fact the results of
+Table I are obtained when using the MRC law with the correct
+model parameters for each patient, whereas Table II results
+apply the MRC law with parameters of some patient to another
+patient. The small values of σE and σNE in Table II indicate
+that performance of the MRC law when used with the wrong
+parameters is consistently poor. This situation should obviously
+be avoided because overdosing or underdosing is very dangerous
+for the patients.
+To address this important issue, we next develop a method
+that first estimates the individual model parameters and then
+adopts the MRC law we introduced using a certainty equivalence
+principle [13]. Such a control scheme is called indirect MRAC
+law.
+By adding and subtracting −am yp (t) to (4), we can obtain
+the State-Space Parametric Model:
+ẏp (t) = −am yp (t) + (am − β3 )yp (t) + β1 β2 u(t) + β3 d(t).
+(9)
+
+ZHAO et al.: ADAPTIVE CONTROL OF BIVALIRUDIN IN THE CARDIAC INTENSIVE CARE UNIT
+
+Fig. 5.
+
+643
+
+MRC law derived for one patient but applied to another patient.
+
+TABLE II
+PERFORMANCE OF THE INACCURATE MRC (TEST SET)
+
+In this problem, we will estimate the product of β1 (t) and β2 (t)
+instead of estimating them separately. The model estimation
+error is e(t) = yp (t) − yp (t) which implies:
+
+value
+RMSE
+σE
+NRMSE
+σN E
+RP
+
+ė(t) = y˙p (t) − y˙ p (t)
+
+9.93
+3.98
+14.18%
+5.68%
+61.60%
+
+= −am e(t) + β̃3 (t)(yp (t) − d(t)) − β̃12 (t)u(t)
+where
+β̃3 (t) = β3 (t) − β3 ,
+
+Based on (9), the series-parallel estimation model [14] is given
+by
+y˙ p (t) = −am yp (t) + (am − β3 (t))yp (t)
++β1 (t)β2 (t)u(t) + β3 (t)d(t)
+
+(10)
+
+where yp (t) is an estimated value of yp (t), and β1 (t), β2 (t),
+β3 (t) are estimates of the system parameters β1 , β2 , and β3 at
+time t. Note that in (10), yp (t) is treated as an input available
+for measurement. By using the certainty equivalence principle
+[cf., (8)], we take the control scheme structure to be
+u(t) = −k1 (t)yp (t) + k2 (t)r(t) − k3 (t)d(t)
+where
+am − β3 (t)
+,
+k1 (t) =
+β1 (t)β2 (t)
+k3 (t) =
+
+β3 (t)
+.
+β1 (t)β2 (t)
+
+(12)
+
+(11)
+
+β̃12 (t) = β1 (t)β2 (t) − β1 β2 . (13)
+
+We now choose a Lyapunov-like function
+V (t) =
+
+1
+1
+1
+e(t)2 +
+β̃3 (t)2 +
+β̃12 (t)2
+2
+2γ1
+2γ2
+
+(14)
+
+which, with γ1 , γ2 > 0, is nonnegative for all t. By taking the
+derivative on both sides of (14), we obtain
+1 ˜
+1
+˙
+˙
+β3 (t)β˜3 (t) + β̃12 (t)β̃ 12 (t)
+γ1
+γ2
+
+	
+1 ˜˙
+2
+˜
+= −am (e(t)) + β3 (t) e(t)(yp (t) − d(t)) + β3 (t)
+γ1
+
+	
+1 ˙
++β̃12 (t)
+(15)
+β̃ (t) − e(t)u(t) .
+γ2 12
+
+V̇ (t) = e(t)ė(t) +
+
+Then, choosing
+bm
+k2 (t) =
+
+β1 (t)β2 (t)
+
+˙
+β˜3 (t) = −γ1 (yp (t) − d(t))e(t)
+
+and
+
+˙
+β̃ 12 (t) = γ2 e(t)u(t)
+
+leads to V̇ (t) = −am e(t)2 ≤ 0. In addition, since β1 β2 and
+˙
+˙
+˙
+β3 are constants, (13) implies β̃ 3 (t) = β3 (t) and β̃ 12 (t) =
+
+644
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+d(β1 (t)β2 (t))/dt. It follows that we could estimate the model
+parameters by
+˙
+β3 (t + Δt) = β3 (t) + β3 (t)Δt
+d(β1 (t)β2 (t))
+Δt
+(16)
+β12 (t + Δt) = β12 (t) +
+dt
+for small Δt. Then, we can adapt the controller coefficients
+recursively and control the system in real time by using
+[cf., (11)]
+am − β3 (t)
+bm
+yp (t) +
+r(t) −
+
+
+β12 (t)
+β12 (t)
+
+β3 (t)
+d(t).
+β12 (t)
+(17)
+Similarly, as we did earlier for the MRC law, we will use the
+control max{0, u∗ (t)} to avoid negative values.
+Theorem III.2: Under the control law (17), the tracking error
+converges to 0 as t → ∞.
+Proof: By choosing such control law, V̇ (t) = −am e(t)2 ≤
+0, ∀t > t0 . Since V (t) is bounded from below and nonincreasing,
+
+ ∞ it converges to a constant. This implies that
+−am t 0 e2 (t)dt = V (∞) − V (t0 ) is bounded, which in turn
+implies that e(t) → 0 as t → ∞ according to Barbalat’s lemma
+˙
+˙
+
+[15]. It also follows that β̃ 3 (t), β̃ 12 (t) → 0 as t → ∞.
+One key flaw of the adaptive control law (17) is that the
+boundness of control signal u(t) cannot be established unless
+we show that k1 (t), k2 (t), k3 (t) are all bounded. However, such
+a control law may generate estimates of β1 β2 arbitrarily close
+or even equal to zero, which leads to the uncontrollability of the
+estimated model and unboundness of u(t). To avoid this issue,
+we propose a modification to the control law (17). One method
+is to modify the adaptive law for β12 (t) so that adaptation takes
+place in a subset of R which does not include the zero element.
+We need to use the a priori knowledge of β1 ≥ β1lb > 0 and
+β2 ≥ β2lb > 0 to do the projection:
+u∗ (t) = −
+
+˙
+β̃ 3 (t) = −γ1 (yp (t) − d(t))e(t)
+⎧
+⎪
+γ2 e(t)u(t), if |β̃12 (t)| > β1lb β2lb
+⎪
+⎪
+⎪
+⎨
+or |β̃12 (t)| = β1lb β2lb
+˙
+(18)
+β̃ 12 (t) =
+⎪
+and e(t)u(t)sgn(β̃12 (t)) ≥ 0
+⎪
+⎪
+⎪
+⎩
+0,
+otherwise.
+After modifying the adaptive control law, the time derivative of
+the Lyapunov function becomes:
+⎧
+−am (e(t))2 ,
+if |β̃12 (t)| > β1lb β2lb
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+or |β̃12 (t)| = β1lb β2lb
+⎪
+⎪
+⎪
+⎨
+and e(t)u(t)sgn(β̃12 ) ≥ 0
+V̇ (t) =
+2
+⎪ −am (e(t))
+⎪
+⎪
+⎪
+⎪
+⎪
++β̃12 (t)e(t)u(t), if |β̃12 (t)| = β1lb β2lb
+⎪
+⎪
+⎪
+⎩
+and e(t)u(t)sgn(β̃12 (t)) < 0.
+Therefore, V̇ (t) ≤ −am e2 (t) ≤ 0 ∀t ≥ t0 .
+Using a similar argument as before, it can be shown that by
+using this modified parameter estimation law (18), the tracking
+
+error converges to zero driven by a bounded control signal. Additionally, we have shown (cf., Theorem III.1) that the reference
+output response is exponentially stable, and it follows that the
+system output can be driven to the stable state exponentially
+fast.
+We next test the indirect MRAC law using the patient data.
+The parameter values of the reference model are the same as in
+Section III-A. We choose the population-wide parameter values
+β3∗ = 7.9 × 10−4 and β1∗ β2∗ = 4.22 as initial values of β3 (t) and
+β12 (t), respectively. The MRAC adapts based on these estimates
+in real time. We also set γ1 = γ2 = 5 × 10−4 . The trajectory of
+the system under the indirect MRAC is shown in Fig. 6.
+Fig. 6 indicates that the system output quickly converges to
+the reference output, and it remains within the desired range
+(top figure). The tracking error oscillates around zero (middle
+figure), but it is not as smooth as in Fig. 4. This is due to the fact
+that the indirect MRAC takes some time to estimate the system
+parameters first and then adapts the controller coefficients. Similarly, we can also obtain the bivalirudin infusion rate (bottom
+figure). Notice that although d(t) changes over time, the control
+signal can drive the system to track the reference output signal
+well. The performance of indirect MRAC for all patients in the
+test set is reported in Table III.
+We note that in this case, the values of our three performance
+metrics are all higher than those in the Table I. This is again
+explained by the fact that adaptation of the indirect MRAC law
+is not very fast due to the parameter estimation step. Yet, RMSE,
+NRMSE, and RP values are now significantly less than those in
+Table II, and they could be considered acceptable in a clinical
+setting.
+C. Direct MRAC
+In this section, we focus on designing the direct MRAC without estimating the model parameters first. Because the individual
+model parameters are unknown, we cannot apply the MRC law
+directly. Based on the structure of MRC law, we propose an
+adaptive control law with similar structure:
+k2 (t)r(t) − 
+k3 (t)d(t)
+u(t) = −
+k1 (t)yp (t) + 
+where 
+k1 (t), 
+k2 (t), and 
+k3 (t) are the estimates of MRC controller coefficients k1∗ , k2∗ , and k3∗ at time t, respectively. We will
+devise a control law that estimates these coefficients directly.
+Consider the error derivative:
+ė(t) = ẏp (t) − ẏm (t)
+= −am e(t) + β1 β2 [−k̃1 (t)yp (t)
++k̃2 (t)r(t) − k̃3 (t)d(t)]
+˙
+ki (t) − ki∗ , i = 1, 2, 3. It follows that 
+k i (t) =
+where k̃i (t) = 
+˙
+k̃ i (t), i = 1, 2, 3.
+To design the controller, consider the Lyapunov-like function:
+
+	
+k̃2 (t)2
+k̃3 (t)2
+e(t)2
+k̃1 (t)2
++ β1 β2
++
++
+V (t) =
+.
+2
+2γ1
+2γ2
+2γ3
+
+ZHAO et al.: ADAPTIVE CONTROL OF BIVALIRUDIN IN THE CARDIAC INTENSIVE CARE UNIT
+
+Fig. 6.
+
+645
+
+Performance of the indirect MRAC law.
+
+TABLE III
+PERFORMANCE OF THE INDIRECT MRAC (TEST SET)
+
+By taking the derivative, we obtain
+V̇ (t)
+
+
+	
+˙
+˙
+˙
+k̃1 (t)k̃ 1 (t) k̃2 (t)k̃ 2 (t) k̃3 (t)k̃ 3 (t)
++
++
+γ1
+γ2
+γ3
+
+k̃1 (t) ˙
+= −am e2 (t) + β1 β2
+(k̃ 1 (t) − e(t)γ1 yp (t))
+γ1
+	
+k̃3 (t) ˙
+k̃2 (t) ˙
+(k̃ 2 (t) + e(t)γ2 r(t)) +
+(k̃ 3 (t) − e(t)γ3 d(t))
++
+γ2
+γ3
+= ė(t)e(t) + β1 β2
+
+where we have the a priori knowledge that β1 β2 > 0.
+Choosing
+˙
+k̃ 1 (t) = γ1 e(t)yp (t)
+˙
+k̃ 2 (t) = −γ2 e(t)r(t)
+˙
+k̃ 3 (t) = γ3 e(t)d(t)
+leads to V̇ (t) = −am e(t)2 ≤ 0. Furthermore, the controller coefficients can be adapted by
+˙
+
+ki (t) + 
+k i (t)Δt,
+ki (t + Δt) = 
+
+i = 1, 2, 3
+
+and our direct MRAC controller becomes
+u(t) = −
+k1 (t)yp (t) + 
+k2 (t)r(t) − 
+k3 (t)d(t).
+
+(19)
+
+As with the previous two controllers, we will use max{0, u(t)}
+to avoid negative controls.
+We establish the following result; we omit the proof because
+it is similar to the proof of Theorem III.2.
+Theorem III.3: Under the control law (19), the tracking error
+converges to 0 as t → ∞.
+
+value
+RMSE
+σE
+NRMSE
+σN E
+RP
+
+5.52
+2.00
+7.88%
+2.86%
+2.30%
+
+We know that the reference model output is exponentially
+stable, and the tracking error converges to zero as t increases,
+which establishes that the system output can be driven to track
+the reference output well. To avoid overdosing and underdosing
+risks that may occur in the time it takes the MRAC to converge
+to the appropriate controller parameters, we can use as initial
+estimates of these coefficients the MRC coefficients, namely
+
+k2 (0) = 165.75, and 
+k3 (0) = 1.87 × 10−4 , obk1 (0) = 2.37, 
+tained from a system model parametrized with population-wide
+parameters.
+We applied such a direct MRAC law to the same patient
+used for generating Fig. 6. The result is shown in Fig. 7 (using γ1 = γ2 = γ3 = 0.001). We note that driven by the direct
+MRAC law, the system output quickly converges to the reference
+output. Although the system output oscillates around the reference signal, it remains within the desired range (top figure). The
+tracking error also converges to zero (middle figure). We also
+plot the bivalirudin infusion rate (bottom figure). Compared to
+the indirect MRAC, the direct MRAC has similar performance
+on controlling the PTT. However, the direct MRAC avoids parameter estimation and estimates controller parameters directly.
+
+646
+
+Fig. 7.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Performance of direct MRAC law.
+
+TABLE IV
+PERFORMANCE OF THE DIRECT MRAC (TEST SET)
+value
+RMSE
+σE
+NRMSE
+σN E
+RP
+
+0.80
+0.80
+1.15%
+1.14%
+0.09%
+
+Table IV reports the overall performance of the direct MRAC
+for the patients in the test set. Compared to the results from the
+indirect MRAC, the direct MRAC achieves lower values for all
+performance metrics, i.e., RMSE, NRMSE, σE , σNE , and RP.
+Notice the rather significant decrease of the RP value, which,
+as we argued, is clinically a top priority. This table validates the
+fact that the direct MRAC is a more efficient and safer control
+scheme than the indirect MRAC.
+IV. CONCLUSION
+Based on a specific dynamic system model of bivalirudin
+acting in cardiac surgical patients, we developed two methods
+for synthesizing a controller to regulate the bivalirudin infusion
+rate and induce a PTT within a desirable range. The first method
+assumes that the model parameters are available and develops
+a control law that tracks a physician specified reference output
+signal. Our second method considers patients for which past
+clinical records are sparse and accurate model parameters are
+not readily available. It develops an indirect control scheme
+(indirect MRAC) that first estimates the model parameters and
+then adapts the corresponding controller based on these esti-
+
+mates. Alternatively, a direct control scheme (direct MRAC)
+that adapts the controller without estimating the model parameters first is also developed. Testing of these schemes against
+actual patient data from a hospital shows that the direct MRAC
+is more efficient than the indirect version.
+The methods we developed can be seen as key steps toward
+automation of dosage decisions in a hospital setting, which can
+help eliminate errors and neutralize the inexperience of residents
+who are currently responsible for these decisions.
+APPENDIX
+The solution to (5) is
+
+
+t
+
+ym (t) = Φ(t, t0 )ym (t0 ) +
+
+Φ(t, τ )bm r(τ )dτ
+t0
+
+where Φ(t, τ ) = e−a m (t−τ ) is the state transition function in this
+problem. Since r(t) = Cr , which is a constant, the solution to
+(5) can be written as
+
+
+bm Cr
+bm Cr
+ym (t; t0 , ym (t0 )) = e−a m (t−t 0 ) ym (t0 ) −
+.
++
+am
+am
+(20)
+Equation (20) indicates that ym (t; t0 , ym (t0 )) → b ma mC r which
+is a constant, as t → ∞. In addition, using Definition 1, it can
+be easily verified that ym e = b ma mC r is the equilibrium state of
+our reference system. Furthermore, |ym (t; t0 , ym (t0 )) − ym e |=
+|e−a m (t−t 0 ) (ym (t0 ) − ym e )|= |ym (t0 ) − ym e | e−a m (t−t 0 ) ∀t ≥
+t0 . Therefore, by Definition 2, it follows that the reference model
+equilibrium state ym e is exponentially stable.
+
+ZHAO et al.: ADAPTIVE CONTROL OF BIVALIRUDIN IN THE CARDIAC INTENSIVE CARE UNIT
+
+REFERENCES
+[1] Q. Zhao, T. Edrich, and I. C. Paschalidis, “Predicting and evaluating the
+effect of bivalirudin in cardiac surgical patients,” IEEE Trans. Biomed.
+Eng., vol. 61, no. 2, pp. 435–443, Jan. 2014.
+[2] J. Bittl, B. Chaitman, F. Feit, W. Kimball, and E. Topol, “Bivalirudin
+versus heparin during coronary angioplasty for unstable or postinfarction
+angina: Final report reanalysis of the bivalirudin angioplasty study,” Amer.
+Heart J., vol. 142, no. 6, pp. 952–959, 2001.
+[3] A. Lincoff, J. Bittl, R. Harrington, F. Feit, N. Kleiman, J. Jackman,
+I. Sarembock, D. Cohen, D. Spriggs, R. Ebrahimi, G. Keren, J. Carr,
+E. Cohen, A. Betriu, W. Desmet, D. Kereiakes, W. Rutsch, R. Wilcox,
+P. J. de Feyter, A. Vahanian, and E. Topol, “Bivalirudin and provisional
+glycoprotein IIb/IIIa blockade compared with heparin and planned glycoprotein IIb/IIIa blockade during percutaneous coronary intervention,” J.
+Amer. Med. Assoc., vol. 289, no. 7, pp. 853–863, 2003.
+[4] G. Stone, B. McLaurin, D. Cox, M. Bertrand, A. Lincoff, J. Moses,
+H. White, S. Pocock, J. Ware, F. Feit, A. Colombo, P. Aylward,
+A. Cequier, H. Darius, W. Desmet, R. Ebrahimi, M. Hamon, L. Rasmussen,
+H.-J. Rupprecht, J. Hoekstra, R. Mehran, and E. Ohman, “Bivalirudin for
+patients with acute coronary syndromes,” New Engl. J. Med., vol. 355,
+no. 21, pp. 2203–2216, 2006.
+[5] T. M. Company, “Angiomax (bivalirudin) Prescribing Information,” [Online]. Available: http://www.themedicinescompany.com/page/angiomaxus/1, 2011.
+[6] T. H. Kiser, A. M. Mann, T. C. Trujillo, and K. L. Hassell, “Evaluation of
+empiric versus nomogram-based direct thrombin inhibitor management
+in patients with suspected heparin-induced thrombocytopenia,” Amer.
+J. Hematol., vol. 86, no. 3, pp. 267–272, 2011.
+[7] T. Edrich, G. Frendl, and I. C. Paschalidis, “Tachyphylaxis in post-cardiac
+surgical patients receiving bivalirudin—A retrospective dynamic study
+using a PKPD model,” Crit. Care Med., vol. 39, no. 12, p. 198, Dec. 2011.
+[8] Q. Zhao, T. Edrich, and I. C. Paschalidis, “A predictive model for the
+anticoagulant bivalirudin administered to cardiac surgical patients,” in
+Proc. 52nd IEEE Conf. Decision Control, Florence, Italy, Dec. 2013,
+pp. 121–126.
+[9] J. R. Jacobs and E. A. Williams, “Algorithm to control ”effect compartment” drug concentrations in pharmacokinetic model-driven drug delivery,” IEEE Trans. Biomed. Eng., vol. 40, no. 10, pp. 993–999, Oct. 1993.
+[10] C. M. Ionescu, R. Hodrea, and R. De Keyser, “Variable time-delay estimation for anesthesia control during intensive care,” IEEE Trans. Biomed.
+Eng., vol. 58, no. 2, pp. 363–369, Jan. 2011.
+[11] C. Held and R. J. Roy, “Multiple drug hemodynamic control by means
+of a supervisory-fuzzy rule-based adaptive control system: Validation
+on a model,” IEEE Trans. Biomed. Eng., vol. 42, no. 4, pp. 371–385,
+Apr. 1995.
+[12] D. Bertsekas, Nonlinear Programming, 2nd ed. Belmont, MA, USA:
+Athena Scientific, 1999.
+[13] P. A. Ioannou and E. B. Kosmatopoulos, Adaptive Control. New York,
+NY, USA: Wiley, 2006.
+[14] P. A. Ioannou and J. Sun, Robust Adaptive Control. New York, NY, USA:
+Dover, 2012.
+[15] V. M. Popov and R. Georgescu, Hyperstability of Control Systems. New
+York, NY, USA: Springer-Verlag, Inc., 1973.
+
+647
+
+Qi Zhao received the B.S. degree in electrical engineering and automation from the University of Science and Technology, Beijing, China, in 2010, and the
+M.S. degree in electrical engineering from Boston
+University, Boston, MA, USA, in 2012. He is currently working toward the Ph.D. degree in the Division of Systems Engineering, Boston University. His
+current research interests include the fields of systems and control, optimization, operations research,
+computational biology, and bioinformatics.
+
+Thomas Edrich (M’11) received the B.S. degree
+in electrical engineering at the University of Colorado at Boulder, Boulder, CO, USA, in 1992, and
+the M.D. and Ph.D. degrees at Ludwig-Maximilians
+University, Munich, Germany, in 1996 and 1999,
+respectively.
+He is specialized in Anesthesia and Critical Care
+Medicine. He is currently an Anesthesiologist affiliated with both the Department of Anesthesia,
+Brigham and Women’s Hospital, Harvard Medical
+School, Boston, MA, USA, as well as the Salzburg
+General Hospital in Austria. His research interests include the fields of
+PKPD modeling, medical control systems, as well as, critical care ultrasound
+applications.
+
+Ioannis Ch. Paschalidis (M’96–SM’06–F’14) received the M.S. and Ph.D. degrees both in electrical engineering and computer science from the
+Massachusetts Institute of Technology (MIT), Cambridge, MA, USA, in 1993 and 1996, respectively.
+Since September 1996, he has been with Boston
+University, Boston, MA. He is a Professor and Distinguished Faculty Fellow at Boston University with appointments in the Department of Electrical and Computer Engineering, the Division of Systems Engineering, and the Department of Biomedical Engineering.
+He is the Director of the Center for Information and Systems Engineering.
+He has held visiting appointments with MIT and Columbia University, New
+York, NY, USA. His current research interests include the fields of systems
+and control, networking, applied probability, optimization, operations research,
+computational biology, and medical informatics.
+
+

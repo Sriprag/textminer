@@ -1,0 +1,862 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+1077
+
+The Design of Safe Networked Supervisory Medical
+Systems Using Organ-Centric Hierarchical
+Control Architecture
+Woochul Kang, Member, IEEE, Lui Sha, Fellow, IEEE, Richard B. Berlin, Jr., and Julian M. Goldman
+
+Abstract—There are growing demands to leverage network connectivity and interoperability of medical devices in order to improve patient safety and the effectiveness of medical services. However, if not properly designed, the integration of medical devices
+through networking could significantly increase the complexity of
+the system and make the system more vulnerable to potential errors, jeopardizing patient safety. The system must be designed and
+verified to guarantee the safety of patients and the effectiveness of
+medical services in the face of potential problems such as network
+failures. In this paper, we propose organ-centric hierarchical control
+architecture as a viable solution that reduces the complexity in system design and verification. In our approach, medical devices are
+grouped into clusters according to organ-specific human physiology. Each cluster captures common patterns arising out of medical
+device interactions and becomes a survivable semiautonomous unit
+during network failures. Further, safety verification and runtime
+enforcement can be modularized along organ-centric hierarchical
+control structure. We show the feasibility of the proposed approach
+under Simulink’s model-based development framework. A simplified scenario for airway laser surgery is used as a case study.
+Index Terms—Device interoperability, medical device, networking, organ-centric, plug-and-play, safety, supervisory control.
+
+I. INTRODUCTION
+EDICAL devices are increasingly capable of cooperating with each other by leveraging device connectivity
+and interoperability, thus promising a huge benefit for patient
+safety and effectiveness of medical services [1]. Networked
+medical devices are meant to cooperatively automate medical workflows, implement smart alarms with integrated patient/treatment information and contexts, and provide safety interlocks that prevent human errors when dealing with networked
+devices [2]. For instance, a laser device and an oxygen ventilator
+can be connected to a supervisory controller that coordinates the
+
+M
+
+Manuscript received October 7, 2013; revised February 7, 2014 and May 25,
+2014; accepted June 20, 2014. Date of publication June 27, 2014; date of current
+version May 7, 2015. This work was supported in part by NSF 13-29886, by NSF
+13-30077, by MGH 217183, and by NIH/NIBB 1U01EB012470. Its contents
+are solely the responsibility of the authors and do not necessarily represent
+the official views of the sponsors.
+W. Kang is with the Embedded Systems Engineering Department, Incheon
+National University, Incheon, Korea (e-mail: wchkang@incheon.ac.kr).
+L. Sha is with the Computer Science Department, University of Illinois at
+Urbana-Champaign, Champaign, IL 61820 USA (e-mail: lrs@illinois.edu).
+R. B. Berlin, Jr., is with Carle Foundation Hospital, Urbana, IL 61801 USA
+(e-mail: richard.berlin@carle.com).
+J. M. Goldman is with CIMIT, Massachusetts General Hospital, Boston, MA
+02114 USA (e-mail: jmgoldman@partners.org).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2333778
+
+Fig. 1.
+
+ICE architecture for airway laser surgery [1].
+
+operation of the two devices to prevent potential surgical fire [3].
+Networked supervisory medical systems (NSMS) refer to such
+systems that are networked and coordinated through a supervisory controller. ASTM integrated clinical environment (ICE)
+standard [4] is a representative effort that is being developed by
+the Medical Device Plug-and-Play (MD PnP) interoperability
+program [5]. The goal of the ICE standard is to support standardized integration of devices for real-time decision support
+and control, thus ensuring patient safety. Fig. 1 shows one configuration of ICE. A few designs and prototype implementations
+have been reported [3], [6]. The study in this paper is also part
+of that ongoing effort.
+However, one major challenge in achieving the vision of
+NSMS lies in guaranteeing patient safety, with the quality or effectiveness of medical services being minimally compromised
+[7]. The coordination logic of the supervisory controller must
+be verified to prevent potential unsafe interactions between the
+devices. However, unlike typical safety-critical systems such as
+airplanes, the platform and networking environments of NSMS
+might be highly dynamic. In particular, the supervisory control
+platform, such as ICE, itself is inevitably a generic computing platform that coordinates potentially arbitrary combinations
+of medical devices. Further, high reliability of network cannot
+be assumed from commercial networking equipments used by
+NSMS. Therefore, the system must be designed and verified to
+guarantee safety requirements in such potentially faulty environments. If not properly designed, the introduction of supervisory control and networking could significantly increase the
+complexity of the system and make the system more vulnerable
+to potential errors, thus jeopardizing patients’ safety.
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1078
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+In this paper, we propose the organ-centric hierarchical control architecture as a viable solution that reduces the complexity
+of design and verification of NSMS. In our approach, we codify
+several common device interaction patterns into physiological
+clusters and organize them in a hierarchical manner. Due to the
+homeostasis of human organ systems, the devices at each organcentric cluster have strong cohesion and loose intercluster coupling. Each organ-centric cluster becomes a semiautonomous
+unit that supports the physiology of the corresponding organ
+even during network failures. The responsibility of the higher
+level supervisory control is reduced to handling intercluster interactions and providing an interface for the intervention of human caregivers. This architecture makes the system more safe
+and effective against failures since each semiautonomous cluster
+can still function and enforce per-cluster safety even if a cluster
+temporarily loses connectivity and control from other parts of
+the system. Patient safety involves many dimensions including
+potential drug interactions, allergies, and idiosyncratic reactions
+to given medical treatments. However, in this paper, we focus
+on safety issues arising from the integration of NSMS.
+The rest of this paper is organized as follows. In Section II,
+we present the background on NSMS and a clinical scenario
+of airway laser surgery as a case-study of practical importance.
+In Section III, we present the organ-centric hierarchical control architecture in detail. We also discuss network-fail-safeness
+of the proposed architecture. In Section IV, the simulation and
+safety verification of the proposed architecture is presented under the Simulink’s model-driven development framework. Further, through an analysis, we demonstrate the effectiveness of
+our approach against network failures. Related work is presented
+in Section V, and Section VI concludes this paper and discusses
+future work.
+II. SYSTEM MODEL AND CLINICAL SCENARIO
+In this section, we present the model of NSMS and present
+airway laser surgery as a case study that demonstrates the practical usage of NSMS.
+A. System Model
+Fig. 1 shows an instance of the ICE architecture proposed
+by MD PnP program. Medical devices are dynamically plugged
+into the ICE manager. The ICE manager is a computer system that provides supervisory control over plugged-in medical
+devices. The supervisory controller in the ICE manager is a
+software component that controls and coordinates connected
+devices. At each medical device, the ICE adapter is a thin networking device interfacing the device to the ICE manager [8].
+The adapters might also perform simple computation such as
+buffering and filtering of commands and data. The communication between the ICE manager and the plugged-in devices
+is either wired or wireless [9]. At runtime, as all necessary
+devices for a specific clinical treatment are plugged into the
+ICE manager, an algorithm for the treatment is loaded into
+the supervisory controller. The algorithms need to be preverified during the certification process to satisfy specific safety
+requirements [7].
+
+TABLE I
+SAFETY REQUIREMENTS FOR AN AIRWAY LASER SURGERY
+Requirement R1
+Requirement R2
+Requirement R3
+
+The oxygen supply from the ventilator must be stopped before the
+activation of the laser(to prevent surgical fire).
+The supply of oxygen must be resumed within 4.5 min or if the
+SpO2 level is lower than a threshold (to prevent brain damage).
+The IV supply should be blocked if the changes in blood pressure
+are greater than the thresholds (to prevent fluid overload).
+
+In this paper, we assume NSMS similar to ICE architecture
+and we are concerned about the low-complexity design of the
+ICE supervisory controller.
+B. Clinical Use Case and Safety Challenges
+Throughout this paper, we use a simplified version of airway
+laser surgery scenario as a clinical example to illustrate the
+safety and effectiveness of the proposed approach.1
+During an airway laser surgery, an accidental fire might happen if the laser is activated, while high oxygen concentration
+is supplied by the ventilator [3]. To activate the laser, first, a
+human operator must block (or significantly reduce) the air supply from the oxygen concentrate. Once the oxygen supply is
+blocked, it should be resumed within about 4.5 min to prevent
+permanent brain damage. Caregivers and surgeons are supposed
+to be aware of such potential fire and low-oxygen safety hazards [10]. However, unfortunately, accidental fires are reported
+annually due to the human errors during the surgeries. For discussion in this paper, we further assume that the patient undergoing airway laser surgery has a history of congestive heart
+failure (CHF). During the surgery, intravenous (IV) fluid, such
+as normal saline, is infused to prevent dehydration or to deliver
+medications. The volume of IV fluid should be carefully monitored since the IV fluid overinfusion might cause fluid retention,
+which can then trigger CHF. Table I summarizes these safety
+requirements.2
+Within the environment of NSMS, the supervisory controller
+in the ICE manager is supposed to monitor the states of both
+the patient and the devices to prevent safety hazards. For example, the supervisory controller might disallow the operation
+of the laser device, while oxygen is supplied from the ventilator. Further, the supervisory controller allows the blocking
+of the oxygen supply from the ventilator only if the patient’s
+blood oxygenation level measured in the SpO2 monitor is high
+enough.
+However, one of the biggest challenges in building such
+NSMS lies in guaranteeing the safety requirements, such as
+R1-R3, while the effectiveness of medical services is minimally
+1 Readers are referred to [3], [4], [11], and [12] for additional representative,
+not exhaustive, clinical scenarios, in which the application of the proposed
+architecture might bring significant benefits. For instance, in our previous work
+[11], we discuss the design issues when the hierarchical control architecture of
+NSMS is applied to laparoscopic surgery.
+2 Actual development and certification of medical devices requires more extensive hazard analysis and engineering [13]. However, in this paper, we assume
+that the requirements are adequate and concentrate on the design of the lowcomplexity NSMS architecture, rendering efficient assessment of the requirements satisfaction.
+
+KANG et al.: DESIGN OF SAFE NSMS USING ORGAN-CENTRIC HIERARCHICAL CONTROL ARCHITECTURE
+
+1079
+
+compromised. Unlike typical safety critical systems, such as
+aircrafts, the environment of NSMS is highly dynamic; both
+patients and systems are highly dynamic. For example, the state
+of patients changes dynamically and patients show high variability to drugs and treatments. Systems are also highly dynamic; devices are dynamically plugged-in/out at runtime. Further, the network (either wired or wireless) might be unreliable.
+Within such highly dynamic environments, the control structure
+of the NSMS must be designed to enforce the safety requirements, such as R1–R3, even if the communication is temporarily
+unreliable.
+In this paper, our primary focus is designing a low-complexity
+control and communication architecture of the supervisory controller to provide safety, fault-tolerance, and effectiveness within
+such highly dynamic environments.
+III. ORGAN-CENTRIC HIERARCHICAL
+CONTROL ARCHITECTURE
+In this section, we first introduce the organ-centric hierarchical control architecture and its rationale. We then demonstrate
+that network-fail-safety can be efficiently achieved in the proposed architecture.
+A. Device Interaction Patterns and Organ-Centric
+Hierarchical Architecture
+The prevailing idea behind the design of original ICE architecture, as shown in Fig. 1, is the composition of an arbitrary set
+of medical devices to build a virtual medical device. Hence, a flat
+control and communication structure, such as shown in Fig. 1,
+has been assumed and it does not restrict any interconnection
+and communication patterns; any device can communicate to
+any other devices through the supervisory controller. However,
+allowing communication between any arbitrary devices significantly increases the complexity of the system and might result
+in unsafe interaction, which is hard to verify.
+To address such high-complexity issues in the original ICE
+architecture, we need to identify a collection of modules that
+can be designed and analyzed independently of the rest of the
+system, since modularity is a key design principle that renders low-complexity design. The identified modules should have
+high internal cohesion and low intermodule coupling. Once such
+modules within the ICE architecture are identified, the benefits
+are obvious. Huge state spaces of the system become tractable
+because only the part of the state space relevant to the safety
+properties in question is traversed for verification [14]. To identify modules within the ICE architecture, we investigated device
+interaction patterns by identifying several representative clinical
+scenarios [4]. Three common and reusable patterns were identified from clinical publications [3], [12], [15]–[22], web sites,
+and interviews (“focus groups”) with clinicians and engineers:
+Aggregated monitor (AM), coordinated control (CC), and physiological closed loop (PCL). Readers are referred to ASTM
+final F-2761 document [4] for detailed discussions of representative clinical examples, in which these patterns might be
+applicable.
+
+Fig. 2. Supervisory coordination patterns. (a) AM pattern. (b) CC pattern. (c)
+PCL pattern.
+
+1) Aggregated Monitor: When there exist multiple monitoring devices, a human caregiver aggregates measurements
+from multiple devices to better estimate patients’ state and
+to enable a smart alarm. Much effort has been made to improve the accuracy of alarms using this pattern [15]–[17].
+For example, the measurements from the EKG and oximeter might be aggregated to reduce a false alarm. With
+an automatic supervisory coordinator, we might codify
+such device interaction pattern for data aggregation [see
+Fig. 2(a)].
+2) Coordinated Control: If two or more devices perform potentially conflicting treatments, their interactions must be
+explicitly coordinated. A doctor or caregiver is supposed
+to coordinate such potentially conflicting device interactions. However, this device interaction pattern is reported
+as a major safety hazard due to the chaotic environment
+of medical treatments and human errors [3], [12], [18].
+For example, in the airway laser surgery, the laser device potentially interferes with the ventilator. By providing a proper automatic supervisory coordinator between
+the ventilator and the laser, surgical fire can be avoided,
+thus resolving the safety requirement R1 [see Fig. 2(b)].
+3) Physiological Closed Loop: In typical medical scenarios,
+caregivers monitor a sensing device, e.g., SpO2 (blood
+oxygen saturation) monitors, and control the actuation
+device, e.g., ventilators. With help from an automated supervisory coordinator, such a control loop can be closed.
+Each closed control loop enables continuous monitoring
+of patients’ state and an automatic reconfiguration of actuation devices. This pattern has been extensively investigated because it can significantly reduce the workload of
+the medical staff [19]–[22]. For example, in Fig. 2(c), the
+loop is closed by connecting the SpO2 measurements from
+the oximeter to the actuation of the ventilator device. The
+coordination algorithm at the coordinator needs to alert
+caregivers, only if the SpO2 level exceeds the range that
+
+1080
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+the algorithm can automatically control by adjusting the
+ventilator’s fractional inspired O2 concentration (FiO2 ).
+This PCL pattern addresses safety requirements such as
+R2 and R3.
+Among the above patterns, the PCL pattern of “sensing” and
+“actuation” is the manifest of organ-specific physiology. Since
+each organ system has strong self-compensation mechanism,
+which is called homeostasis, interferences between the organs
+can be effectively blocked. For example, the cardiac system can
+maintain its blood pumping function against a modest fluid overdose, and hardly affects or is affected by pulmonary functions,
+until the onset of CHF. Therefore, we can consider each instance
+of PCL pattern as an independent unit of operation.
+From this observation, we propose an organ-centric hierarchical control architecture. The proposed architecture
+moves aggressively away from the idea in restricting communication and internetworking according to their physiological
+correlation and device interaction patterns. In our approach, several clusters are preidentified according to organ-specific physiology. For example, clusters for cardiac, kidney, therapeutic
+devices, etc., are identified in the system. For each device, the
+cluster that has the strongest physiological tie with the device
+becomes the device’s default cluster. For example, the ventilator
+and the blood oxygen saturation (SpO2 ) sensor are strongly tied
+to the respiratory function and follow the PCL pattern; hence,
+these are grouped into the pulmonary cluster. When the device
+is plugged into the ICE manager, its interaction with another
+device is controlled by the corresponding cluster controller. For
+actuation devices, such as ventilators and IV fluid pumps, a
+unique cluster controller is assigned. In contrast, data streams
+from monitoring devices, such as SpO2 sensors and blood press
+monitors, might be shared with other clusters. For example,
+a proxy device for data from a blood press monitor, which is
+primarily controlled by the cardiac cluster controller, might be
+virtually plugged-in at the pulmonary cluster to fuse the data
+from the SpO2 monitor and the blood pressure (BP) monitor.
+This in an example of the aforementioned AM pattern.
+With support from the cluster controllers, the original role
+of the supervisory controller in Fig. 1 is reduced to coordination of the interaction between clusters. Unlike semiautonomous
+clusters, automatic control is typically not possible at this level
+because interorgan interactions of the human body are usually unclear even for human physicians. After all, NSMS are
+not aiming at fully autonomous systems that exclude humans.
+Therefore, a supervisory controller’s job is limited to prohibiting
+explicit, unsafe interactions between the clusters while providing an interface for intervention by human caregivers. For instance, safety interlocking between devices in different clusters
+might be automatically enforced by the supervisory controller.
+Some representative clinical scenarios requiring safety interlocking from the supervisory controller is discussed in [4]. The
+supervisory controller also performs the delivery of real-time
+measurement from clusters to other clusters.
+At runtime, the organ-centric hierarchical control structure
+is formed in a bottom-up manner. Fig. 3 shows an instance of
+the organ-centric hierarchical control architecture for the airway laser surgery. In this example, for instance, as devices for
+
+Fig. 3.
+
+Hierarchical organ-centric control architecture.
+
+“sensing” and “actuation” are properly plugged-in at each cluster, the closed-loop algorithm for the cluster is loaded. Once
+all necessary clusters shown in Fig. 3 are formed for the airway laser surgery, the coordination algorithm is loaded at the
+supervisory controller to avoid potential conflict between the
+clusters. Specific roles of each level and applicable patterns are
+summarized in Table II.
+B. Pattern-Based Network-Fail-Safe Mechanism
+The enforcement of safety properties assumes reliable communication between the controllers and the devices. However,
+100% reliable communication cannot be assumed from commercial networking equipment and links. Therefore, the system
+must be designed to guarantee safety properties during potential network failures. For a single device, one obvious solution
+against any failures, including network failures, is to switch to
+its fail-safe mode. For example, the fail-safe mode of a ventilator
+is to “provide oxygen”. In contrary, the fail-safe mode of a laser
+device is to “disallow user operations”.3 However, in NSMS,
+the enforcement of safety properties requires coordination between the interacting devices. Further, immediate switching to
+per-device fail-safe modes on every network failure significantly
+degrades the effectiveness of medical services; this is demonstrated in Section IV. To overcome network failures in NSMS,
+in our approach, we extend the notion of per-device fail-safe
+modes according to the coordinated contingency plans.
+A contingency plan for a device is a future plan that specifies
+when the devices is supposed to switch to its fail-safe mode,
+even if it cannot communicate with other parts of the system.
+The goal of contingency plans is to provide effective medical
+service during network failures with short durations, avoiding
+immediate switching to per-device safety modes. When a device
+or a cluster requests a transition to a potentially unsafe mode,
+its corresponding controller generates a contingency plan that
+specifies when the transition to its safe mode must be performed.
+For instance, the contingency plan for a laser device, δtlaser ,
+3 Under “allow user operations” mode, a laser device can be operated by
+caregivers. It should be noted that the actual laser output is generated only if
+operators activate the laser output while the device is in “allow user operations”
+mode.
+
+KANG et al.: DESIGN OF SAFE NSMS USING ORGAN-CENTRIC HIERARCHICAL CONTROL ARCHITECTURE
+
+1081
+
+TABLE II
+CONTROL LEVELS AND APPLICABLE PATTERNS
+Level
+
+Roles
+
+Applicable patterns
+
+Supervisory
+control
+
+- Safety interlocking between clusters
+- Interface to human caregivers
+- Redirection of monitoring streams between clusters
+- Fusion of multiple monitoring streams for physician’s interpretation
+- Generation of CC pattern contingency plans
+- Coordination of interactions between devices
+- Closed-loop control
+- Management of proxy devices for redirected monitoring streams
+- Generation of CC- and PCL-pattern contingency plans
+- Sensing and actuation
+- Buffering and execution of contingency plans
+
+CC (coordinated control),
+AM (aggregated monitor)
+
+Cluster
+control
+
+Devices
+
+specifies that the device must switch to its safe mode, which
+is “disallow user operations,” at current time + δtlaser . During
+[current time, current time + δtlaser ), the medical staff can operate the laser device even if the laser device is disconnected
+from the system.
+When multiple devices are interacting within a cluster or a
+system, mutual contingency plans for the respective devices are
+determined to guarantee safety properties, while maximizing
+the effectiveness of the system. For example, if device D1 and
+device D2 should be coordinated to guarantee safety properties,
+their common controller (either a cluster controller or a supervisory controller) generates contingency plans in case one of
+the devices tries to change its state. In our design, the contingency plans are generated hierarchically in a bottom-up manner
+according to interaction patterns, as follows:
+1) Physiological Closed Loop: As shown in Table II, this
+pattern is only applicable at each cluster. To overcome
+unreliable communication between a monitor device and
+its corresponding treatment device, each cluster controller
+is supposed to have a physiological model of the corresponding organ system. For example, the model for SpO2
+level is embedded into the pulmonary cluster. Even though
+human physiology is hard to predict in general, and shows
+wide patient-to-patient variability, its short-term behavior
+can be estimated [20], [23]. For instance, the oxygen absorption rate of the human body can be estimated in a
+short time span, e.g., 1–2 min, using models. Given that
+network failures typically have short durations, we might
+consider exploiting such physiological models for safe coordination of devices during communication failures. For
+example, the saturated oxygen (SpO2 ) level of a patient
+can be modeled as follows:
+SpO2 (k) = SpO2 (k − 1) + (Ks + Kc ) × δt
+
+(1)
+
+where Ks and Kc are the oxygen supply rate from the
+ventilator, and the metabolic oxygen consumption rate of
+the human body, respectively. If we consider patient-topatient variability, Ks and Kc should be chosen conservatively for patient safety. From this model, the maximum
+blocking time of oxygen supply can be estimated. For
+instance, if the pulmonary cluster starts to block oxygen supply (e.g., Ks = 0) at time k, the SpO2 level of
+
+Fig. 4.
+
+PCL (physiological closed loop),
+CC (coordinated control)
+AM (aggregated monitor)
+
+Network-fail-safe coordination for PCL pattern devices.
+
+the patient will reach the threshold level T hsp o2 at time
+k + δtvent
+δtvent =
+
+T hsp o 2 − SpO2 (k)
+.
+Kc
+
+(2)
+
+Therefore, a contingency plan for safe coordination can be
+generated; this effectively enforces the safety property R2
+during network failures. This approach can generally be
+applied to other organ-centric clusters. Fig. 4 shows the interaction of two devices following the PCL pattern within
+a cluster. The model at the cluster controller is used to generate contingency plans for the actuation device. Further,
+the physiological model at the cluster controller is used
+to estimate patient state, even if the transmission from the
+monitoring device is lost due to transient communication
+problems.
+2) Coordinated Control: As shown in Table II, CC pattern
+is applicable for both inter- and intra-cluster interactions,
+and hence, contingency plans for the interlocking devices
+are automatically generated both at the cluster and the
+supervisory control level. Both cluster controllers and the
+supervisory controller have lists of devices whose operations must be interlocked for safety. The lists are checked
+whenever a new device is plugged in. Fig. 5 shows an example interaction between two interlocking devices. For
+
+1082
+
+Fig. 5.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+Network-fail-safe coordination for CC pattern devices.
+
+example, during the airway laser surgery, the ventilator’s
+contingency plan δtvent is generated from the underlying pulmonary cluster. When the supervisory controller
+receives the ventilator’s contingency plan δtvent , it subsequently generates the laser device’s interlocking contingency plan δtlaser, since the operations of the two devices
+must be interlocked. Even if network failure occurs and
+the two devices cannot communicate, the ventilator and
+the laser change their state after δtvent and δtlaser , respectively, according to the contingency plans. For CC pattern
+interactions of devices/clusters, the conflicting requests
+from the devices/clusters are resolved by the controller
+based on the preassigned priority. For instance, requests
+from respiratory devices such as ventilators, have higher
+priority than requests from other devices since breathing has the highest priority for the survival of a patient
+during emergency situations, such as resuscitation. Therefore, contingency plans for devices related to the breathing
+function are generated first.
+3) Aggregated Monitor: Contingency plans are not generated
+since monitors does not affect patient safety.
+Finally, it should be noted that some devices have no trivial fail-safe modes. For example, in blood glucose (BG) control
+using an infusion pump, simply stopping (or resuming) the infusion of insulin is no longer a safe option because hyperglycemia
+and hypoglycemia need to be avoided. Therefore, contingency
+plans cannot be generated automatically. For such jobs, alerting
+caregivers for intervention is required, if failures occur. However, in our approach, other semiautonomous clusters can still
+function as far as no strong interorgan interference develops.
+This is because the failure is isolated in the cluster that the BG
+controller belongs to. In contrast, if the control structure is not
+isolated through clustering, the ongoing medical service must
+be suspended and every device in the system must switch to its
+default safety mode to prevent potential safety hazards.
+IV. MODEL-BASED DESIGN, VERIFICATION, AND EVALUATION
+The key advantage of proposed architecture is that it effectively reduces the complexity of the whole system. Since
+NSMS’s control logic is broken into a few strongly cohesive
+clusters, design and verification on these clusters can be performed in a modular manner. In this section, we demonstrate
+
+Fig. 6.
+
+Design and verification of pulmonary cluster.
+
+this modular design and verification process for the case study
+under Simulink’s model-based development framework. Further, through an analysis, we demonstrate the effectiveness of
+the proposed architecture against network failures.
+A. Model-Based Safety Verification and Validation
+The design and verification process is divided into two phases.
+In the first phase, semiautonomous clusters are designed and
+verified. Cluster-specific safety properties are formally verified.
+These verified clusters of particular patterns become reusable
+components which can be reused for various medical scenarios. In the second phase, clusters are composed for specific
+medical scenarios, e.g., airway laser surgery. At this phase, the
+system is only verified for intercluster safety properties. For
+various well-known medical scenarios and potential safety hazards, this intercluster composition might be performed before
+deployment. At runtime, this verified intercluster control logic
+might be loaded dynamically for safe intercluster coordination
+of medical devices.
+1) Verification of Cluster Control Logic: Fig. 6 shows
+the closed loop for the pulmonary cluster. The block pulmonary_controller is a model of the cluster controller and it
+connects the ventilator model and the patient’s SpO2 model. The
+patient’s SpO2 model follows (1). The design also includes the
+network-fail-safety mechanism using the physiological model.
+The network-fail-safe control logic for requirement R2 is implemented at the pulmonary cluster controller. Hence, the ventilator
+resumes oxygen supply at the specified time if it cannot get a
+further command from the cluster controller due to communication failure. The point of time from which to resume oxygen
+supply is estimated from the patient’s SpO2 model.
+For the pulmonary cluster, the safety requirement R2 is encapsulated and verified. The safety requirement R2 can be formally
+specified using the temporal logic of Simulink as shown in the
+dotted rectangle in Fig. 6. Simulink’s design verifier automatically explores all possible inputs/parameters space to prove or
+disprove the specified temporal logics. This verified pulmonary
+
+KANG et al.: DESIGN OF SAFE NSMS USING ORGAN-CENTRIC HIERARCHICAL CONTROL ARCHITECTURE
+
+1083
+
+TABLE III
+EVALUATED APPROACHES
+SYS b a s e
+SYS b a s e + c p l
+SYS p u l m o
+SYS c a r d i a c
+
+Fig. 7.
+
+Composition for intercluster safety verification.
+
+Straightforward implementation of ICE architecture;
+no contingency plans; τ c p l = 1s
+Same as SYS b a s e , but has system-wide contingency
+plans; τ c p l = 10s
+Semiautonomous plumonary cluster; τ c p l = 90 s
+Semiautonomous cardiac cluster; τ c p l = 10 s
+
+and the laser device. When the ventilator is blocked, the patient’s SpO2 model in (1) is used to generate a contingency
+plan for the ventilator. The contingency plan for the ventilator
+specifies δtvent = 96 s. The supervisory controller generates an
+interlocking contingency plan for the laser device. The laser device’s contingency plan specifies the enabling of the device after
+δtlaser = 94 s. The network failure condition is simulated during 120–180 s; this implies that devices cannot communicate for
+the coordination during that period. However, the devices follow
+contingency plans and avoid safety hazards by assuring interlocking between the devices; the laser is disabled after δtlaser
+and the oxygen supply is resumed after δtvent . The prototype
+implementation of this scenario can be found in our previous
+work [3].
+B. Analysis of Effectiveness
+
+Fig. 8.
+
+Validation through Simulation.
+
+PCL pattern becomes a reusable building block for many different medical scenarios, such as airway laser surgery.
+Other clusters follow a similar design and verification process.
+The library of such formally verified architectural patterns can
+be reused for the composition of supervisory controllers without
+further verification.
+2) Verification of Supervisory Control Logic: The supervisory controller is designed by interconnecting clusters with a
+proper supervisory control logic. At this step, only the safety
+requirements related to intercluster interactions, such as R1,
+need to be verified. Fig. 7 depicts the composition of the pulmonary cluster and the therapeutic cluster using a CC pattern
+supervisory controller. The supervisory control logic only needs
+to consider the safety requirement R1 because R2 and R3 are
+already verified within respective clusters. The formal specification of the R1 is presented in the dotted rectangle of Fig. 7. If
+the laser is enabled while the oxygen supply is not blocked, then
+summation of the two signals becomes 2. Hence, the “
+Ptrue”
+claims the summation of the two signals are always less than
+or equal to 1. Again, the formally modeled safety properties are
+automatically proved using Simulink’s design verifier.
+3) Validation Through Model-Based Simulation: Fig. 8
+shows the results by executing the system model in Fig. 7. The
+simulation results show the interlocking between the ventilator
+
+By effectiveness, we mean supporting the execution of medical procedures as planned with little or no interruption. Medical
+procedures might be interrupted due to many reasons. However,
+in this paper, we are only concerned about situations in which
+medical procedures are interrupted due to network failures. To
+this end, we define the effectiveness of a system as the probability that the medical service is provided as planned with little
+or no interruption despite network failures.
+To determine the effectiveness of the proposed design principles, we compare the behavior of our approach with baseline
+approaches, shown in Table III. The approach SYSbase represents the straightforward implementation of the ICE standard,
+in which all medical devices are directly controlled by a centralized supervisory controller. Under a communication failure at
+one or more devices, all plugged-in devices transit into default
+per-device fail-safe modes to prevent potential safety hazards.
+SYSbase+cpl has the same control architecture as SYSbase , but
+it has system-wide contingency plans against network failures.
+This approach represents our previous NSMS design without
+semi-autonomous clusters [3]. In SYSbase+cpl , a medical procedure is suspended if the network failure is not recovered until the
+contingency plan at one of the devices is exhausted. SYSpulmo
+and SYScardiac represent the two semi-autonomous clusters, the
+pulmonary and the cardiac clusters, in the organ-centric control
+architecture. In this architecture, the system is partitioned into a
+few semi-autonomous clusters. Hence, each cluster has its own
+cluster-wide contingency plans.
+Since a system or a cluster can provide a medical service
+without interruption as far as its contingency plans are not exhausted, we define τcpl as the length of its contingency plan. For
+
+1084
+
+Fig. 9.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+Analysis of effectiveness.
+
+the analysis of effectiveness, we assign τcpl values to each approach as shown in Table III. We assign 10 s for cardiac cluster’s
+τcpl since a patient’s cardiac functions such as BP can change
+in a short time due to various reasons such as hypertension [23].
+We assign the same τcpl value for SYSbase+cpl as SYScardiac
+because τcpl is determined by the shortest contingency plans
+in the system if devices are not partitioned into clusters. For
+SYSpulm o , we assign a longer τcpl , which is 90 s.
+In this analysis, we assume that X is a random variable
+that represents the duration of a network failure. Since a system/cluster becomes unavailable only after the elapse of its τcpl ,
+the effectiveness can be approximated as
+Eﬀectiveness ≈ 1 − Prob(X ≥ τcpl )
+
+(3)
+
+where Prob(X ≥ τcpl ) is the probability that a network failure lasts longer than the duration of τcpl . If we assume that the
+duration of the network failure follows an exponential distribu1
+tion, Prob(X ≥ τcpl ) can be derived as e− μ τ c p l , where μ is the
+average duration of network failures.
+Fig. 9 illustrates the result when μ is varied from 1 to 20 s.
+For SYSbase , the effectiveness degrades rapidly even during
+short network failures. For instance, SYSbase shows less than
+0.63 effectiveness when μ is 1 s. This implies that NSMS without contingency plans have a high risk of suspending their
+medical service even during very short network failures. In
+contrast, other approaches with their contingency plans show
+more than 0.99 effectiveness when μ is 1 s. The effectiveness
+of SYSbase+cpl and SYScardiac decreases gradually as μ gets
+longer. When μ is 10 s, the effectiveness of these drops to 0.64.
+However, SYSpulmo ’s effectiveness remains above 0.9999 even
+if μ is about 10 s. This result implies that almost no interruption
+will occur during the airway laser surgery even if the network
+failure persists for 10 s on average.
+V. RELATED WORK
+The goal of MD PnP is to improve the flexibility and interoperability of medical systems [5], and our work is part of that ongoing effort. Software architectures for communications in medical plug-and-play systems have been explored by King et al.
+They proposed a publish–subscribe middleware for medical
+
+plug-and-play systems [6]. For the interoperability of legacy
+devices, Hoffman proposed a meta-model for describing medical devices [24]. Until now, however, much of the work for
+MD PnP has focused on establishing a dynamic connectivity
+of devices, device-to-device interoperability, and ensuring fair
+access to a communication medium. In this paper, in contrast to
+previous work, we focus on low-complexity architectural design
+for safe coordination of networked medical devices.
+Medical device safety has been a prevalent issue dating back
+to the infamous incident of Therac 25 radiation therapy machines [25]. Some mechanisms are used to improve the accuracy and safety of medical systems, such as fuzzy logic [15],
+information technology [26], and feedback control [19]. Arney
+et al., proposed a closed-loop control design for patients’ safety
+using patient-controlled analgesia infusion pumps. In our earlier work [3], we proposed network-aware supervisory system
+(NASS) framework [3]. NASS guarantees network-fail-safety
+by dynamically generating contingency plans for plugged-in
+devices. In this paper, we propose a low-complexity architecture to further extend NASS.
+Formal verification and validation of medical devices is a
+critical issue for patient safety [27]. The U.S. Food and Drug
+Administration enforces a strict certification procedure for medical device approval [28]. Formal methods are widely used in
+specifying and verifying medical devices to improve safety and
+reliability [29]. However, much of the previous work has focused
+on standalone devices. In this current work, we demonstrated
+safety verification and simulation for NSMS.
+Closed-loop control for autonomous patient treatment have
+been investigated as a method that has great potential to increase
+patient safety. An extensive survey of such clinical efforts is
+provided by Rinehart et al., [19]. For example, a closed-loop
+control approach is considered for controlling IV infusion rate
+during early resuscitation of hypovolemia [22], for maintaining
+adequate oxygen delivery and prevention of hypoxemia, and
+for controlling drug delivery in common anesthetic tasks [30].
+These research works have focused on evaluating the potential
+benefit of the closed-loop control and the appropriateness of
+chosen monitoring variables. In this paper, we identify the closed
+loop control as one of the reusable device interaction patterns.
+Further, we propose a network-fail-safe mechanism for closedloop control.
+
+VI. CONCLUSION AND FUTURE WORK
+In this paper, we proposed an organ-centric hierarchical control architecture as a key principle for the safe and effective
+integration of networked medical devices. The proposed architectural principle reduces the complexity of the design and verification of the system. For example, network-fail-safety, which
+is strongly required for NSMS, can be efficiently implemented
+in a modular and hierarchical manner in the proposed architecture. The feasibility of the proposed architecture was demonstrated under Simulink’s model-driven development framework
+using a case study of practical importance. Further, through an
+
+KANG et al.: DESIGN OF SAFE NSMS USING ORGAN-CENTRIC HIERARCHICAL CONTROL ARCHITECTURE
+
+analysis, we showed that the proposed approach can achieve
+high network-fail-safeness and effectiveness.
+This paper is part of the ongoing effort to achieve the vision of medical plug-and-play and many challenges still need
+be addressed. The following are a list of issues and future directions. Flexibility: The proposed architecture assumes that a
+device belongs to only one cluster. This limits flexibility since
+some devices potentially belong to multiple clusters. For example, IV fluid controller might affect multiple organs. We
+plan to investigate flexible architecture to accommodate this requirement. Patient’s variability and uncertainty: Some patients
+manifest strong correlation between organs. Current architecture assumes that a physician might diagnose such unusually
+strong correlation and disable autonomous and independent
+treatments at organ-centric clusters. However, we might also
+consider a semiautomatic mechanism to diagnose such interorgan correlation using intercluster information fusion. Enriching interaction patterns: We plan to identify more use-cases
+and patterns to generalize our approach to broader scenarios.
+In particular, we are interested in safe intercluster coordination. With the richer library of interaction patterns, we are going to apply the proposed approach to more medical use-cases
+of practical importance. Role of human caregivers: Although
+NSMS provides some degree of autonomy and safety interlocks for device coordination, intervention by human caregivers
+cannot totally be excluded. Treatment of patients require much
+intervention on part of human physicians in order to resolve
+subtle situations that are hard to codify for automated control.
+The role of human intervention in NSMS needs careful further
+study.
+
+REFERENCES
+[1] MD PnP. (2014). Medical device ‘plug-and-play’ interoperability progam.
+[Online]. Available: http://mdpnp.org
+[2] High Confidence Software and Systems Coordinating Group, “HighConfidence Medical Devices: Cyber-Physical Systems for 21st Century
+Health Care,” A Research and Development Needs Report, NITRD,
+Arlington, VA, USA, Feb. 2009.
+[3] C. Kim, M. Sun, S. Mohan, L. Sha, and T. F. Abdelzaher, “A framework for
+the safe interoperability of medical devices in the presence of connection
+failures,” in Proc. ACM/IEEE Int. Conf. Cyber-Phys Syst., 2010, pp. 149–
+158.
+[4] Medical Devices and Medical Systems-Essential Safety Requirements
+for Equipment Comprising the Patient-Centric Integrated Clinical Environment (ICE)—Part 1: General Requirements and Conceptual Model,
+ASTM Standard F2761-09, 2009.
+[5] J. Goldman, S. Whitehead, S. Weininger, and M. Rockville, “Eliciting
+clinical requirements for the medical device plug-and-play (MD PnP)
+interoperability program,” Anesthesia Analgesia, vol. 102, pp. S1–54,
+2006.
+[6] A. King, S. Procter, D. Andresen, J. Hatcliff, S. Warren, W. Spees,
+R. Jetley, P. Jones, and S. Weininger, “An open test bed for medical
+device integration and coordination,” in Proc. IEEE Int. Conf. Softw. Eng.
+Companion, 2009, pp. 141–151.
+[7] O. Sokolsky, I. Lee, and M. Heimdahl, “Challenges in the regulatory
+approval of medical cyber-physical systems,” in Proc. 9th ACM Int. Conf.
+Embedded Softw., 2011, pp. 227–232.
+[8] P. Asare, D. Cong, S. G. Vattam, B. Kim, A. King, O. Sokolsky, I. Lee,
+S. Lin, and M. Mullen-Fortino, “The medical device dongle: An opensource standards-based platform for interoperable medical device connectivity,” in Proc. 2nd ACM SIGHIT Int. Health Informat. Symp., 2012,
+pp. 667–672.
+
+1085
+
+[9] K. Kang, J. Ryu, J. Hur, and L. Sha, “Design and QoS of a wireless
+system for real-time remote electrocardiography,” IEEE J. Biomed. Health
+Informat., vol. 17, no. 3, pp. 745–755, 2013.
+[10] D. S. Sheinbein and R. G. Loeb, “Laser surgery and fire hazards in ear,
+nose, and throat surgeries,” Anesthesiol. Clin, vol. 28, no. 3, pp. 485–496,
+Sep. 2010.
+[11] P.-L. Wu, W. Kang, A. Al-Nayeem, L. Sha, R. Berlin, and J. Goldman, “A low complexity coordination architecture for networked supervisory medical systems,” in Proc. ACM/IEEE Int. Conf. Cyber-Phys. Syst.,
+Apr. 2013, pp. 89–98.
+[12] D. Arney, J. M. Goldman, S. F. Whitehead, and I. Lee, “Synchronizing
+an X-ray and anesthesia machine ventilator—A medical device interoperability case study,” in Proc. BIODEVICES, 2009, pp. 52–60.
+[13] B. Kim, A. Ayoub, O. Sokolsky, I. Lee, P. Jones, Y. Zhang, and R.
+Jetley, “Safety-assured development of the GPCA infusion pump software,” in Proc. 9th ACM Int. Conf. Embedded Softw., 2011, pp. 155–
+164.
+[14] A. Ray and R. Cleaveland, “Unit verification: The CARA experience,” Int. J. Softw. Tools Technol. Transf., vol. 5, no. 4, pp. 351–369,
+May 2004.
+[15] N. Stevens, A. Giannareas, V. Kern, A. Viesca, M. Fortino-Mullen,
+A. King, and I. Lee, “Smart alarms: Multivariate medical alarm integration
+for post CABG surgery patients,” in Proc. 2nd ACM SIGHIT Symp. Int.
+Health Informat., 2012, pp. 533–542.
+[16] G. D. Clifford, W. J. Long, G. B. Moody, and P. Szolovits, “Robust
+parameter extraction for decision support using multimodal intensive
+care data,” Philos. Trans. Roy. Soc. A: Math., Phys. Eng. Sci., vol. 367,
+no. 1887, pp. 411–429, 2009.
+[17] C. Oberli, J. Urzua, C. Saez, M. Guarini, A. Cipriano, B. Garayar,
+G. Lema, R. Canessa, C. Sacco, and M. Irarrazaval, “An expert system
+for monitor alarm integration,” J. Clin. Monit. Comput., vol. 15, no. 1,
+pp. 29–35, 1999.
+[18] P. B. Langevin, V. Hellein, S. M. Harms, W. K. Tharp, C. Cheung-Seekit,
+and S. Lampotang, “Synchronization of radiograph film exposure with the
+inspiratory pause: Effect on the appearance of bedside chest radiographs
+in mechanically ventilated patients,” Amer. J. Respir. Crit. Care Med.,
+vol. 160, no. 6, pp. 2067–2071, 1999.
+[19] J. Rinehart, N. Liu, B. Alexander, and M. Cannesson, “Closed-loop systems in anesthesia: Is there a potential for closed-loop fluid management
+and hemodynamic optimization?” Anesthesia Analgesia., vol. 114, no. 1,
+pp. 130–143, 2012.
+[20] M. Pajic, R. Mangharam, O. Sokolsky, D. Arney, J. Goldman, and I. Lee,
+“Model-driven safety analysis of closed-loop medical systems,” IEEE
+Trans. Ind. Informat., vol. 10, no. 1, pp. 3–16, Feb. 2014.
+[21] F. A. Drews, N. Syroid, J. Agutter, D. L. Strayer, and D. R. Westenskow,
+“Drug delivery as control task: Improving performance in a common
+anesthetic task,” Hum. Factors, vol. 48, no. 1, pp. 85–94, 2006.
+[22] G. Kramer, M. Kinsky, D. Prough, J. Salinas, J. Sondeen, M. Hazel-Scerbo,
+and C. Mitchell, “Closed-loop control of fluid therapy for treatment of hypovolemia,” J. Trauma, vol. 64, pp. S333–S341, 2008.
+[23] R. J. Brychta, R. Shiavi, D. Robertson, I. Biaggioni, and A. Diedrich, “A
+simplified two-component model of blood pressure fluctuation,” Amer.
+J. Physiology—Heart Circulatory Physiol., vol. 292, no. 2, pp. H1193–
+H1203, 2007.
+[24] R. M. Hofmann, “Modeling medical devices for plug-and-play interoperability,” Master’s thesis, Dept. Electr. Eng. Comput. Sci. (EECS), Massachusetts Inst. Technol., Cambridge, MA, USA, 2007.
+[25] N. Leveson and C. Turner, “An Investigation of the Therac-25 Accidents,”
+IEEE Comput., vol. 26, no. 7, pp. 18–41, Jul. 1993.
+[26] D. Bates and A. Gawande, “Improving safety with information technology,” New Engl. J. Med., vol. 348, no. 25, pp. 2526–2534, 2003.
+[27] I. Lee, G. Pappas, R. Cleaveland, J. Hatcliff, B. Krogh, P. Lee, H. Rubin,
+and L. Sha, “High-confidence medical device software and systems,”
+Computer, vol. 39, no. 4, pp. 33–38, 2006.
+[28] W. Maisel, “Medical device regulation: An introduction for the practicing
+physician,” Ann. Internal Med., vol. 140, no. 4, pp. 296–302, 2004.
+[29] R. Alur, D. Arney, E. Gunter, I. Lee, J. Lee, W. Nam, F. Pearce, S.
+Van Albert, and J. Zhou, “Formal specifications and analysis of the
+computer-assisted resuscitation algorithm (CARA) infusion pump control
+system,” Int. J. Softw. Tools Technol. Transfer, vol. 5, no. 4, pp. 308–319,
+2004.
+[30] F. A. Drews, N. Syroid, J. Agutter, D. L. Strayer, and D. R. Westenskow,
+“Drug delivery as control task: Improving performance in a common
+anesthetic task,” Human Factors, vol. 48, no. 1, pp. 85–94, 2006.
+
+1086
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+Woochul Kang (M’11) received the Ph.D. degree
+in computer science from the University of Virginia,
+Charlottesville, VA, USA, in 2009.
+From 2000 to 2004 and 2009 to 2012, he was
+a Senior Researcher at Electronics and Telecommunications Research Institute, Korea, and a Postdoc Research Associate at the University of Illinois
+at Urbana-Champaign, USA, from 2012 to 2013.
+He joined Incheon National University, Yeonsu-gu,
+Korea, as an Assistant Professor in 2013. His current research interests include cyber-physical systems, embedded databases, real-time operating systems, distributed middleware,
+feedback control of computing systems, and safe integration of medical devices.
+
+Lui Sha (F’98) received the Ph.D. degree from
+Carnegie-Mellon University, Pittsburgh, PA, USA, in
+1985.
+He was a Member and then a Senior Member
+of Technical Staff at the Software Engineering Institute, Carnegie-Mellon University from August 1986
+to July 1998. Since Fall 1998, he has been a Professor
+and then Donald B. Gillis Chair Professor of Computer Science of the University of Illinois at UrbanaChampaign, Champaign, IL, USA. His work on realtime computing is supported by most of the open
+standards in real-time computing and has been cited as a key element to the
+success of many national high-technology projects including GPS upgrade, the
+Mars Pathfinder, and the International Space Station.
+Dr. Sha is a Fellow of the Association for Computing Machinery.
+
+Richard B. Berlin, Jr. graduated from Columbia
+University, and then attended Medical School and
+completed surgical training in NYC before studying
+surgical oncology at Memorial Sloan Kettering Cancer Center, also in NYC.
+He joined Carle Foundation Hospital in Urbana,
+Illinois in 1994, and has continued to the present time
+as a General Surgeon and Level 1 Trauma Surgeon. In
+1997, he began teaching at the University of Illinois
+Urbana-Champaign, USA, first in Graduate School
+of Library and Information Science and then in the
+Department of Computer Science. For a number of years, he was a Coinstructor
+of a course in Healthcare Informatics, the principles of which were summarized
+in a 2011 Springer coauthored textbook publication of the same name. For the
+past four years, he has been an Associate Professor in computer science, working with Prof. L. Sha and his research team, which studies safety critical system
+design in healthcare and medicine.
+
+Julian M. Goldman is a Medical Director of
+Biomedical Engineering for Partners HealthCare
+System, a practicing Anesthesiologist at the Massachusetts General Hospital (MGH), Boston, MA,
+USA, and the Director of the Program on Medical
+Device Interoperability at MGH and Center for Integration of Medicine and Innovative Technology. He
+founded the federally funded, multiinstitutional Medical Device “Plug-and-Play” (MD PnP) Interoperability research program in 2004 to promote innovation
+in patient safety and clinical care by leading the adoption of patient-centric integrated clinical environments. The MD PnP program
+team received the 2007 CIMIT Edward M. Kennedy award for Healthcare Innovation. He completed anesthesiology residency and fellowship training at the
+University of Colorado. He joined Harvard Medical School and the Department
+of Anesthesia, Critical Care, and Pain Medicine at the Massachusetts General
+Hospital in 2002.
+
+

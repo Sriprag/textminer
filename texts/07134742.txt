@@ -1,0 +1,1093 @@
+2888
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 12, DECEMBER 2015
+
+Sparse EEG Source Localization Using Bernoulli
+Laplacian Priors
+Facundo Costa∗ , Student Member, IEEE, Hadj Batatia, Member, IEEE, Lotfi Chaari, Member, IEEE,
+and Jean-Yves Tourneret, Senior Member, IEEE
+
+Abstract—Source localization in electroencephalography has received an increasing amount of interest in the last decade. Solving
+the underlying ill-posed inverse problem usually requires choosing
+an appropriate regularization. The usual 2 norm has been considered and provides solutions with low computational complexity.
+However, in several situations, realistic brain activity is believed
+to be focused in a few focal areas. In these cases, the 2 norm is
+known to overestimate the activated spatial areas. One solution to
+this problem is to promote sparse solutions for instance based on
+the 1 norm that are easy to handle with optimization techniques.
+In this paper, we consider the use of an 0 + 1 norm to enforce
+sparse source activity (by ensuring the solution has few nonzero
+elements) while regularizing the nonzero amplitudes of the solution. More precisely, the 0 pseudonorm handles the position of the
+nonzero elements while the 1 norm constrains the values of their
+amplitudes. We use a Bernoulli–Laplace prior to introduce this
+combined 0 + 1 norm in a Bayesian framework. The proposed
+Bayesian model is shown to favor sparsity while jointly estimating
+the model hyperparameters using a Markov chain Monte Carlo
+sampling technique. We apply the model to both simulated and
+real EEG data, showing that the proposed method provides better
+results than the 2 and 1 norms regularizations in the presence
+of pointwise sources. A comparison with a recent method based on
+multiple sparse priors is also conducted.
+Index Terms—Electroencephalography (EEG), inverse problem,
+0 + 1 norm regularization, Markov chain monte carlo (MCMC),
+source localization, sparse Bayesian restoration.
+
+I. INTRODUCTION
+LECTROENCEPHALOGRAPHY (EEG) source localization is an ill-posed inverse problem that has been receiving an intensive attention in the literature and has been
+solved using several interesting methods. These methods can
+be classified into two main groups based on different models:
+1) the dipole-fitting models that try to estimate the localization
+of a small number of dipoles and 2) the distributed-source models that assume that there is a large number of dipoles and try
+to estimate their amplitudes and orientations. The dipole-fitting
+models [1], [2] assume that the brain activity is concentrated
+in a small number of point-like sources and estimate the localization, amplitude, and orientation of a few dipoles (usually
+no more than ten) to explain the measured data. A particularity of these models is that they lead to solutions that can vary
+
+E
+
+Manuscript received May 20, 2015; accepted June 21, 2015. Date of publication June 25, 2015; date of current version November 20, 2015. Asterisk
+indicates corresponding author.
+∗ F. Costa is with the University of Toulouse, Toulouse 31071 France (e-mail:
+facundo.costa@enseeiht.fr).
+H. Batatia and L. Chaari are with the INPT - IRIT, University of Toulouse.
+J.-Y. Tourneret is with the University of Toulouse.
+Digital Object Identifier 10.1109/TBME.2015.2450015
+
+extremely with the initial guess about the number of dipoles,
+their locations and their orientations because of the existence
+of many local minima in the optimized cost function [3]. To
+solve this problem, the MUSIC algorithm [4] and its variants
+R-MUSIC [5], RAP-MUSIC [6], and FINES [7] were developed. Another recent dipole-fitting model whose parameters are
+estimated using sequential Monte Carlo [8] formulates the EEG
+source localization as a semilinear problem due to the measurements having a linear dependence with respect to the dipole
+amplitudes and a nonlinear one with respect to the positions. If
+few and clustered sources are present in the underlying brain activity, the dipole-fitting algorithms generally yield good results
+[9], [10]. However, the performance of these algorithms can be
+altered in the case of multiple spatially extended sources [3].
+On the other hand, the distributed source models represent the
+brain activity as a big number of dipoles (usually between 1.000
+and 50.000) with fixed positions (that occupy either the entire
+volume or just the cortical surface of the brain), and estimate
+their amplitudes and orientations. Since the amount of dipoles
+is much larger than the number of electrodes, the problem to be
+solved is underdetermined and has an infinite number of possible brain activity distributions associated with the measured
+data. The EEG source localization problem is, therefore, known
+to be ill posed [3].
+In order to choose from the possible solutions of the EEG
+source localization problem, a regularization trying to enforce
+desirable properties is usually applied. The minimum-norm estimation algorithm [11] tries to minimize the 2 norm of the
+solution favoring low power activity estimations. However, the
+resulting model also prefers weak surface power over strong
+depth power [3]. Several algorithms have tried to correct this
+problem including the weighted minimum norm, Loreta [12]
+and sLoreta [13]. Among these solutions, sLoreta can estimate
+the maximum excitation point with zero localization error in
+noiseless conditions [3]. A drawback of these algorithms is that
+they require to adjust a regularization parameter, which is usually performed with empirical methods such as cross validation,
+Bayesian estimation [14] or the L-curve method [15]. Another
+problem is that they overestimate the active spatial area in the
+cortex when the actual source activity is focal [3]. Motivated by
+the fact that realistic source activity is likely to be associated
+with few active brain regions at the same time, some algorithms that encourage sparse solutions have been developed. An
+0 pseudonorm can be used to provide sparse solutions [16].
+However, since the minimization of this norm requires a very
+expensive combinatory search, it is usually approximated by
+an 1 norm [17], [18] that is easier to handle with classical
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+COSTA et al.: SPARSE EEG SOURCE LOCALIZATION USING BERNOULLI LAPLACIAN PRIORS
+
+optimization techniques due to its convexity. These two types of
+regularizations have been shown to be equivalent under certain
+conditions [16].
+In addition to the optimization techniques mentioned previously, it is also possible to estimate the brain activity by modeling its time evolution and applying Kalman filtering [19],
+[20] or particle filters [21]–[23]. Another way of looking for
+a solution with sparse properties is to consider Bayesian techniques with appropriate priors assigned to the model parameters.
+These Bayesian techniques have the advantage of estimating the
+model hyperparameters directly from the data using hierarchical algorithms. Note that Bayesian methods have been used
+both for dipole-fitting [24]–[27] and distributed source models
+[28]–[30]. In [29], Friston et al. developed the multiple sparse
+priors (MSP) framework in which they parcel the brain in different preselected regions and promote a sparse subset of these
+regions to be active. This is performed by using a Gaussian prior
+distribution for the brain activity and estimating its correlation
+matrix as a linear combination of predefined base matrices with
+finite support defined over each brain parcel. This method is
+designed to estimate brain activities that have multiple spatially
+extended sources and requires choosing a criterion for the prior
+parcellation of the brain in different regions and the selection of
+the base matrices. Even though the results of the MSP framework proved to be good in several scenarios, since our focus is to
+estimate point-like focal source activity, we propose to consider
+separate dipoles instead of grouping them together in different
+preselected regions. This avoids the need to select a criterion for
+brain parcellation and constructing the base matrices required
+by the MSP framework.
+For these reasons, we propose to introduce a new algorithm relying on the 1 norm and 0 -pseudonorm regularizations. Since
+the 0 pseudonorm is too costly for direct implementation and
+the 1 norm does not always yield the same solution, we propose
+to combine them into a Bayesian framework to pursue sparse
+solutions. It can be easily shown that using a Laplace prior is
+the Bayesian equivalent of 1 norm regularization, whereas a
+Bernoulli prior can be associated with the 0 pseudonorm. As a
+consequence, we propose the use of a Bernoulli–Laplace prior
+in a distributed source model for the estimation of the activity
+of focal point-like sources. The combination of the two norms
+allows the nonzero elements to be localized (via the Bernoulli
+part of the prior) and their amplitudes to be estimated (with the
+Laplace distribution). Note that the Laplace distribution prior is
+able to estimate both small and high amplitudes due to its large
+value around zero and its fat tails. In addition one could introduce a spatial-regularizing prior to yield a region-based sparse
+solution equivalent to the MSP model without the preprocessing
+and associated hypotheses.
+In order to compute estimators associated with the proposed Bayesian model, we derive a Markov chain Monte Carlo
+(MCMC) method allowing samples to be generated according
+to the posterior of interest. These samples are then used to estimate the unknown model parameters. The resulting algorithm
+has several attractive properties, including the fact that it is
+able to estimate the model hyperparameters in an unsupervised
+framework and provides better estimations of the source activity
+than the traditional 2 or 1 norms.
+
+2889
+
+This paper is organized as follows: The observation model
+is introduced in Section II. The Bayesian model proposed to
+estimate the unknown parameters is defined in Section III.
+Section IV studies a hybrid Gibbs sampler that will be used
+to generate samples asymptotically distributed according to the
+posterior of interest. Simulation results obtained with synthetic
+and real EEG data are reported in Section V. Section VI concludes the paper.
+II. PROBLEM STATEMENT
+The main objective of the EEG source localization problem is
+to estimate the brain activity of the patient from EEG measurements. It is well known that the activity can be represented as a
+continuous current distribution [31] that can be approximated by
+a discrete number of dipoles located in the brain [3], [31]. Therefore, we propose to model the brain activity by using a finite
+number of active dipoles located in the cortex. More precisely,
+we consider a distributed-source model with a fixed amount of
+dipoles with given locations. Since the electric potential at any
+point of the scalp can be calculated as a linear combination of
+the dipole amplitudes, the relationship between the potential
+at the scalp and the dipole amplitudes can be represented as
+follows [3], [31]:
+y = Hx + e
+
+(1)
+
+where x ∈ R3M contains the amplitudes of the M dipoles along
+the three spatial dimensions, y ∈ RN is the measurement vector acquired by the N electrodes, the N × 3M lead field matrix
+H models the propagation of the electromagnetic field from
+the sources to the sensors [24], [32] and e is an additive white
+Gaussian noise. Since the activity measured by an EEG is mainly
+generated by groups of neurons that are oriented orthogonal to
+the brain surface [31], [33], we assume the source orientations
+to be normal to the cortex. Moreover, as in many works [3], [28],
+[34], we limit the position of the dipoles to the cortex surface.
+As a consequence, the moment of each dipole can be determined using only one value, such that x ∈ RM and H ∈ RN ×M .
+Note that even though the orientations of the dipoles are constrained, the directions of their currents are not known and have
+to be estimated by the algorithm (via the signs of the elements
+of x) [3], [34].
+The EEG source localization problem based on the observation model (1) mainly consists of estimating the vector x from
+the observed data y. The next section introduces a hierarchical
+Bayesian model appropriate to solve this inverse problem. The
+likelihood of this model and the priors assigned to its unknown
+parameters and hyperparameters are defined in the next sections.
+III. BAYESIAN MODEL
+A. Likelihood
+It is very classical in EEG analysis to consider an additive
+white Gaussian noise with a variance σn2 [3]. When this assumption does not hold, it is classical to estimate the noise
+covariance matrix from the data and to whiten the data before
+applying the algorithm [35]. This strategy will be considered in
+our experiments related to real data presented in Section V-C.
+
+2890
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 12, DECEMBER 2015
+
+The Gaussian noise assumption for the noise samples leads to
+the following probability density function (pdf)
+
+ N2
+ ||y − Hx||2 
+1
+(2)
+f (y|x, σn2 ) =
+exp −
+2
+2πσn
+2σn2
+where ||.|| denotes the Euclidean norm.
+B. Prior Distributions
+The unknown parameter vector associated with the proposed
+model (1) is θ = {x, σn2 }. In order to perform Bayesian inference, we assign priors to these parameters as follows.
+1) Prior for the Dipole Amplitudes: In order to encourage
+sparse solutions whose nonzero elements have small amplitudes,
+we introduce the Bayesian analogous of an 0 + 1 regularization by using a Bernoulli–Laplace prior distribution for each
+element of the vector x. The corresponding pdf for the ith
+element of x is
+
+
+|xi |
+ω
+exp −
+f (xi |ω, λ) = (1 − ω)δ(xi ) +
+(3)
+2λ
+λ
+where δ(.) is the Dirac delta function, λ is the parameter of the
+Laplace distribution, and ω the weight balancing the effects of
+the Dirac delta function and the Laplace distribution. Assuming the random variables xi are a priori independent, the prior
+distribution of x can be written as
+f (x|ω, λ) =
+
+M
+
+
+f (xi |ω, λ).
+
+(4)
+
+i=1
+
+2) Prior for the Noise Variance: A noninformative Jeffrey’s
+prior is assigned to the noise variance
+f (σn2 ) ∝
+
+1
+1 + (σn2 )
+σn2 R
+
+(5)
+
+where 1R+ (ξ) = 1 if ξ ∈ R+ and 0 otherwise. This prior is a
+very classical choice for a noninformative prior (see, e.g., [36]
+for motivations). Note that a more informative prior distribution
+related to the signal to noise ratio could also be investigated.
+However, we have chosen here to design an algorithm requiring
+as little prior information as possible.
+C. Hyperparameter Priors
+The hyperparameter vector associated with the previous priors is Φ = {ω, λ} as displayed in the direct acyclic graph of
+Fig. 1. This paper considers a hierarchical Bayesian model that
+allows the hyperparameters to be estimated from the data. This
+strategy requires to assign priors to the hyperparameters (referred to as hyperpriors) that are defined in this section.
+1) Hyperprior for ω: An independent uniform distribution
+on [0, ωmax ] is assigned to the weight ω
+ω ∼ U[0,ω max ]
+
+(6)
+
+where ωmax ∈ [0, 1] is an upper bound on ω that is fixed in order
+to ensure a minimum level of sparsity.1
+1 We have observed that setting ω
+max = 0.5 (instead of ω max = 1) yields
+faster convergence of the sampler studied in Section IV.
+
+Fig. 1.
+
+Directed acyclic graph of the hierarchy used for the Bayesian model.
+
+2) Hyperprior for λ: Using similar arguments as for the
+noise variance σn2 , a Jeffrey’s prior is assigned to λ in order
+to define the following noninformative prior
+f (λ) ∝
+
+1
+1 + (λ).
+λ R
+
+(7)
+
+D. Posterior Distribution
+Taking into account the likelihood and priors introduced previously, the joint posterior distribution of the model used for
+EEG source localization can be expressed using the following
+hierarchical structure:
+f (θ, Φ|y) ∝ f (y|θ)f (θ|Φ)f (Φ)
+
+(8)
+
+where {θ, Φ} is the vector containing the model parameters
+and hyperparameters. Because of the complexity of this posterior distribution, the Bayesian estimators of {θ, Φ} cannot
+be computed with simple closed-form expressions. Section IV
+studies an MCMC method that can be used to sample the joint
+posterior distribution (8) and build Bayesian estimators of the
+unknown model parameters using the generated samples.
+IV. MARKOV CHAIN MONTE CARLO METHOD
+This section considers a Gibbs sampler [36] that generates
+samples iteratively from the conditional distributions of (8), i.e.,
+from f (σn2 |y, x), f (λ|x), f (ω|x) and f (xi |y, x−i , ω, λ, σn2 ).
+Note that this strategy showed interesting results for many image processing problems including image denoising [37], sparse
+image reconstruction [38], hyperspectral image unmixing [39],
+and fusion of hyperspectral and panchromatic images [40]. The
+next sections explain how to sample from the conditional distributions of the unknown parameters and hyperparameters associated with the posterior of interest (8). The resulting algorithm
+is also summarized in Algorithm 1.
+A. Sampling According to f (σn2 |y, x)
+Using (8), it is straightforward to derive the conditional posterior distribution of σn2 which is the following inverse gamma
+distribution
+  N ||y − Hx||2 
+
+(9)
+σn2 |x, y ∼ IG σn2  ,
+2
+2
+where ||.|| is the Euclidean norm.
+
+COSTA et al.: SPARSE EEG SOURCE LOCALIZATION USING BERNOULLI LAPLACIAN PRIORS
+
+and
+
+Algorithm 1 Gibbs sampler.
+Initialize x with the sLoreta solution
+repeat
+Sample σn2 according to (9).
+Sample λ according to (10).
+Sample ω according to (11).
+for i = 1 to M do
+Sample xi according to (12).
+end for
+until convergence
+
+By using f (x|ω, λ) and the prior distribution of λ, it is easy to
+derive the conditional distribution of λ, which is also an inverse
+gamma distribution
+
+
+(10)
+λ|x ∼ IG λ | ||x||0 , ||x||1
+where ||.||0 and ||.||1 are the 0 and 1 norms, respectively.
+C. Sampling According to f (ω|x)
+Using f (x|ω, λ) and the prior of ω it can be shown that the
+conditional distribution of ω is a truncated Beta distribution
+defined on the interval [0, ωmax ]
+(11)
+
+D. Sampling According to f (xi |y, x−i , ω, λ, σn2 )
+Using the likelihood and the prior distribution of x, the conditional distribution of each signal element xi can be expressed
+as follows:
+f (xi |y, x−i , ω, λ, σn2 ) = ω1,i δ(xi ) + ω2,i N+ (μi,+ , σi2 )
++ ω3,i N− (μi,− , σi2 )
+
+(12)
+
+where N+ and N− denote the truncated Gaussian distributions
+on R+ and R− , respectively. The vector x can be decomposed on the orthonormal basis B = {e1 , . . . , eM } such that
+ −i is obtained by setting the ith ele −i + xi ei where x
+x=x
+ment of x to 0. Defining v i = y − H
+x−i and hi = Hei , the
+weights (ωl,i )1≤l≤3 are defined as
+ul,i
+ωl,i = 	3
+l=1 ul,i
+
+(13)
+
+where
+u1,i = 1 − ω
+u2,i
+
+ω
+exp
+=
+2λ
+
+u3,i
+
+ω
+exp
+=
+2λ
+
+
+
+
+2
+(μ+
+i )
+2σi2
+2
+(μ−
+i )
+2σi2
+
+
+
+
+
+
+2
+2πσi2 C(μ+
+i , σi )
+
+2
+2πσi2 C(−μ−
+i , σi )
+
+σn2
+||hi ||2
+
+
+T
+v
+h
+1
+i
+i
+2
+μ+
+−
+i = σi
+σn2
+λ
+
+
+1
+hTi v i
+−
+2
++
+μi = σi
+σn2
+λ
+
+
+
+μ
+1
+.
+(15)
+C(μ, σ 2 ) =
+1 + erf √
+2
+2σ 2
+Finally, it is interesting to mention how to sample efficiently
+from (12), which will also be useful to define appropriate estimators (see Section IV-E). Since (12) is a mixture of three
+distributions, we introduce a discrete random variable bi taking
+the value 0 with probability ω1,i (corresponding to xi = 0), the
+value 1 with probability ω2,i (corresponding to xi > 0), and the
+value −1 with probability ω3,i (corresponding to xi < 0). To
+sample from (12), we can draw the discrete random variable
+bi , and generate xi conditionally upon bi . The role of the discrete random variable bi is to detect whether xi is zero, positive,
+or negative.
+σi2 =
+
+B. Sampling According to f (λ|x)
+
+ω|x ∼ B[0,ω max ] (1 + ||x||0 , 1 + M − ||x||0 ).
+
+2891
+
+(14)
+
+E. Parameter Estimation
+In order to estimate the different parameters associated with
+the posterior (8) using the samples generated by the MCMC
+method described previously, we first detect the nonzero values of xi corresponding to the nonzero dipole amplitudes. This
+detection can be easily achieved by using the generated discrete random variables bi used to sample according to xi . More
+precisely, we estimate bi following the maximum a posteriori
+principle as the most likely value generated by the sampler.2
+Once we have detected whether xi is zero, positive, or negative
+(i.e., once we have estimated bi ), we keep the vectors generated
+by the MCMC method satisfying these conditions for the different variables bi and we estimate the dipole amplitudes, the
+noise variance and the hyperparameters using the mean of these
+vectors. In other words, we estimate the indicators bi by the
+maximum a posteriori principle and the amplitudes xi by the
+minimum mean square error (MMSE) principle, which corresponds to the mean of the posterior.
+V. EXPERIMENTAL RESULTS
+This section reports different experiments conducted to evaluate the performance of the proposed EEG source localization
+algorithm for synthetic and real data. In these experiments, our
+algorithm was initialized with the sLoreta solution obtained
+after estimating the regularization parameter by minimizing
+the cross-validation error as recommended by Pascual-Marqui
+et al. in [13]. The upper bound of the sparsity level was set to
+ωmax = 0.5, which is much larger than the expected value of ω.
+2 We have noted that when the number of zeros is close to the number of
+nonzeros, it can be interesting to promote the nonzero value, which will result
+in estimating a small dipole amplitude.
+
+2892
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 12, DECEMBER 2015
+
+The results obtained with synthetic and real data are reported in
+two separate sections.
+A. Synthetic Data
+1) Simulation Scenario: Synthetic data with few pointwise
+source activations were generated using a realistic BEM head
+model with 19 electrodes placed according to the 10 − 20 international system of electrode placement. Three different kinds
+of activations were investigated: 1) single dipole activations,
+2) multiple distant dipole activations, and 3) multiple close
+dipole activations. The default subject anatomy of the Brainstorm software [41] was considered. This model corresponds
+to MRI measurements of a 27-year old male using the boundary element model implemented by the OpenMEEG package
+[42]. The default brain cortex of this subject was downsampled
+to generate a 1003-dipole head model. These dipoles are distributed along the cortex surface and have an orientation normal
+to it, as discussed in the previous sections. The resulting head
+model is such that H ∈ R19×1003 .
+For each of the activations that are described in what follows,
+three independent white Gaussian noise realizations were added
+to the observed signal Hx, resulting in three sets of measurements y with an SNR of 20 dB. For each of these three noisy
+signals y, four MCMC independent chains were run, resulting
+in 12 total simulations for each of the considered activations
+x. The 1 and sLoreta methods were applied to the same three
+different sets of measurements y resulting in three simulations
+for each activation.
+2) Performance Evaluation: To assess the quality of the localization results, the following indicators were used.
+i) Localization error [3]: The Euclidean distance between
+the maximum of the estimated activity and the real source
+location is used to determine whether the algorithm is able
+to find the point of highest activity correctly or not.
+ii) Center-mass localization error [43]: The Euclidean distance between the barycenter of the estimated activity
+and the real source location allows us to appreciate if the
+activity estimated by the algorithm is centered around the
+correct point or if it is biased.
+iii) Excitation extension: The spatial extension of the spatial
+area of the brain cortex that is estimated to be active was
+considered in [43]. Since the synthetic data only contain
+pointwise sources, this criterion should ideally be equal
+to zero.
+iv) Transportation cost: This indicator evaluates the performance in a multiple dipole situation where the activity estimates from different dipoles may overlap. It is computed
+as the solution of an optimal mass transport optimization
+problem [44] considering the known ground truth to be
+the initial mass distribution and the activity estimated by
+the algorithm to be the target mass distribution. The activities associated with the ground truth and the estimated
+data are first normalized. The total cost of moving the
+activity from the nonzero elements of the ground truth
+to the nonzero elements of the estimated activity is then
+computed. It is obtained by finding the weights wj →k
+
+that minimize
+
+j
+
+wj →k |r x nzj − r x nzk |
+
+(16)
+
+k
+
+where xnz
+j denotes a nonzero element of the ground truth,
+is
+a
+nonzero
+element of the estimated activity and r d
+x
+nz
+k
+represents the spatial position of dipole d in Euclidean coordinates, with the following constraints for the weights
+(in order to avoid the trivial zero solution)
+
+j
+
+wj →k = x
+nz
+k ,
+
+
+
+wj →k = xnz
+j .
+
+(17)
+
+k
+
+Note that (16) defines a similarity measure between the
+amount of activity in the nonzero elements of the ground
+truth and the estimated solution. The minimum cost of
+(16) can be obtained using the simplex method of linear
+programming. The transportation cost of an estimated
+solution is finally defined as the minimum transportation
+cost calculated between the estimated solution and the
+ground truth. Since the activity has been normalized in
+the first step, this parameter is measured in millimeters.
+The proposed method is compared to the more traditional
+weighted 1 norm [45] and sLoreta. The regularization parameter of sLoreta was computed by cross validation using
+the method recommended by Pascual-Marqui et al. in [13].
+The weighted 1 norm was implemented using the alternating direction method of multipliers with the technique used by
+Boyd et al. in [46]. The regularization parameter was chosen
+so that ||y − H
+x|| ≈ ||y − Hx|| according to the discrepancy
+principle [47].
+3) Single Dipole: The first kind of experiment consisted of
+activating only one dipole. Ten dipoles were randomly chosen
+from the 1003 dipoles of the head model. For each of these ten
+positions, a measurement vector x was formed that had only the
+corresponding dipole activated (referred as single dipole activations #1 through #10). After generating the different sets of
+measurements y, the localization error was found to be 0.00 mm
+for all the dipoles with the three methods. The other performance parameters are displayed in Fig. 2 showing the good
+performance of the proposed method (indicated by PM).
+The brain activities detected by the proposed method and the
+weighted 1 norm solution are illustrated in Fig. 3 for a representative simulation. Our algorithm managed to perfectly recover
+the activity for 9 out of the 10 activations (with center-mass
+localization error, extension and transportation cost equal to
+0.00 mm) for all simulations. The dipole corresponding to activation #7 was located precisely for some simulations and with
+very reduced error in the others. The mean transportation cost
+of the proposed method for activation #7 is 0.7 mm. In comparison, sLoreta has an excitation extension that is significantly
+larger (between 41 and 51 mm for the different dipole positions)
+(as expected for an 2 norm regularization) and a larger transportation cost (bigger than 55 mm in all cases). The weighted
+1 norm regularization provides better estimations than sLoreta
+with a mean extension of up to 10 mm and transportation cost of
+up to 13 mm but is still outperformed by the proposed method.
+
+COSTA et al.: SPARSE EEG SOURCE LOCALIZATION USING BERNOULLI LAPLACIAN PRIORS
+
+2893
+
+Fig. 2. Simulation results for single dipole experiments. The horizontal axis indicates the activation number. The error bars show the standard deviation over 12
+Monte Carlo runs.
+
+Fig. 4. Histogram of samples generated by the MCMC method for one of
+the single dipole simulations. The estimated mean values and ground truth are
+indicated in the figures.
+Fig. 3.
+
+Brain activity for one single dipole experiment (activation #5).
+
+In addition, Fig. 4 shows the histograms of the samples of
+σn2 , ω, λ, and the amplitude of the active dipole xi for one of the
+simulations corresponding to activation #3 as a representative
+case. It is shown that the ground truth values of ω (the proportion
+of nonzeros 1/1003), σn2 and xi are inside the support of their
+histograms and are close to their estimated mean values, i.e.,
+close to their MMSE estimates.
+4) Multiple Distant Dipoles: The second kind of experiments evaluates the performance of the proposed algorithm
+when several dipoles are activated at the same time and when
+these activated dipoles have distant space positions. More precisely, we chose randomly the following sets of dipoles from
+the 1003 dipoles present in the head model.
+
+i) Two pairs of N = 2 simultaneous dipoles spaced more
+than 100 mm (activations #1 and #2).
+ii) Two sets of N = 3 simultaneous dipoles spaced more
+than 100 mm (activations #3 and #4).
+For each of these four sets of dipoles, a vector x having only
+the corresponding active dipoles was formed and the measurements y were calculated as described previously.
+The brain activities associated with two representative simulations corresponding to two and three dipoles are illustrated
+in Figs. 5 and 6. The activation #2 associated with two distant
+dipoles displayed in Fig. 5 is an interesting case for which the
+weighted 1 norm regularization fails completely to recover one
+of the dipoles. The activation #4 displayed in Fig. 6 shows that
+the proposed method detects an activity more concentrated in
+
+2894
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 12, DECEMBER 2015
+
+Fig. 5. Brain activity for a multiple distant dipole experiment (activation # 2
+that has two active dipoles).
+
+the activated dipoles while the 1 norm regularization provides
+less-sparse solutions.
+Quantitative results in terms of transportation costs are displayed in Fig. 7 for the different experiments. The transportation
+costs obtained with the proposed method are below 3.6 mm in
+all cases and are clearly smaller than those obtained with the
+other methods. Indeed, the sLoreta transportation costs are between 50 and 62 mm, and the transportation costs associated
+with the weighted 1 norm regularization are between 3.9 and
+13 mm, except for the activation #2, where it fails to recover
+one of the dipoles as previously stated.
+5) Multiple Close Dipoles: The third kind of experiments
+evaluates the performance of the proposed algorithm for active
+dipoles that have close spatial positions. More precisely, we
+randomly chose the following sets of dipoles.
+i) Two pairs of dipoles spaced between 49 and 51 mm
+(activations #1 and #2).
+ii) Two pairs of dipoles spaced between 29 and 31 mm
+(activations #3 and #4).
+iii) Two pairs of dipoles spaced between 9 and 11 mm (activations #5 and #6).
+For each of these six sets of dipoles, a vector x having only the
+corresponding active dipoles was formed and the measurements
+y were simulated as described previously.
+Fig. 10 compares the transportation costs obtained with the
+different methods. Since it is much harder to distinguish the
+activity produced by two close dipoles, the transportation costs
+associated with the proposed method and the weighted 1 norm
+regularization are considerably higher than those obtained previously. However, the transportation costs obtained with the
+proposed algorithm are still below those obtained with the
+two other estimation strategies. Some interesting cases can be
+
+Fig. 6. Brain activity for a multiple distant dipole experiment (activation # 3
+that has three active dipoles).
+
+Fig. 7. Transportation cost for multiple distant dipoles experiments, the horizontal axis indicates the activation number (1 and 2: two active dipoles, 3 and 4:
+three active dipoles). The error bars show the standard deviation over 12 Monte
+Carlo runs.
+
+observed in Figs. 8 and 9. Fig. 8 corresponds to one case where
+both algorithms fail to identify two dipoles and fuse them into a
+single dipole located in the middle of the two actual locations.
+In this particular activation, our algorithm adds considerably
+less extra activity than the weighted 1 norm regularization. In
+the case illustrated in Fig. 9, the proposed method correctly
+identifies two dipoles (but moves one of them from its original
+positions) while the weighted 1 norm regularization estimates
+a single dipole located very far from the two excited dipoles.
+B. Computational Cost
+This section compares the computational cost of the different algorithms (weighted 1 norm, sLoreta, and the proposed
+method) that were run on a modern Xeon CPU E3-1240 at
+
+COSTA et al.: SPARSE EEG SOURCE LOCALIZATION USING BERNOULLI LAPLACIAN PRIORS
+
+Fig. 8. Brain activity for multiple close dipoles (activation # 4 that has a
+30-mm separation between dipoles).
+
+3.4-GHz processor using a MATLAB implementation. In the
+case of the weighted 1 norm, we used the stopping criterion
+recommended by Boyd et al. in [46]. The proposed method was
+run with four parallel chains (as stated in Section V-A1) until
+the potential scale reduction factor of all the generated samples
+was below 1.2 as recommended in [48]. The average running
+times of each of the methods are presented in Table I. As we can
+see, the weighted 1 norm is three orders of magnitude slower
+than sLoreta (taking seconds instead of milliseconds), while the
+proposed method is three orders of magnitude slower than the
+weighted 1 norm. Note that the first two algorithms seem to
+have a running time that does not depend on the kind of simulations while the proposed method is faster for simpler cases and
+slower for more complex dipole distributions. Having a higher
+computational cost is a typical disadvantage of MCMC sampling techniques when compared to optimization approaches.
+However, it is important to note that our algorithm is able to
+estimate its hyperparameters in one run while the other two require to be run several times in order to set their regularization
+parameters by cross validation for instance.
+C. Real Data
+Two different sets of real data were considered. The first
+one consists of an auditory evoked response while the second
+one is the evoked response to facial stimulus. In addition to the
+weighted 1 norm regularization, we also compared our results
+with the MSP algorithm [29] using the default parameters in the
+SPM software.3
+3 The
+
+SPM software is freely avaiable at http://www.fil.ion.ucl.ac.uk/spm.
+
+2895
+
+Fig. 9. Brain activity for multiple close dipoles (activation # 6 that has a
+10-mm separation between dipoles).
+
+Fig. 10. Transportation cost for multiple close dipoles experiments. The horizontal axis indicates the activation number (1 and 2: 50-mm separation, 3 and
+4: 30-mm separation, 5 and 6: 10-mm separation). The error bars show the
+standard deviation over 12 Monte Carlo runs.
+
+TABLE I
+COMPUTATION COSTS OF THE DIFFERENT ALGORITHMS (IN SECONDS)
+Experiment Type
+Single dipole
+Multiple distant dipole
+Multiple close dipole
+
+sLoreta
+
+ 1 Norm
+
+Proposed Method
+
+3.65 × 10 −3
+3.64 × 10 −3
+3.61 × 10 −3
+
+1.09
+0.84
+0.91
+
+651.9
+886.6
+1128.0
+
+1) Auditory Evoked Responses: The used dataset was extracted from the MNE software [49], [50]. It corresponds to an
+evoked response to left-ear auditory pure-tone stimulus using a
+realistic BEM head model sampled with 60 EEG electrodes at
+600 samples/s. The samples were low-pass filtered at 40 Hz and
+
+2896
+
+Fig. 11.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 12, DECEMBER 2015
+
+EEG measurements for the real data application.
+
+downsampled to 150 samples/s. The noise covariance matrix
+was estimated from 200 ms of data preceding each stimulus and
+was used to whiten the data. Fifty one epochs were averaged to
+generate the measurements y.
+The sources associated with this example are composed of
+1844 dipoles located on the cortex with orientations that are
+normal to the brain surface. One channel that had technical
+artifacts was ignored resulting in an operator H ∈ R59×1884 .
+We processed the eight time samples corresponding to 80 ms ≤
+t ≤ 126 ms, i.e., associated with the highest activity period in
+the EEG measurements as displayed in Fig. 11.
+The sum of the estimated brain activities over the eight time
+samples obtained by the proposed method, the weighted 1 norm
+regularization and the MSP algorithm are presented in Fig. 12.
+The proposed method consistently detects most of the activity
+concentrated in both the ipsilateral and contralateral auditory
+cortices. The weighted 1 norm regularization detects the activity in the right cortex in a similar position, but moves the activity
+detected in the left cortex to a lower point of the brain that is further away from the auditory cortex. The MSP algorithm finds the
+activity correctly in the auditory cortices but spreads it around
+a region instead of focusing it on a small number of dipoles.
+This is due to the fact that both the proposed method and the
+weighted 1 norm promote sparsity over the dipoles while MSP
+promotes sparsity over preselected brain regions that depend on
+the parcellation scheme used.
+2) Face-Evoked Responses: The data used in this section
+are one of the sample datasets available in the SPM software.
+It were acquired from a face perception study in which the
+subject had to judge the symmetry of a mixed set of faces and
+scrambled faces. Faces were presented during 600 ms with an
+interval of 3600 ms (for more details on the paradigm see [51]).
+The acquisition system was a 128-channel ActiveTwo system
+with a sampling frequency equal to 2048 Hz. The data were
+downsampled to 200 Hz, and after artifact rejection, the 299
+
+Fig. 12.
+
+Brain activity for the auditory evoked responses from 80 to 126 ms.
+
+epochs corresponding to nonscrambled faces were averaged and
+lowpass filtered at 40 Hz. The head model is based on a T1 MRI
+scan of the patient downsampled to have 3004 dipoles, resulting
+in an operator H ∈ R128×3004 .
+The brain activities detected by the three algorithms for
+t = 160 ms (time sample with highest brain activity) are presented in Fig. 13. The MSP method locates the activity spread
+over several brain regions due to its preparcellation of the brain.
+In particular, it locates activity in the lateral and posterior regions. In comparison both the weighted 1 norm and the proposed method focus the activity closer to the fusiform regions
+of the temporal lobes, areas of the brain that are speculated
+to be specialized in facial recognition [52]. Note that the proposed method provides the most focal solution of the three. It
+is interesting to note that the MSP algorithm divides the brain
+in symmetric parcels in both hemispheres, which very often
+causes the solution to have a high degree of symmetry while the
+other two methods only rely on the measurements to estimate
+the brain activity.
+VI. CONCLUSION
+This paper proposed a new Bayesian model for EEG source
+localization promoting sparsity for the dipole activities via a
+Bernoulli–Laplace prior. To compute the Bayesian estimators
+of this model, we introduced an MCMC method sampling the
+posterior distribution of interest and estimating the model parameters using the generated samples. The resulting EEG source
+localization strategy was compared to 2 norm (sLoreta) and
+weighted 1 norm regularizations for synthetic data and with
+
+COSTA et al.: SPARSE EEG SOURCE LOCALIZATION USING BERNOULLI LAPLACIAN PRIORS
+
+2897
+
+REFERENCES
+
+Fig. 13.
+
+Brain activity for the faced evoked responses for 160 ms.
+
+the MSP algorithm for real data, showing promising results in
+both cases. More precisely, several experiments with synthetic
+data were constructed using single and multiple dipoles, both for
+close and distant locations. For the single dipole scenario, the
+proposed algorithm showed better performance than the more
+traditional 2 - and 1 norm regularizations in terms of several
+evaluation criteria used in the literature. In multiple dipole scenarios, the estimated activities from different dipoles can overlap, making the classical evaluation criteria difficult to apply. In
+order to assess the performance in these scenarios, we proposed
+a new evaluation criterion denoted as transportation cost defined as the solution of an optimal mass transportation problem.
+This criterion showed that the proposed localization method performed better than the standard 2 norm and weighted 1 norm
+regularizations. We also considered two sets of real data consisting of the evoked responses to a left-ear auditory stimulation
+and to facial stimulus, respectively. In both cases, the algorithm
+showed better performance than the weighted 1 norm regularization and the MSP method to estimate brain activity generated
+by point-like sources.
+Future work includes adapting the proposed model for multitemporal EEG signals and generalizing the Bayesian model to
+cases where the head model is not known perfectly.
+
+ACKNOWLEDGMENT
+The authors would like to thank K. Friston and V. Litvak for
+their feedback about the multiple sparse priors algorithm.
+
+[1] H. Buchner et al., “Inverse localization of electric dipole current sources
+in finite element models of the human head,” Electroencephalogr. Clin.
+Neurophysiol., vol. 102, no. 4, pp. 267–278, 1997.
+[2] B. N. Cuffin, “A method for localizing EEG sources in realistic
+head models,” IEEE Trans. Biomed. Eng., vol. 42, no. 1, pp. 68–71,
+Jan. 1995.
+[3] R. Grech et al., “Review on solving the inverse problem in EEG source
+analysis,” J. Neuroeng. Rehabil., vol. 4, pp. 5–25, 2008.
+[4] J. C. Mosher et al., “Multiple dipole modeling and localization from
+spatio-temporal MEG data,” IEEE Trans. Biomed. Eng., vol. 39, no. 6,
+pp. 541–557, Jun. 1992.
+[5] J. C. Mosher and R. M. Leahy, “Recursive MUSIC: A framework for EEG
+and MEG source localization,” IEEE Trans. Biomed. Eng., vol. 45, no. 11,
+pp. 1342–1354, Nov. 1998.
+[6] J. Mosher and R. Leahy, “Source localization using recursively applied
+and projected (RAP) MUSIC,” IEEE Trans. Signal Process., vol. 47,
+no. 2, pp. 332–340, Feb. 1999.
+[7] X.-L. Xu et al., “An alternative subspace approach to EEG dipole source
+localization,” Phys. Med. Biol., vol. 49, no. 2, pp. 327–343, 2004.
+[8] S. Sommariva and A. Sorrentino, “Sequential Monte Carlo samplers for
+semi-linear inverse problems and application to magnetoencephalography,” Inverse Probl., vol. 30, no. 11, pp. 114020–114043, 2014.
+[9] F. L. da Silva and A. Van Rotterdam, “Biophysical aspects of EEG and
+magnetoencephalogram generation,” in Electroencephalography: Basic
+Principles, Clinical Applications and Related Fields, Baltimore, MA,
+USA: Williams & Wilkins, 1998.
+[10] H. Liu et al., “Standardized shrinking LORETA-FOCUSS (SSLOFO):
+A new algorithm for spatio-temporal EEG source reconstruction,” IEEE
+Trans. Biomed. Eng., vol. 52, no. 10, pp. 1681–1691, Oct. 2005.
+[11] R. D. Pascual-Marqui, “Review of methods for solving the EEG inverse
+problem,” Int. J. Bioelectromagn., vol. 1, no. 1, pp. 75–86, 1999.
+[12] R. D. Pascual-Marqui et al., “Low resolution electromagnetic tomography: A new method for localizing electrical activity in the brain,” Int. J.
+Psychophysiol., vol. 18, no. 1, pp. 49–65, 1994.
+[13] R. Pascual-Marqui et al., “Standardized low-resolution brain electromagnetic tomography (sLORETA): Technical details,” Methods Findings Exp.
+Clin. Pharmacol., vol. 24D, pp. 5–12, 2002.
+[14] L. Chaâri et al., “A hierarchical Bayesian model for frame representation,” IEEE Trans. Signal Process., vol. 58, no. 11, pp. 5560–5571,
+Nov. 2010.
+[15] P. C. Hansen, “The L-curve and its use in the numerical treatment of
+inverse problems,” in Computational Inverse Problems in Electrocardiology. Southampton, U.K.: WIT Press, 2000.
+[16] E. J. Candes, “The restricted isometry property and its implications for
+compressed sensing,” C. R. l’Académie des Sci., vol. 346, no. 9, pp. 589–
+592, 2008.
+[17] K. Matsuura and Y. Okabe, “Selective minimum-norm solution of the
+biomagnetic inverse problem,” IEEE Trans. Biomed. Eng., vol. 42, no. 6,
+pp. 608–615, Jun. 1995.
+[18] K. Uutela et al., “Visualization of magnetoencephalographic data using
+minimum current estimates,” NeuroImage, vol. 10, no. 2, pp. 173–180,
+1999.
+[19] A. Galka et al., “A solution to the dynamical inverse problem of EEG
+generation using spatiotemporal Kalman filtering,” NeuroImage, vol. 23,
+no. 2, pp. 435–453, 2004.
+[20] C. J. Long et al., “State-space solutions to the dynamic magnetoencephalography inverse problem using high performance computing,” Ann.
+Appl. Statist., vol. 5, no. 2B, pp. 1207–1228, 2011.
+[21] E. Somersalo et al., “Non-stationary magnetoencephalography by
+Bayesian filtering of dipole models,” Inverse Probl., vol. 19, no. 5,
+pp. 1047–1063, 2003.
+[22] A. Sorrentino et al., “Dynamic filtering of static dipoles in magnetoencephalography,” Ann. Appl. Statistics, vol. 7, no. 2, pp. 955–988,
+2013.
+[23] X. Chen and S. Godsill, “Multiple dipolar sources localization for MEG
+using Bayesian particle filtering,” in Proc. IEEE Int. Conf. Acoust., Speech,
+Signal Process. (ICASSP), Vancouver, Canada, May 2013.
+[24] S. J. Kiebel et al., “Variational Bayesian inversion of the equivalent current
+dipole model in EEG/MEG,” NeuroImage, vol. 39, no. 2, pp. 728–741,
+2008.
+[25] T. Auranen et al., “Bayesian inverse analysis of neuromagnetic data using cortically constrained multiple dipoles,” Hum. Brain Mapp., vol. 28,
+no. 10, pp. 979–994, 2007.
+
+2898
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 12, DECEMBER 2015
+
+[26] S. C. Jun et al., “Spatiotemporal Bayesian inference dipole analysis for MEG neuroimaging data,” NeuroImage, vol. 28, no. 1,
+pp. 84–98, 2005.
+[27] S. C. Jun et al., “Improving source detection and separation in a spatiotemporal Bayesian inference dipole analysis,” Phys. Med. Biol., vol. 51,
+no. 10, pp. 2395–2414, 2006.
+[28] S. Baillet and L. Garnero, “A Bayesian approach to introducing anatomofunctional priors in the EEG/MEG inverse problem,” IEEE Trans. Biomed.
+Eng., vol. 44, no. 5, pp. 374–385, 1997.
+[29] K. Friston et al., “Multiple sparse priors for the M/EEG inverse problem,”
+NeuroImage, vol. 39, no. 3, pp. 1104–1120, 2008.
+[30] C. Stahlhut et al., “A hierarchical Bayesian M/EEG imaging
+method correcting for incomplete spatio-temporal priors,” in Proc.
+IEEE 10th Int. Symp. Biomed. Imagi. (ISBI), San Fransisco, USA,
+Apr. 2013.
+[31] H. Hallez et al., “Review on solving the forward problem in EEG source
+analysis,” J. Neuroeng. Rehabil., vol. 4, pp. 46–75, 2007.
+[32] J. C. Mosher et al., “EEG and MEG: Forward solutions for inverse
+methods,” IEEE Trans. Biomed. Eng., vol. 46, no. 3, pp. 245–259,
+Mar. 1999.
+[33] L. Garnero et al., “Data operating in a PET/EEG/MRI experiment,” Hum.
+Brain Mapp., vol. 1, no. 8, pp. 1–11, 1995.
+[34] A. Gramfort et al., “Mixed-norm estimates for the M/EEG inverse problem
+using accelerated gradient methods,” Phys. Med. Biol., vol. 57, no. 7,
+p. 1937, 2012.
+[35] E. Maris, “A resampling method for estimating the signal subspace of
+spatio-temporal EEG/MEG data,” IEEE Trans. Biomed. Eng., vol. 50,
+no. 8, pp. 935–949, Aug. 2003.
+[36] G. Casella and C. P. Robert, Monte Carlo Statistical Methods. New York,
+NY, USA: Springer-Verlag, 1999.
+[37] L. Chaari et al., “Sparse Bayesian regularization using BernoulliLaplacian priors,” in Proc. Eur. Signal Process. Conf., Marrakech,
+Morocco, Sep. 2013.
+[38] N. Dobigeon et al., “Hierarchical Bayesian sparse image reconstruction
+with application to MRFM,” IEEE Trans. Image Process., vol. 18, no. 9,
+pp. 2059–2070, Sep. 2009.
+[39] N. Dobigeon et al., “Semi-supervised linear spectral unmixing using a hierarchical Bayesian model for hyperspectral imagery,” IEEE Trans. Signal
+Process., vol. 56, no. 7, pp. 2684–2695, Jul. 2008.
+[40] Q. Wei et al., “Bayesian fusion of hyperspectral and multispectral images,”
+in Proc. IEEE Int. Conf. Acoust., Speech, Signal Process., Florence, Italy,
+May 2014, pp. 3176–3180.
+[41] F. Tadel et al., “Brainstorm: A user-friendly application for MEG/EEG
+analysis,” Comput. Intell. Neurosci., vol. 2011, no. 8, pp. 1–13, 2011.
+[42] A. Gramfort et al., “OpenMEEG: Opensource software for quasistatic
+bioelectromagnetics,” Biomed. Eng. Online, vol. 9, no. 45, pp. 1–20, 2010.
+[43] C. Silva et al., “Evaluation of L1 and L2 minimum norm performances
+on EEG localizations,” Clin. Neurophys., vol. 115, no. 7, pp. 1657–1668,
+2004.
+[44] S. T. Rachev, “The Monge-Kantorovich mass transference problem and
+its stochastic applications,” Theory Probability Appl., vol. 29, no. 4,
+pp. 647–676, 1984.
+[45] P. Xu et al., “Lp norm iterative sparse solution for EEG source localization,” IEEE Trans. Biomed. Eng., vol. 54, no. 3, pp. 400–409, Mar.
+2007.
+[46] S. Boyd et al., “Distributed optimization and statistical learning via the alternating direction method of multipliers,” Found. Trends Mach. Learning,
+vol. 3, no. 1, pp. 1–122, 2011.
+[47] V. A. Morozov, “On the solution of functional equations by the method of
+regularization,” Soviet Math. Dokl., vol. 7, pp. 414–417, 1966.
+[48] S. P. Brooks and A. Gelman, “General methods for monitoring convergence of iterative simulations,” J. Comput. Graph. Statist., vol. 7, no. 4,
+pp. 434–455, 1998.
+[49] A. Gramfort et al., “MNE software for processing MEG and EEG data,”
+NeuroImage, vol. 86, pp. 446–460, 2014.
+[50] A. Gramfort et al., “MEG and EEG data analysis with MNE-Python,”
+Front. Neurosci., vol. 7, no. 267, pp. 1–13, 2013.
+[51] R. Henson et al., “Population-level inferences for distributed meg source
+localization under multiple constraints: Application to face-evoked fields,”
+NeuroImage, vol. 38, no. 3, pp. 422–438, 2007.
+[52] N. Kanwisher et al., “The fusiform face area: A module in human extrastriate cortex specialized for face perception,” J. Neurosci., vol. 17, no. 11,
+pp. 4302–4311, 1997.
+
+Facundo Costa (S’15) was born in Buenos Aires,
+Argentina, in 1988. He received the five years Engineering degree in electronics engineering from the
+Buenos Aires Institute of Technology, Buenos Aires,
+in 2013. He is currently working toward the Ph.D.
+degree in signal processing with the National Polytechnic Institute of Toulouse (University of Toulouse,
+INP-ENSEEIHT), Toulouse, France.
+He worked as a Development Engineer specialized
+in radiofrequency for the Field Technology group of
+DirecTV Latin America until 2014. He is also part of
+the Traitement et Compréhension d’Image Group of the Institut de Recherche
+en Informatique de Toulouse. His main research interest includes image processing, Bayesian estimation, and statistics.
+Hadj Batatia (M’97) received the M.Sc. and Ph.D.
+degrees in 1987 and 1992, respectively, from the University of Toulouse, Toulouse, France.
+He is currently an Associate Professor at the University of Toulouse. He worked as Lecturer at University of Malaysia Sarawak, and then, Senior Lecturer
+at University of Teesside till 1999. He then joined the
+University of Toulouse in 1999 as an Assistant Professor. His research focus on medical image processing. His work include proposing statistical models to
+explain variability in various medical imaging modalities. Based on this models, he develops variational and Bayesian methods to
+solve reconstruction, segmentation and motion analysis problems. His research
+interests also include efficient algorithms to sample complex distributions. In
+addition, he teaches complex systems engineering and heads the CNAM school
+of industrial sciences and information technology in Toulouse.
+Lotfi Chaari (M’11) was born in Sfax, Tunisia. He
+received the Engineering and Master degrees from
+the High School of Telecommunication in Tunis
+(SUP’COM), Technople El Gazala, Tunisia, in 2007,
+and the Ph.D. degree from the University of ParisEst, Champs-sur-Marne, France, in 2010, where he
+worked on medical imaging with the LIGM lab.
+He then joined Inria, Grenoble, France, as a Postdoctoral Fellow in the Mistis team, where he worked
+on functional MRI data analysis and activation detection estimation. Since september 2012, he has been an
+Assistant Professor at INP-Toulouse, Toulouse, France. He is doing his research
+with the TCI team of the Institut de Recherche en Informatique de Toulouse lab,
+Toulouse, still on medical image processing.
+Jean-Yves Tourneret (SM’08) received the
+ingénieur degree in electrical engineering from
+the Ecole Nationale Supérieure d’Electronique,
+d’Electrotechnique, d’Informatique, d’Hydraulique
+et des Télécommunications (ENSEEIHT) de
+Toulouse, Toulouse, France, in 1989 and the Ph.D.
+degree from the National Polytechnic Institute from
+Toulouse, Toulouse, in 1992.
+He is currently a Professor in the University of
+Toulouse (ENSEEIHT) and a member of the IRIT
+laboratory (UMR 5505 of the CNRS). His research
+interests include statistical signal and image processing with a particular interest
+to Bayesian and Markov chain Monte Carlo methods.
+Dr. Tourneret has been involved in the organization of several conferences
+including the European conference on signal processing EUSIPCO’02 (Program Chair), the international conference ICASSP’06 (Plenaries), the statistical
+signal processing workshop SSP12 (International Liaisons), the International
+Workshop on Computational Advances in Multisensor Adaptive Processing
+CAMSAP 2013 (local arrangements), the statistical signal processing workshop SSP’2014 (special sessions), the workshop on Machine Learning for Signal Processing MLSP’2014 (special sessions). He has been the general chair of
+the CIMI workshop on optimization and statistics in image processing held in
+Toulouse in 2013 (with F. Malgouyres and D. Kouam) and of the International
+Workshop on Computational Advances in Multi-Sensor Adaptive Processing
+CAMSAP 2015 (with P. Djuric). He has been a member of different technical
+committees including the Signal Processing Theory and Methods committee of
+the IEEE Signal Processing Society (2001–2007, 2010–present). He has been
+serving as an Associate Editor for the IEEE TRANSACTIONS ON SIGNAL PROCESSING (2008–2011, 2015–present) and for the EURASIP journal on Signal
+Processing (since july 2013).
+
+

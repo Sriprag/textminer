@@ -1,0 +1,1316 @@
+284
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+Active Contour-Based Cell Segmentation During
+Freezing and Its Application in Cryopreservation
+Pengxiang Wu1 , Jingru Yi1 , Gang Zhao∗ , Member, IEEE, Zhangjin Huang∗ , Member, IEEE,
+Bensheng Qiu, Member, IEEE, and Dayong Gao
+
+Abstract—Water permeability of the plasma membrane plays an
+important role in making optimal cryopreservation protocols for
+different types of cells. To quantify water permeability effectively,
+automated cell volume segmentation during freezing is necessary.
+Unfortunately, there exists so far no efficient and accurate segmentation method to handle this kind of image processing task gracefully. The existence of extracellular ice and variable background
+present significant challenges for most traditional segmentation algorithms. In this paper, we propose a novel approach to reliably
+extract cells from the extracellular ice, which attaches to or surrounds cells. Our method operates on temporal image sequences
+and is composed of two steps. First, for each image from the sequence, a greedy search strategy is employed to track approximate
+locations of cells in motion. Second, we utilize a localized competitive active contour model to obtain the contour of each cell. Based
+on the first step’s result, the initial contour for level set evolution
+can be determined appropriately, thus considerably easing the pain
+of initialization for an active contour model. Experimental results
+demonstrate that the proposed method is efficient and effective in
+segmenting cells during freezing.
+Index Terms—Active contour, cryopreservation, extracellular
+ice, image segmentation.
+
+I. INTRODUCTION
+
+C
+
+RYOPRESERVATION is a way to achieve long-term
+banking of living materials; and it is extensively applied
+
+Manuscript received May 13, 2014; revised July 4, 2014; accepted August
+15, 2014. Date of publication August 21, 2014; date of current version December 18, 2014. This work was supported in parts by the National Natural
+Science Foundation of China (Nos. 51476160, 51276179), the National Basic
+Research Program of China (973 Program) under Grant 2010CB732604, the
+Fundamental Research Funds for the Central Universities (WK2100230009,
+WK0110000030), the National Science and Technology Major Project of China
+(No. 2009ZX01028-002-003-005), and the 111 Project (No. B07033). Pengxiang Wu and Jingru Yi contributed equally to the work. 1 Indicates their equal
+contribution. Asterisk indicates corresponding author.
+1 P. Wu is with Centre for Biomedical Engineering, School of Information
+Science and Technology, and is also with School of Computer Science and
+Technology, University of Science and Technology of China, Hefei 230027,
+China (e-mail: wpx3821@mail.ustc.edu.cn).
+1 J. Yi, B. Qiu, and D. Gao are with the Centre for Biomedical Engineering,
+School of Information Science and Technology, University of Science and
+Technology of China, Hefei 230027, China (e-mail: yijingru@mail.ustc.edu.cn;
+bqiu@ustc.edu.cn; dayong@u.washington.edu).
+∗ G. Zhao is with Centre for Biomedical Engineering, School of Information
+Science and Technology, University of Science and Technology of China, Hefei
+230027, China (e-mail: zhaog@ustc.edu.cn).
+∗ Z. Huang is with the School of Computer Science and Technology, and also
+with USTC-Loongson Joint Laboratory, Institute of Advanced Technology, and
+Anhui Province Key Laboratory of Computing and Communication Software
+University of Science and Technology of China, Hefei 230027, China (e-mail:
+zhuang@ustc.edu.cn).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2350011
+
+in tissue engineering, regenerative medicine, and assisted reproduction [1], [2]. During cryopreservation, cryoinjury that would
+cause cellular damage tends to occur easily due to inappropriate
+freezing protocols [3], [4]. To minimize cryoinjury, an intrinsic
+property of cells called water permeability has to be studied,
+which plays an important role in predicting freezing response of
+a certain kind of cell and giving insights in developing optimal
+cryopreservation protocols [5]–[7]. For this reason, freezing experiments are needed. In these experiments, cells are suspended
+into cryopreservation solutions [8], [9]. Then, with the decreasing of temperature, ice precipitates from extracellular solution;
+and water dehydration of the cell induced by increased osmotic
+gradient occurs. To study the subzero cell water permeability,
+the cell volume variation caused by dehydration during freezing must be worked out, which can be obtained indirectly from
+cell’s projected area under the cryomicroscope [8], [10]. As
+for the calculation of the projected area, it can be easily done
+by cell segmentation. However, the existence of the extracellular ice and variable background make it quite a difficult task
+to automatically extract the target cell. Therefore, traditionally
+researchers have to manually segment the cells [34], [35], a procedure that is inaccurate and unreasonably time consuming. The
+objective of this paper is to present an efficient and effective cell
+segmentation method, thereby relieving the burden of manual
+work.
+Cell segmentation has received considerable attention for
+many years. However, there is currently few work on segmenting cells during freezing for cryopreservation. One attempt ever
+made by Spindler et al. in [10] was to apply the Hough transformation and region growing method for such cell segmentation.
+However, this method failed to extract the whole cell but only
+obtained the inner region of the cell, which is inaccurate for
+the measurement of the projected cell area. In fact, such kinds
+of traditional methods can hardly be adequate for this image
+segmentation task, which is complicated for many reasons. To
+be specific, first, the existence of extracellular ice, which encapsulates or attaches to cells, presents a great challenge to peel off
+the objects from the background (see Fig. 1). Second, weak image contrast at cell boundaries, significant shape deformations
+of cells, and large variations of global and local intensity all
+together make such segmentation quite a difficult task. Third,
+to make segmentation accurate, it is also needed to consider
+the occlusion and adhesion between cells. Finally, cell tracking must be carried out in order to cope with the drift of cells
+caused by forming ice fronts and motions of the microscope. In
+a word, this image segmentation task is far from easy, and most
+traditional methods are not sufficiently powerful to handle the
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+WU et al.: ACTIVE CONTOUR-BASED CELL SEGMENTATION DURING FREEZING AND ITS APPLICATION IN CRYOPRESERVATION
+
+Fig. 1. Cell and background variation during the freezing. (a) Initial status
+of cells. (b)–(d) At the beginning of freezing process, extracellular ice starts
+to grow and cells dehydrate gradually. (e) With the temperature decreasing
+continuously, extracellular ice tends to disappear and the outer contours of cells
+become darker. (f) Finally, cells become smaller and adhere to each other. Note
+that during freezing, local and global intensity vary and cells drift a lot.
+
+various factors discussed earlier. Therefore, there is a need for
+more advanced methods so as to conduct the cell segmentation
+gracefully.
+Recently, active contour model is being widely used in image segmentation and the results are impressive. This model,
+first developed by Kass et al. [11], is a curve evolution-based
+approach, in which image feature-based energy functional is
+defined. Minimizing the energy drives the curve to move toward
+nearby image feature, thus generating desired segmentation results [12]–[14]. Since its invention, active contour model has
+developed a lot and posed far-reaching impact on image segmentation.
+There are two main categories for active contour: edge-based
+and region-based. For edge-based active contour, its basic idea is
+to utilize a local gradient-based edge detector to identify object
+boundaries [13], [15], [16]. In many applications, this model
+is adequate to conduct the segmentation. One major drawback
+associated with this model is that the curve has a tendency to
+get stuck in local minima of energy functional, thus rendering
+this model sensitive to noise and initialization. In addition, when
+the boundaries are weak, edge-based active contour may leak
+through true object boundaries easily. To overcome these limitations, region-based active contour was introduced. This model
+was inspired by the region-competition work of Zhu et al. [17]
+and has undergone great development since its invention. In
+contrast to the edge-based model, the region-based curve evolution method defines energy functional based on region statistics rather than local gradients [18]–[20]. This strategy makes
+region-based approaches less sensitive to image noise and more
+robust against initial curve placement when compared to edgebased models. However, despite these advantages, region-based
+models are usually not ideal for segmenting heterogeneous objects due to the global constraints, which are unable to delineate
+the targets exactly. By contrast, edge-based flow is free from
+global constraints and has a better chance of detecting edges
+along the object boundary.
+
+285
+
+To exploit the strengths of both models and avoid their drawbacks, many attempts have been made in the literature. Recently,
+the notion of unsupervised or supervised statistical models (e.g.,
+fuzzy clustering, Gaussian mixture model, and maximum likelihood) is being widely incorporated into active contour to enhance the object feature description [21]–[23]. Such kinds of
+hybrid models have achieved great success in certain areas,
+such as MRI image segmentation, and outperform other previous active contour models to some extent. However, these
+models usually have more complex formulations, and therefore,
+are more difficult to implement. Besides, they tend to be problem
+specific and cannot be easily generalized to many other segmentation tasks. Moreover, for supervised model, an off-line training
+process is essential, which is time consuming and would need
+large amount of manual work. Another type of hybrid model
+is to combine the edge- and region-based model directly based
+on some sophisticated strategies. In [24], Paragios et al. proposed a linear combination of region-based probability active
+contour with the classical edge-based model to exploit the benefits of both models. Similarly, Chakraborty et al. [25] applied a
+game theory strategy to combine region- and edge-based models. The corresponding curve evolution of these methods did
+show certain desirable properties. However, they suffer from
+the choice of linear weighting factor and are not robust enough
+for many other applications. In this paper, we utilize the framework proposed by Lankton et al. [26] to hybridize region- and
+edge-based active contour. The output mixture model shares the
+benefits of both approaches with small drawbacks. Experimental results show that this model is sufficiently powerful in cell
+segmentation during freezing despite its simplicity.
+For segmentation task in which temporal information is incorporated to observe the variation of objects, a good practice is
+to conduct the segmentation based on image sequence. Cell segmentation during the freezing process is just this case. For this
+reason, cell tracking is needed. In the literature, various techniques have been reported for cell tracking. In [27] and [28], a
+mean-shift approach is employed to adaptively track the targets.
+However, in our case, these methods may fail to work due to
+interference of the extracellular ice and changes of cell morphology. In [29], Ray et al. utilized a constrained active contour
+for target tracking. Despite its powerfulness, this method appears too complex for our freezing cell tracking. In [30], Goobi
+et al. studied the tracking performance of various cell trackers,
+which, however, are not suitable for our task. In this paper, we
+propose a simple but effective enough greedy search strategy for
+our cell tracking. This method works well regardless of various
+interferences.
+The remainder of this paper is organized as follows. Section II
+presents the details of our proposed method. In Section III,
+experimental results and corresponding discussion are offered.
+Our work is summarized in Sections IV.
+II. METHOD
+There are two main modules in our segmentation method.
+They are cell tracker based on greedy search and localized
+region-based active contour with competitive ability.
+
+286
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+A. Cell Tracking Using Greedy Search
+For cell tracking in image sequence, the detection result from
+previous frame (except for the first frame of a sequence) will be
+utilized to find the approximate location of cells in next frame.
+Once this is done, the subsequent cell segmentation can be
+performed. In our proposed method, a greedy search strategy is
+employed to find the approximate location. This strategy makes
+full use of the fact that cells in two consecutive frames are
+partially overlapped. As long as the detected contour of one cell
+from previous frame touches the cell’s real boundary in current
+image, the greedy search is able to drive this contour to move
+toward the center of target cell. As a result, the cell in current
+image is surrounded closely by the contour from previous frame.
+Fig. 2 shows an example of greedy search tracking.
+Greedy search starts with calculating the total grayscale of
+area enclosed by initial contour [e.g., the white dashed circle in
+Fig. 2(b)]. Then, it tentatively moves this initial contour a small
+step in four different directions, i.e., the horizontal and vertical
+two directions, respectively. Once this is done, four new total
+grayscales of areas located at different positions are obtained
+and their minimum is figured out. If this minimum value is less
+than the initial total grayscale, the corresponding direction is
+chosen to be the real moving direction, and thereby, the position
+of current contour gets updated. This process is repeated until
+termination condition (e.g., all the new total grayscales from
+four different directions are greater than the current value) is
+met. The skeleton of greedy search is shown in Algorithm 1.
+Algorithm 1: Greedy Search Tracking
+Input: Initial contour C
+Output: Final position P of input contour
+1: P ← initial position of C
+2: iniTotal ← initial total grayscale of area enclosed by C
+3: loop
+4: do move C tentatively to its four neighbor positions
+5: do calculate four corresponding total grayscales of areas
+and store the results in TGS
+6: min ← the minimum of TGS
+7: if min < iniTotal then
+8:
+iniTotal ← min
+9:
+P ← the corresponding position of min
+10:
+do move contour C to position P
+11: else
+12:
+exit
+13: end if
+14: end loop
+This greedy search method is robust for our cell tracking
+during freezing process. Since the overall grayscale of one cell
+is lower than background, and the relative position drift of cells
+in two consecutive images is small, the greedy search is always
+able to find the local optimum, which is also a global optimum. In
+general, the greedy search behaves like climbing a hill, and then,
+landing the contour on the center area of hilltop [see Fig. 2(c)].
+In this way, the target cell is tracked. Comparing with other cell
+
+Fig. 2. Illustration of the greedy search procedure. (a) Segmentation result
+(i.e., the white contour) from previous frame. (b) Greedy search drives the initial
+contour to move toward the center of target cell in current frame. Note that the
+initial contour (the white dashed circle) is derived from previous segmentation
+result. (c) Greedy search tracking behaves like climbing a hill, which is located
+at the center area of a cell.
+
+tracking algorithms, our greedy search method is simple but
+efficient, and easy to implement.
+B. Localized Region-Based Active Contour
+Once the cell tracking is done, a localized region-based
+active contour model is applied subsequently to segment the
+freezing cells. This localized model possesses many attractive
+qualities and is obtained by incorporating a well-known regionbased active contour [19] into a localizing framework [26]. The
+region-based active contour and localizing framework are briefly
+discussed as follows. After introducing these essential backgrounds, a derivation of localized active contour is given.
+1) Region-Based Model: In this paper, the region-based active contour we prefer is the one proposed by Yezzi et al. [19]
+due to its simplicity and high performance on average. This
+model defines the region energy as follows [19]:
+1
+E = − (u − v)2
+2
+
+(1)
+
+where u and v are the average intensities inside and outside the evolution curve. Minimizing this energy will lead to
+the maximum difference between u and v, which indicates that
+the curve has separated foreground and background regions
+since these two regions should have maximally different mean
+intensities. The corresponding gradient flow for this energy is as
+follows [19]:
+
+
+I −u I −v
+∂C
+= (u − v)
++
+N
+(2)
+∂t
+Au
+Av
+where I is the grayscale image, Au and Av denote the interior and exterior area of evolution curve C, respectively, and N
+denotes the outward unit normal of C.
+This gradient flow has many attractive properties [19]. However, since it is a global constraint model after all, it suffers
+from several limitations, which render it powerless in some situations (see Section I). For this reason, we employ a localizing
+
+WU et al.: ACTIVE CONTOUR-BASED CELL SEGMENTATION DURING FREEZING AND ITS APPLICATION IN CRYOPRESERVATION
+
+framework introduced by Lankton et al. [26] to enhance the
+performance of aforementioned region-based active contour.
+2) Localizing Framework: As for the localizing framework,
+it describes the foreground and background in terms of small
+local regions, and thereby, only local energies are needed for
+guiding the active contour motion. In this way, global constraints
+are removed and active contour is localized. The localized active
+contour model shares both the benefits of edge- and region-based
+models without worrying much about their drawbacks.
+Specifically, within this framework, each point along the
+curve is considered separately and its corresponding local neighborhoods are split into local interior and local exterior by the
+evolution curve. These two separate local regions are modeled
+well by their local statistics, respectively. In this way, a local
+energy is defined, and minimizing (or maximizing) this energy
+will drive the point to move in its own local region accordingly.
+All these local energies along the curve together constitute the
+localized active contour.
+The localizing framework is given as follows [26]:
+
+
+δφ(x)
+B(x, y) · F (I(y), φ(y))dydx
+E(φ) =
+Ωx
+
+
++λ
+
+Ωy
+
+δφ(x) ∇φ(x) dx
+
+(3)
+
+Ωx
+
+where I denotes a given image defined on the domain Ω, x and y
+are independent spatial variables each representing a single point
+in Ω, F is a local internal energy measure, which is derived from
+the region-based model, λ and φ are weighted factor and level
+set function, respectively, and δ is the smoothed Dirac delta
+function.
+⎧
+	
+
+
+
+⎪
+⎨ 1 1 + cos πφ(x)
+, |φ(x)| ≤ ε
+ε
+δε (φ(x)) = 2ε
+(4)
+⎪
+⎩ 0,
+|φ(x)| > ε.
+B is a characteristic function used for masking local regions [26]
+
+1, x − y < r
+B(x, y) =
+(5)
+0,
+otherwise
+where r is the radius of ball-shaped local regions. This function
+will be 1 when point y is within the ball centered at x, and be 0
+otherwise.
+The energy functional (3) can be minimized (or maximized)
+by solving the following gradient flow [26]:
+
+∂φ
+(x) = δφ(x)
+B(x, y) · ∇φ(y ) F (I(y), φ(y))dy
+∂t
+Ωy
+
+
+∇φ(x)
++ λδφ(x) div
+(6)
+|∇φ(x)|
+where (·) and div (·) are the gradient operator and divergence operator, respectively. Note that the second term on the
+right-hand side in (3) and (6) is a geometric penalty, which is
+commonly used in the region-based active contour model to
+regularize the gradient flow.
+3) Derivation of Localized Region-Based Active Contour:
+With this localizing framework available, all we need to do now
+is put the region-based energy (2) into this framework. For this
+
+287
+
+purpose, we derive the essential internal energy F from (1) as
+follows:
+1
+(7)
+F = − (ux − vx )2
+2
+where ux and vx are the localized versions of global mean
+intensities, u and v.
+
+Ω y B(x, y) · Hφ(y) · I(y)dy
+
+ux =
+(8)
+Ω y B(x, y) · Hφ(y)dy
+
+Ω y B(x, y) · (1 − Hφ(y)) · I(y)dy
+
+vx =
+(9)
+Ω y B(x, y) · (1 − Hφ(y))dy
+where Hφ(y) is the smoothed Heaviside function.
+Hε (φ(x))
+⎧
+0,
+⎪
+⎪
+⎪
+⎨ 
+
+
+= 1 1 + φ(x) + 1 sin πφ(x)
+,
+⎪
+⎪
+2
+ε
+π
+ε
+⎪
+⎩
+1,
+
+φ(x) > ε
+|φ(x)| ≤ ε (10)
+φ(x) < −ε.
+
+Then, by taking the gradient of F, we further obtain:
+
+
+I − ux
+I − vx
++
+∇F = −(ux − vx )
+Au
+Av
+
+(11)
+
+where Au and Av are the areas of local interior and local exterior
+regions defined by
+
+B(x, y) · Hφ(y) dy
+(12)
+Au =
+Ωy
+
+Av =
+
+
+
+B(x, y) · (1 − Hφ (y)) dy.
+
+(13)
+
+Ωy
+
+Finally, by inserting F into (6), we obtain the final evolution
+equation for the localized version of an active contour model
+(2) as
+
+∂φ
+(x) = δφ(x)
+B(x, y) · ∇F dy
+∂t
+Ωy
+
+
+∇φ(x)
++ λδφ(x)div
+.
+(14)
+|∇φ(x)|
+The energy of this localized active contour achieves its optimum when ux and vx are maximally different at every x along
+the curve. In this way, the foreground and background regions
+are separated. Since this localized model is free from global
+constraints, it is capable of separating locally heterogeneous regions. This ability is desirable for our freezing cell segmentation
+since the outer contours of cells would become nonhomogeneous during freezing process. Therefore, to a large extent the
+localizing of region-based active contour guarantees an accurate
+segmentation.
+C. Incorporating Competitive Ability into Active Contour
+Despite the advantages discussed previously, localized active
+contour alone is not sufficient to achieve correct segmentation
+in some situations. For instance, in some cases, two or more
+cells drift and adhere to each other due to the forming ice fronts
+
+288
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+and flowing water [see Fig. 1(e)]; as a result, the active contour
+fails to segment only the target cell but also extracts undesirable
+regions, which belong to other cells. The reason for this failure is
+the interference of adjacent cells. To cope with this problem, we
+incorporate competitive ability into the localized active contour.
+The competitive ability allows multiple objects to be segmented simultaneously and correctly without being distracted
+by each other, and therefore, it is quite suitable for our localized
+active contour. In our case, a simple but effective competing
+algorithm introduced by Lankton et al. [26] is employed to endow the localized active contour with competitive ability for
+touching cells segmentation.
+According to [26], a standard single level set evolution equation can be expressed as follows:
+∂φ
+= δφ(Fa + Fr )
+∂t
+
+(15)
+
+where Fa is the advance force, which is positive and tries to
+move the curve outward along its normal direction, and Fr is
+the retreat force, which is negative and attempts to push the
+curve inward along its normal direction. Based on this idea, we
+can rewrite the evolution equation (14) in terms of Fa and Fr as
+follows:
+
+
+
+I − vx
+B(x, y) · −(ux − vx ) ·
+dy
+Av
+Ωy
+
+
+∇φ(x)
+λ
+div
++
+(16)
+2
+|∇φ(x)|
+
+
+
+
+I − ux
+B(x, y) · −(ux − vx ) ·
+dy
+Fr =
+Au
+Ωy
+
+
+∇φ(x)
+λ
+div
++
+.
+(17)
+2
+|∇φ(x)|
+
+
+Fa =
+
+Then, by taking the competing scheme proposed in [26], we
+can transform the original level set evolution equation (14) into
+an equivalent one but with competitive ability
+⎛
+⎞
+∂φi
+= δφi ⎝ max (Fa i , −Fr j ) + min (Fr i , −Fa j )⎠ .
+∂t
+δ φ j (x)> 0
+δ φ j (x)> 0
+j = i
+
+j = i
+
+(18)
+Note that gradient flow (18) is for the ith level set function
+and it assumes that there are n evolution curves competing with
+each other.
+The transformed active contour (18) works well when dealing
+with the inappropriate segmentation problem discussed earlier.
+With this competitive ability, when current contour is segmenting its target cell, it will be compared to all adjacent contours
+in terms of advance force and retreat force. In this way, a contour tends to defend its own region belonging to the object cell
+and not intrude into the regions of other cells. Thereby cells
+get segmented correctly. Note that when no other contour is at
+the vicinity of current contour, the current contour behaves in
+accordance with gradient flow (14).
+
+D. Implementation of Level Set Evolution
+For numerical implementation of gradient flow (18), we take
+two steps to speed up the computation.
+First, the update of level set function φ is computed only in a
+narrow band around the zero level set.
+Second, a reaction diffusion term [31] is added into (18) to
+regularize the iterations of level set evolving without reinitialization, which is considerably time consuming and may bring
+many unexpected results. After adding diffusion term, we have
+following iterative equation:
+φn +1 = φn + Δt1 · F (φn ) + Δt2 · Δφn
+
+(19)
+
+where Δt1 and Δt2 are time steps, and in practice, we could
+simply set Δt1 = 1 and Δt2 = 0.05; Δ(·) is the Laplacian operator, and F (φn ) is the force term represented by the right-hand
+side of gradient flow (18).
+With these two steps, the computational cost of a level set
+evolving is greatly reduced. Moreover, due to the intrinsic advantages of diffusion term [31], the results of computation are
+pretty accurate even if we are taking a narrow band implementation. In this sense, we make our cell segmentation method
+efficient and effective.
+E. Summary
+To summarize, the freezing cell segmentation method discussed previously consists of the following steps:
+1) Initialization: The initialization of our cell segmentation
+is completed by segmenting the first frame in an image
+sequence. This segmentation can be easily done by any effective traditional method (e.g., watershed or region growing) due to the clear contours of cells and no interference
+of the extracellular ice.
+2) Cell tracking: The segmentation results from previous
+frame serve as initial placement of contours for cell tracking. Then, greedy search is employed to find the approximate locations of object cells in the current frame.
+3) Segmentation: The search results from step 2 are input into
+the active contour model as the initial contours. To avoid
+the leakage problem in some cases, we could enlarge the
+initial contours a little bit. Afterwards, the segmentation
+is carried out.
+4) Determine the termination: If all the images in a sequence
+have been processed, stop the segmentation and exit. Otherwise, go to step 2.
+III. EXPERIMENTAL RESULTS AND DISCUSSION
+A. Preparation of Cell Images
+The cells we used in our experiment were HeLa cells, which
+were obtained from Prof. L. Wen (University of Science and
+Technology of China, Hefei, China) as a gift. The preparation
+of our sample cells consisted of following steps. First, the HeLa
+cells were cultured in a flask contained 90% DMEM (Hyclone,
+Thermo Fisher Scientific Inc., USA) and 10% FBS (Hyclone,
+Thermo Fisher Scientific Inc., USA). This flask was then placed
+in an incubator (MCO-5AC, SANYO, Japan) as to keep the
+cells growing. Second, the cells were detached from the flask
+
+WU et al.: ACTIVE CONTOUR-BASED CELL SEGMENTATION DURING FREEZING AND ITS APPLICATION IN CRYOPRESERVATION
+
+289
+
+Fig. 3. Segmentation results of representative groups of cells. (a) Cells are seriously surrounded by the extracellular ice and adhere to each other due to their
+drift. (b) Boundary of the cell is weak while the edge of the ice is comparatively strong. (c) Cells become blurred and their intensities vary sharply as cells gradually
+dehydrate and diminish in size. In each group of cells, the upper row is the input images and the lower row is the segmentation results.
+
+using 20% trypsin (Biosharp, Biosharp Co., Ltd, China) at up to
+90% convergence. Finally, with 5 min of centrifugation (100 ×
+g), cells were resuspended in phosphate buffered saline (PBS)
+solution (292 mOsm). Thereby, the sample was produced.
+The subsequent freezing experiments were conducted with
+the aid of a microscope (BX53, Olympus; Japan) with a
+50 × objective and a cryostage (FDCS196, Linkam Scientific
+Instruments Ltd., U.K.). A Qimaging MicroPublisher 5.0 RTV
+CCD camera (Survey, BC, Canada) was utilized for real-time
+monitoring and recording of experimental processes.
+The freezing process in our experiment was as follows. First,
+10-μL cell suspensions were pipetted on the center of the cov-
+
+erslip on the cryostage, whose temperature was controlled by
+the program. Then, another coverslip was gently put on the
+cell suspensions. Afterwards, the freezing process started and
+the cell sample was cooled to −1 °C at 10 °C/min. Once the
+ice seeding was achieved, the cell sample was warmed up to
+−0.5 °C at the same rate and stayed for 3 min. Note that this ice
+seeding step was used to reduce the supercooling degree of the
+cell suspensions. Moreover, although the freezing point of the
+PBS solution was about −0.53 °C, 3 min of equilibrium was not
+enough for the extracellular ice to melt completely; as a result,
+the sizes of the extracellular ice were comparable to those of
+cells. Once this warming up procedure was completed, cooling
+
+290
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+Fig. 4. Segmentation results with different methods: our method, GAC [13], Yezzi et al. [19], and Spindler et al. [10]. (a) Edge-based GAC model fails to extract
+the cell contour correctly and leaks through the cell boundary, whereas the region-based model proposed by Yezzi et al. works comparatively well. (b) Leakage
+problem occurs for the region-based model, whereas the GAC model performs as expected. Among all of the compared results, our method consistently segments
+the cells correctly and performs best. By contrast, the traditional approach employed by Spindler et al. fails to extract the cell boundary at all and performs worst.
+
+rates of 5 °C/min, 10 °C/min, and 15 °C/min were employed,
+respectively, to study the transmembrane water transport of the
+cell samples at temperatures ranging from −0.5 °C to −30 °C.
+The resolution of our cell images produced from freezing
+experiments is 1360 × 768 pixels with 96 dpi. The length of
+each image sequence is around 50 to 65 frames. For each image
+sequence, since the cell shape changes rapidly and ice grows
+quickly during −0.5 °C −10 °C, we extract from video 2 to
+5 frames per degree centigrade in this temperature range as
+to record the freezing process accurately. Similarly, we extract
+about 1 frame per degree centigrade during −10 °C – −30 °C
+as the cells deform quite a little and ice gradually disappears in
+this interval.
+B. Segmentation Results
+In this section, we present several cell segmentation results
+to illustrate the efficiency and effectiveness of our proposed
+
+method. First, three representative groups of cells were segmented using our method as shown in Fig. 3. Second, to further
+analyze the performance our method, we then compare it with
+three other competing methods. In the experiments, we set the
+parameters of our method to λ = 0.9, r = 5, and ε = 1.5.
+In Fig. 3, several segmentation results are demonstrated. The
+cells in Fig. 3(a) are the same as those in Fig. 1. As is shown,
+these cells are seriously surrounded by the extracellular ice and
+adhere to each other due to their drift. However, despite such
+difficulty of segmentation, our proposed method is capable of
+extracting the cells correctly [see the second row of Fig. 3(a)].
+Notice that the last image of the second row in Fig. 3(a) demonstrates that the competitive ability of active contour works well.
+To further prove the robustness of our method, another two
+groups of cells are segmented in Fig. 3(b) and (c). In Fig. 3(b),
+the boundary of the cell is weak, while the edge of the extracellular ice is comparatively strong [see the third image of the
+
+WU et al.: ACTIVE CONTOUR-BASED CELL SEGMENTATION DURING FREEZING AND ITS APPLICATION IN CRYOPRESERVATION
+
+first row in Fig. 3(b)]. As a result, this contrast may render many
+segmentation methods powerless to recognize the real boundary
+of the cell correctly. In Fig. 3(c), as the cells gradually dehydrate
+and diminish in size, they become blurred and their intensities
+vary sharply. These kinds of inhomogeneity and variance of intensity really present great challenges for conventional active
+contour models to deal with. However, as is shown in Fig. 3,
+even in such situations, our segmentation method still works as
+expected.
+In Fig. 4, comparisons of our segmentation strategy over
+three other competing methods are carried out. Since our segmentation model evolves from edge- and region-based active
+contour, to validate its strengths we compare it with the wellknown edge-based geodesic active contour (GAC) model [13]
+and the region-based active contour proposed by Yezzi et al.
+[19]. Moreover, to demonstrate the powerlessness of traditional
+approaches, we also make a comparison between the method
+developed by Spindler et al. [10] and ours. Note that all these
+three methods are incorporated into our cell tracking framework
+and operate on image sequences.
+As is illustrated in Fig. 4, our method performs best among
+all these methods. By contrast, the simple traditional technique
+employed by Spindler et al. fails to extract the cell contours at all
+and performs worst. The edge-based GAC model and regionbased model achieve much better results than the traditional
+method but are still less competitive than ours. In Fig. 4(a), the
+GAC model is unable to segment target cells and the leakage
+problem occurs, whereas our method and the region-based approach succeed in extracting cells gracefully. In Fig. 4(b), the
+leakage problem turns up abruptly for the region-based model,
+however, by contrast, our method and the GAC method perform
+the segmentation task in a stable way. In practice, leakage problem tends to occur easily for the edge-based model when the
+shape and intensity of cells change greatly, the boundaries of
+cells are weak, or one cell is tightly close to another. As for the
+region-based model, it is quite sensitive to the intensity inside
+cells. If interior intensities of cells are highly nonhomogeneous,
+region-based active contour may leak through cell boundaries
+easily. However, since our method shares both the advantages
+of edge- and region-based active contour, it is capable of segmenting cells in various situations with more flexibility and
+adaptability. As is shown in Fig. 4, compared to other methods, our method performs in a stable and accurate manner. Note
+that even though in some situations the edge- and region-based
+methods perform similarly in comparison with our approach,
+their segmentation results are still less perfect than ours.
+For our method, the average time consumed for segmenting
+one cell in an image is 0.55 s (the program was run with Intel
+(R) Core (TM) i5-3210M and 4GB RAM on Windows 7). In this
+sense, we can draw the conclusion that our method is efficient.
+C. Performance Evaluation of Segmentation
+To quantitatively evaluate the performance of the proposed
+method, we take the manual cell segmentation results as the gold
+standard to which the computer-aided segmentation results are
+compared. In our study, boundary error metrics and area error
+
+291
+
+metrics [32], [33] are employed to measure the discrepancy
+between automated and manual delineations of cell contours.
+The boundary error metrics used in our study are the Hausdorff distance and the mean absolute distance. Let M and A
+denote the manually delineated boundary and automatic segmentation result, respectively. For each point p on boundary A,
+the distance to the closest point in M is defined as follows:
+d(p, M ) = min p − pM 
+p M ∈M
+
+(20)
+
+where pM is a point on boundary M, and ║·║ denotes the 2-D
+Euclidean distance. Given that, the Hausdorff distance is defined
+as the maximum d(p, M) over the whole boundary A, and the
+mean absolute distance is the average of d(p, M). While the
+Hausdorff distance measures the worst possible disagreement
+between the two outlines, the mean absolute distance estimates
+the disagreement averaged over the two boundaries [33].
+For area error metrics, three commonly used measures are
+employed in our study to find the difference between manual
+and automatically delineated areas. These three measures are
+false positive (FP) volume fraction, false negative (FN) volume
+fraction, and true positive (TP) volume fraction [33].
+FP =
+
+|Aa ∪ Am − Am |
+Am
+
+(21)
+
+FN =
+
+|Aa ∪ Am − Aa |
+Am
+
+(22)
+
+TP =
+
+|Aa ∩ Am |
+Am
+
+(23)
+
+where Am refers to the area of the cell determined by the manual
+segmentation, and Aa is the area of the cell determined by our
+segmentation method.  and  denote intersection and union
+operations, respectively.
+In our study, each kind of freezing experiment at certain cooling rate contains thousands of cells to be segmented. Therefore,
+it is impractical to evaluate the boundary error and area error of
+all the segmented cells one by one. For each kind of freezing experiment, we randomly selected 20 cells at the beginning, which
+were then frozen for study. As a result, throughout the image
+sequences, there were more than 1000 cells to be segmented. In
+this way, the segmentation performance can be evaluated in an
+accurate manner based on such sufficiently large masses of cells.
+Again, to better demonstrate the effectiveness of our method,
+we compare it with three other competing methods mentioned
+earlier.
+For all methods, the means of the errors for all the segmented
+cells in our dataset are listed in Table I, where the manual results
+are regarded as ground truth. From Table I, we find that the proposed method has a considerably high performance in the cell
+segmentation during freezing. By contrast, traditional approach
+performs quite poorly and is not suitable for our cell segmentation task. The edge- and region-based methods achieve similar
+results as ours but are still less competitive. Actually, in practice,
+the region- and edge-based methods perform well in many situations. However, due to their intrinsic deficiency, they tend to fail
+to extract the cell contours correctly in quite a few cases. Note
+
+292
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+TABLE I
+EVALUATION OF SEGMENTATION RESULTS WITH DIFFERENT METHODS (MEANS ± STANDARD DEVIATION)
+Cooling Rate
+
+Cases
+
+Method
+
+Hausdorff Distance
+
+Mean Absolute Distance
+
+False Positive
+
+False Negative
+
+True Positive
+
+5 °C/min
+
+1092
+
+Our method
+GAC [13]
+Yezzi et al. [19]
+Spindler et al. [10]
+
+2.0013 ± 1.0667
+3.6481 ± 3.5560
+3.6819 ± 2.4548
+13.7609 ± 3.7873
+
+0.6291 ± 0.2211
+0.9398 ± 0.7259
+1.2061 ± 0.6850
+8.5911 ± 1.8535
+
+0.0113 ± 0.0204
+0.0298 ± 0.0527
+0.0400 ± 0.0547
+0.0138 ± 0.0525
+
+0.0461 ± 0.0187
+0.0541 ± 0.0368
+0.0725 ± 0.0585
+0.6855 ± 0.1220
+
+0.9539 ± 0.0187
+0.9459 ± 0.0368
+0.9275 ± 0.0585
+0.3145 ± 0.1220
+
+10 °C/min
+
+1082
+
+Our method
+GAC [13]
+Yezzi et al. [19]
+Spindler et al. [10]
+
+2.0573 ± 1.0642
+3.3973 ± 2.6141
+4.2358 ± 3.9290
+13.2511 ± 3.6402
+
+0.6293 ± 0.2336
+0.9030 ± 0.6048
+1.2553 ± 1.0054
+8.0297 ± 1.5554
+
+0.0074 ± 0.0120
+0.0183 ± 0.0272
+0.0584 ± 0.0834
+0.0151 ± 0.0662
+
+0.0485 ± 0.0225
+0.0631 ± 0.0492
+0.0501 ± 0.0473
+0.6488 ± 0.1259
+
+0.9515 ± 0.0225
+0.9369 ± 0.0492
+0.9499 ± 0.0474
+0.3512 ± 0.1259
+
+15 °C/min
+
+1147
+
+Our method
+GAC [13]
+Yezzi et al. [19]
+Spindler et al. [10]
+
+1.9029 ± 1.1007
+3.5344 ± 2.8699
+3.5255 ± 2.8616
+13.3139 ± 3.7975
+
+0.5713 ± 0.2197
+0.8841 ± 0.6250
+1.0809 ± 0.7413
+7.7924 ± 2.0980
+
+0.0089 ± 0.0165
+0.0203 ± 0.0292
+0.0502 ± 0.0463
+0.0139 ± 0.0648
+
+0.0389 ± 0.0186
+0.0547 ± 0.0512
+0.0408 ± 0.0553
+0.6018 ± 0.1475
+
+0.9611 ± 0.0186
+0.9453 ± 0.0512
+0.9592 ± 0.0553
+0.3982 ± 0.1475
+
+that Table I also shows that all three competing methods have
+comparatively high standard deviations, indicating that they are
+not robust and stable. In fact, for region- and edge-based active
+contours, one set parameters are not adequate to perform various
+cell segmentation tasks. Their parameters need to be adjusted
+frequently in order to make them operate as expected, a work
+which is difficult and time consuming. However, in comparison, our method is free from this suffering and performs in a
+relatively robust and stable manner. Overall, thanks to the localizing framework, our method performs well and outperforms
+other methods.
+It is worth noting that, to make localized active contour work
+well, the size of the ball-shaped local region [i.e., parameter r
+in (5)] for each contour point should be determined reasonably
+based on the scale or resolution of the objects of interest. For
+instance, when attempting to capture objects that are very large
+in size, a large local region should be used. By contrast, a small
+size of local region is useful if the objects are small. In our cell
+segmentation case, this size parameter had better be set between
+3 and 15 in order to extract the cell contours correctly. Overall,
+the localized level set method is not sensitive to the setting of this
+parameter but we should also keep in mind that this parameter
+should be in reasonable range.
+D. Water Transport Model Matching
+In this section, water transport model matching was carried
+out to further validate the effectiveness of our proposed method.
+For this purpose, the cell areas measured in pixels were obtained
+from cell segmentation. Then, these areas were further converted
+into real cell areas measured in square micrometers. From these
+areas, the normalized cell volumes were figured out. We then
+fitted the normalized cell volumes with the following water
+transport model [8]:
+	
+
+
+ΔHf
+Lp ART
+1
+1
+dVC
+= −
+·
+−
+dT
+Bνw
+R
+TR
+T
+
+
+VC − Vb − Vs
+(24)
+− ln
+(VC − Vb − Vs ) + φs ns νw
+	
+
+
+
+1
+EL p 1
+−
+Lp = Lpg exp −
+(25)
+R
+T
+TR
+
+Fig. 5. Combined-fitting results of normalized cell volumes from different
+groups of freezing experiments. Symbols indicate the averaged cell volume
+data. Solid lines indicate the model combined-fitting results (R2 is 0.9935).
+Error bars represent the standard error of mean (SEM). n denotes the number of
+cells. The L p g and E L p derived from combined-fitting are 0.3329 μm/min/atm
+and 34.781 kcal/mol, respectively.
+
+where Lpg is the hydraulic conductivity of the cell plasma membrane at the reference temperature (273.15 K), EL p is the activation energy for water transport across the plasma membrane
+of cells, Vc is the cell volume, T is the temperature, and B is
+the cooling rate. Note that the cell volume in this model is the
+average of all cell volumes.
+The fitting method we adopted here was combined fitting
+[8], [9], i.e., fitting the three groups of averaged volumes from
+different freezing experiments simultaneously to obtain only
+one pair of Lpg and EL p (see Fig. 5). In this way, we not only
+excluded the group difference of the cells, but also eliminated
+the influence of cooling rates factor, thereby making our fitting
+results more credible. From Fig. 5, we observe a good matching
+of our data with the water transport model. Most of the points
+fall onto the fitted curve and the R2 is high with 0.9935. Note that
+the cell volumes exhibit an especially high conformity during
+the equilibrium range (−10 °C – −30 °C).
+
+WU et al.: ACTIVE CONTOUR-BASED CELL SEGMENTATION DURING FREEZING AND ITS APPLICATION IN CRYOPRESERVATION
+
+293
+
+The good model matching results discussed earlier indicated
+that our cell segmentation results were sufficiently accurate
+since inaccurate segmentation usually leads to bad matching
+results. Therefore, we again proved the effectiveness of our proposed method.
+E. Discussion
+1) Advantages of Our Method: We have demonstrated the
+effectiveness and efficiency of our cell segmentation method.
+As for the effectiveness, it benefits from greedy search tracking,
+localizing framework, and competitive ability of active contour.
+As for the efficiency, there are three main factors contributing to the speed of segmentation. First, greedy search tracking.
+This cell tracking strategy always attempts to find the local optima, which needs only small calculation. Besides, since the
+approximate cell location obtained from greedy search is usually close to the object, the number of iterations needed for
+active contour evolution is small, thereby rendering cell segmentation efficient. Second, narrowband implementation. This
+strategy speeds up the computation by considering only the
+essential data and eliminating the unimportant data. Third, reaction diffusion. This simple diffusion term makes the level set
+evolve without reinitialization, thus saving a large amount of
+time.
+Another attractive quality of our method is simplicity. As is
+shown, the algorithm is simple, and thus, easy to understand
+and implement. This feature makes our method desirable for
+practical applications.
+It is worth noting that, although our proposed framework
+is originally designed to conduct the cell segmentation during
+freezing, it can be easily generalized to other applications (e.g.,
+object tracking and other kinds of cell segmentation) with little
+or no modification. In this framework, the greedy search strategy
+plays an important role since it makes object tracking possible
+and provides initial contours for the following active contour to
+refine. Note that the greedy search strategy discussed earlier is
+not necessarily limited to the grayscale information, and other
+kinds of statistics (e.g., histogram) would also be utilized to
+meet various demands of applications. As for the competitive
+localized active contour, it is responsible for capturing the true
+outlines of objects. The greedy track strategy and active contour
+together make our framework applicable to various applications,
+including tracking and segmentation. Also note that, if no tracking of objects is needed but only segmentation is required in
+some certain applications, active contour alone is enough.
+2) Deficiency: Despite its benefits, our method still has some
+minor drawbacks. In a few cases, due to the tightly surrounded
+extracellular ice, the active contour may be interfered and fails to
+segment the cell correctly. Additionally, when the cell boundary
+is too weak to recognize, the leakage problem would occur easily. Fig. 6 demonstrates some of these failure cases. In Fig. 6(a)
+and (b), the tightly surrounded extracellular ice appears so much
+like the true cell boundary that it is considerably difficult for active contour to separate the cell boundary from ice. In Fig. 6(c)
+and (d), the cell boundary is so weak that active contour fails to
+distinguish the true cell contour. However, since such kinds of
+
+Fig. 6. Some failure cases of segmentation. Top row: input images. Middle
+row: ground truth. Bottom row: segmentation results of our method. (a) and (b)
+Active contour is seriously interfered by extracellular ice and fails to segment
+cells correctly. (c) and (d) Since the cell boundaries are too weak to recognize,
+the leakage problem occurs.
+
+problems are rare and only cause minor errors of segmentation,
+they overall have very little impact on the measurement of water
+permeability.
+3) Future Work: In the future, further improvement of our
+method will be conducted to overcome the drawbacks discussed
+earlier. As for the leakage problem, it is caused by the weak
+intensity difference between cell boundary and background.
+Therefore, according to the recent development trend of image
+processing, probabilistic models (e.g., Gaussian mixture model)
+combined with certain image enhancement techniques should
+be promising in addressing this problem. By contrast, the ice
+interference problem seems more complex. In such cases, the
+ice is so close to the cell and so similar to the cell boundary
+in texture that unlike in general situations (see Fig. 3), the traction force from other parts of active contour is not large enough
+to pull that certain parts of active contour, which are blocked
+by the extracellular ice, through the ice edges. As a result, the
+active contour converges at the ice edges. However, given that
+our method performs on image sequences and in one sequence
+many previous images before the failure frame are free from serious ice interference, if we could utilize the information (e.g.,
+contour position) from these previous images, we would get rid
+of the ice interference successfully. Therefore, to remedy such
+failure, we suggest incorporating statistical model (e.g., conditional random fields) into our method and making full use of the
+information from previous frames in one sequence.
+IV. CONCLUSION
+We have presented an active contour-based method for cell
+segmentation during the freezing process. In this method, a simple but effective greedy search is employed for the cell tracking;
+and the competitive ability is incorporated into the localized
+active contour to enhance the segmentation power. We have validated our approach through segmenting several representative
+
+294
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+groups of cells and comparing it with three other competing
+methods. Moreover, the results of the water transport model fitting further demonstrated the good performance of our method
+in practice. In a word, our method has successfully solved the
+freezing cell segmentation problem, thereby relieving the burden
+of the manual work. With this method, the study of cryopreservation would get accelerated considerably.
+
+REFERENCES
+[1] J. O. M. Karlsson and M. Toner, “Long-term storage of tissues by cryopreservation: Critical issues,” Biomaterials, vol. 17, no. 3, pp. 243–256,
+Feb. 1996.
+[2] X. M. He, A. Fowler, and M. Toner, “Water activity and mobility in
+solutions of glycerol and small molecular weight sugars: Implication for
+cryo- and lyopreservation,” J. Appl. Phys., vol. 100, no. 7, pp. Art. no.
+074702, Oct. 1, 2006.
+[3] C. Y. Yang, Y. H. F. Yeh, P. T. Lee, and T. T. Lin, “Effect of cooling rate
+and cryoprotectant concentration on intracellular ice formation of small
+abalone (haliotis diversicolor) eggs,” Cryobiology, vol. 67, no. 1, pp. 7–16,
+Aug. 2013.
+[4] S. Thirumala, J. M. Forman, W. T. Monroe, and R. V. Devireddy, “Freezing
+and post-thaw apoptotic behaviour of cells in the presence of palmitoyl
+nanogold particles,” Nanotechnology, vol. 18, no. 19, pp. Art. no. 195104,
+May 16, 2007.
+[5] J. O. M. Karlsson, “Effects of solution composition on the theoretical
+prediction of ice nucleation kinetics and thermodynamics,” Cryobiology,
+vol. 60, no. 1, pp. 43–51, Feb. 2010.
+[6] M. Toner, E. G. Cravalho, and M. Karel, “Thermodynamics and kinetics
+of intracellular ice formation during freezing of biological cells,” J. Appl.
+Phys., vol. 67, no. 3, pp. 1582–1593, Feb. 1, 1990.
+[7] M. Toner, E. G. Cravalho, and D. R. Armant, “Water transport and estimated transmembrane potential during freezing of mouse oocytes,” J.
+Membrane Biol., vol. 115, no. 3, pp. 261–272, May 1990.
+[8] G. Yang, M. Veres, G. Szalai, A. L. Zhang, L. X. Xu, and X. M. He,
+“Biotransport phenomena in freezing mammalian oocytes,” Ann. Biomed.
+Eng., vol. 39, no. 1, pp. 580–591, Jan. 2011.
+[9] M. S. Berrada and J. C. Bischof, “Evaluation of freezing effects on human microvascular-endothelial cells (HMEC),” Cryoletters, vol. 22, no. 6,
+pp. 353–366, Nov./Dec. 2001.
+[10] R. Spindler, B. Rosenhahn, N. Hofmann, and B. Glasmacher, “Video
+analysis of osmotic cell response during cryopreservation,” Cryobiology,
+vol. 64, no. 3, pp. 250–260, Jun. 2012.
+[11] M. Kass, A. Witkin, and D. Terzopoulos, “Snakes: Active contour models,”
+Int. J. Comput. Vis., vol. 1, no. 4, pp. 321–331, 1987.
+[12] V. Caselles, F. Catte, T. Coll, and F. Dibos, “A geometric model for active
+contours in image-processing,” Numer. Math., vol. 66, no. 1, pp. 1–31,
+Oct. 1993.
+[13] V. Caselles, R. Kimmel, and G. Sapiro, “Geodesic active contours,” Int. J.
+Comput. Vis., vol. 22, no. 1, pp. 61–79, Feb./Mar. 1997.
+[14] P. D. Giamberardino, D. Iacoviello, J. M. R. S. Tavares, and R. M. N.
+Jorge, Computational Modelling of Objects Represented in Images iii:
+Fundamentals, Methods and Applications. Boca Raton, FL, USA: CRC
+Press, 2012.
+[15] R. Malladi, J. A. Sethian, and B. C. Vemuri, “Shape modeling with front
+propagation: A level set approach,” IEEE Trans. Pattern Anal. Mach.
+Intell., vol. 17, no. 2, pp. 158–175, Feb. 1995.
+[16] A. Vasilevskiy and K. Siddiqi, “Flux maximizing geometric flows,” IEEE
+Trans. Pattern Anal. Mach. Intell., vol. 24, no. 12, pp. 1565–1578,
+Dec. 2002.
+[17] S. C. Zhu and A. Yuille, “Region competition: Unifying snakes, region growing, and Bayes/MDL for multiband image segmentation,” IEEE
+Trans. Pattern Anal. Mach. Intell., vol. 18, no. 9, pp. 884–900, Sep. 1996.
+[18] T. F. Chan and L. A. Vese, “Active contours without edges,” IEEE Trans.
+Image Process., vol. 10, no. 2, pp. 266–277, Feb. 2001.
+[19] A. Yezzi, A. Tsai, and A. Willsky, “A fully global approach to image
+segmentation via coupled curve evolution equations,” J. Visual Commun.
+Imag. Represent., vol. 13, no. 1–2, pp. 195–216, Mar.-Jun. 2002.
+[20] M. Rousson and R. Deriche, “A variational framework for active and
+adaptative segmentation of vector valued images,” in Proc. Workshop
+Motion Video Comput., 2002, pp. 56–61.
+
+[21] B. N. Li, C. K. Chui, S. Chang, and S. H. Ong, “Integrating spatial
+fuzzy clustering with level set methods for automated medical image
+segmentation,” Comput. Biol. Med., vol. 41, no. 1, pp. 1–10, Jan. 2011.
+[22] Y. F. Shang, A. Markova, R. Deklerck, E. Nyssen, X. Yang, and J. de
+Mey, “Liver segmentation by an active contour model with embedded
+Gaussian mixture model based classifiers,” Opt., Photon., Digital Technol.
+Multimedia Appl., vol. 7723, pp. Art. no. 772313, 2010.
+[23] H. Fatakdawala, J. Xu, A. Basavanhally, G. Bhanot, S. Ganesan, M. Feldman, J. E. Tomaszewski, and A. Madabhushi, “Expectation-maximizationdriven geodesic active contour with overlap resolution (EMAGACOR):
+Application to lymphocyte segmentation on breast cancer histopathology,” IEEE Trans. Biomed. Eng., vol. 57, no. 7, pp. 1676–1689, Jul. 2010.
+[24] N. Paragios and R. Deriche, “Coupled geodesic active regions for image
+segmentation: A level set approach,” in Proc. 6th Eur. Conf. Comput. Vis.,
+2000, pp. 224–240.
+[25] A. Chakraborty and J. S. Duncan, “Game-theoretic integration for image
+segmentation,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 21, no. 1,
+pp. 12–30, Jan. 1999.
+[26] S. Lankton and A. Tannenbaum, “Localizing region-based active contours,” IEEE Trans. Image Process., vol. 17, no. 11, pp. 2029–2039,
+Nov. 2008.
+[27] O. Debeir, P. Van Ham, R. Kiss, and C. Decaestecker, “Tracking of migrating cells under phase-contrast video microscopy with combined meanshift processes,” IEEE Trans. Med. Imag., vol. 24, no. 6, pp. 697–711,
+Jun. 2005.
+[28] X. D. Yang, H. Q. Li, and X. B. Zhou, “Nuclei segmentation using markercontrolled watershed, tracking using mean-shift, and kalman filter in timelapse microscopy,” IEEE Trans. Circuits Syst. I, Reg. Papers, vol. 53,
+no. 11, pp. 2405–2414, Nov. 2006.
+[29] N. Ray, S. T. Acton, and K. Ley, “Tracking leukocytes in vivo with shape
+and size constrained active contours,” IEEE Trans. Med. Imag., vol. 21,
+no. 10, pp. 1222–1235, Oct. 2002.
+[30] A. P. Goobic, M. E. Welser, S. T. Acton, and K. Ley, “Biomedical application of target tracking in clutter,” in Proc. Conf. Rec. Asilomar Conf.
+Signals, Syst. Comput., 2001, vol. 1, pp. 88–92.
+[31] K. H. Zhang, L. Zhang, H. H. Song, and D. Zhang, “Reinitialization-free
+level set evolution via reaction diffusion,” IEEE Trans. Image Process.,
+vol. 22, no. 1, pp. 258–271, Jan. 2013.
+[32] K. Z. Mao, P. Zhao, and P. H. Tan, “Supervised learning-based cell image
+segmentation for p53 immunohistochemistry,” IEEE Trans. Biomed. Eng.,
+vol. 53, no. 6, pp. 1153–1163, Jun. 2006.
+[33] A. Madabhushi and D. N. Metaxas, “Combining low-, high-level and
+empirical domain knowledge for automated segmentation of ultrasonic
+breast lesions,” IEEE Trans. Med. Imag., vol. 22, no. 2, pp. 155–169,
+Feb. 2003.
+[34] J. Yi, X. M. Liang, G. Zhao, and X. He, “An improved model for
+nucleation-limited ice formation in living cells during freezing,” PloS
+one, vol. 9, no. 5, pp. Art. no. e98132, May 2014.
+[35] Y. P. Xu, G. Zhao, X. M. Zhou, W. P. Ding, Z. Q. Shu, and D. Y. Gao,
+“Biotransport and intracellular ice formation phenomena in freezing human embryonic kidney cells (HEK293T),” Cryobiology, vol. 68, no. 2,
+pp. 294–302, Apr. 2014.
+Pengxiang Wu received the B.E. degree in computer
+science from Beihang University, Beijing, China, in
+2012. He is currently working toward the M.E. degree
+at School of Computer Science, University of Science
+and Technology of China, Hefei, China.
+His current research interests include computer
+graphics, computer vision, and machine learning.
+
+Jingru Yi received the B. E. degree from the Southwest University of Science and Technology, Mianyang, China, in 2012. She is currently working
+toward the M.E. degree at School of Information
+Science and Technology, University of Science and
+Technology of China, Hefei, China.
+Her current research interests include cryopreservation, mass and heat transfer.
+
+WU et al.: ACTIVE CONTOUR-BASED CELL SEGMENTATION DURING FREEZING AND ITS APPLICATION IN CRYOPRESERVATION
+
+Gang Zhao (M’13) received the Ph.D. degree in
+power engineering and engineering thermophysics
+from the University of Science and Technology of
+China (USTC), Hefei, China, in June 2004.
+He was a Postdoctoral Researcher at the USTC
+from July 2004 to September 2006, and a Japan
+Society for Promotion of Science Research Fellow
+from July 2008 to October 2010. Since April 2011,
+he has been a Professor at Biomedical Engineering Research Center, USTC. He has published more
+than 70 full-length journal papers and he holds more
+than 15 China Patents. His research interests include cryobiology, biomicro/nanofluidics, and biomedical microsystems.
+Dr. Zhao is a Member of the Society for Cryobiology, American Society
+of Mechanical Engineers, and Biophysical Society. His research has been supported by National Natural Science Foundation of China and the Fundamental
+Research Funds for the Central Universities from the Ministry of Education of
+The People’s Republic of China. He received the CAREER Award for Young
+Teachers of USTC in 2013.
+
+Zhangjin Huang (M’12) received the B.S. and Ph.D.
+degrees in computational mathematics from University of Science and Technology of China (USTC),
+Hefei, China, in 1999 and 2005, respectively.
+He is currently an Associate Professor in the
+School of Computer Science and Technology, USTC.
+His current research interests include computer
+graphics and image processing.
+
+Bensheng Qiu (M’13) received the Bachelor’s degree in electrical engineering from the College of
+Electronic Engineering, the Master’s degree in acoustic engineering from Northwestern Polytechnology
+University, Fremont, CA, USA, and the Ph.D. degree
+in computer science from the Hefei University of
+Technology, Hefei, China, in 1987, 1990, and 1995,
+respectively.
+From 1997 to 2001, he worked as an Associate
+Professor of radiology at the PLA General Hospital.
+From 2001 to 2005, he worked at the Department of
+Radiology, Johns Hopkins University School of Medicine. From 2006 to 2012,
+he was an Assistant Professor at the University of Washington. He is currently
+a Professor and Vice Chairman of the Department of Electronic Science and
+Technology, University of Science and Technology of China, Hefei, and the
+Director of Medical Imaging Center, University of Science and Technology of
+China.
+Dr. Qiu has conducted many projects on MRI-guided gene/stem cell therapy and interventions, including NIH, RSNA, NSF, National Basic Research
+Program of China and Royal research grants, and received many awards from
+the Radiology Society of North America, American Heart Association, and the
+International Society for Magnetic Resonance in Medicine. His current research
+interests include MRI and biomolecular interventions.
+
+295
+
+Dayong Gao received the Bachelor degree in mechanical engineering from the University of Science
+and Technology of China, Hefei, China, in 1983,
+and the Ph.D. degree in mechanical engineering and
+biomedical engineering from Concordia University,
+Montreal, QC, Canada, in 1991.
+He is currently a Full Professor of mechanical
+engineering and bioengineering, and Director of the
+Center for Cryo-Biomedical Engineering and Artificial Organs, University of Washington, Seattle, WA,
+USA. He is also the Distinguished Chair Professor
+(Adjunct Position) at the University of Science and Technology of China. Prior
+to joining the faculty of University of Washington, he was a Baxter Healthcare Chair of Engineering and Alumni Professor of the University of Kentucky,
+Lexington, KY, USA. He has published more than 200 journal full papers and
+more than 300 chapters/manuscripts in scientific books (17 books) or conference proceedings, covering the following areas: cryo-biomedical engineering,
+fundamental cryobiology, biopreservation, artificial organs (artificial kidney and
+liver), and bioinstruments (biosensors and bioMEMS).
+Dr. Gao received numerous awards/grants, as well as have been serving
+international scientific societies/associations and organizing/chairing scientific
+conferences worldwide.
+
+

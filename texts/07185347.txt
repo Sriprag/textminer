@@ -1,0 +1,1531 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 3, MARCH 2016
+
+607
+
+Subspace Regularized Sparse Multitask Learning for
+Multiclass Neurodegenerative Disease Identification
+Xiaofeng Zhu, Heung-Il Suk, Member, IEEE, Seong-Whan Lee∗ , Fellow, IEEE,
+and Dinggang Shen∗ , Senior Member, IEEE
+
+Abstract—The high feature-dimension and low sample-size
+problem is one of the major challenges in the study of computeraided Alzheimer’s disease (AD) diagnosis. To circumvent this problem, feature selection and subspace learning have been playing
+core roles in the literature. Generally, feature selection methods
+are preferable in clinical applications due to their ease for interpretation, but subspace learning methods can usually achieve more
+promising results. In this paper, we combine two different methodological approaches to discriminative feature selection in a unified
+framework. Specifically, we utilize two subspace learning methods,
+namely, linear discriminant analysis and locality preserving projection, which have proven their effectiveness in a variety of fields,
+to select class-discriminative and noise-resistant features. Unlike
+previous methods in neuroimaging studies that mostly focused on
+a binary classification, the proposed feature selection method is
+further applicable for multiclass classification in AD diagnosis.
+Extensive experiments on the Alzheimer’s disease neuroimaging
+initiative dataset showed the effectiveness of the proposed method
+over other state-of-the-art methods.
+Index Terms—Alzheimer’s disease, feature selection, mild cognitive impairment, multiclass classification, neuroimaging data analysis, sparse coding, subspace learning.
+
+I. INTRODUCTION
+ECENTLY, neurodegenerative diseases, such as
+Alzheimer’s disease (AD), Parkinson’s disease and
+Huntington’s disease, have become highly prevalent within
+societies. Among these neurodegenerative diseases, AD is the
+most prevalent and was reported to be the sixth leading cause
+of death in the United States [1]. Hence, many research groups
+
+R
+
+Manuscript received March 27, 2015; revised June 23, 2015 and August 4,
+2015; accepted August 5, 2015. Date of publication August 11, 2015; date of current version February 16, 2016. This work was supported in part by NIH grants
+(EB006733, EB008374, EB009634, MH100217, AG041721, AG042599), the
+ICT R&D Program of MSIP/IITP [B0101-15-0307, Basic Software Research in
+Human-Level Lifelong Machine Learning (Machine Learning Centre)], and the
+National Research Foundation of Korea (NRF) grant funded by the Korea government (NRF-2015R1A2A1A05001867). The work of X. Zhu was supported
+in part by the National Natural Science Foundation of China under Grants
+(61263035 and 61573270). Asterisk indicates corresponding author.
+∗ D. Shen is with the Department of Radiology and Biomedical Research
+Imaging Center, University of North Carolina at Chapel Hill, Chapel Hill,
+NC 27599, USA, and also with the Department of Brain and Cognitive
+Engineering, Korea University, Seoul 02841, Republic of Korea (e-mail:
+dgshen@med.unc.edu).
+∗ S.-W. Lee is with the Department of Brain and Cognitive Engineering, Korea
+University, Seoul 02841, Republic of Korea (e-mail: swlee@image.korea.ac.kr).
+X. Zhu is with the Department of Radiology and Biomedical Research Imaging Center, University of North Carolina at Chapel Hill, Chapel Hill, NC 27599,
+USA.
+H.-I. Suk is with the Department of Brain and Cognitive Engineering, Korea
+University, Seoul 02841, Republic of Korea.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2466616
+
+have devoted their efforts to understand underlying biological
+or physiological mechanisms behind AD.
+Since neuroimaging tools, such as magnetic resonance imaging (MRI) and positron emission topography (PET), have been
+successfully applied to investigate neurophysiological characteristics of AD, machine learning techniques have also been
+greatly devised for analyzing neuroimaging data for AD diagnosis [2]–[8]. For example, Cuingnet et al. devised a general
+support vector machine (SVM) framework for the study of AD
+[9], and Wan et al. proposed a sparse Bayesian multitask learning algorithm for improving the prediction performance of AD
+diagnosis [10].
+In neuroimaging-based AD studies, the feature dimensionality is high in nature [4], [11]–[13]. Thus, dimensionality reduction (such as subspace learning [14], [15] and feature selection
+[16]–[20]) has become one of the core steps in the field of machine learning. For example, Salas-Gonzalez et al. employed the
+statistical t-test method to select voxels of interest for AD diagnosis [17], while Zhou et al. combined least absolute shrinkage
+and selection operator (LASSO) [21] and group sparse LASSO
+[22] to predict AD status [23], [24]. Feature selection methods, such as statistical t-test and sparse linear regression, find
+the informative feature subset from the original feature set [5],
+[6], [23], [25], [26], while subspace learning methods, such
+as Fisher’s linear discriminant analysis (LDA) [27] and locality preserving projection (LPP) [28], transform original features
+into a low-dimensional space [29]. In regard to the interpretability of the results, feature selection methods are preferable compared to subspace learning methods, particularly in neuroimaging studies, as selected features directly link anatomical structures and thus provide an intuitive understanding. Meanwhile,
+subspace learning methods have recently presented promising
+performances in various applications [15], [30]–[33]. For example, Sui et al. applied a number of subspace learning methods,
+such as independent component analysis [34], canonical correlation analysis [35], [36], and partial least squares [37], [38]
+for medical image analysis [33]. Liu et al. employed local linear
+embedding [39] to reduce feature dimensionality of multivariate
+MRI data to show that subspace learning methods are superior to
+feature selection methods, such as t-test and Chi-squared, in AD
+classification [15].
+From a clinical standpoint, a model for AD diagnosis should
+be interpretable and able to accurately identify the disease status of a subject; therefore, it is reasonable to combine feature
+selection and subspace learning in a systematic manner. One intuitive way to do this is to design a two-stage method, i.e., subspace learning before feature selection or subspace learning preceded by feature selection. However, because these approaches
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+608
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 3, MARCH 2016
+
+perform the methods individually, the results are likely to be
+suboptimal. It may be interesting to integrate them in a unified
+framework, where we can complement the limitations of each
+method.
+In this paper, we propose a novel feature selection method1
+to select class-discriminative and noise-resistant features from
+the original feature set by utilizing characteristics of subspace
+learning methods. Specifically, we inject two subspace learning methods (such as LDA [27] and LPP [28]) into a sparse
+least square regression framework. The rationale of using both
+LDA and LPP in our formulation is that LDA considers both
+the global information inherent in the observations and the class
+label information with the goal of selecting class-discriminative
+features [27], [34], [41], while LPP preserves the neighborhood
+structure of each sample to reduce the adverse effect of noises or
+outliers [28], [36]. Mathematically, it is very similar to conduct
+feature selection by the sparse feature selection framework, except that the original data get “adjusted” by the incorporation
+of the global information (i.e., LDA) and local information
+(i.e., LPP). Both LDA and LPP enable the proposed framework
+(with an intuitive and easy way) to select class-discriminative
+and noise-resistant features.
+II. MATERIALS AND IMAGE PREPROCESSING
+In this study, we used the Alzheimer’s disease neuroimaging
+initiative (ADNI) dataset for performance evaluation. The ADNI
+was launched in 2003 by the National Institute on Aging, the
+National Institute of Biomedical Imaging and Bioengineering,
+the Food and Drug Administration, private pharmaceutical companies and nonprofit organizations, with a $60 million five-year
+public private partnership. The primary goal of ADNI was to
+demonstrate whether MRI, PET, other biological markers, and
+clinical and neuropsychological assessment could be combined
+to measure the progression of mild cognitive impairment (MCI)
+and early AD. As a result, approximately 800 adults, aged 55 to
+90, participated in this research.
+A. Subjects
+We describe the general inclusion/exclusion criteria of the
+subjects as follows: First, the mini-mental state examination
+(MMSE) score of each normal control (NC) subject is between
+24 and 30 with clinical dementia rating (CDR) of 0. Moreover,
+the NC subject is nondepressed, non MCI, and nondemented.
+Second, the MMSE score of each MCI subject is between 24 and
+30 with CDR of 0.5. Moreover, each MCI subject is an absence
+of significant level of impairment in other cognitive domains,
+essentially preserved activities of daily living, and an absence
+of dementia. Last, the MMSE score of each mild AD subject is
+between 20 and 26 with the CDR of 0.5 or 1.0.
+We used baseline MRI and PET images obtained from 202
+subjects, which included 51 AD subjects, 52 NC subjects, and
+99 MCI subjects. Moreover, 99 MCI subjects included 43 MCI
+1 This study focuses on multiclass classification of AD diagnosis with either
+single-modality data or multimodality data, different from our previous work
+[40], which focused on joint regression and classification with only multimodality data.
+
+TABLE I
+DEMOGRAPHIC INFORMATION OF THE SUBJECTS
+
+Female/male
+Age
+Education
+MMSE
+ADAS-Cog
+
+AD
+
+NC
+
+MCI-C
+
+MCI-NC
+
+18/33
+75.2 ± 7.4
+14.7 ± 3.6
+23.8 ± 2.0
+18.3 ± 6.0
+
+18/34
+75.3 ± 5.2
+15.8 ± 3.2
+29.0 ± 1.2
+7.3 ± 3.2
+
+15/28
+75.8 ± 6.8
+16.1 ± 2.6
+26.6 ± 1.7
+12.9 ± 3.9
+
+17/39
+74.8 ± 7.1
+15.8 ± 3.2
+28.4 ± 1.7
+10.2 ± 4.3
+
+(MMSE: mini-mental state examination; ADAS-Cog: Alzheimer’s disease
+assessment scale-cognitive subscale; MCI-C: MCI converters; MCI-NC:
+MCI nonconverters).
+
+converters (MCI-C) and 56 MCI nonconverters (MCI-NC). The
+detailed demographic information is summarized in Table I.
+B. Image Preprocessing
+We conducted image preprocessing separately for MRI and
+PET images of the selected 202 subjects. We downloaded raw
+digital imaging and communications in medicine (DICOM)
+MRI scans from the ADNI website.2 All structural MR images
+used in this paper were acquired from 1.5T scanners. These MR
+images were already reviewed for quality, and automatically corrected for spatial distortion caused by gradient nonlinearity and
+B1 field inhomogeneity. All PET images were collected across
+a variety of scanners with protocols individualized for each
+scanner. We used 18-fluoro-deoxyglucose (FDG) PET images.
+Also, we removed cerebellum in our preprocessing pipeline, as
+we mainly focused on brain regions in cerebrum for this study.
+These PET images were first acquired 30–60 min postinjection, and were then averaged, spatially aligned, interpolated to a
+standard voxel size, intensity normalized, followed by smoothing to a common resolution of 8 mm full width at half maximum.
+Specifically, the image processing was conducted by the following steps: First, we performed anterior commissure-posterior
+commissure correction using MIPAV software3 for all images,
+and then used the N3 algorithm [42] to correct the intensity
+inhomogeneity. Second, we extracted a brain on all structural
+MR images using a robust skull-stripping method [43], and then
+conducted manual edition and intensity inhomogeneity correction (if necessary). Third, we removed cerebellum based on
+registration and intensity inhomogeneity correction by repeating N3 for three times, and then we used the FAST algorithm
+in the FSL package [44] to segment structural MR images into
+three different tissues: gray matter (GM), white matter (WM),
+and cerebrospinal fluid. Next, we used HAMMER [45] for registration and then dissected images into 93 regions-of-interest
+(ROIs) by labeling them based on the Jacob template [46]. After
+that, for each of all 93 ROIs in the labeled image of a subject, we
+computed the GM tissue volumes as features. For each subject,
+we aligned the PET images to their respective MR T1 images
+using affine registration and then computed the average intensity of each ROI as a feature. So, we extracted 93 features from
+MRI and 93 features from PET for each subject.
+2 http://www.loni.usc.edu/ADNI
+3 http://mipav.cit.nih.gov/clickwrap.php
+
+ZHU et al.: SUBSPACE REGULARIZED SPARSE MULTITASK LEARNING FOR MULTICLASS NEURODEGENERATIVE DISEASE IDENTIFICATION
+
+III. METHOD
+
+In regard to Fisher’s criterion for discriminative feature selection, a straightforward approach can penalize the objective
+function of (1) with the Fisher’s ratio defined as follows:
+
+A. Notations
+Throughout this paper, we denote matrices as boldface uppercase letters, vectors as boldface lowercase letters, and scalars
+as normal italic letters, respectively. For a matrix X = [xij ],
+its ith row and jth column are denoted as xi and xj , respectively. Also, we denote Frobenius norm
+and 2,1 -norm
+
+
+2
+2
+i
+of a matrix X as XF =
+i x 2 =
+j xj 2 and
+
+
+  2
+X2,1 = i xi 2 = i
+j xij , respectively. We further
+denote the transpose operator, the trace operator, and the inverse
+of a matrix X as XT , tr(X), and X−1 , respectively.
+B. Sparse Multitask Learning With Subspace Regularization
+Let X ∈ Rd×n denote a feature matrix, where d and n are,
+respectively, the numbers of feature variables and subjects, and
+Y ∈ Rc×n denote a class indicator matrix with 0-1 encoding,
+where c is the number of classes. As for the feature selection, we
+use a sparse regression model, which has been successfully used
+in various applications [5], [10], [47], [48]. However, since the
+class indicator matrix Y includes multiple response variables, a
+regression model would find a regression coefficient vector for
+each response variable individually. In this regard, we regularize
+a least square regression model with an 2,1 -norm to find the
+features commonly used across the regression tasks as follows:
+1
+min Y − WT X2F + λW2,1
+W 2
+
+609
+
+(1)
+
+where W ∈ Rd×c is a regression coefficient matrix and λ is a
+sparsity control parameter. The 2,1 -norm W2,1 penalizes the
+coefficients in the same row of W together for joint selection
+or un-selection in regressing the response variables in Y. In
+(1), the optimal solution assigns a relatively large weight to the
+informative features and zero or a small weight to uninformative
+or less informative features [47], [49]. By viewing the regression
+of each response variable as one task, we call (1) as multitask
+learning, and Argyriou et al. have shown that (1) successfully
+utilizes the correlation of different classes [47].
+It is shown that LDA exploits the distributional characteristics
+that helps find a generalized solution (i.e., small bias), whereas
+LPP alleviates the sensitivity of the solution to noises or outliers
+in the training samples (i.e., small variance) [27], [50]. However, in its current form of (1), we cannot guarantee the classdiscriminative power of selected features and the preservation of
+the neighborhood structure of data points, which are important
+characteristics to enhance classification performance. To resolve
+this drawback, we propose a novel sparse multitask learning
+method by combining the methods of discriminant analysis and
+topological structure preservation jointly in a sparse regression
+framework. Specifically, we utilize a Fisher’s LDA [34] that
+considers the global sample distributions by means of the ratio
+between within-class-variance and between-class-variance in a
+supervised manner. We also use an LPP [28] by constructing a
+Laplacian matrix to efficiently use the local topological relation
+among samples in an unsupervised manner.
+
+RG =
+
+WT Σw W
+WT Σb W
+
+(2)
+
+where Σw and Σb denote, respectively, the within-class covariance and the between-class covariance matrices. However, due
+to the non-convexity of (2), it is not trivial to find an optimal
+solution of the corresponding objective function. Interestingly,
+we can reformulate this multiclass LDA in a linear regression
+framework by replacing the original label indicator matrix Y
+with a specific class indicator matrix Ŷ = [ŷik ] defined as follows:
+⎧
+
+⎨ nn − nnk , if l(xi ) = k
+k
+ŷik =
+(3)
+⎩  nk
+− n ,
+otherwise
+where l(xi ) denotes the class label of xi and nk is the number of
+training samples of the class k.4 That is, using a class indicator
+matrix Ŷ defined in (3), we can naturally incorporate the multivariate discriminant analysis of an embedding method to the
+sparse regression framework [51]. It is noteworthy that unlike
+the conventional LDA that projects features into an embedding
+space, in which it is generally difficult to interpret or investigate
+the results, we still work in the the original input space.
+With respect to topological relation among samples, i.e., local structural information, we use a graph Laplacian by defining a similarity matrix S = [sij ] ∈ Rn ×n between every pair
+of sample points xi and xj with a heat kernel5 and define a
+regularization term as follows:
+RL =
+
+n
+
+
+sij WT xi − WT xj 22
+
+i,j
+
+= tr(WT XLXT W)
+
+(4)
+
+where L = D − S and D ∈ Rn ×n is
+a diagonal matrix with its
+diagonal elements defined as dii = j sij .
+By using the newly defined class indicator matrix Ŷ in (3) as
+the target response values and the locality preserving constraint
+in (4), we formulate our objective function as follows:
+1
+min Ŷ − WT X2F + λ1 tr(WT XLXT W)
+W 2
++ λ2 W2,1
+
+(5)
+
+where λ1 and λ2 are the regularization tuning parameters. Here,
+we should note that (5) efficiently combines the subspace learning methods, i.e., LDA and LPP, and a sparse regression-based
+feature selection method in a unified framework. Concretely,
+LDA utilizes class label information for discriminative feature
+4
+nk ≥ 3. For the case of k = 2, it follows that ŷi ∈ {−2n 2 /n, 2n 1 /n} and
+
+ŷ = 0, where n 1 and n 2 denote the numbers of samples from the
+i= 1 i
+negative and positive classes,
+respectively
+[27], [34], [51].
+	
+
+
+5 H (x
+
+i , xj )
+
+= exp −
+
+x i −x j 2
+σ
+
+, where σ ∈ R+ defines a kernel width.
+
+For simplicity, we set σ = 1 in our experiments.
+
+610
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 3, MARCH 2016
+
+selection, while LPP preserves the relationship between a sample and its neighborhood, which helps increase the robustness
+to noise.
+Our method can be discriminated from the previous methods: 1) Unlike the previous sparse linear regression-based feature selection methods [6], [48], the proposed method finds the
+class-discriminative (via Fisher’s criterion) and noise-resistant
+regression (via graph Laplacian), based on which we select
+informative features. 2) Compared to subspace learning methods, such as principal component analysis (PCA) [52], LDA
+[34], and LPP [28], which all have interpretational difficulties,
+the proposed method selects features in the original space and
+thus allows intuitive investigation of the results. 3) Furthermore,
+while the conventional LDA finds at most (c − 1)-dimension
+features for a c-class classification task, e.g., 2-D features in
+a three-class classification task, (5) can theoretically select at
+most d (in general, d  c in the AD study) number of features.
+C. Optimization
+Our objective function in (5) is convex but non-smooth. In
+this study, we solve it by designing a new accelerated proximal
+gradient method [53]. We first conduct the proximal gradient
+method on (5) by defining
+1
+Ŷ − WT X2F + λ1 tr(WT XLXT W)
+2
+(6)
+L(W) = f (W) + λ2 W2,1 .
+
+1
+where ui (t) = wi (t) − η (t)
+∇f (wi (t)). In (9), wi (t + 1) takes
+a closed form solution [49] as follows:
+⎧
+
+λ2
+λ2
+⎪
+⎨ 1−
+ui (t), if ui (t)22 >
+2
+i
+i∗
+η(t)u (t)2
+η(t)
+w =
+⎪
+⎩
+0,
+otherwise.
+
+(10)
+
+f (W) =
+
+f (W) is convex and differentiable, while λ2 W2,1 is convex
+but non-smooth [53]. To optimize W with the proximal gradient
+method, we iteratively update it with the following rule:
+W(t + 1) = arg min Gη (t) (W, W(t))
+W
+
+(7)
+
+where Gη (t) (W, W(t)) = f (W(t)) + ∇f (W(t)), W − W
+T
+2
+(t)	 + η (t)
+2 W − W(t)F + λ2 W2,1 , ∇f (W(t)) = (XX
+T
+
++ λ1 XLXT )W(t) − XŶ , ·, ·	 is an inner product operator, η(t) is determined by the line search (refer to [49] for detailed description), and W(t) is the value of W obtained at the
+t-iteration.
+By ignoring the terms independent of W in (7), we can rewrite
+it as
+1
+W(t + 1) = πη (t) (W(t)) = arg min W − U(t)22
+W 2
+λ2
+W2,1
++
+(8)
+η(t)
+1
+where U(t) = W(t) − η (t)
+∇f (W(t)) and πη (t) (W(t)) is the
+1
+Euclidean projection of W(t) onto the convex set η(t), and η (t)
+denotes a stepsize at the t-iteration. Thanks to the separability
+of W(t + 1) on each row, i.e., wi (t + 1), we can update the
+weights for each row individually
+
+1 i
+λ2
+w − ui (t)22 +
+wi 2
+wi (t + 1) = arg min
+i
+2
+η(t)
+w
+
+(9)
+
+Meanwhile, in order to accelerate the proximal gradient
+method in (7), we further introduce an auxiliary variable
+V(t + 1) as follows:
+V(t + 1) = W(t) +
+
+α(t) − 1
+(W(t + 1) − W(t))
+α(t + 1)
+
+(11)
+
+where
+√ the coefficient α(t + 1) is usually set as α(t + 1) =
+1+ 1+4α (t) 2
+[53].
+2
+We summarize the pseudocode for the proposed sparse multitask learning with subspace regularization in Algorithm 1 and
+prove the convergence of Algorithm 1 in Appendix A.
+D. Feature Selection and Multiclass Classification
+Because we use an 2,1 -norm regularizer in our objective
+function, after finding the optimal solution with Algorithm 1,
+we have some zero row vectors in W. Thus, we discard the
+features, whose regression coefficient vectors are zero, by regarding them as being uninformative in representing the target
+response variables, i.e., class labels.
+After conducting feature selection, we build a multiclass classifier with an SVM [54]. There are two approaches for multiclass classification [6], [55], such as one-against-rest and oneagainst-one. The one-against-rest method builds c binary classifiers (here c is the number of classes) with each binary classifier
+κi (i = 1, ..., c) built between the ith class and the other (c − 1)
+binary
+classes, while the one-against-one method builds c(c−1)
+2
+classifiers, with each binary classifier κi,j (j = 1, ..., c) built
+between the ith class and the jth class (i = j). In terms of computational efficiency and the training cost, we choose to use
+the one-against-one approach, which classifies a test sample xte
+
+ZHU et al.: SUBSPACE REGULARIZED SPARSE MULTITASK LEARNING FOR MULTICLASS NEURODEGENERATIVE DISEASE IDENTIFICATION
+
+611
+
+TABLE II
+COMPARISON OF CLASSIFICATION ACCURACY (MEAN±STANDARD DEVIATION%) FOR TWO MULTICLASS CLASSIFICATION TASKS
+Method
+
+AD/MCI/NC
+
+Orignal
+FS
+PCA
+LPP
+LDA
+SJCR
+M3T
+Proposed
+
+AD/MCI-C/MCI-NC/NC
+
+MRI
+
+PET
+
+MRI+PET
+
+MRI
+
+PET
+
+MRI+PET
+
+61.96 ± 1.46 (93.0)
+62.33 ± 1.56 (46.2)
+63.71 ± 1.30 (35.2)
+63.21 ± 1.91 (39.3)
+49.01 ± 1.71 (2.00)
+64.02 ± 1.36 (38.2)
+63.30 ± 1.66 (36.1)
+68.31 ± 1.23 (32.7)
+
+57.99 ± 1.75 (93.0)
+60.11 ± 1.54 (42.3)
+61.49 ± 1.58 (38.5)
+61.03 ± 1.22 (32.8)
+39.02 ± 1.23 (2.00)
+61.31 ± 1.73 (29.2)
+61.32 ± 1.90 (28.4)
+65.50 ± 1.50 (28.8)
+
+62.59 ± 1.77 (186)
+62.88 ± 1.31 (72.3)
+64.61 ± 1.60 (62.8)
+64.35 ± 1.29 (65.2)
+51.85 ± 1.66 (2.00)
+67.66 ± 1.63 (58.2)
+67.91 ± 1.91 (55.5)
+73.35 ± 1.53 (50.5)
+
+49.13 ± 1.62 (93.0)
+50.87 ± 1.73 (38.7)
+51.05 ± 1.64 (36.2)
+51.72 ± 1.42 (33.2)
+35.25 ± 1.65 (3.00)
+52.13 ± 1.73 (28.1)
+51.89 ± 1.61 (25.7)
+59.74 ± 1.52 (20.1)
+
+47.98 ± 1.54 (93.0)
+50.44 ± 1.49 (37.1)
+51.51 ± 1.62 (35.0)
+51.39 ± 1.58 (26.3)
+31.82 ± 1.40 (3.00)
+51.85 ± 1.68 (27.4)
+50.91 ± 1.83 (26.6)
+56.29 ± 1.53 (19.7)
+
+49.89 ± 1.56 (186)
+51.76 ± 1.58 (59.0)
+52.20 ± 1.60 (61.3)
+52.60 ± 1.37 (53.2)
+36.32 ± 1.64 (3.00)
+55.98 ± 1.65 (49.4)
+54.47 ± 1.67 (47.9)
+61.06 ± 1.40 (34.3)
+
+Boldface denotes the best performance for each modality or combined modalities in each classification task. The values in the parentheses indicated the
+average number of selected features by all the methods in total 100 runs.
+
+with the following rule:
+κ(xte ) = arg max(Σj κi,j (xte )).
+i
+
+(12)
+
+IV. EXPERIMENTAL RESULTS
+A. Experimental Settings
+We conducted performance evaluation on a subset of the
+ADNI dataset by including 51 AD, 43 MCI-C, 56 MCI-NC,6
+and 52 NC subjects. We considered two multiclass classification
+problems: 1) AD versus MCI versus NC (three-class) and 2) AD
+versus MCI-C versus MCI-NC versus NC (four-class). In the
+three-class classification, we included both MCI-C and MCI-NC
+as MCI. For the modality fusion of MRI and PET (MRI+PET),
+we concatenated their features into a long vector of 186 features.
+We employed the metrics of classification accuracy (ACC) to
+evaluate the performance of all competing methods.
+We compared the proposed method with Fisher score (FS)
+[27], LPP [28], standard LDA [34], and PCA [52]. FS is a feature selection method that selects features based on the score
+ranking in the original feature space. Meanwhile, LPP, LDA,
+and PCA are the subspace learning methods, which are used to
+consider local topological structures, global structures, and maximal variance of the samples, respectively. For these four methods, we solved them with a generalized eigen-decomposition
+method and determined dimensions based on their respective
+eigenvalues. We also compared the proposed method with other
+state-of-the-art feature selection methods, namely, sparse joint
+classification and regression (SJCR) [5] and multimodal multitask (M3T) [6]. SJCR uses a logistic loss function and a least
+square loss function simultaneously, along with an 2,1 -norm
+for multitask feature selection. It has been used to conduct multiclass feature selection. M3T uses multitask learning with an
+2,1 -norm to select a common set of features for tasks of regression and binary classification. In order to show the validity of
+feature selection strategies, we also conducted a classification
+6 In this paper, MCI-C and MCI-NC denote the conversion status from MCI
+to AD in 18 months of follow-up. Specifically, MCI-C indicated the subjects
+converted from MCI to AD in 36 months, while MCI-NC subjects were not
+converted to AD in both 18 months and 36 months. The remaining MCI subjects
+were partitioned into a group not converted in 18 months but converted in 36
+months and another group with observation information in baseline but missing
+information in 18 months.
+
+task without feature selection, i.e., using all features (denoted
+as “Original”).
+We used a ten-fold cross-validation technique because of the
+limited number of samples. Specifically, we first randomly partitioned the whole dataset into ten subsets and then selected
+one subset for testing and used the remaining nine subsets for
+training. We repeated the whole process ten times to avoid any
+possible bias during dataset partitioning for cross-validation.
+The final result was computed by averaging the results from all
+of the experiments. We used a LIBSVM toolbox [56] for SVM
+training. For the model selection, i.e., tuning parameters7 in
+(5) and the soft margin parameter8 in SVM, we further split
+the training dataset into five subsets for five-fold inner crossvalidation. The parameters that showed the best performance in
+the inner cross-validation were used in testing.9
+B. Classification Accuracy
+Table II summarizes the classification accuracy of all competing methods for two multiclass classification problems. The
+proposed method outperformed all competing methods in all
+experiments. For example, in the three-class classification problem, our method improved the classification accuracy by 4.29%
+(MRI), 4.01% (PET), and 5.44% (MRI+PET), respectively,
+compared to the best performances among the competing methods with the respective modality. Meanwhile, in the four-class
+classification problem, the classification improvements were
+even higher than the best with as much as 7.61% (MRI), 4.44%
+(PET), and 5.08% (MRI+PET), respectively. Based on these
+results, we argue that the proposed discriminative and noiseresistant feature selection method helped enhance classification
+performances.
+It is noticeable from Table II that all feature selection methods (except for LDA) outperformed the method of exploiting
+7 λ ∈ {10 −5 , ..., 10 2 }
+1
+8 C ∈ {2 −5 , ..., 2 5 }.
+
+and λ2 ∈ {10 −5 , ..., 10 2 }.
+
+9 We also conducted ten-fold cross-validation technique ten times on all competing methods and then reported the averaging results of all experiments. It is
+worth noting that, for fair comparison, we optimize parameter values for each
+competing method. Specifically, for all subspace methods such as FS, LPP, PCA
+and LDA, we determine their optimal dimensionality based on their respective
+eignevalues computed by the generalized eigen-decomposition method, according to [13], [27], [28], [34], [52]. For sparse learning methods such as SJCR and
+M3T, we optimize their sparsity parameter by cross-validating its value in the
+ranges of {10 −5 , ..., 1, ..., 10 5 } (as in [5]) and {10 −5 , ..., 10 2 }, respectively.
+
+612
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 3, MARCH 2016
+
+Fig. 1. Classification accuracy on different parameters’ setting, i.e., C ∈ [−5 : 5] (upward), λ1 ∈ {10 −5 , ..., 10 −2 } (rightward), and λ2 ∈ {10 −5 , ..., 10 −2 }
+(leftward). (a) MRI (three-class). (b) PET (three-class). (c) MRI + PET (three-class). (d) MRI (four-class). (e) PET (four-class). (f) MRI + PET (four-class).
+
+TABLE III
+COMPARISON OF CLASSIFICATION ACCURACY (MEAN ± STANDARD DEVIATION%) FOR THREE BINARY CLASSIFICATION TASKS
+Method
+
+Orignal
+FS
+PCA
+LPP
+LDA
+SJCR
+M3T
+Proposed
+
+AD versus NC
+
+MCI versus NC
+
+MCI-C versus MCI-NC
+
+MRI
+
+PET
+
+MRI+PET
+
+MRI
+
+PET
+
+MRI+PET
+
+MRI
+
+PET
+
+MRI+PET
+
+89.5 ± 1.34
+90.2 ± 1.24
+91.2 ± 0.89
+92.0 ± 1.91
+80.2 ± 1.71
+92.9 ± 1.36
+92.6 ± 1.12
+94.3 ± 0.95
+
+86.2 ± 1.85
+88.5 ± 0.48
+89.2 ± 0.68
+90.2 ± 0.92
+80.1 ± 0.94
+92.6 ± 0.95
+92.3 ± 1.48
+93.3 ± 0.79
+
+89.7 ± 1.48
+91.5 ± 1.48
+92.0 ± 0.95
+93.2 ± 1.01
+86.2 ± 1.11
+94.2 ± 1.22
+94.0 ± 2.14
+95.5 ± 1.05
+
+68.3 ± 1.72
+75.9 ± 1.44
+76.2 ± 1.06
+77.1 ± 1.81
+65.3 ± 1.01
+78.2 ± 1.51
+78.1 ± 1.15
+79.3 ± 1.10
+
+69.0 ± 1.12
+74.9 ± 1.04
+75.1 ± 0.96
+75.9 ± 1.58
+66.5 ± 1.40
+77.1 ± 0.85
+77.2 ± 1.47
+79.1 ± 0.99
+
+71.6 ± 0.95
+75.9 ± 0.48
+77.2 ± 0.21
+78.0 ± 0.10
+68.2 ± 0.14
+78.6 ± 0.95
+78.4 ± 0.15
+79.7 ± 0.21
+
+60.3 ± 1.23
+64.5 ± 1.47
+65.3 ± 1.11
+66.2 ± 1.15
+59.3 ± 1.01
+68.0 ± 0.93
+67.1 ± 0.62
+70.1 ± 1.00
+
+62.2 ± 1.54
+63.4 ± 0.48
+64.9 ± 0.75
+65.3 ± 0.65
+58.3 ± 0.59
+67.0 ± 0.65
+67.0 ± 0.54
+69.9 ± 0.52
+
+62.7 ± 1.56
+65.1 ± 1.10
+66.2 ± 1.81
+66.8 ± 1.50
+59.1 ± 0.90
+68.6 ± 0.86
+67.9 ± 1.00
+71.2 ± 1.22
+
+Boldface denotes the best performance for each modality or combined modalities in each classification task.
+
+full features (i.e., Original), which implies the effectiveness of
+feature selection in solving the high-dimension and small sample size problem in classification. We found that LDA achieved
+the lowest classification accuracies among the competing methods. The main reason was that LDA projected the original high
+dimensional feature space into only two or three dimensional
+subspace, respectively. In such a low-dimensional space, the
+performance was very limited. On the other hand, the subspace
+learning methods, except for LDA, outperformed the feature selection method of FS. This verified the conclusion that subspace
+learning methods outperform feature selection methods [36].
+Thus, it is reasonable to integrate subspace learning into the
+feature selection framework, which aims at enhancing the classification power of the proposed feature selection model in the
+multiclass AD diagnosis. Moreover, the proposed method was
+
+able to outperform both conventional feature selection methods and subspace learning methods by combining the two approaches.
+Fig. 1 presents the parameters’ sensitivity by changing values of C in SVM and (λ1 , λ2 ) in (5). The results show that
+our method was sensitive to the parameters within only a small
+range, and the best parameter combination was always found
+in our experiments, such as λ1 = 103 , λ2 = 10, and C = 3
+for the three-class classification task with MRI+PET data in
+Fig. 1(c).
+Finally, we also conducted three binary classification tasks
+by following the definition of response variables in [27], [34],
+[51] (Please see the detail in Footnote 4) and reported respective
+results in Table III. Similarly, the proposed method achieved the
+best results, outperforming all the competing methods.
+
+ZHU et al.: SUBSPACE REGULARIZED SPARSE MULTITASK LEARNING FOR MULTICLASS NEURODEGENERATIVE DISEASE IDENTIFICATION
+
+613
+
+TABLE IV
+CLASSIFICATION ACCURACY (MEAN ± STANDARD DEVIATION%) OF THE LDA-SR AND THE LPP-SR METHOD
+Method
+
+LDA-SR
+LPP-SR
+
+AD/MCI/NC
+
+AD/MCI-C/MCI-NC/NC
+
+MRI
+
+PET
+
+MRI+PET
+
+MRI
+
+PET
+
+MRI+PET
+
+64.27 ± 2.02 (36.3)
+65.04 ± 1.17 (30.2)
+
+62.02 ± 2.45 (32.1)
+63.96 ± 1.56 (33.2)
+
+69.45 ± 3.06 (52.3)
+71.31 ± 1.47 (49.8)
+
+52.53 ± 1.80 (20.5)
+55.45 ± 1.48 (22.9)
+
+51.45 ± 2.36 (22.9)
+53.85 ± 1.74 (23.2)
+
+56.02 ± 1.86 (39.2)
+57.54 ± 1.37 (43.5)
+
+Values in the parentheses indicated the average number of selected features by all the methods in total 100 runs.
+
+Fig. 2. Classification accuracy (ACC) of using different number of features in four feature selection methods, on a three-class classification task (top) and a
+four-class classification task (bottom), respectively. Note that the horizontal axis represents different number of features selected by various feature selection
+methods.
+
+V. DISCUSSION
+A. Role of LDA and LPP in the Proposed Method
+In this section, we justify the rationale of applying both LPP
+and LDA in the proposed framework. To this end, we further
+consider the LDA sparse regression (LDA-SR) as (5) without
+the LPP regularization term and also the LPP sparse regerssion
+(LPP-SR) as (5) replacing Ŷ with the 0-1 encoding method for
+representing class labels. Table IV summarizes the classification performance of both LDA-SR and LPP-SR on two classification tasks. Obviously, LDA-SR utilizes the discriminative
+information of the data compared to M3T [6] but does not
+have the graph Laplacian regularization term compared to our
+method, while LPP-SR exploits the graph Laplacian regularization term compared to M3T but does not have the LDA part
+compared to our methods.
+When comparing the performances summarized in Tables II
+and IV, we find that LDA-SR, on average, improved by 0.99%
+more than M3T. The results support the efficacy of applying discriminant analysis in the sparse linear regression model. We also
+observe that LPP-SR improved by 2.89% more than M3T. This
+indicates the effectiveness in adding local information into the
+sparse linear regression model, while also verifying that the LPP
+regularization term could successfully characterize local topological structures of the data in the least square regression [57].
+Furthermore, LDA-SR and LPP-SR, on average, improved by
+1.38% and 2.37%, respectively, compared to SJCR.
+
+Recent studies have indicated that LDA was able to capture
+the global distributional characteristics of the training samples,
+while LPP was able to preserve the local topological structures
+of the data [27], [50], [57]. In real applications, since the inherent
+structure of data is often complex and a single characterization
+(either global or local) may not be able to sufficiently represent
+underlying patterns. Lastly, we have found that LDA-SR and
+LPP-SR were worse than our method as much as 4.76% and
+2.86%, respectively. This indicates that combining both LDA
+and LPP in a unified framework can help find a more generalized
+solution (i.e., small bias) via LDA and alleviate the sensitivity of
+the classifier to noises or outliers (i.e., small variance) via LPP.
+B. Effects of Dimensionality on Classification Accuracy
+We investigated the performance changes of the four competing feature selection methods, i.e., FS, SJCR, M3T, and the
+proposed method. We plotted the performance changes in Fig. 2
+by varying the dimensionality from 10 to 90 with an increment
+of 10 for MRI and PET, and from 20 to 180 with an increment
+of 20 for MRI+PET, respectively. It is noteworthy that the proposed method consistently showed the best performance over the
+varying dimensions. For the three-class classification problem,
+the proposed method reported performance improvements on
+average of 4.92% (MRI), 4.58% (PET), and 5.35% (MRI+PET)
+compared to FS, by 4.04% (MRI), 3.19% (PET), and 3.24%
+(MRI+PET) compared to SJCR, and by 5.01% (MRI), 4.18%
+
+614
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 3, MARCH 2016
+
+Fig. 3. Frequency of the selected ROIs by the proposed method with MRI+PET in a three-class classification task (top) and a four-class classification task
+(bottom), respectively. For example, F renquency 2 2 = 100 in the upper left subfigure means that the 22nd ROI was selected 100 times over 100 repeats by the
+proposed method.
+
+Fig. 4.
+
+Top ten selected regions in the three-class classification task with MRI/PET. (a) MRI. (b) PET.
+
+(PET), and 5.34% (MRI+PET) compared to M3T. For the fourclass classification problem, the proposed method improved on
+average by 4.61% (MRI), 3.03% (PET), and 8.27% (MRI+PET)
+compared to FS, by 4.17% (MRI), 2.04% (PET), and 4.42%
+(MRI+PET) compared to SJCR, and by 7.85% (MRI), 5.38%
+(PET), and 6.59% (MRI+PET) compared to M3T.
+Interestingly, the classification accuracies of the feature selection methods began to decrease after a certain dimensionality,
+from which we believe that the intrinsic class-discriminative
+feature dimensionality for the classification is low [58].
+C. Most Discriminative Brain Regions
+We also investigated the potential of brain regions as biomarkers in AD diagnosis based on the selected frequency of the
+ROIs and also compared the results among the feature selection
+methods10 with MRI+PET. Fig. 3 shows the frequency of the
+10 Note that the methods (such as PCA, LPP, and LDA) do not conduct feature
+selection, so they cannot output the selected regions.
+
+ROIs selected by the proposed method in two multiclass classification problems. We also visualized the ten most frequently
+selected ROIs by the proposed method in Figs. 4 and 5. We
+compared the ten most frequently selected ROIs by different
+feature selection methods in Tables V and VI.
+From Fig. 3, Tables Vand VI, we can see that the commonly
+selected regions in two multiclass classification tasks were uncus right (22),11 hippocampal formation right (30), uncus left
+(46), middle temporal gyrus left (48), hippocampal formation
+left (69), amygdala left (76), middle temporal gyrus right (80),
+and amygdala right (83) from MRI; precuneus right (26), precuneus left (41), and angular gyrus left (87) from PET. These
+regions were also selected by the proposed method and the competing methods with MRI+PET. Moreover, these discriminative
+brain regions have been pointed out in the previous literatures
+on binary classification [6] and have been also shown to be
+11 The number in the parentheses represents a ROI index. Please refer to
+Table IX for the full name of the respective ROI.
+
+ZHU et al.: SUBSPACE REGULARIZED SPARSE MULTITASK LEARNING FOR MULTICLASS NEURODEGENERATIVE DISEASE IDENTIFICATION
+
+Fig. 5.
+
+615
+
+Top ten selected regions in the four-class classification task with MRI/PET. (a) MRI. (b) PET.
+
+TABLE V
+TOP TEN SELECTED ROIS BY FEATURE SELECTION METHODS ON THE THREE-CLASS CLASSIFICATION TASK
+Method
+
+MRI
+
+PET
+
+MRI+PET
+
+FS
+SJCR
+M3T
+Proposed
+
+17, 30, 46, 48, 63, 69, 76, 80, 83, 84
+22, 30, 46, 63, 64, 69, 76, 79, 80, 83
+17, 22, 30, 46, 48, 61, 64, 69, 76, 83
+17, 22, 30, 46, 48, 61, 63, 64, 69, 83
+
+11, 12, 18, 26, 41, 48, 62, 79, 83, 90
+11, 12, 16, 18, 26, 29, 62, 64, 79, 87
+11, 18, 26, 29, 35, 41, 48, 64, 79, 87
+11, 12, 26, 29, 35, 41, 62, 64, 79, 87
+
+30, 46, 48, 69, 76, 80, 83; 26, 41, 87
+22, 30, 46, 48, 62, 76, 83; 16, 41, 87
+25, 30, 46, 62, 76, 80, 83; 16, 26, 87
+22, 30, 46, 48, 61, 69, 76; 26, 41, 87
+
+Note that in the last column, the values on the left-side of the semicolon denote the regions selected from MRI, while the values next
+to the semicolon indicate the regions selected from PET. Please refer to Table IX for the full names of the ROIs.
+
+TABLE VI
+TOP TEN SELECTED ROIS BY FEATURE SELECTION METHODS ON THE FOUR-CLASS CLASSIFICATION TASK
+Method
+
+MRI
+
+PET
+
+MRI+PET
+
+FS
+SJCR
+M3T
+Proposed
+
+17, 30, 46, 48, 61, 69, 76, 80, 83, 84
+30, 43, 48, 56, 63, 64, 76, 80, 83, 84
+22, 30, 46, 56, 58, 64, 69, 76, 83, 90
+17, 30, 43, 46, 48, 63, 64, 69, 76, 83
+
+12, 18, 26, 38, 41, 47, 48, 62, 86, 87
+12, 16, 18, 26, 35, 55, 41, 62, 79, 87
+11, 16, 18, 26, 29, 35, 41, 55, 64, 79
+11, 12, 18, 26, 29, 35, 41, 62, 64, 79
+
+30, 46, 48, 69, 76, 80, 83 ; 26, 41, 87
+22, 46, 48, 64, 69, 76, 90 ; 26, 41, 87
+30, 46, 48, 61, 64, 69, 83 ; 26, 41, 87
+22, 30, 46, 64, 69, 76, 83 ; 26, 41, 87
+
+Note that in the last column, the values on the left-side of the semicolon denote the regions selected from MRI, while the values next
+to the semicolon indicate the regions selected from PET. Please refer to Table IX for the full names of the ROIs.
+
+highly related to AD and MCI in clinical diagnosis [59]–[62].
+In this regard, we can say that these regions can be the potential
+biomarkers for AD diagnosis.
+Our method selected, on average, 50.5 and 34.3 features
+for MRI+PET (186 dimensional features) for the three-class
+classification task and the four-class classification task, respectively. It is interesting that the smaller number of features was
+selected in a four-class classification task rather than in a threeclass classification task, whereas the larger number of features
+was selected from MRI rather than from PET in both threeclass and four-class classification problems. Furthermore, from
+Table II, we can see that MRI-based methods achieved better
+performance than the PET-based methods. Based on these observations, it is likely that the structural MR image provides
+more discriminative information in identifying the clinical status related to AD, compared to the functional PET image.
+Here, we should mention that most of the methods selected
+similar features from the top ten brain regions, but our method
+
+selected them with the highest frequency.12 For example, in the
+three-class classification task with MRI+PET, M3T selected the
+brain regions of middle temporal gyrus right (80) and amygdala
+right (83) from MRI (see the last column of Table V), which
+are ranked top 6 and top 8 with the frequency of 95% and 92%,
+respectively, while our method selected them with the frequency
+of 99% and 99% for MRI, respectively, but ranked them in top
+11 and top 12, due to the high frequency (100%) of all other
+top ten regions (seven for MRI and three for PET). On the other
+hand, most of the methods also selected other brain regions
+(different from the aforementioned potential biomarkers) as the
+top ones in our experiments, such as parahippocampal gyrus
+left (17), temporal pole left (63), and entorhinal cortex left (64)
+12 In our experiments, we conducted ten-fold cross-validation ten times to
+obtain 100 groups of reduced feature sets, we define the term “Frequency”
+re a p p e a re d in 1 0 0 g ro u p s
+as F renquency i = th e tim e s o f th e i −th fe a tu
+×
+100
+100%.
+
+616
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 3, MARCH 2016
+
+TABLE VII
+COMPARISON OF CLASSIFICATION ACCURACY (MEAN ± STANDARD
+DEVIATION%) FOR TWO MULTICLASS CLASSIFICATION TASKS WITH MRI
+Method
+
+AD/MCI/NC
+
+AD/MCI-C/MCI-NC/NC
+
+Orignal
+FS
+PCA
+LPP
+LDA
+SJCR
+M3T
+LDA-SR
+LPP-SR
+Proposed
+
+61.98 ± 2.51 (93.0)
+62.56 ± 1.79 (43.2)
+64.76 ± 1.61 (36.5)
+64.32 ± 1.49 (31.5)
+49.13 ± 1.65 (2.00)
+64.87 ± 1.78 (42.6)
+64.75 ± 1.16 (31.2)
+64.88 ± 1.52 (35.8)
+65.13 ± 0.76 (32.2)
+68.49 ± 0.89 (29.3)
+
+48.01 ± 1.73 (93.0)
+50.80 ± 1.09 (36.6)
+51.49 ± 1.58 (32.1)
+55.84 ± 1.64 (29.3)
+45.71 ± 2.16 (3.00)
+53.98 ± 1.57 (39.2)
+52.32 ± 1.34 (28.6)
+56.34 ± 1.78 (24.8)
+57.19 ± 1.67 (26.8)
+61.86 ± 1.22 (23.2)
+
+Fig. 7. Frequency of the selected ROIs by the proposed method on a large MRI
+dataset in a three-class classification task (left) and a four-class classification
+task (right), respectively.
+
+Boldface denotes the best performance in each classification task.
+The values in the parentheses indicated the average number of
+selected features by all the methods in total 100 runs.
+
+TABLE VIII
+TOP TEN SELECTED ROIS BY FEATURE SELECTION METHODS ON A
+THREE-CLASS CLASSIFICATION TASK (SECOND COLUMN) AND A FOUR-CLASS
+CLASSIFICATION TASK (THIRD COLUMN), RESPECTIVELY, ON A LARGE
+MRI DATASET
+Method
+
+AD/MCI/NC
+
+AD/MCI-C/MCI-NC/NC
+
+FS
+SJCR
+M3T
+Proposed
+
+17, 30, 46, 48, 63, 69, 76, 79, 83, 84
+17, 30, 46, 63, 64, 69, 76, 79, 80, 83
+17, 22, 30, 46, 48, 61, 76, 79, 83, 84
+17, 30, 46, 48, 61, 63, 64, 69, 76, 83
+
+17, 22, 46, 48, 61, 69, 76, 80, 83, 90
+17, 43, 48, 56, 61, 64, 76, 80, 83, 84
+22, 30, 46, 56, 58, 64, 69, 76, 83, 84
+17, 30, 46, 56, 61, 63, 64, 69, 76, 83
+
+Refer to Table IX for the full names of the ROIs.
+
+Fig. 6. Accuracy changes in four methods with MRI on a three-class classification task (left) and a four-class classification task (right), respectively.
+
+from MRI, and globus palladus right (11) and anterior limb of
+internal capsule right (79) from PET. These regions may also be
+potential biomarkers for multiclass AD diagnosis.
+
+Fig. 8. Classification accuracy on different parameters’ setting,
+i.e.,
+C ∈ [−5 : 5] (upward), λ1 ∈ {10 −5 , ..., 10 −2 } (rightward), and
+λ2 ∈ {10 −5 , ..., 10 −2 } (leftward).
+TABLE IX
+NAMES OF THE SELECTED ROIS IN THIS STUDY
+Index
+
+ROI Name
+
+5
+11
+15
+17
+19
+22
+26
+
+precentral gyrus right
+globus palladus right
+putamen right
+parahippocampal gyrus left
+temporal pole right
+uncus right
+precuneus right
+
+10
+12
+16
+18
+20
+25
+29
+
+30
+
+hippocampal formation right
+
+35
+
+36
+42
+46
+48
+55
+57
+62
+64
+73
+79
+
+occipital lobe WM right
+parietal lobe WM left
+uncus left
+middle temporal gyrus left
+precentral gyrus left
+medial front-orbital gyrus left
+inferior temporal gyrus left
+entorhinal cortex left
+postcentral gyrus right
+anterior limb of internal
+capsule right
+corpus callosum
+inferior temporal gyrus right
+lateral occipitotemporal gyrus
+left
+
+41
+43
+47
+53
+56
+61
+63
+69
+76
+80
+
+superior frontal gyrus right
+globus palladus left
+frontal lobe WM right
+angular gyrus right
+subthalamic nucleus right
+frontal lobe WM left
+posterior limb of internal
+capsule right
+anterior limb of internal
+capsule left
+precuneus left
+temporal lobe WM right
+middle occipital gyrus right
+postcentral gyrus left
+temporal lobe WM left
+perirhinal cortex left
+temporal pole left
+hippocampal formation left
+amygdala left
+middle temporal gyrus right
+
+83
+87
+
+amygdala right
+angular gyrus left
+
+82
+84
+90
+
+Index
+
+ROI Name
+
+D. Large MRI Dataset From ADNI
+We further evaluate performance on a large MRI dataset from
+the ADNI cohort, including 186 AD, 118 MCI-C, 124 MCINC, and 226 NC. We used the same setting as in Section IV-A.
+The experimental results are reported in Tables VII and VIII, as
+well as Figs. 6–8. Again, the proposed method achieved the best
+results, outperforming all the competing methods. The feature
+selection strategies were also helpful in enhancing classification
+accuracy, compared to the “Original” method.
+
+VI. CONCLUSION
+In this paper, we focused on the high feature-dimension problem for multiclass classification in AD diagnosis. Specifically,
+we proposed a novel feature selection method by integrating
+subspace learning, which utilized both the global and the local
+topological information inherent in the data, in a sparse linear
+regression framework. In our experimental results on the ADNI
+dataset, we validated the efficacy of the proposed method by
+
+ZHU et al.: SUBSPACE REGULARIZED SPARSE MULTITASK LEARNING FOR MULTICLASS NEURODEGENERATIVE DISEASE IDENTIFICATION
+
+enhancing classification accuracies in multiclass classification
+problems. In our future works, we will extend the proposed
+linear feature selection model to the nonlinear model via kernel
+functions to capture complex patterns between brain images and
+the corresponding AD status.
+APPENDIX
+Regarding the convergence of the optimization, we can use
+the following theorem proved in [53]:
+Theorem 1: [53] Let {W(t)} be the sequence generated by
+Algorithm 1, then for ∀ t ≥ 1, the following holds
+L(W(t)) − L(W∗ ) ≤
+
+2γϑW(1) − W∗ 2F
+(t + 1)2
+
+where γ > 0 is a predefined constant, ϑ is the Lipschitz constant
+of the gradient of f (W) in (6), and W∗ = arg min L(W).
+W
+
+Theorem 1 shows that the convergence rate of the proposed
+accelerated proximal gradient method is O( t12 ), where t denotes
+an iteration number.
+REFERENCES
+[1] Alzheimer’s Association, “2012 Alzheimer’s disease facts and figures,”
+Alzheimer’s Dementia, vol. 8, no. 2, pp. 131–168, 2012.
+[2] M. D. Greicius et al., “Default-mode network activity distinguishes
+Alzheimer’s disease from healthy aging: Evidence from functional MRI,”
+Proc. Nat. Acad. Sci. United States Amer., vol. 101, no. 13, pp. 4637–4642,
+2004.
+[3] X. Guo et al., “Voxel-based assessment of gray and white matter volumes
+in Alzheimer’s disease,” Neurosci. Lett., vol. 468, no. 2, pp. 146–150,
+2010.
+[4] J. Taquet and C. Labit, “Hierarchical oriented predictions for resolution
+scalable lossless and near-lossless compression of CT and MRI biomedical
+images,” IEEE Trans. Image Process., vol. 21, no. 5, pp. 2641–2652, May
+2012.
+[5] H. Wang et al., “Identifying AD-sensitive and cognition-relevant imaging
+biomarkers via joint classification and regression,” Med. Image Comput.
+Comput. Assist. Interv., vol. 14, pp. 115–123, 2011.
+[6] D. Zhang and D. Shen, “Multi-modal multi-task learning for joint prediction of multiple regression and classification variables in Alzheimer’s
+disease,” NeuroImage, vol. 59, no. 2, pp. 895–907, 2012.
+[7] H.-I. Suk et al., “Hierarchical feature representation and multimodal fusion with deep learning for AD/MCI diagnosis,” NeuroImage, vol. 101,
+pp. 569–582, 2014.
+[8] H.-I. Suk et al., “Latent feature representation with stacked auto-encoder
+for AD/MCI diagnosis,” Brain Structure Function, vol. 220, no. 2,
+pp. 841–859, 2015.
+[9] R. Cuingnet et al., “Automatic classification of patients with Alzheimer’s
+disease from structural MRI: A comparison of ten methods using the
+ADNI database,” NeuroImage, vol. 56, no. 2, pp. 766–781, 2011.
+[10] J. Wan et al., “Sparse bayesian multi-task learning for predicting cognitive
+outcomes from neuroimaging measures in Alzheimer’s disease,” in Proc.
+Comput. Vis. Pattern Recog., 2012, pp. 940–947.
+[11] S. Liao and D. Shen, “A feature-based learning framework for accurate
+prostate localization in CT images,” IEEE Trans. Image Process., vol. 21,
+no. 8, pp. 3546–3559, Aug. 2012.
+[12] B. Mwangi et al., “A review of feature reduction techniques in neuroimaging,” Neuroinformatics, vol. 12, no. 2, pp. 229–244, 2014.
+[13] X. Zhu et al., “A novel matrix-similarity based loss function for joint
+regression and classification in AD diagnosis,” NeuroImage, vol. 14,
+pp. 1–30, 2014.
+[14] R. Guerrero et al., “Manifold alignment and transfer learning for classification of Alzheimer’s disease,” in Machine Learning in Medical Imaging.
+New York, NY, USA: Springer, 2014.
+[15] X. Liu et al., “Locally linear embedding for MRI based Alzheimer’s
+disease classification,” NeuroImage, vol. 83, pp. 148–157, 2013.
+
+617
+
+[16] C. Chu et al., “Does feature selection improve classification accuracy?
+Impact of sample size and feature selection on classification using anatomical magnetic resonance images,” NeuroImage, vol. 60, no. 1, pp. 59–70,
+2012.
+[17] D. Salas-Gonzalez et al., “Feature selection using factor analysis
+for Alzheimers diagnosis using F18-FDG PET images,” Med. Phys.,
+vol. 37, no. 11, pp. 6084–6095, 2010.
+[18] J. Young et al., “Classification of Alzheimer’s disease patients with hippocampal shape, wrapper based feature selection and support vector machine,” Proc. SPIE, vol. 8314, 2012.
+[19] H.-I. Suk et al., “Subclass-based multi-task learning for Alzheimer’s disease diagnosis,” Frontiers Aging Neurosci., vol. 6, no. 168, 2014.
+[20] H.-I. Suk et al., “Deep sparse multi-task learning for feature selection in
+Alzheimer’s disease diagnosis,” Brain Structure Function, pp. 1–19, 2015.
+[21] R. Tibshirani, “Regression shrinkage and selection via the Lasso,” J. Royal
+Statist. Soc. Series B (Methodological), pp. 267–288, 1996.
+[22] M. Yuan and Y. Lin, “Model selection and estimation in regression
+with grouped variables,” J. Royal Statist. Soc. Series B, vol. 68, no. 1,
+pp. 49–67, 2006.
+[23] J. Zhou et al., “Modeling disease progression via multi-task learning,”
+NeuroImage, vol. 78, pp. 233–248, 2013.
+[24] H.-I. Suk et al., “Supervised discriminative group sparse representation
+for mild cognitive impairment diagnosis,” Neuroinformatics, vol. 13,
+no. 3, pp. 277–295, 2015.
+[25] X. Zhu et al., “A sparse embedding and least variance encoding approach
+to hashing,” IEEE Trans. Image Process., vol. 23, no. 9, pp. 3737–3750,
+Sep. 2014.
+[26] J. Li et al., “Voxelwise spectral diffusional connectivity and its applications
+to alzheimer’s disease and intelligence prediction,” Med. Image Comput.
+Comput. Assist. Interv., vol. 16, pp. 655–662, 2013.
+[27] R. O. Duda et al., Pattern Classification. New York, NY, USA: Wiley,
+2012.
+[28] X. He et al., “Laplacian score for feature selection,” in Proc. Neural
+Inform. Process. Syst., 2005, pp. 1–8.
+[29] L. Zhang et al., “Conjunctive patches subspace learning with side information for collaborative image retrieval,” IEEE Trans. Image Process.,
+vol. 21, no. 8, pp. 3707–3720, Aug. 2012.
+[30] X. Zhu et al., “Sparse hashing for fast multimedia search,” ACM Trans.
+Inform. Syst., vol. 31, no. 2, p. 9, 2013.
+[31] L. Zhan et al., “Comparison of 9 tractography algorithms for detecting
+abnormal structural brain networks in alzheimers disease,” Frontiers Aging
+Neurosci., vol. 7, no. 48, 2015.
+[32] X. Zhu et al., “Missing value estimation for mixed-attribute data sets,”
+IEEE Trans. Knowl. Data Eng., vol. 23, no. 1, pp. 110–121, Jan. 2011.
+[33] J. Sui et al., “A review of multivariate methods for multimodal fusion of
+brain imaging data,” J. Neurosci. Methods, vol. 204, no. 1, pp. 68–81,
+2012.
+[34] G. McLachlan, Discriminant Analysis and Statistical Pattern Recognition.
+New York, NY, USA: Wiley, 2004.
+[35] D. Hardoon et al., “Canonical correlation analysis: An overview with
+application to learning methods,” Neural Comput., vol. 16, no. 12,
+pp. 2639–2664, 2004.
+[36] X. Zhu et al., “Dimensionality reduction by mixed kernel canonical correlation analysis,” Pattern Recog., vol. 45, no. 8, pp. 3003–3016, 2012.
+[37] H. Wold, “Partial least squares,” in Encyclopedia of Statistical Sciences.
+New York, NY, USA: Wiley, 1985.
+[38] X. Zhu et al., “Block-row sparse multiview multilabel learning for image
+classification,” IEEE Trans. Cybern., Feb. 2015.
+[39] S. T. Roweis and L. K. Saul, “Nonlinear dimensionality reduction by
+locally linear embedding,” Science, vol. 290, pp. 2323–2326, 2000.
+[40] X. Zhu et al., “Multi-modality canonical feature selection for Alzheimer’s
+disease diagnosis,” Med. Image Comput. Comput. Assist. Interv., vol. 17,
+pp. 162–169, 2014.
+[41] X. Zhu et al., “Self-taught dimensionality reduction on the highdimensional small-sized data,” Pattern Recog., vol. 46, no. 1, pp. 215–229,
+2013.
+[42] J. G. Sled et al., “A nonparametric method for automatic correction of
+intensity nonuniformity in MRI data,” IEEE Trans. Med. Imag., vol. 17,
+no. 1, pp. 87–97, Feb. 1998.
+[43] Y. Wang et al., “Knowledge-guided robust MRI brain extraction for diverse
+large-scale neuroimaging studies on humans and non-human primates,”
+PLoS One, vol. 9, p. e77810, 2014.
+[44] Y. Zhang et al., “Segmentation of brain MR images through a hidden
+Markov random field model and the expectation-maximization algorithm,”
+IEEE Trans. Med. Imag., vol. 20, no. 1, pp. 45–57, Jan. 2001.
+
+618
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 3, MARCH 2016
+
+[45] D. Shen and C. Davatzikos, “HAMMER: Hierarchical attribute matching
+mechanism for elastic registration,” IEEE Trans. Med. Imag., vol. 21,
+no. 11, pp. 1421–1439, Nov. 2002.
+[46] N. J. Kabani, “3D anatomical atlas of the human brain,” NeuroImage,
+vol. 7, pp. 0700–0717, 1998.
+[47] A. Argyriou et al., “Convex multi-task feature learning,” Mach. Learning,
+vol. 73, no. 3, pp. 243–272, 2008.
+[48] Y. Cho et al., “Individual subject classification for Alzheimer’s disease
+based on incremental learning using a spatial frequency representation of
+cortical thickness data,” NeuroImage, vol. 59, no. 3, pp. 2217–2230, 2012.
+[49] J. Liu et al., “Multi-task feature learning via efficient 2 , 1 -norm minimization,” in Proc. Uncertainty Artif. Intell., 2009, pp. 339–348.
+[50] T. Hastie et al., “The elements of statistical learning: Data mining, inference and prediction,” Math. Intell., vol. 27, no. 2, pp. 83–85, 2005.
+[51] J. Ye, “Least squares linear discriminant analysis,” in Proc. Int. Conf.
+Mach. Learning, 2007, pp. 1087–1093.
+[52] I. Jolliffe, Principal Component Analysis. New York, NY, USA: Wiley,
+2005.
+[53] Y. Nesterov, Introductory Lectures on Convex Optimization: A Basic
+Course. New York, NY, USA: Springer, 2004.
+[54] C. J. C. Burges, “A tutorial on support vector machines for pattern recognition,” Data Mining Knowl. Discover, vol. 2, no. 2, pp. 121–167, 1998.
+[55] H.-I. Suk and S.-W. Lee, “A novel Bayesian framework for discriminative
+feature extraction in brain-computer interfaces,” IEEE Trans. Pattern Anal.
+Mach. Intell., vol. 35, no. 2, pp. 286–299, Feb. 2013.
+[56] C.-C. Chang and C.-J. Lin, “LIBSVM: A library for support vector machines,” ACM Trans. Intell. Syst. Technol., vol. 2, no. 3, p. 27, 2011.
+[57] Q. Gu et al., “Joint feature selection and subspace learning,” in Proc. Int.
+Joint Conf. Artif. Intell., 2011, pp. 1294–1299.
+[58] K. Q. Weinberger et al., “Learning a kernel matrix for nonlinear dimensionality reduction,” in Proc. Int. Conf. Mach. Learning, 2004, pp. 17–24.
+[59] G. Chételat et al., “FDG-PET measurement is more accurate than neuropsychological assessments to predict global cognitive deterioration in
+patients with mild cognitive impairment,” Neurocase, vol. 11, no. 1,
+pp. 14–25, 2005.
+[60] A. Convit et al., “Atrophy of the medial occipitotemporal, inferior,
+and middle temporal gyri in non-demented elderly predict decline to
+Alzheimers disease,” Neurobiology Aging, vol. 21, no. 1, pp. 19–26, 2000.
+[61] N. C. Fox and J. M. Schott, “Imaging cerebral atrophy: Normal ageing to
+Alzheimer’s disease,” Lancet, vol. 363, no. 9406, pp. 392–394, 2004.
+[62] C. Misra et al., “Baseline and longitudinal patterns of brain atrophy in
+MCI patients, and their use in prediction of short-term conversion to
+AD: Results from ADNI,” NeuroImage, vol. 44, no. 4, pp. 1415–1422,
+2009
+
+Xiaofeng Zhu received the B.Sc. and M.E. degrees
+from Guangxi Normal University, Guangxi, China,
+the M.Sc. degree from the National University of
+Singapore, Singapore, and the Ph.D. degree from the
+University of Queensland, Brisbane, Australia.
+He is currently a Postdoctoral Research Associate
+at the University of North Carolina, Chapel Hill, NC,
+USA. His research interests include large scale image/video retrieval, feature selection, sparse learning,
+and medical image analysis.
+
+Heung-Il Suk received the B.S. and M.S. degrees in
+computer engineering from Pukyong National University, Busan, Korea, in 2004 and 2007, respectively,
+and the Ph.D. degree in computer science and engineering, Korea University, Seoul, Korea, in 2012.
+From 2012 to 2014, he was a Postdoctoral Research Associate at the University of North Carolina,
+Chapel Hill, NC, USA. Since March 2015, he is an
+Assistant Professor at the Department of Brain and
+Cognitive Engineering, Korea University, Seoul. His
+current research interests include machine learning,
+neuroimaging data analysis, brain–computer interface, and computer vision.
+Dr. Suk received the Best Graduate Thesis Award in 2012 and also received
+the Silver Award at the 18th Samsung Human-Tech Thesis Prize in 2011.
+
+Seong Whang Lee’s, (F’10) received the B.S. degree in computer science and statistics from Seoul
+National University, Seoul, Korea, in 1984, and the
+M.S. and Ph.D. degrees in computer science from the
+Korea Advanced Institute of Science and Technology,
+Seoul, Korea, in 1986 and 1989, respectively.
+He is currently the Hyundai-Kia Motor Chair Professor and the Head of the Department of Brain and
+Cognitive Engineering at Korea University, Seoul,
+Korea. His research interests include pattern recognition, artificial intelligence and brain engineering. He
+is a Fellow of the IAPR, and the Korea Academy of Science and Technology.
+
+Dinggang Shen was a tenure-track Assistant Professor at the University of Pennsylvanian, and a Faculty Member at the Johns Hopkins University. He
+is currently a Professor of radiology at the Biomedical Research Imaging Center (BRIC), Department
+of Computer Science, and Biomedical Engineering,
+the University of North Carolina, Chapel Hill, NC,
+USA. He is currently the Director at the Center for
+Image Analysis and Informatics, the Image Display,
+Enhancement, and Analysis Lab, Department of Radiology, and also the medical image analysis core at
+the BRIC. His research interests include medical image analysis, computer vision, and pattern recognition. He has published more than 600 papers in the
+international journals and conference proceedings. He serves as an Editorial
+Board Member for six international journals. He also serves in the Board of
+Directors, The Medical Image Computing and Computer Assisted Intervention
+Society.
+
+

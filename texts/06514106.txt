@@ -1,0 +1,770 @@
+174
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+Model-Based Verification of a Non-Linear Separation
+Scheme for Ballistocardiography
+Yu Yao, Christoph Brüser, Student Member, IEEE, Uwe Pietrzyk, Member, IEEE,
+Steffen Leonhardt, Senior Member, IEEE, Stefan van Waasen, and Michael Schiek
+
+Abstract—The current rise in popularity of ballistocardiography-related research has led to the development of new
+sensor concepts and recording methods. Measuring the ballistocardiogram using bed mounted pressure sensors opens up new possibilities for home monitoring applications. The signals measured
+with these sensors contain a mixture of cardiac and respiratory
+components, which can be used for detection of comorbidities of
+heart failure like apnea or arrhythmia. However, the separation of
+the cardiac and respiratory components has proven to be difficult,
+since there is significant overlap in the spectra of both components.
+In this paper, an algorithm for the separation task is presented,
+which can overcome the problem of overlapping spectra. Additionally, a model has been developed for the generation of artificial
+ballistocardiograms, which are used to analyze the separation performance. Furthermore, the algorithm is tested on preliminary
+data from a clinical study.
+Index Terms—Ballistocardiography (BCG), biomedical signal
+processing, nonlinear filters, source separation.
+
+I. INTRODUCTION
+ALLISTOCARDIOGRAPHY (BCG) is a noninvasive
+method developed with the aim to study the cardiac activity by measuring body movements caused by the contraction
+of the ventricles and the blood flow in the systemic arterial tree.
+Research on this method reached a peak in the 1960s, but almost ceased completely during the 1990s. Due to impractical
+recording devices and the development of ECG as a standard
+tool, BCG never achieved widespread clinical use.
+In the last few years, however, there seems to be a renewed
+interest in BCG-related research [1], which is driven by the
+current trend toward telemedicine and the challenges awaiting
+the public health system due to the demographic change. This
+development is made possible by the emergence of novel sen-
+
+B
+
+Manuscript received December 7, 2012; revised March 20, 2013; accepted
+April 27, 2013. Date of publication May 6, 2013; date of current version December 31, 2013.
+Y. Yao is with the Central Institute ZEA-2—Electronic Systems, Research
+Center Jülich, D-52425 Jülich, Germany, and also with the Department of Mathematics and Natural Sciences, University of Wuppertal, D-42119 Wuppertal,
+Germany (e-mail: y.yao@fz-juelich.de).
+C. Brüser and S. Leonhardt are with the Philips Chair for Medical Information
+Technology, Helmholtz-Institute for Biomedical Engineering, RWTH Aachen
+University, Aachen 52074, Germany (e-mail: brueser@hia.rwth-aachen.de;
+leonhardt@hia.rwth-aachen.de).
+U. Pietrzyk is with the Institute of Neurosciences and Medicine (INM-4),
+Research Center Jülich, D-52425 Jülich, Germany, and also with the Department of Mathematics and Natural Sciences, University of Wuppertal, D-42119
+Wuppertal, Germany (e-mail: u.pietrzyk@fz-juelich.de).
+S. van Waasen and M. Schiek are with the Central Institute ZEA-2—
+Electronic Systems, Research Center Jülich, D-52425 Jülich, Germany (e-mail:
+s.van.waasen@fz-juelich.de; m.schiek@fz-juelich.de).
+Digital Object Identifier 10.1109/JBHI.2013.2261820
+
+sor concepts and the availability of powerful tools for signal
+processing.
+The authors of [2] demonstrated that a BCG recording can be
+obtained by recording the ac component of a weighting scale.
+This method provides a cheap and unobtrusive recording solution for home monitoring, which is also suited to longitudinal
+studies. Unfortunately, it is prone to movement artefacts and
+can provide short-time recordings only. Unobtrusive long-time
+recordings are possible using bed-mounted sensor concepts, like
+piezosensors placed under the bed post [3] or a pressure sensitive
+foil under the mattress [4], [5]. Overnight recordings from these
+devices provide a possibility to study and monitor long-term
+effects of diseases like heart failure. Additionally, wearable devices containing accelerometers have been developed for longterm monitoring of the seismocardiogram [6], a signal closely
+related to BCG.
+So far, signal analysis methods for BCG have focused on
+heart rate detection, e.g., using wavelet analysis [7]. Recently,
+an algorithm for beat-to-beat heart rate estimation was presented
+in [8]. An interesting approach to artefact removal was proposed
+in [9], where an adaptive noise cancellation algorithm and a
+reference signal are used to remove floor vibrations from the
+BCG recording.
+BCGs acquired with some devices are contaminated by respiratory interference, including baseline wander, amplitude modulation, and morphological variation. Respiration-induced variations in the morphology of the BCG were analyzed in [10] using a latent variable model. The authors of [11] investigated the
+possibility that the duration of the BCG pulse response from a
+single heartbeat is longer than the average beat interval. Together
+with the (respiratory-induced) beat interval variation, this effect
+would also account for part of the morphological variations observed in the BCG. An ECG-assisted method for estimating the
+complete BCG pulse response was also proposed in [11].
+The task of separating the cardiac BCG component from respiration induced baseline wander, which we call the respiratory
+component, was addressed in [12]. This is a challenging problem, since the respiratory and cardiac components are characterized by overlapping spectra in the frequency domain, which
+limits the effectiveness of linear filters.
+Current approaches to this problem include choosing a high
+cutoff frequency to ensure complete removal of the respiratory
+component, at the cost of loss of information from the lowfrequency part of the cardiac component [8]. However, in [12],
+a separation method was proposed, which preserves the waveform of both components. This algorithm might improve the
+performance of subsequent analysis steps based on morphological features (see, e.g., [8]).
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+YAO et al.: MODEL-BASED VERIFICATION OF A NON-LINEAR SEPARATION SCHEME FOR BALLISTOCARDIOGRAPHY
+
+175
+
+In this paper, we propose a model for the generation of artificial BCG data, which is used to verify the separation algorithm
+from [12]. Additionally, test results on a preliminary dataset
+from a clinical study are presented.
+The ultimate goal of our research is to realize an algorithm
+which provides automatic detection of cardiac arrhythmia and
+sleep apnea in BCG sleep recordings. This will require a clean
+separation of cardiac and respiratory components.
+II. SIGNAL SEPARATION
+The locally projective noise reduction (LPNR) algorithm was
+developed for denoising deterministic chaotic time series, which
+typically have broad-band spectra. Since this property limits the
+effectiveness of denoising in frequency domain, the LPNR algorithm exploits the geometrical properties deterministic time
+series exhibit when embedded into delay space [13]. The intention of noise reduction for chaotic time series is to improve
+the estimation of characteristics like attractor dimension or Lyapunov exponent. These quantities are frequently studied in the
+field of nonlinear dynamics, but their estimation is easily disturbed by noise.
+While originally developed for denoising deterministic time
+series, the LPNR algorithm can successfully be applied to signals which are not purely deterministic, like physiological time
+series. Examples include speech signals [14], ECG [15], and
+EEG [16], where in the latter case a modified version of the
+algorithm has been used. The requirement for the application
+to not purely deterministic signals is that the trajectory of the
+signal in delay space can be approximated by motion on a limit
+cycle [17].
+Schreiber and Kaplan proposed an algorithm for fetal ECG
+extraction, which is based on the iterative application of the
+LPNR algorithm [18]. In [12], we presented a modification of
+this scheme for the task of separating BCG signals into respiratory and cardiac components. The structure of this separation
+scheme, as well as the derivation of the LPNR algorithm, is
+outlined below.
+A. Locally Projective Noise Reduction
+Given a deterministic system with an m0 -dimensional state
+space, the dynamics of the state vector x̃n can be described
+by a function x̃n+1 = f˜(x̃n ). In many applications, only
+one component of x̃n is observable as a scalar time series
+xn = x̃n [i] (i ∈ 1 . . . m0 , n = 1 . . . N ). In this case, the work of
+Takens and Sauer allows us to reconstruct the state space using
+the technique of delay embedding [19], [20]. Delay embedding
+means constructing a delay space by forming m-dimensional
+delay vectors xn = (xn −m +1 , . . . , xn −1 , xn )T from the scalar
+time series. m is called the embedding dimension and must
+satisfy m ≥ 2m0 + 1.
+The time evolution of xn is then governed by a function
+xn+1 = f (xn ), which confines the trajectory of x to a manifold
+of dimension m0 embedded within the m-dimensional delay
+space. Fig. 1 shows an example of a 1-D manifold embedded in
+3-D delay space (m0 = 1, m = 3).
+
+Fig. 1. Example of a 1-D limit cycle embedded in a 3-D space (m 0 = 1, m =
+3). t spans the tangent space to the limit cycle at x n . The nullspace is spanned
+by a 0 and a 1 .
+
+Under the assumption of smoothness, we can estimate a linear
+approximation of the manifold in a small neighborhood Ux n of
+size  around each xn , which is called the tangent space to the
+manifold at xn . All delay vectors in Ux n lie in the tangent space
+(to first approximation), which is spanned by m0 independent
+vectors. On the other hand, this means that there exist q =
+(n)
+m − m0 independent vectors ai , i = 1 . . . q, which span a
+subspace perpendicular to the tangent space (called nullspace
+[17]) such that for any xm ∈ Ux n :
+(n) T
+
+ai
+
+(n) T
+
+(xm − xn ) = ai
+
+xm + bi = 0.
+
+(1)
+
+Thus, there exist q directions where the noise free trajectory
+does not extend to. This is illustrated in Fig. 1, where t spans
+the (1-D) tangent space and a0 and a1 span the nullspace.
+If the measured time series yi = xi + ηi is contaminated by additive noise, (1) will not hold exactly for yn =
+(yn −m +1 , . . . , yn −1 , yn )T :
+(n) T
+
+ai
+
+yn + bi = ξ = 0.
+
+(2)
+
+This means that the trajectory formed by delay embedding
+real signals does extend into the nullspace due to noise.
+The intuition behind the LPNR algorithm is as follows: In
+order to reduce noise, we have to find the component of y
+which is related to noise (called θ) by projecting y on the ai . To
+remove the noise, θ has to be subtracted from y. Unfortunately,
+ai are typically unknown and have to be estimated from data.
+Grassberger et al. have shown how all these steps can be
+formulated as a constrained minimization problem and solved
+via Lagrange multipliers [13]. Additionally, they proposed using
+a diagonal weighting matrix R to prevent corrections to the
+unstable first and last coordinates of the delay vectors. Details
+of the weighting process and the constrained minimization are
+given in [13]. The resulting noise reduction algorithm consists
+of the following steps:
+1) Form delay vectors yn from the scalar time series {y}n
+2) For each yn
+a) find at least k0 neighbors in an -neighborhood of
+yn and calculate the center of mass yn ;
+
+176
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+TABLE I
+PARAMETERS OF THE NOISE REDUCTION ALGORITHM
+
+b) calculate the weighted covariance matrix C̃ =
+RCR, where C is the regular covariance matrix;
+(n)
+c) calculate the SVD of C̃ and identify ai with the
+eigenvectors corresponding to the q smallest eigenvalues;
+d) calculate the correction θn = R−1 PR(yn − yn ),
+
+(n) (n) T
+is the projector onto
+where P = qi=1 ai ai
+the nullspace;
+e) apply the correction ỹn = yn + θn .
+3) Average to obtain scalar signal.
+When applying the corrections to all delay vectors yn , each
+sample yn in the scalar time series will receive m (different) corrections, since it is part of m successive delay vectors. Therefore,
+we have to average over the m different corrections in step 3
+to obtain the final correction to the scalar signal. Steps 1–3 can
+be iterated to achieve higher noise reduction performance at the
+expense of calculation speed.
+The parameters of the LPNR algorithm are given in Table I, while Fig. 2 shows a flowchart of the steps in the LPNR
+algorithm.
+The determination of the parameters requires knowledge of
+some characteristics of the underlying process that generated the
+time series. In general, m0 should be chosen as the estimated
+dimension of the underlying process. m should be chosen such
+that one delay vector covers the typical time scale of the noise
+process [17]. k0 must be larger than m to ensure that sufficient
+points are available for the calculation of the SVD. The choice
+of  is more complicated. It must be chosen large enough, since
+otherwise Uy n might be so small that all directions are dominated by noise or it might not contain enough points for the
+SVD. On the other hand, if  is chosen too large, the linear
+approximation in (1) breaks down [17].
+According to the authors of [18], the parameters m and 
+constitute the language in which to express the difference between signal and noise in a practical setting. When applying the
+LPNR algorithm, it can be observed that the algorithm tends to
+suppress deflections which are smaller than  and shorter than
+m samples.
+B. Separating Signals Via Noise Reduction
+In order to separate BCG components using the LPNR algorithm, the following scheme is applied.
+The raw BCG signal is first low-pass filtered using a finite
+impulse response (FIR) filter with a cutoff frequency of 3.5 Hz.
+This filter removes the high-frequency components of heartbeat
+and noise, while preserving the respiratory component. Currently, we assume that the respiratory component does not have
+
+Fig. 2. Flowchart of the LPNR algorithm. The variables on the left of each
+block denote the parameters used in that block.
+
+significant components above this frequency. Further testing
+will be carried out to verify this. The filtered signal is then subjected to noise reduction, where  is chosen a little larger than
+the amplitude of the deflections from the cardiac component
+and m is chosen such that one delay vector covers the typical
+duration of the largest cardiac deflection. With these parameters,
+the LPNR algorithm suppresses the remaining components of
+both noise and heartbeat, resulting in a clean respiratory BCG
+component.
+By taking the difference between the raw signal and the respiratory component, a signal containing both noise and heartbeat
+is obtained. A high-pass filter with cutoff frequency of 0.6 Hz
+is used to remove the remaining respiratory influence. Then, the
+LPNR algorithm is applied again with  chosen smaller than the
+cardiac deflections but larger than the noise level. This way, the
+main features of the cardiac component are preserved but the
+noise is reduced. The block diagram of the separation algorithm
+is shown in Fig. 3.
+Choosing  several times larger than the optimum value in
+the first noise reduction step will cause oversmoothing of the
+respiratory component, which in turn will result in an incomplete
+removal of the respiratory component, when subtracting it from
+the raw BCG signal. On the other hand, if  is chosen too small,
+cardiac deflections will remain in the respiratory component.
+Thus, the first noise reduction step can be regarded as the more
+critical one, since it affects both components.
+
+YAO et al.: MODEL-BASED VERIFICATION OF A NON-LINEAR SEPARATION SCHEME FOR BALLISTOCARDIOGRAPHY
+
+177
+
+respiratory component are defined as
+
+
+
+2π
+t
+ωr (t) = 2πωr,0 1 + Δωr sin
+TΔ R
+
+
+2π
+t + φa,0 .
+ar (t) = 1 + Δar sin
+Ta
+
+(3)
+(4)
+
+Having defined these variables, we can now give the set of
+differential equations that generate the respiratory component:
+Fig. 3. Block diagram of the separation algorithm. HP: high pass, LP: low
+pass, NR: LPNR. p 1 denotes a parameter set which treats the cardiac component
+as noise, while p 2 denotes a parameter set which distinguishes between noise
+and heartbeats.
+TABLE II
+PARAMETERS OF THE RESPIRATORY MODEL
+
+θ̇r = ωr (t)
+
+(5)
+
+ṙ1 = −ωr (t) (cr,k 1 sin(k1 θr ) + ci,k 1 cos(k1 θr ))
+
+(6)
+
+r
+
+2ωr (t)ar (t) 
+kj cr,k j sin(kj θr )
+N
+j =1
+
++ ci,k j cos(kj θr ) .
+
+(7)
+
+M
+
+ṙ2 = −
+
+The dot over the variables on the left-hand side denotes differentiation with respect to time. r1 is the base oscillation of
+respiration used for simulating the RSA, while r2 is the actual
+respiratory component. Equation (7) defines ṙ2 as a function of
+the respiratory phase θr . Solving for r2 via integration over time
+would lead to a modulation of the respiratory amplitude with
+ωr−1 , which we suppress using the ωr term in front of the sum
+in (7). The same argument also applies to (6).
+B. Heartbeat
+III. BCG MODEL
+In order to assess the performance of the proposed separation
+algorithm, a model for the generation of artificial BCG signals
+has been created. Using artificial data has the advantage that
+ground truth, for both the respiratory and the cardiac component, is available. In addition to generating a respiratory component, the BCG model is capable of simulating respiratory sinus
+arrhythmia (RSA) and respiratory amplitude modulation of the
+cardiac component. To our knowledge, this is the first model
+which achieves such a detailed simulation of a BCG signal.
+The BCG model presented in this section is based on the ECG
+model proposed in [21]. The basic idea is to use sets of coupled
+differential equations to simulate motion on a limit cycle. This
+method is ideally suited for reproducing the cyclic nature of
+heartbeat and respiration.
+A. Respiration
+For the respiratory waveform, a segment from a respiration
+belt recording during normal respiratory activity is chosen. We
+calculate the Fourier coefficients {ck }k =1. .N /2 of a template (of
+length N ) obtained by ensemble averaging the segment. Only
+the largest Mr coefficients {ck j }j =1. .M r which contain 99%
+of the signal energy are retained, while the other coefficients
+are discarded. The real cr,k = Re{ck } and imaginary ci,k =
+Im{ck } parts of the coefficients as well as the values in Table II
+are used as the parameters of the respiratory model. Using these
+parameters, the instantaneous frequency and amplitude of the
+
+In [21], the ECG model consists of a sum of Gaussians,
+where each Gaussian corresponds to one of the peaks (P, Q, R,
+S, and T) in the ECG. BCGs taken under good conditions from
+healthy subjects with classical recording devices1 also show
+characteristic peaks, most of which can be attributed to one or
+several physiological processes in the cardiac cycle [22].
+However, for modern unobtrusive devices,1 a characteristic
+waveform is no longer observable, due to the different measurement concept. The differences between classical and modern
+devices reflect the new orientation in the field of BCG research.
+Originally, BCG was developed as a noninvasive tool to gather
+detailed information on the mechanical cardiac activity, whereas
+modern devices are designed for unobtrusive home monitoring
+applications. This means, e.g., that while recording with a modern device, the subject’s posture can vary substantially.
+Considering the differences between the recording techniques, it is not advisable to construct a model for modern BCG
+recordings based on the characteristic waveform obtained with
+classical BCG devices.
+Our model of the cardiac component is created from a heartbeat template, obtained through ECG-assisted ensemble averaging of a segment from a real BCG where the patient was not
+breathing. Although this segment covers only a short part of
+the modern BCG recording it is taken from, comparison with
+similar segments throughout the recording reveals that the differences in their spectra are negligible. Thus, this segment can
+be regarded as a representative sample.
+1 With classical devices, we refer to ballistocardiographs used in the 1960s,
+while modern devices denotes recording devices of the kind described in [5].
+
+178
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+TABLE III
+PARAMETERS OF THE HEARTBEAT MODEL
+
+The model consists of a sine to simulate the baseline and a
+Gaussian for each deflection in the template which is larger than
+the standard deviation of the samples surrounding it. Deflections
+smaller than the standard deviation are ignored. Each Gaussian
+is characterized by three parameters: amplitude ai , width σi ,
+and position θi (i = 1 . . . Mc ), while a0 = 5 × 10−3 is the amplitude of the baseline variation. Table III shows the values of
+the parameters used in our simulation.
+In order to simulate RSA, the instantaneous cardiac frequency
+is coupled to respiration via r1 (t): ωc (t) = ωc,0 (1 + Δωc r1 (t)),
+where ωc,0 = 5.7 s−1 is the mean cardiac frequency and Δωc =
+0.2 is the maximum deviation from the mean frequency. The
+model equations for the cardiac component are as follows:
+θ̇c = ωc (t)
+
+Fig. 4. From top to bottom: Artificial heartbeat, artificial respiration, artificial
+BCG (with noise), and real BCG.
+
+(8)
+
+
+
+Mc
+
+m(θc , θi )2
+2
+ai m(θc , θi ) exp −
+ḣ = −ωc (t)
+2σi2
+i=1
+− ωc (t)a0 cos(θc (t))
+
+(9)
+
+where the function m(θ1 , θ2 ) is defined as
+m(θ1 , θ2 ) =
+
+arg min
+Δ θ :(θ 1 +Δ θ −θ 2 )m od2π =0
+
+|Δθ|.
+
+In contrast to (7), (9) contains the square of ωc in order to
+simulate the respiratory influence on the cardiac amplitude.
+Equation (5)–(9) are solved by numerical integration using
+an explicit Runge–Kutta (4,5) formula. The respiratory and cardiac components are scaled such that the ratio of their standard
+deviations σr 2 /σh equals 4, which is a value typically observed
+in our real BCG datasets. Fig. 4 shows samples of the artificial cardiac and respiratory components, as well as the artificial
+BCG signal obtained by adding noise to the sum of r2 and h.
+Amplitude modulation of the cardiac component and RSA are
+easily noticed.
+Fig. 5 shows the power spectral density (PSD) of the artificial signals, estimated with the Welch algorithm. A significant
+overlap between the spectra of the cardiac and respiratory components can be observed.
+
+Fig. 5. PSD of the artificial signals estimated using the Welch algorithm. From
+top to bottom: BCG, respiratory component and cardiac component. Note the
+strong overlap between the spectra.
+
+IV. VERIFYING THE SEPARATION ALGORITHM
+In this section, we present separation results for artificial data
+from the model introduced in Section III, as well as results from
+preliminary tests on a clinical dataset. The performance of the
+LPNR-based algorithm is compared to that of FIR filters.
+A. Model Data
+To create the complete BCG signal, we add heartbeat, respiration, and red noise created by filtering white Gaussian noise
+using a second-order infinite impulse response filter with numerator 1 and denominator coefficients (1, −0.9). The noise level is
+increased linearly in 11 steps from no noise to −8 dB (relative
+to the cardiac component). For each noise level, 100 realizations
+
+YAO et al.: MODEL-BASED VERIFICATION OF A NON-LINEAR SEPARATION SCHEME FOR BALLISTOCARDIOGRAPHY
+
+179
+
+Fig. 6. Normalized mean squared error versus standard deviation of noise for (a) respiration and (b) heartbeat. Triangles: linear filtering, circles: LPNR. The
+dashed lines indicate the maximum range of nmse values of the LPNR-based algorithm, when perturbing  by up to 20%.
+
+of 70 s in duration are created. Red noise is used to account for
+the low-pass characteristic of the mechanical coupling between
+subject and bed.
+As a performance measure, the mean square error normalized
+to the energy of the clean signal component is used: nmse =
+E{( s̃−s) 2 }
+E{s 2 } . E{·} denotes the expectation operator, s is the clean
+component, and s̃ denotes the extracted component.
+Separation by linear filtering is done via zero-phase FIR filters of order 1024 (sampling frequency 200 Hz) with different
+cutoff frequencies for respiration and heartbeat. The cutoff frequencies are chosen independently for each noise level and each
+component to yield the lowest nmse value.
+For the LPNR-based separation, the authors of [18] have proposed a procedure for choosing the parameters. Following their
+suggestions, we set  in the first noise reduction step to a value
+slightly larger than the peak-to-peak amplitude of the cardiac
+component. This will enable the LPNR to treat the cardiac component as noise and extract only the respiratory component. In
+the second step,  is chosen significantly smaller than the cardiac component, but still larger than the noise level. Therefore,
+the LPNR will now remove only the noise process. Currently,
+the selection of  has to be done manually via visual inspection. However, an automated estimation method for  is being
+developed.
+In Fig. 6, the nmse values for both separation methods are
+plotted against the noise level. For every noise level, the values
+of the LPNR-based algorithm are significantly lower than those
+obtained by linear filtering. This is true even in the noise free
+case, which shows that the form of the components separated
+with the LPNR algorithm is closer to the original waveform
+than for FIR filtering. Additionally, the increase in nmse values
+in Fig. 6(b) is much weaker for the LPNR-based separation.
+This indicates that the LPNR-based framework is more resistant
+against noise, probably due to the final nonlinear noise reduction
+step for the cardiac component.
+In order to test the sensitivity of the LPNR-based method to
+the choice of , we have repeated the analysis while varying 
+by ±10% and ±20%, respectively. The maximum range of the
+nmse values during these experiments is indicated by the dashed
+
+lines in Fig. 6, which demonstrates that the LPNR is relatively
+insensitive to perturbations of the  parameter.
+B. Clinical Data
+In addition to the artificial data, we present results from first
+tests on a preliminary dataset from an ongoing clinical study.
+The aim of the study is to determine if comorbidities of heart
+failure like sleep apnea or cardiac arrhythmia can be detected
+with unobtrusive and contactless sensors. Based on the findings
+of this study, a setup for home monitoring shall be developed,
+which can detect an exacerbation of the patient’s condition and
+assist a doctor in the decision to admit the patient into hospital.
+It is not intended to replace polysomnography as a gold standard
+for sleep apnea diagnosis.
+The study has been approved by the ethics commission of the
+RWTH Aachen University Hospital (EK 204/11).
+The dataset used for testing consists of an overnight BCG
+measurement using a system similar to the one presented in [5].
+Additionally, a simultaneous polysomnogram provides references for the cardiac and respiratory activity. The reference signals consist of ECG, respiratory flow, as well as abdominal and
+thoracic effort. The data were recorded at a sampling frequency
+of 200 Hz.
+The overnight recording has a length of 6 h. It is first divided into artefact-free segments via thresholding. Within each
+segment, separation is done in blocks of 80s with 20% overlap
+between adjacent blocks. The parameters are chosen via visual
+inspection of a short sample of about 150s. In contrast to the
+simulation study in Section III, no ground truth for the actual
+cardiac and respiratory components are available.
+Fig. 7 shows samples of the signal components extracted with
+FIR filtering and LPNR. The FIR filters use the optimal parameter setting from the simulation study. Remaining cardiac deflections can still be seen in the respiratory component extracted
+via FIR filtering, a consequence of the overlapping spectra of
+both components. Depending on their amplitude, some of these
+deflections could cause detection of spurious respiratory cycles. Fig. 7(b) shows that the cardiac component extracted with
+
+180
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+Fig. 7. (a) Respiratory and (b) cardiac components extracted with LPNR and FIR filters from a clinical BCG recording, together with reference signals. From top
+to bottom: reference signal (abdominal effort and ECG), BCG respiratory/cardiac component extracted with LPNR, BCG respiratory/cardiac component extracted
+with FIR filter, and original BCG.
+
+LPNR is more uniform than the one extracted via FIR filtering.
+The heartbeats can be distinguished at once, while in the case of
+FIR filtering even a human observer would have difficulties distinguishing the heartbeats in the first half of the sample without
+the ECG reference.
+The reason for this is most likely the steep slope in the respiratory component at t = 2 s, which contains high-frequency
+components a linear filter cannot suppress. The LPNR-based
+method can suppress these components successfully and obtain
+a clean cardiac signal. On the other hand, the second half of
+the sample contains only gentle slopes, and consequently, the
+FIR filter obtains results comparable to those of the LPNRbased method. The situation shown in this sample is frequently
+observed throughout the recording.
+In order to assess the separation result more objectively, we
+use a simple heuristic BCG heartbeat detector as a benchmark
+application and compare its results to the r-peaks obtained from
+the ECG reference. First, the average heart rate is estimated
+using peak detection in the frequency domain. Then, a gating
+signal is calculated by filtering the cardiac component using a
+narrow bandpass around the heart rate. For each minimum in
+the gating signal, the closest minimum in the original cardiac
+component is marked as a preliminary beat estimate. Finally,
+each preliminary estimate is relocated if a smaller minimum is
+found in its vicinity. A beat is counted as detected if it is the first
+one between two successive r-peaks; otherwise, it is marked as
+spurious. If no beat is detected between two r-peaks, the first
+peak is marked as missed.
+Using this heuristic, we obtain a detection rate of 92.7% and
+a false positive rate of 0.5% for the signal extracted by the
+LPNR-based method. For the FIR filtered signal, a detection
+rate of 99.7% and a false positive rate of 29.7% are achieved.
+This shows that the LPNR-based algorithm greatly improves the
+reliability of the heuristic beat detection. However, we should
+exercise caution when generalizing this result, since more so-
+
+phisticated algorithms might behave differently from our simple
+heuristic. Further research will be directed to the question if the
+performance of state-of-the-art beat detection algorithms can be
+improved using the LPNR-based separation.
+V. DISCUSSION AND CONCLUSION
+In this paper, we proposed a model, which can generate BCG
+signals containing a respiratory component, as well as RSA
+and respiratory modulation of the cardiac component. Using
+this model, the ability of the LPNR-based algorithm to separate
+signal components with strongly overlapping spectra could be
+demonstrated. Due to this ability, the LPNR-based method is
+able to preserve the original waveform of the components better
+than linear filters, which are the current standard. In particular,
+the model-based analysis was able to proof the superior performance of the LPNR-based algorithm for higher noise levels.
+Subsequent analysis steps that require knowledge of the exact morphology of the signal might profit from this advanced
+separation method. This conclusion is also supported by preliminary test results on the clinical dataset. Additionally, the
+model proposed here can serve as a basis for the development of
+model based analysis techniques. This would require extending
+the model to support statistical inference.
+At the moment, one drawback of the LPNR-based separation
+is the determination of the parameter  via visual inspection.
+Current work is directed to estimating  automatically from the
+data in each block. This would open up the possibility for a fully
+automated BCG separation scheme, which also adapts itself to
+nonstationarities in the signal.
+Another point is that the LPNR algorithm has been designed
+as a batch algorithm. Therefore, in our current implementation,
+the signal is processed in a blockwise fashion, which is inefficient, since the overlapping parts of each block are processed
+twice. Fortunately, there exist concepts modifying the LPNR
+
+YAO et al.: MODEL-BASED VERIFICATION OF A NON-LINEAR SEPARATION SCHEME FOR BALLISTOCARDIOGRAPHY
+
+algorithm for application in a data stream [23]. We are confident
+that a real-time BCG separation framework can be developed,
+since even with the current implementation, the calculation time
+for a recording is significantly shorter than its duration.
+ACKNOWLEDGMENT
+This work has been performed within the BioMon-HF subproject, which is part of the in.nrw innovating medical technology project. The project is cofinanced by the European
+Regional Development Fund (ERDF) and the state of North
+Rhine-Westphalia, Germany, under the Operational Programme
+“Regional Competitiveness and Employment” 2007–2013.
+REFERENCES
+[1] L. Giovangrandi, O. T. Inan, R. M. Wiard, M. Etemadi, and
+G. T. A. Kovacs, “Ballistocardiography—A method worth revisiting,” in
+Proc. IEEE Ann. Int. Conf. Eng. Med. Biol. Soc., 2011, pp. 4279–4282.
+[2] O. T. Inan, M. Etemadi, R. M. Wiard, L. Giovangrandi, and
+G. T. A. Kovacs, “Robust ballistocardiogram acquisition for home monitoring,” Physiol. Meas., vol. 30, no. 2, pp. 169–185, 2009.
+[3] T. Shino, S. Nukaya, Y. Kurihara, K. Watanabe, and H. Tanaka, “Development of unconstrained biosignal bed sensing method using piezoceramics
+to detect body movement and scratching motion,” in Proc. SICE Ann.
+Conf (SICE), 2011, pp. 2317–2321.
+[4] D. C. Mack, J. T. Patrie, P. M. Suratt, R. A. Felder, and M. Alwan, “Development and preliminary validation of heart rate and breathing rate
+detection using a passive, ballistocardiography-based sleep monitoring
+system,” IEEE Trans. Inf. Technol. Biomed., vol. 13, no. 1, pp. 111–120,
+Jan. 2009.
+[5] X. L. Aubert and A. Brauers, “Estimation of vital signs in bed from a single
+unobtrusive mechanical sensor: Algorithms and real-life evaluation,” in
+Proc. IEEE Ann. Int. Conf. Eng. Med. Biol. Soc., 2008, pp. 4744–4747.
+[6] M. Di Rienzo, P. Meriggi, F. Rizzo, E. Vaini, A. Faini, G. Merati, G. Parati,
+and P. Castiglioni, “A wearable system for the seismocardiogram assessment in daily life conditions,” in Proc. IEEE Ann. Int. Conf. Eng. Med.
+Biol. Soc., 2011, pp. 4263–4266.
+[7] S. Gilaberte, J. Gomez-Clapers, R. Casanella, and R. Pallas-Areny, “Heart
+and respiratory rate detection on a bathroom scale based on the ballistocardiogram and the continuous wavelet transform,” in Proc. IEEE Ann.
+Int. Conf. Eng. Med. Biol. Soc., 2010, pp. 2557–2560.
+[8] C. Brüser, K. Stadlthanner, S. de Waele, and S. Leonhardt, “Adaptive
+beat-to-beat heart rate estimation in ballistocardiograms,” IEEE Trans.
+Inf. Technol. Biomed., vol. 15, no. 5, pp. 778–786, Sep. 2011.
+[9] O. T. Inan, M. Etemadi, B. Widrow, and G. T. A. Kovacs, “Adaptive cancellation of floor vibrations in standing ballistocardiogram measurements
+using a seismic sensor as a noise reference,” IEEE Trans. Biomed. Eng.,
+vol. 57, no. 3, pp. 722–727, Mar. 2010.
+[10] J. Paalasmaa, “A respiratory latent variable model for mechanically measured heartbeats,” Physiol. Meas., vol. 31, no. 10, pp. 1331–1344, 2010.
+[11] O. T. Inan, M. Etemadi, R. M. Wiard, G. T. A. Kovacs, and
+L. Giovangrandi, “Novel methods for estimating the ballistocardiogram
+signal using a simultaneously acquired electrocardiogram,” in Proc. Ann.
+Int. Conf. IEEE Eng. Med. Biol. Soc., 2009, pp. 5334–5347.
+[12] Y. Yao, C. Brüser, T. Vollmer, and M. Schiek, “Signal separation for ballistocardiography via locally projective noise reduction,” in Proc. World
+Congr. Med. Phys. Biomed. Eng., Beijing, China, May 26–31, 2012,
+pp. 501–504.
+[13] P. Grassberger, R. Hegger, H. Kantz, and C. Schaffrath, “On noise reduction methods for chaotic data,” Chaos, vol. 3, no. 2, pp. 127–141,
+1993.
+[14] R. Hegger, H. Kantz, and L. Matassini, “Noise reduction for human speech
+signals by local projections in embedding spaces,” IEEE Trans. Circuits
+Syst. I, Fundam. Theory Appl., vol. 48, no. 12, pp. 1454–1461, Dec. 2001.
+[15] T. Schreiber and D. T. Kaplan, “Nonlinear noise reduction for electrocardiograms,” Chaos, vol. 6, no. 1, pp. 87–92, 1996.
+[16] A. Effern, K. Lehnertz, T. Schreiber, T. Grunwald, P. David, and
+C. E. Elger, “Nonlinear denoising of transient signals with application
+to event-related potentials,” Physica D, vol. 140, no. 3, pp. 257–266,
+2000.
+
+181
+
+[17] H. Kantz and T. Schreiber, Nonlinear Time Series Analysis, (ser.
+Cambridge nonlinear series), 1st ed. Cambridge, U.K.: Cambridge Univ.
+Press, 2002.
+[18] T. Schreiber and D. T. Kaplan, “Signal separation by nonlinear projections:
+The fetal electrocardiogram,” Phys. Rev. E, vol. 53, no. 5, pp. R4326–
+R4329, 1996.
+[19] F. Takens, “Detecting strange attractors in turbulence,” in Dynamical Systems and Turbulence, Warwick 1980 (ser. Lecture Notes in Mathematics),
+vol. 898, D. Rand and L.-S. Young, Eds. Berlin, Germany: SpringerVerlag, 1981, pp. 366–381.
+[20] T. Sauer, J. A. Yorke, and M. Casdagli, “Embedology,” J. Stat. Phys.,
+vol. 65, no. 3–4, pp. 579–616, 1991.
+[21] P. E. McSharry, G. D. Clifford, L. Tarassenko, and L. A. Smith, “A dynamical model for generating synthetic electrocardiogram signals,” IEEE
+Trans. Biomed. Eng., vol. 50, no. 3, pp. 289–294, Mar. 2003.
+[22] I. Starr and A. Noordergraaf, Ballistocardiography in Cardiovascular
+Research: Physical Aspects of the Circulation in Health and Disease.
+Philadelphia, PA, USA: Lippincott, 1967.
+[23] T. Schreiber and M. Righter, “Fast nonlinear projective filtering in a data
+stream,” Int. J. Bifurcat. Chaos, vol. 9, no. 10, pp. 2039–2045, 1999.
+
+Yu Yao received the Dipl.-Ing. degree in electrical engineering from RWTH Aachen University, Aachen,
+Germany. As a member of the group Distributed Systems for Real-Time Analysis, he is working toward
+the Ph.D. degree in cooperation with the Department
+of Mathematics and Natural Sciences, University of
+Wuppertal, Wuppertal, Germany.
+He is currently with the Central Institute of Engineering, Electronics and Analytics–Electronic Systems, Research Centre Jülich, Jülich, Germany. His
+research interests include methods from the field of
+nonlinear dynamics and their application to biosignal processing.
+
+Christoph Brüser (S’05) was born in Troisdorf, Germany, in 1983. He received the Dipl.-Ing. degree in
+computer engineering from RWTH Aachen University, Aachen, Germany. He is currently working toward the Dr.-Ing. (Ph.D.) degree at the Philips Chair
+of Medical Information Technology, RWTH Aachen
+University, where he is also working as a Research
+Assistant.
+His research interests include biosignal processing
+and classification as well as unobtrusive physiological measurement techniques.
+
+Uwe Pietrzyk (M’00) studied particle physics at
+CERN, Geneva, Switzerland, since 1977, received the
+Ph.D. degree in 1984, but moved to medical imaging
+physics in 1987, working at the Max-Planck Institute
+for Neurological Research, Cologne, Germany.
+He is currently a Professor of Experimental
+Physics in the Department of Mathematics and Natural Sciences, University of Wuppertal, Wuppertal,
+Germany, and holds an appointment as Group Leader
+in the Institute of Neurosciences and Medicine (INM4), Research Center Jülich, Jülich, Germany, since
+1999. The main research topics are multimodal/hybrid imaging, image registration, image fusion, and field of simulating medical imaging devices. His group
+also made essential contributions to the development of Polarized Light Imaging. He is member of the Crystal Clear and of the OpenGATE Collaboration
+and has coauthored more than 80 peer-reviewed papers in the field of medical
+imaging.
+
+182
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+Steffen Leonhardt (SM’06) was born in Frankfurt,
+Germany, in 1961. He received the M.S. degree in
+computer engineering from SUNY at Buffalo, NY,
+USA, the Dipl.-Ing. degree in electrical engineering
+and the Dr.-Ing. degree in control engineering from
+the Technical University of Darmstadt, Darmstadt,
+Germany, and the M.D. degree in medicine from J.
+W. Goethe University, Frankfurt.
+He has five years of R&D management experience in medical engineering industry and was appointed a Full Professor and the Head of the Philips
+endowed Chair of Medical Information Technology at RWTH Aachen University, Aachen, Germany, in 2003. His research interests include physiological
+measurement techniques, personal health care systems, and feedback control
+systems in medicine.
+
+Stefan van Waasen received the diploma degree
+and the doctor’s degree in electrical engineering from Gerhard-Mercator-University, Duisburg,
+Germany, in 1994 and 1999, respectively. The topic
+of his doctoral thesis was optical receivers up to
+60 Gbit/s based on traveling wave amplifiers.
+In 1998, he joined Siemens Semiconductors/Infineon Technologies AG, Düsseldorf,
+Germany. His responsibility was BiCMOS and
+CMOS RF system development for highly integrated
+cordless systems like DECT and Bluetooth. In 2001,
+he changed his research focus to the IC development of front-end systems for
+high data rate optical communication systems. From 2004 to 2006, he was with
+the Stockholm Design Centre responsible for the short-range analog, mixedsignal and RF development for SoC CMOS solutions. From 2006 to 2010, he
+was responsible for the wireless RF system engineering in the area of SoC
+CMOS products at the headquarter in Munich, Germany, and later in the Design Centre Duisburg, Duisburg. Since 2010, he has been the Director of the
+Central Institute of Engineering, Electronics and Analytics–Electronic Systems,
+Forschungszentrum Jülich GmbH, Jülich, Germany. In addition to the institute
+expertise for electronic system development for the research area, he is building
+up a new development team on SoC CMOS solutions for the experiment area.
+
+Michael Schiek received the Diploma degree in
+physics and the Ph.D. degree from the Technical Rheinisch-Westfaelische Technische Hochschule,
+Aachen University, Aachen, Germany, in 1994 and
+1998, respectively.
+Since 1998, he has been a Scientific Assistant
+at the Central Institute of Engineering, Electronics
+and Analytics–Electronic Systems, Research Centre
+Jülich, Jülich, Germany, where he is also the Head of
+the Group Distributed Systems for Real-Time Analysis. His current research interests include nonlinear
+time series analysis and distributed sensoractuator networks.
+
+

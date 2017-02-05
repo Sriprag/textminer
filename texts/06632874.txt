@@ -1,0 +1,701 @@
+508
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+SemInf: A Burst-Based Semantic Influence Model
+for Biomedical Topic Influence
+Dan He and Douglas S. Parker
+
+Abstract—In this study, we model how biomedical topics influence one another, given they are organized in a topic hierarchy,
+medical subject headings, in which the edges capture a parent–
+child/subsumption relationship among topics. This information
+enables studying influence of topics from a semantic perspective,
+which might be very important in analyzing topic evolution and is
+missing from the current literature. We first define a burst-based
+action for topics, which models upward momentum in popularity
+(or “elevated occurrences” of the topics), and use it to define two
+types of influence: accumulation influence and propagation influence. We then propose a model of influence between topics, and
+develop an efficient algorithm (TIPS) to identify influential topics. Experiments show that our model is successful at identifying
+influential topics and the algorithm is very efficient.
+Index Terms—Bursts, MeSH (medical subject headings), social
+influence, topic hierarchies.
+
+I. INTRODUCTION
+N recent years, the problem of mining influence in networks,
+especially social networks, has attracted significant attention. One of the key questions is how ideas, information, or
+influence spread (cascade) through the network. Lots of research [1]–[4] has been aimed at evaluating the influence of
+people—identifying the most influential people (viral marketing) or selecting an initial set of people who ultimately influence the largest number of people in the network (influence
+maximization).
+Recently, two works appeared in which this notion of influence was generalized into topic-level influence in a heterogeneous network: in [5] and [6], heterogeneous link information and the textual content associated with nodes are combined to mine influence. The topic-level influence, however, is
+a “real” form of influence between users without direct interaction between topics, creating interesting differences from social
+networks.
+Inspired by this study, we took the next step to consider topic
+influence as a direct interaction between topics. This type of
+
+I
+
+Manuscript received February 27, 2013; revised September 5, 2013; accepted
+September 12, 2013. Date of publication October 17, 2013; date of current version March 3, 2014.
+D. He is with the IBM T.J. Watson Research, Yorktown Heights, NY 10598
+USA (e-mail: dhe@us.ibm.com).
+D. S. Parker is with the Department of Computer Science, University
+of California, Los Angeles, Los Angeles, CA 90095-1596 USA (e-mail:
+stott@cs.ucla.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2285875
+
+influence is important in that it can be used to measure impact
+of topics directly.
+Interesting measures of influence can be based on relationships among research topics. Natural relationships include cooccurrence and citation, for example, as in the scientific literature,
+one topic can be said to “influence” another by citation: the two
+cooccur in the same literature and the first topic occurs earlier
+than the second, defining a precedence relationship. Therefore,
+we measure the influence between a pair of topics from two
+aspects: 1) temporal differences between their occurrences; one
+topic needs to occur earlier to influence another topic, and 2) the
+pointwise mutual information based on their cooccurrences. (In
+the scientific literature, it is unlikely that one topic will influence
+another, yet the two topics never cooccur.)
+What’s more, in this paper, we consider the semantic relationship of subsumption between topics, quantified by a topic
+hierarchy. Hierarchies provide a natural semantic relationship
+among topics, such as the “is a” relationship among node types.
+Therefore, the two nodes have a “parent–child” relationship, and
+their semantic relatedness can be measured by their closeness
+in the hierarchy. It is well known that research attention often
+shifts to related topics; for example, social network analysis
+may influence other areas of data mining such as graph mining,
+but it is less likely to influence research in optical networks.
+Therefore, the larger their semantic distance, the less semantically related two topics are, and the less influence there is
+between them. We believe that these semantic relationships can
+be important in improving the validity of an influence model in
+practical applications.
+To our knowledge, there is no recent work about mining direct
+interactions, or influences between topics. The topic hierarchy
+is also unique in our model, and we believe that it is important
+since it provides a semantic perspective on topic influence. This
+might be very important in analyzing topic evolution and is
+missing from the current literature.
+SemInf is a novel model designed for the unique properties
+of this problem. We consider the influence of topics on each
+other through certain actions or events: we first define a “burst”based action as a period of “elevated occurrence” of a topic (or
+“burst” in its frequency), following the topic-dynamics model of
+bursts in [7]. There are a number of works on modeling bursts
+such as [7]–[10]. We adopted the momentum-oriented topicdynamics model in [7] because it is suited to burst detection in a
+hierarchy in which occurrences of the topics can be tracked, and
+this model of bursts permits extension to represent the complete
+process of birth, growth, and death of topics. More details are
+given later. Next, we model influence between topics according
+to the temporal difference between their bursts, the pointwise
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+HE AND PARKER: SEMINF: A BURST-BASED SEMANTIC INFLUENCE MODEL FOR BIOMEDICAL TOPIC INFLUENCE
+
+mutual information (based on co-occurrence), and their semantic distance. The temporal property of the burst-based actions
+permits propagation of influence. We can calculate the influence
+of a topic to all other topics as its impact.
+One more advantage of our model is that it can be potentially
+used as an alternative model of impact in the scientific literature. It is well established that impact factors reflect the average
+number of citations to articles published in science and social
+scientific journals. Traditional models for quantifying impact
+of scientific journals are generally based on citations and algorithms such as page rank have been applied on citation networks
+to rank journals [11]. As shown in our experiments, although
+our model defines the impact of topics without using citation
+information, it does report ranks of scientific journals that are
+consistent with the page rank model using citation information.
+It appears that the temporal relationships between topic occurrences and their cooccurrences can approximate citation relationships. Thus, our model can be useful for estimating impact
+of scientific topics when the citation network is not available, or
+when it is too expensive to construct and analyze.
+To summarize our contributions in this paper:
+1) SemInf is unique as a model of direct interaction between
+topics. It weights influence by pointwise mutual information based on cooccurrences of topics, so that increases
+in cooccurrence over random expectation are reflected by
+increased influence.
+2) SemInf represents topic influence in terms of bursts, with a
+burst-based action that is multitimestamp, spanning whole
+time periods of “elevated occurrence” of a topic. It weights
+influence according to the temporal difference between
+their bursts.
+3) SemInf considers semantic relatedness of topics, so that
+more semantically related topics have higher influence on
+each other.
+4) SemInf can be potentially used as an alternative model for
+measuring impact of topics (as is common in the scientific
+literature), and can be used when citation information is
+not available.
+5) SemInf works even when the semantic information is unknown, although such information does boost the performance of the model.
+6) Although we focused on biomedical topics in this paper,
+we show SemInf can be generalized to other domains such
+as computer science research.
+The remainder of this paper is structured as follows. In Section II, we review related work for mining influence in social
+networks. In Section III, we define our model of topic influence in a topic hierarchy. We propose an algorithm to efficiently
+compute the impact of every node in the hierarchy. We report
+the experimental results and comparisons in Section IV, and
+conclude in Section V.
+II. RELATED WORK
+In studies of the spread of influence in social networks, two
+types of propagation models are well accepted. In the general
+threshold model, each node is either active or inactive at any
+
+509
+
+given timestamp, and each node becomes monotonically more
+likely to be active as more of its neighbors become active. In
+the independent cascade model, each activated node is given a
+one-time chance to activate each of its neighboring nodes with
+a certain probability.
+Domingos and Richardson [1] studied the viral marketing
+problem by viewing the market as a social network, and modeling it as a Markov random field. Kempe et al. [2] studied
+the influence maximization problem and provided a greedy algorithm as well as the first provable approximation guarantees
+for efficient algorithms. More recently, other problems related
+to influence maximization have been explored. Leskovec et al.
+studied the outbreak detection problem in [3], modeling it as
+a problem of selecting nodes in a network so as to detect
+the spread of a virus or information as quickly as possible.
+Rodriguez et al. studied the problem of identifying an optimal
+diffusion network from temporal data in [4], developing an approximation algorithm that can be scaled to large networks to
+trace paths of diffusion and influence through networks, and to
+infer the network that best explains the influence propagation.
+Chen et al. [12] developed methods to improve the efficiency of
+the greedy algorithm for influence maximization in [2], and proposed degree discount heuristics that improve influence spread.
+All the above study assumes predefined influence probabilities between people. Goyal et al. [13], on the contrary, studied
+the problem of learning influence probabilities from historical
+action data and tried to predict when people will become activated from the learned probabilities. Saito et al. [14] applied the
+electromagnetic algorithm to solve the same problem, focusing
+on the independent cascade model of propagation.
+In this paper, we want to study the problem of learning topic
+influence in a hierarchy, a special type of network, using historical topic frequency data similar to that of Goyal et al. [13].
+To our knowledge, there is no recent work on mining direct
+topic interactions, or influence in topic hierarchies. The most
+relevant work appears to be that of [5] and [6]. Tang et al. [6]
+introduced a topic-based social influence problem, in which
+nodes are coauthors rather than friends. Each researcher in the
+network is associated with a distribution of topics, reflecting
+research topics in their publications. A model is then proposed
+to study the problem, characterizing for each specific topic how
+the researchers affect one another, and determining which are
+most influential on each topic. Liu et al. [5] adopted a similar
+but more general idea to mine topic-level influence for users
+in a heterogeneous network. A generative model which utilizes
+both content and link information in heterogeneous networks is
+proposed. These two works, however, study influence between
+users rather than topics, and neither considers semantic information between topics.
+We are interested in how elevated occurrence of a topic influences the popularity of other topics. Therefore, we need to
+identify when popularity gains strong upward momentum, i.e.,
+there is a “burst” in popularity. We then define the actions that
+are associated with the topics in the hierarchy as the complete
+process of occurrence of a burst, from the growth of the burst
+to its death. Lots of work has been done in identifying bursts
+of a topic over certain time series. Kleinberg [9] and Leskovec
+
+510
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+et al. [10] used an automaton to model bursts, in which each
+state represents the arrival rate of occurrences of a topic. Shasha
+and Zhu [8] defined bursts based on hierarchies of fixed-length
+time windows. In [7], bursts are modeled with a “topic dynamics” model, where bursts are intervals of positive change
+in momentum. They applied trend analysis indicators such as
+exponential moving average (EMA) and moving average convergence/divergence (MACD) histogram of technical analysis
+(well-developed momentum computation methods used in evaluating stock histories) to identify burst periods. While the topic
+dynamics model is suitable for identifying bursts for individual
+topics, Kleinberg’s model is more appropriate for identifying
+bursts among a set of topics.
+
+Fig. 1.
+action.
+
+Visualized comparison of the traditional action and our burst-based
+
+III. MODELS
+A. Burst-Based Action
+To model topic influence, we need to define actions for the
+topics, which can model elevated occurrences of the topics.
+The actions are based on the bursts defined in [7], based on
+technical analysis indicators such as EMA, MACD, and MACD
+histogram. A burst is defined as a time interval in which the
+MACD Histogram value is greater than 0. The strength of the
+burst at a specific timestamp is the MACD Histogram value of
+that timestamp. We then define the burst-based action as the
+whole process of the occurrence, growth, and death of the burst.
+And from now on, “year” will be the only time unit we use. We
+also say a topic is activated when a burst of the topic occurs.
+The readers can refer to [7] for the details of the topic dynamic
+model.
+B. SemInf Model
+As the occurrences of the burst-based actions are temporal,
+we can model burst-based influence in a manner like the models
+for the traditional social influence. Goyal et al. [13] proposed
+several probability models for the influence of one node to another node based on temporal data. However, in our problem
+setting, these models cannot be applied directly. This is because
+in the traditional social influence problem, each action is assumed to occur at a specific timestamp and each node has only
+binary status: “active” and “inactive”. Therefore, these actions
+can be considered as single-timestamp actions. In our problem
+setting, the burst-based action occurs at a specific timestamp and
+lasts for a certain amount of time (and then vanishes). During
+the time period the bursts occur, they have continuous values, or
+strengths. The actions in our problem are thus multitimestamp,
+over intervals defined by the burst periods. A visual comparison
+of the traditional social network action and our burst-based action is shown in Fig. 1. As one can see, the traditional actions are
+all discrete points along the time axis. Our burst-based actions
+correspond to multitimestamp burst regions.
+To handle burst-based actions in our problem, we need to
+design a new probability model. We follow the independent
+cascade model to define the influence probability between any
+pair of nodes, considering the following three aspects:
+
+1) The influence is multitimestamp; namely, we consider not
+only the occurrence time of the action, but also every
+timestamp in the whole period of the action. Similar to
+traditional social influence, for each pair of timestamps,
+the more distant they are, the smaller the influence between
+them.
+2) In the scientific literature, if one topic is influenced by
+another, the two usually cooccur (in scientific publications). The more they cooccur, the greater the influence
+between them. We can measure the influence that results
+from cooccurrences with pointwise mutual information.
+3) Among research topics, semantically related topics are
+more likely to influence each other, as research attention
+shifts frequently to related topics rather than to unrelated
+topics. As the topic hierarchy explicitly defines the semantic distance of the topics, we weight the influence by
+semantic distance.
+Based on the above intuition, we propose the SemInf model,
+which defines semantic influence from a node pj to a node ci as
+
+
+m ∈B c i
+n ∈B p j ,n < m In ,m
+× Hp j ,c i
+P Ip j ,c i =
+(1)
+|Bc i | × |Bp j |
+SIp j ,c i =
+
+1
+P Ip j ,c i
+sd(pj , ci )β
+
+(2)
+
+where SIp j ,c i is the semantic influence from pj to ci , P Ip j ,c i
+denotes the propagation influence from pj to ci and sd(pj , ci ) is
+the semantic distance between pj and ci in the hierarchy. β is a
+decay factor adjusting the weights of semantic distance. As we
+will show later in our experiments, β = 1 is a reasonable choice.
+Bc i and Bp j denote the set of consecutive burst years for ci and
+pj , respectively, Scmi and Spmj denote the number of occurrences
+at year m for ci and pj , and In ,m denotes the traditional social
+influence between two actions occurring at timestamp n and m,
+where n is necessarily smaller than m. Hp j ,c i is the pointwise
+mutual information quantifying the probability p(ci |pj ) over the
+burst period of ci , defined as follows:
+Hp j ,c i =
+
+
+m ∈B c i
+
+PMIm (ci , pj )
+
+
+e  PMIm (e , pj )
+
+(3)
+
+HE AND PARKER: SEMINF: A BURST-BASED SEMANTIC INFLUENCE MODEL FOR BIOMEDICAL TOPIC INFLUENCE
+
+511
+
+Therefore, semantic influence is accumulated for each year m
+in the burst period of ci , and this can be influenced by all years
+n < m in the burst period of pj , weighted by the cooccurrence
+proportion of the two topics. Just as in models for the traditional
+social influence, the start year of pj must precede the start year
+of ci for the influence to be meaningful.
+C. Alternative Baseline Models
+For comparison, we consider two alternative baseline models:
+1) Single-timestamp model: Instead of doing accumulation
+for all timestamps within the burst period, we only consider the occurrence time of the actions. We apply the traditional influence model in social networks solely based
+on these occurrence times.
+2) No-hierarchy model: We ignore the hierarchy structure
+and compute influence between every pair of nodes simply
+based on their occurrence time and cooccurrences ratio.
+D. Influence Graph
+Fig. 2. Year differences between burst occurrences of pairs of topics versus
+their semantic distance.
+
+PMIm (e, pj ) = log
+
+cm (e, pj )
+.
+cm (e) × cm (pj )
+
+(4)
+
+Here, cm (e, pj ) is the number of articles in which e and pj
+cooccur at year m, and cm (e) is the number of articles in which
+e occurs at year m.
+Popular models for traditional social influence between two
+actions include an exponential model and a power-law model
+exponential model:
+power-law model:
+
+P (δ) ∝ e−δ /α
+P (δ) ∝
+
+1
+.
+δα
+
+Here, P (δ) is the traditional influence probability between the
+two actions, δ is the difference between the occurrence times
+of the two actions, α is a decay parameter. In our experiments,
+we used the power-law model and we tested different values for
+α. The results do not vary much. Therefore, we simply set α to
+be 1.
+In order to justify that the semantic distance is indeed an important factor in influence propagation, for every edge in the
+graph, we summarize the year difference between the burst occurrences of the pair of nodes of the edge against their semantic
+distance. We show the results in Fig. 2. As we can see, although
+there are certain fluctuations, in general, the mean difference
+between the action occurrence times increases as their semantic distance increases. Similarly, the variance of the difference
+increases as semantic distance increases. Therefore, for small
+semantic distance, namely for pairs of topics that are semantically similar, once one topic is “activated,” the other topic is
+“activated” more rapidly compared with pairs of topics with
+large semantic distance. The figure indicates that a topic is more
+likely to influence a semantically related topic than unrelated
+topics.
+
+Given the definition of semantic influence, we can build an influence graph G = (V, E), where V is the set of topic bursts, and
+E is the set of edges between bursts whose influence probability
+is not 0. In reality, as the number of bursts is very large, the number of edges can be in the billions. Thus, we set up a threshold
+to keep only the edges with greater influence probability. More
+details will be given in the experiments. For influence from ai
+to bj , we must have ts(ai ) < ts(bj ), where ts(ai ), ts(bj ) are
+the start years of the burst for node ai , bj , respectively.
+Given the graph, we can compute the influence probability
+of a node a on a node b. Consider a simple case where a and b
+are siblings and their parent is c. a can influence b through their
+coparent c. Let Ancestor(ai ) and Ancestor(bj ) be the set of
+ancestors of ai and bj , respectively, and P athk (ai , bj ) be the
+set of nodes on the path from ai to bj . If there is no path from a
+to b, the influence probability between a and b is 0. For a more
+general case, we define the influence probability of the ith burst
+of a to the jth burst of b as:
+
+SIe
+(5)
+IPk (ai , bj ) =
+e∈Path k (a i ,b j )
+
+IP (ai , bj ) = 1 −
+
+
+(1 − IPk (ai , bj ))
+
+(6)
+
+k
+
+where IP (ai , bj ) is the influence probability between ai and
+bj , IPk (ai , bj ) is the influence probability between ai and bj
+following the kth path between ai and bj , e is an edge in the kth
+path between ai and bj , SIe is the semantic influence between
+the pair of end nodes
+ of the edge e, defined in (2). We define
+IP (ai , bj ) as 1 − k (1 − IPk [ai , bj ]) since there can be multiple paths between ai and bj , and bj can be activated multiple
+times. Thus, the probability is 1 minus the probability that none
+of the attempts activate bj .
+E. Impact of Topics
+In essence, we want to study the viral marketing problem
+for topics in a hierarchy; in other words, we want to identify
+
+512
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+the most influential topics. Unlike the influence maximization
+problem defined in [2], which aims to identify a set of k people
+that activate the most people in a social network, we study a
+simpler version of the problem. We define the impact IP (ai ) of
+a node ai as the sum of the influence probabilities from ai to all
+other nodes bj ’s in the influence graph G = (V, E)
+IP (ai ) =
+
+
+
+IP (ai , bj ).
+
+TABLE I
+RUN TIME (SECONDS) OF TIPS AND BF (BREADTH-FIRST SEARCH) ON
+RANDOMLY GENERATED DAGS WITH DIFFERENT (VERTEX
+NUMBER, EDGE NUMBER) PAIRS
+
+(7)
+
+b j ∈V ,b j = a i
+
+Our goal is to identify topics that have the highest impact.
+With the definition of impact for a node in the influence graph,
+we can compute the impact for each node, and rank nodes accordingly. A naive algorithm applies breadth-first search from
+each node to compute its impact. The complexity of the naive
+algorithm is O(|V |3 ), where |V | is total number of bursts for
+all nodes in the hierarchy—or equivalently the number of nodes
+in the influence graph. In our experimental problem setting discussed below, |V | is around 160 000. Thus, the computational
+load can be very high. The naive algorithm is not efficient in the
+following two respects:
+1) If there are multiple paths from one node to another, and
+the paths share some edges, the naive algorithm may explore nodes on these edges multiple times.
+2) If paths from two different nodes share edges, the naive
+algorithm explores nodes on these edges multiple times.
+Next, we apply a more efficient search algorithm called twolists depth-first search (TIPS) that we developed in [15]. In our
+algorithm, we start from all the source nodes in the influence
+graph that only have out-going edges and no incoming edges.
+We do depth-first search from each source node and compute the
+influence probability along the way. However, to avoid exploring
+the same node multiple times, we maintain two lists for each
+node a searched, a To list and a From list. The To list stores all
+the nodes which have paths to the node a. The From list stores
+all the nodes to which a has paths.
+During the depth-first search, whenever a node x is reached
+and x has not been explored before, we update the To list for
+x and the From lists for all nodes that have paths to x. However, when x has been already explored (meaning the depth-first
+search has found a new path to x), we avoid exploring x any
+further.
+For all nodes on any new path to a, we can update their From
+list as well as the influence probability from them to a since
+we maintain two lists for a. Meanwhile, we update the To list
+of a by adding all nodes on the new path to a. Since the new
+path to a will affect a’s influence probability as well as the
+influence probability of all the nodes in a’s From list, we update
+the influence probability from a to all the nodes in a’s From
+list. Once we have finished searching the whole graph in this
+way, the impact of a node a will be the sum of the influence
+probabilities from a to each of the nodes in its From list.
+Although theoretically the complexity of the algorithm TIPS
+is still O(|V |3 ), in reality TIPS is much more efficient: when
+we are trying to explore a node that has been explored earlier,
+TIPS only needs to update the To and From lists, and the nodes
+that need to be updated can be obtained directly from the two
+
+lists. By contrast, breadth-first search needs to explore nodes on
+common edges repeatedly, which requires searching neighbors
+of the nodes, and this search turns out to be time consuming.
+On the other hand, TIPS consumes more memory to save the
+two lists. Therefore, TIPS trades time efficiency for memory
+efficiency.
+IV. EXPERIMENTAL RESULTS
+A. Performance on Random DAGs
+To first illustrate the efficiency of the algorithm TIPS, we
+generated random directed acyclic graph (DAG) with different vertex numbers and edge numbers. Due to the difficulty of
+generating random DAGs, we generated only relatively small
+DAGs, which are sufficient to show that TIPS is much more
+efficient than a breadth-first search from all vertices. The results
+are shown in Table I. We rounded run times to integer seconds.
+We can see that for most parameter settings, TIPS is much faster
+than the breadth-first search.
+B. Simulation With a Randomly-Generated Hierarchy
+Since we do not have ground truth to validate the most influential terms directly, we conduct the validation on simulated
+random graphs. In our simulation, we randomly generate a hierarchy with 5000 topics and 15 000 edges. Then, we randomly
+generate occurrences of burst-based action for all these topics.
+TIPS is run on the simulated influence graph. To validate the
+most influential topics in the random graph, we start from every
+topic and propagate the influence through the influence graph to
+activate topics according to the influence probability associated
+with the edges. We then rank the topics according to the number
+of topics that are activated by the propagation and use this rank
+as our ground-truth.
+1) Choose Decay Factor β: We first evaluate what should
+be a good value of the decay factor β in Formula 2. We compare the top-100 most influential topics reported by TIPS and
+the top-100 topics in the rank ordering of which activated the
+most other topics, and compute accuracy. Accuracy is defined
+as the percentage of the reported top-100 topics that also appear
+among the top-100 topics that activated the most other topics.
+The results are shown in Table II. As we can see, β = 1 gives
+the greatest accuracy. As β increases, the weight of semantic
+distance decreases exponentially, leading to a dramatic drop in
+accuracy. The accuracy is not high, because the impact of the
+
+HE AND PARKER: SEMINF: A BURST-BASED SEMANTIC INFLUENCE MODEL FOR BIOMEDICAL TOPIC INFLUENCE
+
+TABLE II
+ACCURACY OF TIPS FOR DIFFERENT DECAY FACTORS β
+
+513
+
+However, considering both multiple timestamps and the hierarchical structure still leads to much better performance.
+The results also indicate that SemInf is a general model. It
+achieves better performance when the topic hierarchy is available. However, when the topic hierarchy is not available, SemInf
+can be still applied without the component of the semantic information, as all the components are independent.
+C. Validation on the Mesh Hierarchy
+
+Fig. 3. Accuracy of the three models, SemInf (“MultiTimeStamp + Hierarchy”), baseline models “SingleTimeStamp” and “No-Hierarchy,” for top-100,
+top-500, top-1000 topics, respectively.
+
+top topics are close to each other. Therefore, these topics usually activate the same number of topics and we lack a way to
+distinguish between them. However, as we will see later, the
+ranks of the top-100 most influential topics reported by TIPS
+are generally very high.
+2) Comparison With Baseline Models: We next compare the
+accuracy of our model with the following two baseline models:
+1) Single-timestamp model: In the influence graph, we only
+use the occurrence time of the bursts to compute the influence probability. We do not accumulate probabilities at
+every timestamp in the burst period.
+2) No-hierarchy model: In the influence graph, the influence
+probability of each edge is computed solely based on the
+burst period of the two nodes. Semantic distance is not
+considered.
+We fix β as 1 and check top-100, top-500, and top-1000 topics. The accuracy of the three models is shown in Fig. 3. As we
+can see, as the sample size increases, the accuracy of all models
+increases. Our model is superior to the other two baseline models for all sample sizes. The accuracy of the single-timestamp
+model is not poor compared with the no-hierarchy model. This is
+because we normalize influence through the burst period. Thus,
+the influence probability from considering single timestamps
+will not be too different from considering multiple timestamps.
+
+We next applied TIPS on the medical subject headings
+(MeSH) hierarchy, a very widely used hierarchy of topics in
+biomedical research: each article in PubMed/MEDLINE is annotated with descriptive MeSH terms. (Here “topic” and “term”
+are interchangeable.) We crawled these articles for the years
+1950 through 2008—a list of 19 million articles of size 70 GB.
+For each term in the MeSH hierarchy, we counted its frequency
+of occurrence in each year, and accumulated these frequencies
+through the hierarchy (so that the frequency of a node is the sum
+of the frequencies of all descents of the node as well as of itself).
+We show the number of terms at each level of the hierarchy.
+To find all burst-based actions, we used the parameters (4,
+8, and 5) for the MACD histogram, as suggested in [7]. Notice,
+we consider yearly frequencies in the experiments but the model
+can be generalized to any time-unit-based frequency. We first
+constructed the influence graph for all MeSH topic occurrences.
+Since the data set is very large, the number of all possible
+nodes and edges in the graph is astronomical. However, we
+observed that most of the edges have low influence probability
+as the coocurrences ratio (defined as the ratio of the number of
+coocurrences of the two topics and the product of the numbers of
+ocurrences of the two topics) of the pair of topics is low. Indeed,
+as one topic usually cooccurred with only a small number of
+other topics, most often the coocurrence ratio between a random
+pair of topics was 0. Thus, we first checked the cooccurrence
+ratio of the topics and removed all edges with ratio less than
+0.01 for the pair of topics. Also, for all nodes that were isolated
+from the remaining graph after all such edges were removed,
+we removed the node as well. After this filtering step, the total
+number of nodes in the graph was 104 257 and the total number
+of edges was 227 054. As the ratio of the numbers of edges
+and vertices was around 2, indicating that the chance of seeing
+multiple paths between two vertices was relatively low, TIPS
+finished in just 19 s. We ranked the MeSH terms by their impact,
+and the top-10 most influential terms and their burst periods that
+resulted are shown in Table III.
+These results also provided some interesting results about
+“impact” of journals. In order to validate that our model reported
+meaningful ranks for these biomedical topics, we also tried to
+rank all biomedical journals according to the topics they contain.
+In other words, we used a simple sum of the influence of all
+topics contained in each journal as a measure of impact of the
+journal. With this measure of impact, the top-10 most influential
+biomedical journals were determined to be those in Table IV.
+For comparison, the table also shows the ranks of these journals
+obtained with a weighted page rank model based on citation
+data [11]. Since we only found the top-10 journals reported by
+
+514
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+TABLE III
+TOP-10 HIGHEST IMPACT MESH TERMS, WITH CORRESPONDING
+BURST PERIODS
+
+TABLE IV
+TOP-10 HIGHEST IMPACT BIOMEDICAL JOURNALS, REPORTED BY SemInf AND
+BY A WEIGHTED PAGE RANK MODEL [11]
+
+used in social network influence mining can be naturally adapted
+here, with three modifications to reflect the dynamics and semantic structure of topics. We also developed an efficient algorithm to produce an impact ranking of journals, where we
+defined impact as the sum of influence probabilities of all its
+topics. We validated our model in the biomedical domain: our
+experimental analysis showed that SemInf yields meaningful results, and that our algorithm for finding high impact topics is
+efficient. An interesting potential application of our model is that
+it could be used to quantify impact when citation information is
+not available. We also showed that SemInf can be generalized to
+other domains such as computer science research.
+As shown in our simulated experiments, availability of a topic
+hierarchy permits SemInf to achieve better performance. However, when the topic hierarchy is not available, SemInf can be still
+applied without the component of the semantic information—
+all the components are independent. Therefore, SemInf is a very
+general model.
+REFERENCES
+
+V. CONCLUSION
+
+[1] P. Domingos and M. Richardson, “Mining the network value of customers,” in Proc. 7th ACM SIGKDD Int. Conf. Knowl. Discov. Data
+Mining, 2001, pp. 57–66.
+[2] D. Kempe, J. Kleinberg, and É. Tardos, “Maximizing the spread of influence through a social network,” in Proc. 9th ACM SIGKDD Int. Conf.
+Knowl. Discov. Data Mining, 2003, pp. 137–146.
+[3] J. Leskovec, A. Krause, C. Guestrin, C. Faloutsos, J. VanBriesen, and
+N. Glance, “Cost-effective outbreak detection in networks,” in Proc. 13th
+ACM SIGKDD Int. Conf. Knowl. Discov. Data Mining, 2007, pp. 420–429.
+[4] M. Gomez Rodriguez, J. Leskovec, and A. Krause, “Inferring networks of
+diffusion and influence,” in Proc. 16th ACM SIGKDD Int. Conf. Knowl.
+Discov. Data Mining, 2010, pp. 1019–1028.
+[5] L. Liu, J. Tang, J. Han, M. Jiang, and S. Yang, “Mining topic-level influence in heterogeneous networks,” in Proc. 19th ACM Int. Conf. Inf.
+Knowl. Manage., 2010, pp. 199–208.
+[6] J. Tang, J. Sun, C. Wang, and Z. Yang, “Social influence analysis in largescale networks,” in Proc. 15th ACM SIGKDD Int. Conf. Knowl. Discov.
+Data Mining, 2009, pp. 807–816.
+[7] D. He and D. S. Parker, “Topic dynamics: An alternative model of bursts in
+streams of topics,” in Proc. 16th ACM SIGKDD Int. Conf. Knowl. Discov.
+Data Mining, 2010, pp. 443–452.
+[8] Y. Zhu and D. Shasha, “Efficient elastic burst detection in data streams,”
+in Proc. 9th ACM SIGKDD Int. Conf. Knowl. Discov. Data Mining, Washington, DC, USA, Aug. 24–27, 2003, pp. 336–345.
+[9] J. M. Kleinberg, “Bursty and hierarchical structure in streams,” in Proc.
+8th ACM SIGKDD Int. Conf. Knowl. Discov. Data Mining, Edmonton,
+Alberta, Canada, Jul. 23–26, 2002, pp. 91–101.
+[10] J. Leskovec, L. Backstrom, and J. Kleinberg, “Meme-tracking and the
+dynamics of the news cycle,” in Proc. 15th ACM SIGKDD Int. Conf.
+Knowl. Discov. Data Mining, 2009, pp. 497–506.
+[11] J. Bollen, M. Rodriquez, and H. Van de Sompel, “Journal status,” Scientometrics, vol. 69, no. 3, pp. 669–687, 2006.
+[12] W. Chen, Y. Wang, and S. Yang, “Efficient influence maximization in
+social networks,” in Proc. 15th ACM SIGKDD Int. Conf. Knowl. Discov.
+Data Mining, 2009, pp. 199–208.
+[13] A. Goyal, F. Bonchi, and L. Lakshmanan, “Learning influence probabilities in social networks,” in Proc. 3rd ACM Int. Conf. Web Search Data
+Mining, ACM, 2010, pp. 241–250.
+[14] K. Saito, R. Nakano, and M. Kimura, “Prediction of information diffusion probabilities for independent cascade model,” in Knowledge-Based
+Intelligent Information and Engineering Systems. New York, NY, USA:
+Springer-Verlag, 2010, pp. 67–75.
+[15] D. He, “Modeling semantic influence for biomedicai research topics using
+mesh hierarchy,” in Proc. IEEE Int. Conf. Bioinformat. Biomed., 2012,
+pp. 1–6.
+
+In this study, we have proposed SemInf, a burst-based model
+of topic influence. We have shown that models similar to those
+
+Authors’ photographs and biographies not available at the time of publication.
+
+the page rank model, if the journal is not in the top-10 list, its
+page rank is marked as “NA.” As we can see in Table IV, five
+of our top-10 journals are also top-10 journals by the page rank
+model.
+It is especially interesting that J Biological Chemistry is
+ranked first by both models; this is startling, since its official impact factor based on citations is significantly lower than those of
+journals like Nature and Science that are renowned for their high
+citation-based impact factors. This indicates the influence propagation in our model which is consistent with the propagation
+used in page rank models based on citation. Also one thing to
+notice is that our ranking covers a total of 19 833 journals, while
+the page rank model considers only 5 709 journals. Therefore,
+because our ranking is not dependent on citation information,
+some journals emerge as highly-ranked that are omitted from
+the other ranking. What’s more, because we removed the weak
+influences, our ranking places greater emphasis to topics having strong influence. Citations can reward diversity of topics,
+and this can increase the impact ranking of journals such as
+Nature, which publishes papers in many fields. Finally, an astonishing result was that our model was able to report fairly
+consistent topic and journal rankings without using any citation
+data. (Of course, using citation data can improve the measure
+of influence between two topics that are linked by citations.)
+Therefore, SemInf potentially can be used to model impact in
+the scientific literature when citation data is not available. We
+would like to further explore this in our future work.
+
+

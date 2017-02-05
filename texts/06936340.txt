@@ -1,0 +1,1306 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+795
+
+Fully Automated Glottis Segmentation in Endoscopic
+Videos Using Local Color and Shape Features
+of Glottal Regions
+Oliver Gloger∗ , Bernhard Lehnert, Andreas Schrade, and Henry Völzke
+
+Abstract—Exact analysis of glottal vibration patterns is indispensable for the assessment of laryngeal pathologies. Increasing
+demand of voice related examination and large amount of data
+provided by high-speed laryngoscopy and stroboscopy call for automatic assistance in research and patient care. Automatic glottis
+segmentation is necessary to assist glottal vibration pattern analysis, but unfortunately proves to be very challenging. Previous glottis
+segmentation approaches hardly consider characteristic glottis features as well as inhomogeneity of glottal regions and show serious
+drawbacks in their application for diagnostic purposes. We developed a fully automated glottis segmentation framework that extracts a set of glottal regions in endoscopic videos by using a flexible
+thresholding technique combined with a refining level set method
+that incorporates prior glottis shape knowledge. A novel descriptor
+for glottal regions is presented to remove potential nonglottal fake
+regions that show glottis-like shape properties. Knowledge of local
+color distributions is incorporated into Bayesian probability image generation. Glottal regions are then tracked frame-by-frame
+in probability images with a region-based level set segmentation
+strategy. Principal component analysis of pixel coordinates is applied to determine glottal orientation in each frame and to remove
+nonglottal regions if erroneous regions are included. The framework shows very promising results concerning segmentation accuracy and processing times and is applicable for both stroboscopic
+and high-speed videos.
+Index Terms—Bayesian probability, endoscopy, Fourier descriptors, laryngeal videos, level set segmentation, principal component
+analysis, prior shape, voice pathology.
+
+I. INTRODUCTION
+HE human voice originates from a vibratory motion of the
+vocal folds. Driven by the power of exhaled air and aerodynamic as well as myoelastic forces, the vocal folds “chop” the
+airflow, thereby producing a sound, which, after filtering through
+the resonance chamber of the pharynx, mouth and nose, forms
+
+T
+
+Manuscript received July 7, 2014; revised September 17, 2014; accepted
+October 16, 2014. Date of publication October 24, 2014; date of current version
+February 16, 2015. Asterisk indicates corresponding author.
+∗ O. Gloger is with the Institute for Community Medicine, Ernst-MoritzArndt University Greifswald, 17489 Greifswald, Germany and also with MES
+company, 16761 Hennigsdorf, Germany (e-mail: gloger@uni-greifswald.de).
+B. Lehnert is with the Div. Phoniatrics and Pedaudiology, Department
+of Otorhinolaryngology, Ernst-Moriz-Arndt University Greifswald, 17489
+Greifswald, Germany (e-mail: lehnertb@uni-greifswald.de).
+A. Schrade is with MES company, 16761 Hennigsdorf, Germany (e-mail:
+aschrade@mesnet.de).
+H. Völzke is with the Institute for Community Medicine, Ernst-Moritz-Arndt
+University Greifswald, 17489 Greifswald, Germany (e-mail: voelzke@unigreifswald.de).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2364862
+
+the human voice. Changes in muscle forces, elasticity and overall structure of the vocal folds lead to a change of the passage
+of the air in the so called “glottis,” the gap in between the vocal
+folds, sometimes causing voice alterations like hoarseness and
+dysphonia. In the diagnostic evaluation of dysphonia, the vocal
+folds and the glottic gap can be visualized via a mirror, or preferably, rigid or flexible endoscopy. The vibratory motion of the
+human voice is far too fast for the bare human eye (440 Hz when
+singing concert pitch). True high-speed cameras for visualization are object of scientific evaluation but not yet very prevalent
+in medical caretaking. The standard in clinical routine for the
+last decades has been stroboscopy, which will probably remain
+the gold standard for the next 10 to 20 years. While there is
+no doubt among clinicians, that stroboscopy is an essential part
+of medical voice assessment, the parameters obtained by it are
+highly subjective and often show little interrater reliability [1].
+Fully automated evaluation of stroboscopic videos can provide
+a way to a more objective evaluation. True high-speed cameras
+on the other hand produce large amounts of data, which call for
+automated evaluation. When performed with rigid endoscopes,
+a small handheld camera and light source is inserted over the
+patient’s tongue over the larynx. The slightest tremor of the examiner’s hand and movements of the patient’s tongue add up to a
+considerable shaking of the camera. When performed with flexible endoscopes, the endoscope is inserted through the nose into
+the pharynx. Any movement of the patient’s soft palate leads to
+shaking of the camera. The influence of this shaking is depending upon the framerate: In high-speed technique, there are only
+parts of a thousand’s of a second between the frames. Therefore,
+the video will appear almost stable. Computer vision algorithms
+can rely better on a comparison of subsequent frames. The time
+difference between subsequent frames of laryngostroboscopic
+videos is about a 25th of a second. Computer vision algorithms
+must, therefore, be more stable when subsequent frames are to
+be compared. The next frame may be misaligned or it may show
+totally different blur due to camera motion.
+The National Institute of Deafness and other Communication
+Disorders reports that about 24% of US citizens show dysfunctions in voice generation. The prevalence of speech sound
+disorders for young US children is given as about 9% [2]. Exact analysis of vocal fold vibration is important in the care of
+professional voice users (e.g., teachers, call center agents) in
+the early detection of glottic cancer and in a variety of other
+voice complaints. Vibration analysis for vocal folds can be
+achieved by segmenting the glottal space in endoscopic videos.
+Manual segmentation in video frames is expensive and time
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+796
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+consuming. With some high-speed cameras producing videos
+at ten thousand frames per second, it soon becomes infeasible.
+Automatic glottis segmentation using medical image processing
+methods will thus become indispensable for modern laryngeal
+endoscopy. Equipment for high-speed recording is still much in
+development and at some time in the future it will replace larynx stroboscopy. It will be the future but it is difficult to forecast
+when this will happen. For the time being, glottis segmentation
+techniques should ideally be appropriate for application in both
+imaging techniques. Automatic glottis segmentation in successive video frames provides the laryngologist or voice specialist
+with much important information like completeness of glottal
+closure, amplitude of vocal cord vibration, phase differences between both vocal folds. There is an unsolved discussion about
+the relevance of the different parameters [3] and the objective
+assessment of classical parameters through computer vision and
+new parameters will enrich this discussion in the future. In this
+study, we present a novel segmentation framework, which is
+designed for fully automatic glottis segmentation in both stroboscopic and high-speed video data.
+II. RELATED WORK
+There exist several methods designed for glottis segmentation
+in endoscopic videos. Some of the existing approaches incorporate mainly image properties like gray values and image gradients into bottom–up segmentation strategies to delineate glottal
+structures form surrounding tissue. Other approaches rely on
+prior knowledge (i.e., prior glottis shape knowledge) and combine trained prior knowledge with significant image properties.
+Existing approaches can be subdivided into five groups that
+mainly use well-known segmentation methods like fundamental thresholding and seeded region growing methods, watershed
+algorithms, active contour-based techniques, level set methods,
+and active shape models. The authors in [4] determined a global
+threshold obtained by histogram analysis, which is assumed to
+follow a Raleigh distribution for both glottis and background
+regions. After a morphological erosion step, the global thresholding provides a starting region for a final region growing
+process to segment the glottal space in high-speed digital images of the glottis. This approach segments the glottal regions
+only in a predefined region of interest (ROI) and assumes that
+the glottal regions are significantly darker than the background
+tissue. Demeyer et al. [5] proposed a framewise glottis segmentation strategy using region growing to extract the glottal
+space in high-speed videos. They determine a starting frame for
+the segmentation that shall contain the most opened glottis in a
+vibration cycle. The starting frame of a vibration cycle is calculated as that frame with the minimum over all summed frame
+gray values. An internal starting point for the region growing
+method is determined as maximal response of a Laplacian of the
+Gaussian filter and iterative mean value calculations are used to
+determine an upper threshold for the region growing method.
+However, the more the glottis is opened in the vibration cycle,
+the more light can fall into the glottis that is reflected by trachea
+regions increasing the glottal gray values. Particularly, this is often the case for stroboscopic videos, where not only phonatory
+
+(i.e., vibratory) but also respiratory movement of the vocal folds
+is visible (see lower row in Fig. 10 as an example of light from
+the trachea can easily be seen between the vocal folds). Furthermore, many video frames show specific regions having very
+low grey values (i.e. outer image regions near the image border
+areas) which can mislead the proposed method and produce inappropriate starting frames. Hence, the application of [5] failed
+in our stroboscopic videos. Lohscheller et al. [6] presented a
+further region growing-based approach for glottis segmentation
+in high-speed videos. However, many challenges for fully automatic segmentation methods are avoided as user interaction
+is required in this approach. Seed points for region growing are
+selected by the user. The threshold values for the region growing algorithm in each time slice are determined by a continuous
+threshold progression basing upon linear interpolation of user
+given thresholds for some selected frames.
+The authors in [7] used the watershed algorithm, which is
+followed by a region merging technique for glottis segmentation in selected, stroboscopic images. Subsequently, several regions remain, that have to be classified as glottis or background
+region. For every region, seven binary invariant moments are
+determined. The regions are then classified as background or
+glottis using linear discriminant analysis based on their binary
+moments. However, this approach is only designed for selected
+frames that show opened vocal folds. Furthermore, few—not
+necessarily subsequent- frames in a video were selected from
+15 different stroboscopic videos for testing. The authors used
+several values in their approach but it is doubtful if adapted
+parameter and thresholds values (i.e., visibility thresholds) for
+region merging and binary invariant moments to distinguish between glottal and nonglottal structures are appropriate for glottis
+segmentation in different videos or even high-speed videos of
+different patients showing variable tissue appearance. Thus, additional threshold values used in a final decision rule are necessary to reduce the high misclassification rate. Another drawback
+is that their approach is not designed to segment the glottis in all
+subsequent frames of video parts or even whole videos including frames with completely closed glottal regions or a variety
+of differing pathologies. Marendic et al. [8] extended the active
+contour model of [9] for glottis segmentation with two internal
+stretching forces to guide the active contour into narrowing upper and lower glottal parts. Another approach that applies active
+contours is presented by Yan et al. [10], in which a global thresholding is used to initialize the active contour propagation for
+glottis delineation in frames of high-speed videos. The authors
+in [11] adapted the gradient vector flow model of [12] for glottis
+segmentation in stroboscopic images to overcome drawbacks of
+the underlying active contour model in narrowing glottis parts.
+Palm et al. [13] proposed a balloon model to segment vocal
+cords and enclosed glottal regions in stroboscopic images. The
+balloon model is defined by vertices and edges and curve evolution is steered by shrinking and expanding forces, smoothing
+forces, and external forces resulting from image edges. Active
+shape models are interconnected with the balloon model to integrate shape constraints for vocal cords in the process of curve
+evolution. However, this approach is mainly designed for vocal cord delineation and cannot segment thin glottal regions
+
+GLOGER et al.: FULLY AUTOMATED GLOTTIS SEGMENTATION IN ENDOSCOPIC VIDEOS USING LOCAL COLOR AND SHAPE FEATURES
+
+how it is stated by the authors. This approach is not fully automatic, since the user has to select a ROI containing a small
+circular structure to initialize the balloon model and to limit the
+area for segmentation. Another drawback of the presented active contour approaches is that all of their parameters have to be
+tuned carefully to achieve good results. Karakozoglou et al. [14]
+presented an automatic glottis segmentation approach using a
+region-based level set method to apply it for their newly proposed glottovibrography technique in high-speed videos. They
+used the method of [5] to determine the starting frame for the
+glottis segmentation. Sobel filtering for glottal edge detection
+followed by morphological closing and connected component
+analysis are used to determine the glottis region in the starting
+frame. Framewise segmentation of the vibration cycle is limited to a rectangular bounding box. A region-based level set
+segmentation is then adapted to segment each frame of the vibration cycle in the bounding box. In [15], the authors presented
+an automatic glottis segmentation approach using active shape
+models for stroboscopic videos. The approach starts with a region growing method to obtain starting regions for segmentation
+with active shape models. Seed values are determined basing on
+a simple linear relationship between average image gray value
+and optimal seed values. Though, nonglottal regions can also be
+initialized for active shape-based segmentation. Hence, the authors used an existing active shape model extension calculating
+a reliability score factor to evaluate if the segmented region is
+a glottal region. However, the proposed algorithm is only tested
+for selected, isolated images and is neither designed to segment
+vibration cycles of subsequent frames nor complete video data.
+The existing methods have several drawbacks, which makes
+them inappropriate for glottis segmentation in our stroboscopic
+and high-speed videos. The presented approaches are especially
+designed either for stroboscopic or for high-speed video images
+and cannot be used simultaneously for glottis segmentation in
+both video types. Only few of the existing approaches [5], [7],
+[14], [15] are designed to be (fully) automatic segmentation approaches. However, these approaches perform glottis segmentation only in selected images of a whole video sequence and
+do not track glottis regions in subsequent video frames (as in
+[15]) or seem to use adapted parameters and methods for their
+available video frames. As stated earlier, method creation in
+the presented automatic approaches is strongly dependent on
+thresholds or assumptions that are not often fulfilled in our laryngeal videos. Some approaches extract only vertical glottis
+edges requiring vertical oriented glottal regions, and are therefore, not rotationally invariant (i.e., [14]). However, rotational
+invariance is strongly necessary to segment differently rotated
+glottal structures that often appear in video frames, either caused
+by true laryngeal asymmetry, laryngeal rotation, or by camera
+rotation. Glottal shape properties are not considered in the most
+approaches. Solely, in [15], prior shape knowledge of the glottis
+is used for the integrated active shape model approach. Though,
+the method of [15] is only used in preselected frames of a laryngeal video. Prior glottis shape information is important in frames
+of phonation phases to differentiate glottal shape configurations
+from those that are clearly nonglottal shapes. Hence, we incorporate prior shape knowledge of the glottis to determine optimal
+
+797
+
+starting regions for our segmentation approach. In contrast to the
+most existing approaches, we propose a fully automated glottis
+segmentation framework in which user interaction is not necessary. Several existing methods are only designed to segment
+the glottis in (pre)selected, single frames of a laryngeal video,
+however, our framework segments the glottis in all frames of
+video sequences or even in whole videos. Many approaches use
+a single gray value threshold for glottis segmentation but do not
+consider specific lightning conditions in laryngeal videos that
+can influence strongly the success of a single, predefined threshold applied in thresholding techniques for numerous patients or
+video types. We propose a flexible, stepwise threshold algorithm
+that takes different lightning conditions into account and incorporates prior glottis shape knowledge to detect an initial set of
+candidate glottis regions in the video. The candidate regions are
+refined by region-based level set techniques incorporating information about local gray value distributions. A novel recognition
+strategy is proposed to exclude erroneously detected glottis regions by incorporating prior knowledge of local color difference
+properties. Furthermore, all existing approaches perform glottis
+segmentation in information-reduced gray value images and do
+not consider the original color information of the video data.
+Particularly, existing approaches do not take local differences
+of color or gray value distributions into account. Local gray
+value and color distributions can differ between different glottal
+regions and also between different adjacent, nonglottal tissue
+regions. In our framework, we present a novel reference point
+system considering local color properties to generate probability maps. Thus, final level set segmentation techniques are
+computed in transformed probability maps instead of original
+video data. Since all existing approaches are designed either for
+stroboscopic or for high-speed videos, our approach can segment both video types. The following chapters are organized as
+follows: in Section III, we list and explain the modules of our
+framework. We give an overview for the framework (see Section III-A) and explain the training phase of our approach. Then,
+we illuminate the modules of our framework, which is divided
+into the framework recognition part (see Section III-B) and the
+framework segmentation part (see Section III-C). The results
+of the proposed glottis segmentation framework are explained
+in Section IV. In Section V, we discuss the framework and its
+results and give a conclusion for this study.
+III. DESCRIPTION OF THE METHOD
+A. Framework Overview
+Our glottis segmentation and tracking framework is divided
+into three main parts containing several modules that produce
+intermediate results for subsequent processing steps. In the first
+part (training part), 60 different glottis shapes are manually
+segmented by medical experts. The segmented shapes represent typical glottis shapes taken from glottal phonation phases.
+The first 30 Fourier descriptors [16] of these glottal boundaries
+are calculated and saved. Since the Fourier descriptors have
+to be compared with Fourier descriptors of shapes extracted
+in some framework modules, they are saved in translation and
+scale invariant manner [17]. Furthermore, we modify them to be
+
+798
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+Fig. 2. Example to illustrate rotational invariance for glottal shape comparison: the segmented region (yellow) with glottal orientation vector (green) and
+vector or vertical image axis (red) is rotated by the angle between both vectors (left). The Fourier descriptors of rotated shapes (right) are used for shape
+comparison.
+
+Fig. 1. Recognition and segmentation parts of the framework. The recognition
+part functionality (upper) is shown for one frame. If the glottis segmentation is
+not limited to preselected frames or frame ranges in the video, the recognition
+is performed for every frame of the video. In the framework segmentation part
+(lower), an optimal recognized glottis region from the recognition part is tracked
+successively in increasing and decreasing frame numbers. The functionality is
+shown depending on one starting region to perform glottis segmentation for one
+vibration cycle.
+
+rotational and starting-point invariant that will be explained in
+the following Section. The gray values of the segmented glottal regions are extracted and saved for later histogram analysis.
+Furthermore, we introduce a glottal neighborhood descriptor
+(GND) that represents glottis-specific properties in color space.
+Local color difference properties between glottal and nonglottal regions of each trained mask are calculated and stored in
+a training matrix. The functionality of the GND is explained
+in Section III-B2 in more detail. The second part (framework
+recognition part) is designed to recognize and delineate glottis
+regions of the glottal phonation phase in video frames. Recognized glottis regions are saved and optimal starting regions
+for the third framework part (framework segmentation part) are
+then determined. The optimal starting regions of the glottis are
+then used to segment the glottis in adjacent frames successively.
+In the framework, segmentation part the glottis is segmented
+based on properties of the previous frame. Hence, the glottis is
+continuously tracked within vibration cycles of the video by a
+frame-by-frame-wise segmentation technique. Fig. 1 gives an
+overview of the framework recognition part and the framework
+segmentation part including their modularized structures.
+B. Framework Recognition Part
+1) Recognition and Delineation of Glottal Regions in
+Phonation Phases: Our stroboscopic and high-speed videos
+contain color images which have to be transformed to gray
+scale images with value range of [0, 255]. This gray scale trans-
+
+formation is necessary for this framework module, since we
+perform a stepwise threshold segmentation technique using a
+scalar threshold to recognize dark glottal regions. Since light
+incidence inside the glottis is usually strongly limited during
+phonation phases, glottal regions in frames taken from phonation phases show low gray values. We analyzed the gray value
+histogram of the trained glottal regions and found that glottal
+regions during phonation phases frequently show gray values
+under 80. Consequently, we start thresholding with the lowest
+possible value (0) and increment continuously to this upper border (80). In each threshold step, a morphological opening is
+processed with all threshold-segmented areas in the image. This
+opening operation is applied with a small disk-like structuring
+element to separate possible oversegmentations into nonglottal
+areas. Each thresholded region can be a glottal region and has
+to be further analyzed by considering glottal shape characteristics. The Fourier descriptors of the thresholded regions are
+compared with the shape descriptors of the trained glottal regions. All used Fourier descriptors are translational invariant by
+setting the first Fourier descriptor to zero. Scale-invariance is
+obtained by dividing all Fourier descriptors by the magnitude of
+the second Fourier descriptor [17]. Translation and starting point
+invariance can be achieved if only the absolute values of the descriptors are calculated and compared. We found, however, that
+this calculation reduces shape information, which can worsen
+the quality of glottal shape recognition. Thus, we compute
+rotational and starting-point invariant Fourier descriptors for
+glottal shapes without this information loss. Glottal regions
+frequently show elliptical or elongated forms in frames of
+phonation phases and we determine the vector having the longest
+Euclidean distance between all boundary points for each region.
+This vector is orientated along the longer axis of the ellipse,
+which approximates the elliptic-like glottal form. This vector is
+called the glottal orientation vector. We rotate each glottal region in the training phase at its centroid with the angle between
+the glottal orientation vector and the vertical image axis. This
+computation rotates the glottal shapes along the vertical image
+axis (see Fig. 2). We use rotation angles having values between
+[0; π] and achieve translational invariance for this value range
+what is sufficient for our applications. The order of boundary
+
+GLOGER et al.: FULLY AUTOMATED GLOTTIS SEGMENTATION IN ENDOSCOPIC VIDEOS USING LOCAL COLOR AND SHAPE FEATURES
+
+799
+
+coordinates is shifted to start with the boundary coordinate having the lowest value along the vertical image axis to achieve
+starting-point invariance. Since both operations are conducted
+for all glottal training regions and threshold-segmented regions,
+the Fourier descriptors of all regions take different rotations
+and boundary coordinate orders into account and can thus be
+compared with each other. Since shape information content decreases for higher Fourier descriptors, we apply only the first 30
+Fourier descriptors that contain sufficient information for glottal
+shape recognition.
+The Fourier descriptors of a threshold-segmented candidate
+region Fi are compared with the Fourier descriptors of each
+trained shape Ftrained k (k = 1 . . . M, M = 60) according to a
+dissimilarity measure computed as the squared norm of the
+difference between two Fourier descriptors.
+D(Fi , Ftrained k ) = Fi − Ftrained k 2
+
+(1)
+
+The mean dissimilarity Dm ean (Fi ) of the candidate shape
+descriptors (Fi ) to all trained shape descriptors (Ftrained k ), is
+then computed
+Dm ean (Fi ) =
+
+M
+1 
+·
+D(Fi , Ftrained k ).
+M
+
+(2)
+
+k =1
+
+If Dm ean (Fi ) is below a specified shape-dissimilarity threshold of 4.0, then the threshold-segmented candidate region is considered as potential glottis region and analyzed in subsequent
+processing modules. In this case, a glottis-like candidate region
+is detected and our stepwise threshold algorithm terminates for
+the actual frame. If Dm ean (Fi ) is higher, then the stepwise
+threshold algorithm continues. (The shape-dissimilarity threshold was found empirically after performing numerous glottis
+shape recognition tests.)
+Since the stepwise thresholding begins with low intensity
+thresholds, a detected glottis region might not cover the glottal
+region completely. A refined segmentation strategy is necessary
+to delineate the glottis more exactly. Though, delineation of glottal regions is frequently complicated since edge information of
+glottal regions can be strongly suppressed. Furthermore, intensity inhomogeneity of glottal and adjacent, nonglottal regions
+makes glottis segmentation difficult. For example, light incidence can differ locally leading to higher gray value variability
+of glottal regions. Hence, the refined segmentation technique
+has to take gray value inhomogeneity into account. We apply
+the method of [18] that incorporates local Gaussian distributions
+for fitting energies in a variational-based framework to delineate
+inhomogeneous regions by using level sets (see Fig. 3).
+The shape of the resulting glottis region is tested if it is still a
+glottis-like shape by using the same shape comparison strategy
+like explained earlier using (1) and (2). If the dissimilarity of this
+shape is again lower than the shape-dissimilarity threshold, then
+we can be sure, that this region has a glottis-like form and its
+boundary delineates glottis regions by taking gray value inhomogeneity into account. If this refined segmentation technique
+is not sufficient to segment the glottis correctly, arbitrary over- or
+undersegmentations will occur. Hence, the glottis shape dissimilarity measure will increase and the segmented shape will not be
+
+Fig. 3. Two examples (upper and lower row) showing results of the refined
+segmentation technique. Left: thresholded glottal region (blue) with recognized
+glottis-like shape. Right: Results for more exact glottis delineation (green).
+
+saved as recognized glottal region. However, only a single recognized glottis region in a vibration cycle would be sufficient as
+starting region for the following framework segmentation part.
+2) Examination of Glottal Regions With a GND: We found
+that in few cases the double shape comparison strategy cannot avoid that also erroneous, nonglottal regions (fake regions)
+having low intensities and showing glottis-like forms being segmented by the previously presented framework steps. Thus, we
+increase the recognition quality of glottis regions by introducing a GND, which specifies distance-weighted color differences
+between glottis and adjacent nonglottal tissue to identify glottis
+regions.
+Our newly proposed GND strategy is a supervised learning
+method and is initiated in the training phase using the 60 trained
+glottal regions. The GND is defined by using an even number of
+equidistant base points on the glottal boundaries. We compute
+a GND for each trained glottal region in the training phase. For
+that, we select eight base points along the boundary of each
+training region automatically. All trained glottis regions are oriented along the vertical image axis to be rotational invariant
+(which is explained in Section III-B1) and saved in the training phase. The points on the trained glottis boundary having
+the upper and lower vertical image coordinate are the first two
+base points. The other six base points are calculated by providing equal distances along the boundary between all base points.
+The base points are numbered in a clockwise order beginning
+with the upper base point in the image. This rotational invariant
+base point calculation ensures that all base points are located
+at clearly defined positions relative to the boundary length and
+all base point-related local color properties are well comparable among all glottal training regions. For every base point,
+we consider the color vectors (containing values for the red,
+green, and blue channels) of all pixels in the segmented region and calculate their Euclidean distances to the base point.
+Since the GND is designed to characterize local color properties, we attenuate the influence of longer distant color pixels and
+
+800
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+Fig. 4. Eight equidistant base points (blue) along a glottis boundary (left).
+Distance-weighted attenuation of pixels inside boundary (middle) and outside
+boundary (right) according to upper base point.
+
+compute a distance-weighted color mean vector for the base
+point. The distance-weighted influence Gatt of a color pixel
+inside the boundary (xin , yin )is attenuated using a Gaussian
+function
+
+
+dbas (xin , yin )2
+1
+· exp
+Gatt (xin , yin ) = √
+. (3)
+σ2
+2π · σ
+Here, dbas represents the Euclidean distance to the base point
+and σ can be used to adjust the attenuation. After several tests, we
+found empirically, that a value of 20 (pixel units) is a good choice
+for σ to highlight only the local neighborhood of a base point. We
+compute the distance-weighted (arithmetic) color mean vector
+→
+−
+−→
+Vin of a base point using the color vectors V color inside the
+segmented region as follows:
+N i n
+→
+−
+Gatt (xin , yin ) · V color (xin , yin )
+−→
+.
+(4)
+Vin = in=1 k
+in =1 Gatt (xin , yin )
+The index in considers the pixel coordinates of all pixels
+(Nin ) inside the trained glottis region. Similarly, we consider the
+pixel color vectors outside the segmented region and compute
+−−→
+the distance-weighted color mean vector Vout for a base point
+neighborhood for pixels (xout , yout ) outside the segmented region (see Fig. 4) as follows:
+N o u t
+→
+−
+−−→
+out=1 Gatt (xout , yout ) · V color (xout , yout )
+. (5)
+Vout =
+k
+out=1 Gatt (xout , yout )
+The index out incorporates the pixel coordinates of all pixels
+(Nout ) outside the trained glottis region.
+Since global color properties can differ between different
+video frames and between videos of different patients, we consider for every base point the difference vector between the
+−→
+distance-weighted inside color mean vector Vin and the distance−−→
+weighted outside color mean vector Vout and compute its magnitude as
+
+
+ −−→ −→ 
+(6)
+LCMD =  Vout − Vin  .
+The local color mean difference (LCMD) represents the base
+point-specific local differences of color properties between glottal and adjacent nonglottal tissue. The LCMD values are calculated for each of the eight base points of a trained glottis
+region resulting in a 1-by-8 vector which is called the GND.
+The GNDs of all 60 training regions are collected in 60 ×
+8 matrix. We compute the principal components of the trained
+GND matrix and use them to reduce the eight observation dimensions of the GND matrix by preserving as much information
+
+Fig. 5. Smoothed 2-D histogram resulting from projected GNDs of 60 glottal
+training regions onto first two principal axes of the principal component analysis.
+
+Fig. 6. Segmented regions of the framework recognition part with their GND
+values: (a) and (b) segmented fake regions with GND values of 5.0e-17 and
+5.2e-17. Segmented glottis regions with GND values of (c) 0.58, (d) 0.66,
+(e) 0.69, and (f) 0.97.
+
+of the data distribution as possible. We sort the principal axes
+according to their eigenvalues of the singular value decomposition. Then, we project all trained GNDs onto the principal
+axes and found out that the projected data of the first two main
+axes having the highest eigenvalues are sufficient to describe the
+variability of local color difference properties for the following
+computations. The data projection onto the first two main axes
+results in a 2-D histogram, which is smoothed using a Gaussian
+kernel to compensate for small discontinuities.
+The 2-D histogram (see Fig. 5) is normalized to achieve GND
+values in the range of [0, 1]. The higher the GDN value, the more
+likely is the segmented region a glottis region according to prior
+knowledge of local color difference properties.
+If a glottis shape-like region is segmented after the region
+growing process of the segmentation framework, we calculate
+the region’s GND and project it on the first two principal axes
+determined in the GND training phase. We analyzed the GND
+values for the segmented glottis shape-like regions and noticed
+that fake regions show very low GND values that are clearly below 0.1 (see Fig. 6). Segmented glottis regions have higher GND
+values than 0.1 in general. However, glottis regions showing low
+contrast to adjacent nonglottal tissue and glottis regions that are
+located very near to image borders can also have low GND values near 0.1. For the segmentation part of the framework, it is
+sufficient to detect at least one glottal starting region per vibration cycle. Since the GND strategy is very helpful to recognize
+
+GLOGER et al.: FULLY AUTOMATED GLOTTIS SEGMENTATION IN ENDOSCOPIC VIDEOS USING LOCAL COLOR AND SHAPE FEATURES
+
+Fig. 7. Two examples for tracking ROI (magenta) calculated depending on
+glottal regions of the previous frame with segmented glottal region (green) in
+actual frame.
+
+fake regions, we use it to remove fake regions by using a low
+GND threshold of 0.1 although glottis regions having low GND
+values can also be removed. Consequently, those segmented regions that have a glottis-like shape and are not removed as fake
+regions in the last module of the framework recognition part are
+saved as recognized glottis regions.
+C. Framework Segmentation Part
+1) Tracking ROI Calculation: At the beginning of the framework segmentation part, we select the region with the lowest
+dissimilarity measure from all recognized glottis regions of the
+framework recognition part. This provides an optimal starting
+frame containing the segmented region having the best chance
+to be a glottis region. Beginning with this frame, we track the
+glottis at first in descending and after that in ascending frame
+order. We compute for every frame a glottis-tracking ROI using
+glottal position knowledge of the previous frame. The glottistracking ROI is used to limit computation time and to reduce
+possible oversegmentations into nonglottal areas.
+Since the glottis region of the starting frame is already segmented, we calculate the initial glottis-tracking ROI depending
+on the segmented glottis region of the starting frame. The glottistracking ROI of the starting frame is then used as ROI for the
+next frame. Since glottis displacements between two adjacent
+frames in our videos are small, we use position knowledge of
+the segmented glottis in the previous frame to calculate the
+glottis-tracking ROI for the following frame. The prolate glottis forms in phonation phases can be tracked well by elliptical
+ROIs, thus, we compute the glottis-tracking ROI of the actual
+frame by using the Mahalanobis distances of each pixel coor→
+dinate −
+x = (x, y)T in the actual frame from the distribution of
+the already segmented glottis pixel coordinates of the previous
+frame as follows:
+	
+→
+→
+→
+→
+→
+x ) = (−
+x −−
+μ )T · Σ−1 · (−
+x −−
+μ ).
+(7)
+DM (−
+Here, μ and Σ are the mean and the covariance matrix of
+the distribution of all glottal pixel coordinates in the previous
+frame. The glottis-tracking ROI is determined by a fixed Mahalanobis distance that shall also include the glottal regions of
+the actual frame (see Fig. 7). In our laryngeal videos, glottal
+regions do only show small displacements between adjacent
+frames. Thus, we assign a small Mahalanobis distance for the
+glottis-tracking ROIs, which can be increased if glottal frame-
+
+801
+
+Fig. 8. Equidistant reference points (red) on glottis boundary (green) of previous frame (left). Distance-based attenuation of glottal pixels inside boundary
+(middle) and of nonglottal pixels inside ROI (right) for a selected reference
+point (red).
+
+by-frame displacements in other applications are higher than in
+our videos.
+2) Probability Image Generation: The presented algorithms
+in previous approaches use original image data for glottis segmentation. Most of them use grayscale images although the
+recorded video frames are color images consisting of red, green,
+and blue channels. We use grayscale images for our proposed
+techniques of thresholding and glottis shape recognition at the
+beginning of the framework recognition part. However, in our
+module, for probability image generation, we use all available
+color information of video frames and transform them into probability values for the successor frame. The following segmentation module is then not conducted in original image data—like
+in existing approaches—but in the transformed probability images.
+Beginning with the segmented contour of the starting frame
+glottis, we provide equidistant reference points on the glottis
+contour. For each reference point we take the distribution of
+color vectors (containing red, green, and blue values) in the direct neighborhood into account. Similarly to the distance-based
+attenuation in Section III-A.2, we attenuate the influence of adjacent color vectors according to their distance to the reference
+point by using the Gaussian attenuation of (3) for glottal pixels
+inside the segmented glottis and nonglottal pixels outside the
+glottis but inside the tracking ROI (see Fig. 8).
+For each reference point, we compute a distance-weighted
+3-D histogram for the red, green, and blue values of the color
+vector pixels inside the glottis boundary. The influence of the
+color vector pixels in the histogram are attenuated by their Euclidean distance to the reference point. The 3-D histogram for
+nonglottal color vector pixels outside the glottis boundary is
+computed for each reference point in the same manner. Hence,
+we save for each reference point two distance-weighted 3-D
+histograms, which are smoothed by using a Gaussian kernel.
+The smoothed histograms represent the distance-weighted local color distributions in the neighborhood of reference points
+in the previous frame. Since local color properties do not change
+significantly between adjacent frames, local color distributions
+can be used as reliable prior knowledge to estimate local color
+properties in the following frame. Furthermore, glottis borders frequently show only small dislocations between adjacent
+frames. Consequently, we determine for each pixel (x,y) inside the tracking ROI its nearest reference point on the glottis
+border of the previous frame. Then, we use the saved local
+color distributions of the nearest reference point as prior knowledge to calculate an a posteriori probability value for the pixel
+
+802
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+approaches in the literature, that apply segmentation methods
+in original video frames, we perform glottis segmentation in
+the generated probability images. Since the whole glottis region
+is enhanced in the probability images, we use a region-based
+level set segmentation technique [19] for the framewise glottis
+segmentation. We remove the area minimization term in [19]
+resulting in the energy functional, that we use for minimization.
+
+
+δε (φ) · |∇φ| · dxdy
+EGlottis (φ, c1 , c2 ) = μ ·
+
+
+
+Ω
+
+|Pglottis − c1 |2 · Hε (φ) · dxdy
+
++
+Fig. 9. Two different results for probability images: (a) color frame with
+segmented glottis (green) of previous frame, (b) following image frame with
+tracking ROI (magenta), (c) probability image for image frame of (b) inside
+tracking ROI. (d)—(f) the same result steps for an example of another video.
+
+Ω
+
+
+
++ |Pglottis −c2 |2 · (1 − Hε (φ)) · dxdy
+Ω
+
+(9)
+−−−−→
+position (x, y). Depending on the pixel’s color values I (x, y),
+we can determine the probability in the reference point-specific
+local color distributions for glottal and nonglottal tissue (back−−−−→
+ground). The probability
+ of I (x, y) in the class of local glottis
+→
+−
+colors L I | glottis and the class of local background colors
+
+
+→
+−
+L I | bg are then used as likelihoods in a Bayesian framework to compute a posteriori probabilities for the glottis. Since
+local-dependent, relative occurrences between glottis and background pixels are influenced by local glottis shape properties
+and ROI extension, we provide for both glottis and background
+class the same a priori probabilities (pr(glottis),pr(bg)) of 0.5
+resulting in the Bayesian theorem.
+
+
+→
+−
+Pglottis = P glottis| I
+
+
+→
+−
+L I |glottis · pr (glottis)
+
+
+
+.
+= −
+→
+→
+−
+L I |glottis · pr (glottis) + L I |bg · pr (bg)
+(8)
+The probabilistic approach (8) is conducted for each position
+→ −−−−→
+−
+(x, y) with its color vector pixel I = I (x, y) inside the tracking
+ROI resulting in an a posteriori probability image Pglottis =
+Pglottis (x,y) for the glottis (see Fig. 9). The image values for the
+two examples in Fig. 9 (c) and (f) are the a posteriori probability
+values Pglottis calculated by (8) for the corresponding pixel
+positions in the actual frames (shown in Fig. 9 (b) and (e),
+respectively). The probability images show clearly enhanced
+probability values for glottis regions of both actual frames. If
+a glottis part closes, the probability values for glottis tissue
+will be very low for those positions. Hence, this glottis part is
+not segmented in the actual frame. Consequently, the boundary
+of this glottis part including its reference points will also be
+removed.
+3) Level Set Segmentation: The probability images, that are
+calculated based on prior knowledge of the previous frame,
+show high probability values for glottal regions and highlight
+them despite of variable illumination and color properties in
+different glottal and nonglottal regions. In contrast to existing
+
+with the level set function φ = φ(x,y;t), Ω as whole image region
+of the frame and the regularized Heaviside and Dirac functions
+
+ 
+φ
+2
+1
+· 1 + · arctan
+Hε (φ) =
+(10)
+2
+π
+ε
+ε
+.
+(11)
+δε (φ) =
+π (ε2 + φ2 )
+In every time step, the zero level set of ϕ represents the propagating contour and the values c1 and c2 represent the mean of
+the probability image inside and outside of the zero level set.
+The level set method allows for topological changes, which is
+of great advantage if inner glottal subregions show lower probability values than residual glottis parts. Another advantage is
+that the region based level set (9) does not require information of glottis edges, since gradient magnitudes of glottal edges
+can be very low or can even be missing. In contrast to existing
+approaches, that use region growing or threshold techniques,
+no threshold is necessary, since energy minimization of (9) results in an energy minimum representing the segmented glottis
+region. However, we propose a frame-by-frame, consecutive
+segmentation technique and do not use the segmented contour
+of the previous frame for level set initialization of the successor
+frame. In cases of superimposed movements between a contracting glottis and endoscope in subsequent frames, the transfer of
+segmented glottis regions of the previous frame can lead to erroneous initialization of glottal regions inside the background
+region of the following frame. Thus, we perform a precedent
+thresholding in the probability image to obtain a well-located
+starting region for the region-based level set segmentation. We
+use always the same high threshold of 220 inside the scaled
+probability range [0, 255] to presegment regions that are most
+likely glottal regions. Additionally, we initialize newly arising
+glottal regions, which can result from partly reopenings of the
+glottis in other glottal subregions.
+4) Removal of Nonglottal Regions Outside the Glottal
+Rectangular Area: Sometimes the region-based level set segmentation can segment several regions in the frame. This can
+be the case if new glottal regions arise in the subsequent frame
+as consequence of additional glottal openings (see Fig. 10 upper row). Such glottal reopenings have to be included into the
+
+GLOGER et al.: FULLY AUTOMATED GLOTTIS SEGMENTATION IN ENDOSCOPIC VIDEOS USING LOCAL COLOR AND SHAPE FEATURES
+
+Fig. 10. Two examples (upper row and lower row) for region-based level set
+segmentation results in probability images. (Left) Segmentation result of previous frame. (Middle) Calculated probability image depending on segmentation
+result of previous frame. (Right) Segmentation result of subsequent frame.
+
+Fig. 11. Example for removal of nonglottal labels. (Left) Multiple label result
+in the current frame after level set segmentation (green) with vectors (red) in
+direction of first principal axis (glottal main axis) and second principal axis
+calculated from segmented glottal regions of the previous frame. GRA (dashed
+black) resulting from the projection of glottal pixel coordinates of previous frame
+onto second principal axis. (Middle) Projection histogram (blue) and projected
+pixel coordinates of small labels that are nonglottal labels (red). (Right) Final
+segmentation result without nonglottal labels.
+
+segmentation result. Another reason is that in infrequent cases
+nonglottal regions showing similar color properties as their nearest glottis areas of the previous frame are also enhanced in probability images and can be segmented by the level set segmentation. However, such nonglottal regions have to be excluded from
+the segmented result. Thus, the algorithm can provide several
+labels and has to differentiate between glottal and nonglottal
+labels. New glottal regions arising by reopenings of the glottis
+are mainly located inside a glottal rectangular area (GRA) that
+is spanned by the glottal main axis and the width of the glottis
+(see Fig. 11). The GRA is mainly used for illustration here, since
+it shows an area in which all glottal regions should be located
+due to the glottal coordinate distribution of the previous frame.
+Since the glottal main axis shows very small direction changes
+between two subsequent frames, we compute the glottal main
+axis of the previous frame and use it to determine the GRA for
+the current frame. We use principal component analysis to determine the glottal main axis of the previous frame. All glottal
+pixel coordinates of the previous frame are considered and the
+first principal component is used as glottal main axis for the
+current frame. The first principal component is well orientated
+to the longitudinal extension of the glottis and we use the second
+principal component, which is orthogonal to the first principal
+component, to find a measure for the glottal width extension. We
+project all glottal pixel coordinates of the previous frame onto
+the second principal component and determine the histogram of
+these projections (see Fig. 11). After that, we control for each
+
+803
+
+label of the current frame if all projection values of its pixel
+coordinates are located outside of the histogram limits. Glottal
+regions are located at least partially inside the GRA spanned by
+the glottis region of the previous frame. Thus, a label is considered as nonglottal label if its projected values are outside of
+the range of the histogram limits. In such a case, the projected
+values are located completely outside of the GRA. If the projected label values are not completely outside of the histogram
+limits, the label is considered as new glottal label in the actual
+frame. Hence, the first projection calculation is necessary to determine the histogram limits that represent the expected glottal
+width in the orientation of the glottis in the current frame (illustrated by the GRA). Finally, the second projection calculation
+of segmented labels in the current frame is used to exclude nonglottal labels that are clearly located outside of the GRA. The
+removal of nonglottal regions reduces possible oversegmentations into nonglottal regions inside the tracking ROI to improve
+the segmentation result quality.
+5) Consecutive Segmentation Algorithm for Complete Video
+Computation: The consecutive segmentation algorithm stops if
+there is no glottal region found in the frame. For example, this
+can happen if the glottis is covered by other tissue in the video
+perspective or has moved out of the frame region of the video
+recording. Another reason is a complete glottal closure. In such
+cases, the glottis probability images show low probability values and the thresholding step prior to the region-based level set
+segmentation in Section III-C3 does not detect any glottal starting region for the level set segmentation. The algorithm stops
+the consecutive segmentation in the current video time direction and returns to the starting frame. The frames are marked if
+they were visited by the algorithm. If the frames in the opposite
+direction of the starting frame are not marked, the algorithm
+continues in the opposite direction to segment glottal regions
+(see Fig. 1). If the subsequent frames of both time directions of
+the starting frame are already marked, the algorithm selects a
+new recognized glottis region having the minimum shape dissimilarity measure from the set of unvisited frames. The selected
+frame is used as new starting frame and the algorithm conducts
+the consecutive segmentation again in both time directions of
+the video. The algorithm terminates if there does not remain any
+unvisited recognized glottis region produced by the framework
+recognition part. Consequently, the framework detects glottal
+regions in different frames of the whole video and can use those
+frames as potential starting frames to segment the whole video
+subsequently.
+IV. RESULTS
+We tested stroboscopic and high-speed videos to demonstrate
+that our algorithms can be applied for both recording types.
+The analyzed video data were produced in clinical routines by
+three different camera systems. The stroboscopic videos were
+produced by two different camera systems: a rigid 70° chipon-the-tip endoscope by Xion Medical (Berlin, Germany) and a
+rigid endoscope (Mediastrobo) by Atmos company (Lenzkirch,
+Germany). Both video types have an image solution of 720 ×
+576 pixels. The high-speed videos were produced by using rigid
+endoscopy of the HRES Endocam 5562 of the Richard Wolf
+
+804
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+TABLE I
+MEAN DICE AND MEAN AREA ERROR FOR THE ANALYZED VIDEOS OF THE FIRST VIDEO SET INCLUDING 13 STROBOSCOPIC VIDEOS (S1 . . . S13) AND TWO
+HIGH-SPEED VIDEOS (HS1 . . . 2).
+Video Type
+Dicem e a n
+AE m e a n
+Processing time (s/image)
+
+S1
+
+S2
+
+S3
+
+S4
+
+S5
+
+S6
+
+S7
+
+S8
+
+S9
+
+S10
+
+S11
+
+S12
+
+S13
+
+HS1
+
+HS2
+
+0.898
+0.068
+1.39
+
+0.914
+0.033
+1.78
+
+0.861
+0.085
+1.64
+
+0.802
+0.139
+2.16
+
+0.874
+0.062
+1.83
+
+0.922
+0.038
+1.71
+
+0.923
+0.064
+1.17
+
+0.873
+0.070
+1.89
+
+0.851
+0.089
+2.36
+
+0.866
+0.082
+2.33
+
+0.848
+0.079
+1.86
+
+0.916
+0.061
+2.85
+
+0.938
+0.047
+1.74
+
+0.906
+0.066
+1.30
+
+0.910
+0.038
+1.18
+
+Company (Knittlingen, Germany) and have an image solution
+of 256 × 256 pixels. To evaluate our proposed glottis segmentation framework, we selected 25 different laryngeal videos
+showing glottal regions in various frame positions, all taken
+independently of this project. Since we trained several glottal
+features we selected different laryngeal videos for testing and
+training. In the first video set (15 videos), the different humans
+are partly healthy, partly with mild vocal fold pathology (including Muscle Misuse Dysphonia, Reinke’s edema with postoperative scarring, intubation granuloma and others). The second
+video set (ten videos) contains more severe pathologies (including several kinds of laryngeal carcinoma, spasmodic dysphonia,
+unilateral as well as bilateral vocal fold paralysis, chronic laryngitis, laryngeal papillomatosis, recurrent laryngeal nerve palsy,
+laryngeal polyps) to analyze the framework results for different types of pathological cases. The automatic segmentation
+results are compared with manual segmented results produced
+by medical and phoniatrical experts in our group. To limit the
+cost for manual segmentation, medical experts selected subsequent vibration cycles from each video containing the glottis.
+The selected video parts contain minimal 30 and maximal 160
+subsequent frames resulting in 1286 different images we analyzed for glottis segmentation. The selected video parts show
+variable color and illumination properties to test the framework
+for different imaging conditions. To evaluate the segmentation
+quality of the automatic segmentation framework, we calculate
+for each frame the Dice coefficient [20], which has been established as reliable segmentation quality measure for medical
+images [21] as follows:
+Dice =
+
+2 · N (MT ∩ MS )
+N (MT ) + N (MS )
+
+(12)
+
+where MT and MS represent the trained and automatically segmented binary mask, respectively, and N() stands for the pixel
+numbers. Furthermore, we compute the area error AE between
+automatically segmented area AS and the manual segmented
+area AT in each frame as
+AE =
+
+|AS − AT |
+.
+AS + AT
+
+(13)
+
+To obtain the segmentation quality for each analyzed video,
+we compute the mean DiceDicem ean and mean area error
+AE m ean in the videos and summarize them in Table I.
+All video frames are fully automated segmented by our subsequent glottis segmentation strategy. In the video set containing mild pathologies 818 (of 880) frames and in the video set
+with more severe pathologies 350 (of 406) frames (S25 is not
+
+integrated here) are evaluated as right segmented by the medical
+experts in our group. The mean of 0.89 for Dicem ean and the
+mean of 0.07 for AE m ean show that we obtain very promising segmentation results using the proposed algorithms of our
+segmentation framework. The results for Dicem ean (0.85) and
+AE m ean (0.1) of the video set with more severe pathologies
+(without S25) are slightly worse. S25 shows a bilateral movement stop of the vocal folds, which prevents the vocal folds to
+form glottal shapes of phonation phases that are used for our
+glottis shape recognition training. Thus, no starting frame could
+be segmented in S25. Nevertheless, the patient S16 shows the
+same pathology (with less severity) but a starting frame could be
+segmented automatically followed by good segmentation results
+for this video. Although the segmentation results for the more severe pathological videos are worse than for the mild pathological
+videos, segmentation qualities of our framework are not only influenced by the type or the severity of the pathology. Frequently,
+technical and recording-specific circumstances like image quality or occlusion degrees (completely or partially covered glottis
+in the whole video) can influence segmentation qualities more
+strongly. Unfortunately, our results are difficult to compare with
+the results of existing approaches, since quantitative results are
+not given or are strongly related to specific image data. Some
+of the existing approaches do not compute segmentation errors
+explicitly but show images containing delineation results of the
+glottis [8] and [13]. Often the results are described qualitatively
+([5], [13]) or by using multiple point scales for qualitative expert
+evaluation [14]. Some approaches use quality measures that are
+developed for specific image data and cannot be used for result
+comparison with our approach [5, 6]. The authors in [14] and
+[15] stated total pixel errors that are not related to image or pixel
+sizes or the size of segmented areas. Furthermore, nearly all existing approaches use different methods to compute their results.
+Detailed result comparison with other approaches is frequently
+not performed. Several approaches that give quantitative results
+do not explain how their results are computed [5]–[7], [10].
+Thus, it is difficult to compare our results with the results of
+the most existing approaches. However, the visual comparison
+between automatically and manually segmented glottal regions
+performed by phoniatrical experts in our group together with
+the good mean quality measures for all slices show that our
+proposed segmentation framework is suitable for fully automatic glottis segmentation in various laryngeal video recording
+types. Our framework is implemented in MATLAB and is not
+intended to be processing time optimized in the current version.
+Nevertheless, we give the processing times of our framework.
+Since the video sequences contain different frame numbers, we
+
+GLOGER et al.: FULLY AUTOMATED GLOTTIS SEGMENTATION IN ENDOSCOPIC VIDEOS USING LOCAL COLOR AND SHAPE FEATURES
+
+805
+
+TABLE II
+MEAN DICE AND MEAN AREA ERROR FOR THE ANALYZED STROBOSCOPIC VIDEOS OF THE SECOND VIDEO SET CONTAINING TEN DIFFERENT PATIENTS SHOWING
+MORE SEVERE PATHOLOGIES (S16 . . . S25).
+Video Type
+Dicem e a n
+AE m e a n
+Processing time (s/image)
+
+S16
+
+S17
+
+S18
+
+S19
+
+S20
+
+S21
+
+S22
+
+S23
+
+S24
+
+S25
+
+0.910
+0.025
+1.39
+
+0.842
+0.114
+1.80
+
+0.847
+0.151
+1.98
+
+0.885
+0.102
+2.24
+
+0.927
+0.044
+1.83
+
+0.862
+0.072
+2.30
+
+0.828
+0.087
+1.86
+
+0.742
+0.223
+2.92
+
+0.830
+0.097
+2.40
+
+no starting form recognized
+
+calculate the processing times per image (see Tables I and II) and
+determine an average processing time of 1.81 (s/image) for the
+first and 2.17 (s/image) for the second video set (by using a dualcore Intel 2.67-GHz processor with 8 GB RAM). The average
+processing time of our framework is better than the average processing time (3.52 s/image) that is given in [7]. The authors of
+[7] used watershed and region merging processes implemented
+in C++ (by using a Pentium IV-3GHz with 1-GB of RAM). The
+best processing times (0.02 s/image) that can be found in the
+literature is given in [10]. However, the authors of [10] used fast
+global thresholding for images showing clearly dark and rather
+homogenous glottal regions what is not the case in our images.
+Since further implementation details are not given and different
+programming languages are used, more detailed comparisons
+with existing approaches are difficult. Currently, we continue to
+further optimize the processing times of our framework to make
+it applicable in future real-time applications.
+V. DISCUSSION AND CONCLUSION
+In this paper, we present a fully automatic glottis segmentation framework for endoscopic videos. The framework consists
+of modules for training, recognition, and consecutive segmentation of the glottis. Glottal shapes taken from phonation phases
+of glottal vibration cycles are learned in the foregoing training part. A novel GND is proposed that characterizes glottal
+regions by using localized color difference properties in adjacent areas of glottal boundaries. In the framework recognition
+part, optimal glottal regions are detected to use them as glottal
+starting regions for the following framework segmentation part.
+Beginning with an optimal starting region, glottal regions of
+adjacent frames are then segmented subsequently in a frameby-frame manner. Potentially erroneously segmented nonglottal regions are limited successfully by calculating projections
+of pixel coordinates onto principal components of glottal main
+parts. The proposed framework can be applied for stroboscopic
+and high-speed videos as well and produces very promising results concerning segmentation accuracy and processing times
+to use it for clinical, diagnostic, and scientific purposes. In contrast to existing approaches, we present an approach that uses
+all available color information of endoscopic videos. Probability images are generated depending on local color properties
+of glottal areas in adjacent frames. As extension to the conventional methods that conduct glottis segmentation in gray scale
+images of original video frames, we perform glottis segmentation in glottal probability images. The glottal probability images
+highlight local-based probabilities for glottal regions that are
+
+then segmented by using region-based level set segmentation
+techniques of our framework. Many existing approaches expect vertical orientated or image centered glottis structures. Our
+framework is invariant to translation, scaling, and rotation. It can
+segment glottal regions in every image location under variable
+scale and rotation. Although stroboscopic video data are mostly
+used for diagnosis, the high-speed video technique is strongly
+developing. Hence, glottis segmentation approaches must be
+applicable for all existing video recording techniques. Our presented framework performs glottis segmentation in stroboscopic
+as well as in high-speed video data. The novel GND concept is
+developed to remove potential nonglottal fake regions and takes
+local color difference properties of trained glottis regions into
+account. Since plica vocalis tissue can be covered by different
+adjacent tissue types (i.e., epiglottis), the variability of local
+color differences between glottal regions and adjacent nonglottal tissue can be increased. However, the used training image set
+contains variable examples of different overlaying tissue types
+incorporated in the trained GNDs. Although the novel GND
+concept cannot clearly differentiate between segmented glottal
+regions and nonglottal fake regions, we state that it can exclude
+potential erroneously recognized non-glottal fake regions from
+the following framework segmentation modules.
+Some existing approaches use locally fixed ROIs to hedge
+the target regions for glottis segmentation. However, the ROIs
+have to be determined interactively and must often be relocated
+to segment the glottis in other video parts. Depending on the
+segmented glottis region of the previous frame, we compute a
+flexible ROI, which is elliptically formed based on Mahalanobis
+distances and adapts to position and scale of the glottis automatically. Although our framework computes very good segmentation results nonglottal regions showing local glottis-like color
+features are segmented in exceptional cases. Thus, we developed
+a technique that successfully removes erroneous segmented
+glottis-like regions in the last framework step by using information of glottal orientation and the width of the glottal main part.
+Fully automatic glottis segmentation is a very challenging task
+that requires considering the high tissue appearance variability
+that is produced by various patients and different recording techniques including different lightning conditions. Consequently,
+our framework consists of several interacting modules that have
+to take all those challenges into account, which requires additional modules to manage possible complications (e.g., locally different color features of the glottis or oversegmentations as consequence of very similar tissue appearance between
+glottis and adjacent tissue) or particular events (e.g., closed
+glottis) in segmentation processes. However, few modules
+
+806
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+can be removed if video frames show sufficient color and gray
+value differences between glottis and vocal folds. For instance,
+the morphological opening or the second shape comparison
+module of the framework recognition part can be excluded in
+such cases as they are mainly used to improve and to control glottis recognition. Tracking-ROI calculation is used in the
+framework segmentation part to limit the segmentation region
+and to accelerate computation. Thus, the tracking-ROI calculation module can also be excluded if computation acceleration
+is not necessary. Furthermore, if video frames show clear color
+and luminance differences between glottis and neighboring tissue, the segmentation of nonglottal regions is less likely and
+the module to remove nonglottal regions (see Section III-C4)
+might be excluded. Two thresholds (shape dissimilarity and
+GND value) are used in our work to distinguish glottis regions
+from nonglottal regions. The threshold values are determined
+empirically. However, they can easily be applied to recognize
+glottis regions in other laryngeal videos, since the presented
+techniques are translational, scale, and rotational invariant. Furthermore, they are robust against lightning differences, because
+they take color difference properties and glottal shape into account. The threshold for shape dissimilarity considers the mean
+dissimilarity to all trained glottis shapes. Consequently, in future work we will use methods that take more shape variability
+as well as groups of glottal shape configurations into account
+to improve the shape recognition rates for glottal regions. In
+contrast to existing approaches, our framework algorithms take
+local properties of glottal and nonglottal tissue into account that
+are frequently represented by local distributions of color and
+gray values. Furthermore, inhomogeneous regions of the glottis
+can be segmented successfully, which is not possible with existing approaches. In future work, the framework algorithms will
+be optimized and reimplemented considering processing times
+to be applicable for real-time applications.
+ACKNOWLEDGMENT
+The authors would like to thank Prof. K. Tönnies (Institute
+for Simulation and Graphics, Otto-von-Guericke University of
+Magdeburg) for his very helpful assistance to create this contribution and Prof. P. Birkholz (Institute of Acoustics and Speech
+Communication, Technical University Dresden) for all helpful
+and very interesting discussions about glottis segmentation and
+stroboscopic as well as high-speed laryngeal videos.
+
+[3] Q. Qiu, H. K. Schutte, L. Gu, and Q. Yu, “An automatic method to quantify
+the vibration properties of human vocal folds via videokymography,” Folia
+Phoniatrica and Logopaedica, vol. 55, no. 3, pp. 128–36, May-Jun 2003.
+[4] Y Yan, X Chen, and D. Bless, “Automatic tracing of vocal-fold motion
+from high-speed digital images,” IEEE Trans. Biomed. Eng., vol. 53,
+no. 7, pp. 1394–1400, Jul. 2006.
+[5] J. Demeyer and B. Gosselin, “Glottis segmentation with a highspeedglottography: A new approach,” presented at the Liège Image Days , Liège,
+Belgium, 2008.
+[6] J. Lohscheller, H. Toy, F. Rosanowski, U. Eysholdt, and M. Döllinger,
+“Clinically evaluated procedure for the reconstruction of vocal fold vibrations from endoscopic digital high-speed videos,” Med. Image Anal.,
+vol. 11, no. 4, pp. 400–413, 2007.
+[7] V. Osma-Ruiz, J. I. Godino-Llorente, N. Sáenz-Lechón, and R. Fraile,
+“Segmentation of the glottal space from laryngeal images using the watershed transform,” Comput. Med. Imag. Graphics, vol. 32, no. 3, pp.
+193–201, 2008.
+[8] B. Marendic, N. Galatsanos, and D. Bless, “New active contour algorithm
+for tracking vibrating vocal folds,” in Proc. Int. Conf. Image Process.,
+2001, vol. 1, pp. 397–400.
+[9] M. Kass, A. Witkin, and D. Terzopoulos. “Snakes: Active contour models,”
+Int. J. Comput. Vision, vol. 1, no. 4, pp. 321–331, 1988.
+[10] Y. Yan, G. Du, C. Zhu, and G. Marriott, “Snake based automatic tracing
+of vocal-fold motion from high-speed digital images,” in Proc. IEEE Int.
+Conf. Acoustics, Speech Signal Process., 2012, pp. 593–596.
+[11] G. Andrade-Miranda, N. Saenz-Lechon, V. Osma-Ruiz, and J. I. GodinoLlorente, “A new approach for the glottis segmentation using snakes,”
+presented at the Int. Conf. on Bio-Inspired Systems and Signal Processing,
+Barcelona, Spain, 2013.
+[12] C. Xu and J. L. Prince, “Snakes, shapes, and gradient vector flow,” IEEE
+Trans. Image Process., vol. 7, no. 3, pp. 359–369, Mar. 1998.
+[13] C. Palm, T. M. Lehmann, J. Bredno, C. Neuschaefer-Rube, S. Klajman,
+and K. Spitzer, “Automated analysis of stroboscopic image sequences
+by vibration profiles,” Proc. 5th Int. Workshop Advances Quantitative
+Laryngol., Voice Speech Res., Groningen, Netherlands, 2001.
+[14] S.-Z. Karakozoglou, N. Henrich, C. d’Alessandro, and Y. Stylianou, “Automatic glottal segmentation using local-based active contours and application to glottovibrography,” Speech Commun., vol. 54, no. 5, pp. 641–654,
+2012.
+[15] J. J. Cerrolaza, V. Osma-Ruiz, N. Sáenz-Lechón, A. Villanueva, J. M.
+Gutiérrez-Arriola, J. I. Godino-Llorente, and R. Cabeza, “Full-automatic
+glottis segmentation with active shape models,” in Proc. 7th Int. Workshop
+Models Anal. Vocal Emissions Biomed. Appl., Firenze, Italy, 2011, pp. 35–
+38.
+[16] C. Zahn and R. Roskies “Fourier descriptors for plane closed curves,”
+IEEE Trans. Comput., vol. C-21, no. 3, pp. 269–281, Mar. 1972.
+[17] A. Folkers and H. Samet, “Content-based image retrieval using Fourier
+descriptors on a logo database,” in Proc. IEEE 16th Int. Conf. Pattern
+Recog., 2002, vol. 3, pp. 521–524.
+[18] L. Wang, L. He, A. Mishra, and C. Li, “Active contours driven by local
+Gaussian distribution fitting energy,” Signal Process., vol. 89, no. 12, pp.
+2435–2447, 2009.
+[19] T. F. Chan and L. A. Vese, “Active contours without edges,” IEEE Trans.
+Image Process., vol. 10, no. 2, pp. 266–277, Feb. 2001.
+[20] Lee R. Dice “Measures of the amount of ecologic association between
+species,” Ecology, vol. 26, no. 3, pp. 297–302, 1945.
+[21] W. R. Crum, C. Oscar, and D. LG Hill, “Generalized overlap measures for
+evaluation and validation in medical image analysis,” IEEE Trans. Med.
+Imaging, vol. 25, no. 11, pp. 1451–1461, Nov. 2006.
+
+REFERENCES
+[1] T. Nawka and U. Konerding, “The interrater reliability of stroboscopy
+evaluations,” J. Voice, vol. 26, no. 6, pp. 812-e1–812-e10, 2012.
+[2] (2010). [Online]. Available: http://www.nidcd.nih.gov/health/statistics/pages/
+vsl.aspx
+Authors’ photographs and biographies not available at the time of publication.
+
+

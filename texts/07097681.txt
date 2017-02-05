@@ -1,0 +1,1317 @@
+2358
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+A Computationally Efficient Sound Environment
+Classifier for Hearing Aids
+Roberto Gil-Pita, Member, IEEE, David Ayllón∗ , Member, IEEE, José Ranilla, Cosme Llerena-Aguilar, and Irene Dı́az
+
+Abstract—A computationally efficient system for sound environment classification in digital hearing aids is presented in this paper.
+The goal is to automatically classify three different listening environments: “speech,” “music,” and “noise.” The system is designed
+considering the computational limitations found in such devices.
+The proposed algorithm is based on a novel set of heuristically
+designed features inspired in the Mel frequency cepstral coefficients. Experiments carried out with real signals demonstrate that
+the three listening environments can be robustly classified with the
+proposed system, obtaining low error rates when using a small part
+of the total computational resources of the DSP of the device. This
+study demonstrates that the proposed system can be implemented
+with the available resources in state-of-the-art digital hearing aids.
+Index Terms—Acoustic signal processing, biomedical devices,
+hearing aids.
+
+I. INTRODUCTION
+HEARING aid capable of automatically classifying the
+acoustic environment that surrounds his/her user, and selecting the parameters of the amplification “program” that is best
+adapted to such an environment (“self-adaptation”) would improve the user’s comfort [1]. The “manual” approach, in which
+the user has to identify the acoustic surroundings, and to choose
+the adequate program, is very uncomfortable and frequently exceeds the abilities of many hearing aid users [2]. The usability
+of the hearing aid can be significantly improved if the identification of the acoustic environment can be handled by the hearing
+aid itself, by means of a sound environment classifier (SEC).
+Furthermore, sound classification is also used in modern hearing aids as a support for speech enhancement, like, for instance,
+in noise reduction [3], [4] or in voice activity detection [5], in
+which the objective is to extract information from the sound to
+improve the performance of these systems.
+There is an ample number of interesting features that could
+potentially exhibit different behaviors for speech, music, and
+noise and thus may help the system classify the sound signal.
+
+A
+
+Manuscript received January 12, 2015; revised March 18, 2015 and April
+15, 2015; accepted April 15, 2015. Date of publication April 29, 2015; date of
+current version September 16, 2015. This work was supported by the Spanish
+Ministry of Science and Innovation under the Projects TEC2012-38142-C04-02
+and TEC2012-38142-C04-04. Asterisk indicates corresponding author.
+∗ D. Ayllón is with the Department of Signal Theory and Communications, University of Alcala, Alcala de Henares 28801, Spain (e-mail: david.
+ayllon@uah.es).
+R. Gil-Pita and C. Llerena-Aguilar are with the Department of Signal Theory
+and Communications, University of Alcala, Alcala de Henares 28801, Spain.
+J. Ranilla and I. Dı́az are with the Computer Science Department, University
+of Oviedo.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2427452
+
+Classical approaches for SEC use tailored specific features such
+as the spectral centroid, spectral flux, voice-to-white or shorttime energy, which are computationally efficient and they obtain
+considerably good results in the problem at hand [6]. In a different approach, Mel frequency cepstral coefficients (MFCCs)
+have already been used for sound environment classification
+in hearing aids [7]. MFCCs render very good results in terms
+of error rate, but with a considerable increase in the required
+computational resources [8]. The problem of implementing an
+MFCC-based sound classifier in a hearing aid is that the digital
+signal processors (DSPs) embedded in state-of-the-art hearing
+aids have constraints in terms of computational capability and
+memory. The hearing aid has to work at very low clock rates to
+minimize the power consumption and thus maximize the battery
+life. Additionally, the restrictions become stronger since a considerable part of the DSP computational capabilities are already
+being used for running the algorithms aiming to compensate the
+hearing losses. Therefore, the design of any automatic sound
+classifier is strongly constrained to the use of the remaining
+resources of the DSP: Roughly speaking, the available computational power should not exceed five million of instructions
+per second (MIPS). This restriction in number of operations per
+second enforces us to put special emphasis on signal processing techniques and algorithms tailored for properly classifying
+while using a reduced number of operations.
+In this paper, we propose a novel alternative for the implementation of MFCC-based sound classifiers in digital hearing
+aids considering the finite-precision limitations and the reduced
+computational cost found in such devices. First, a deep study of
+the computational resources necessary to calculate the MFCCs
+is carried out, analyzing the influence of the cost of each operation in relation to the performance. This study allows us to
+propose a novel set of features based on a modified implementation of the classical MFCCs that leads to lower computational
+burden. Second, an optimization algorithm that establishes a
+tradeoff between performance in terms of classification error
+rate and number of required assembler instructions per second
+is presented, considering different classification schemas and
+feature sets.
+With these ideas in mind, the paper has been structured as
+follows. Section II introduces the implemented classification
+system, describing the set of input features and the classification schema. In Section III, the constraints found in the problem
+at hand are analyzed, proposing some solutions. Section IV
+describes the proposed optimization methods that aim at optimizing the computational cost of the system while keeping a
+good performance in terms of error rate. Section V describes the
+database and the experimental procedure carried out to evaluate
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+GIL-PITA et al.: COMPUTATIONALLY EFFICIENT SOUND ENVIRONMENT CLASSIFIER FOR HEARING AIDS
+
+Fig. 1.
+
+Overview of an MFCC-based SEC.
+
+Fig. 2.
+
+MFCC extraction steps.
+
+the proposed system, showing and discussing the results obtained. Finally, Section VI contains the conclusions of this study.
+II. MFCC-BASED SEC
+The typical structure of an MFCC-based SEC is depicted in
+Fig. 1. It basically consists of an MFCC extraction block, a
+feature extraction block, and the classifier. The output of this
+classifier is taken into account by other algorithms included in
+the hearing device (usually speech enhancement and multiband
+compression). Each of the aforementioned blocks will be studied
+in detail in this section.
+A. Mel Frequency Cepstral Coefficients Extraction
+Fig. 2 summarizes the different steps that the MFCC calculation involves. The first step is the computation of the discrete
+Fourier transform (DFT) to each windowed time frame (N samples length), generating the time-frequency TF signal Xt [k],
+where k is the frequency index and t the time frame. The timefrequency signal is passed through the Mel scale filter bank. The
+output of the m-channel, Emt , is obtained according to
+
+
+N /2
+
+Emt =
+
+|Xt [k]|2 Hm [k], m = 1, . . . , F
+
+(1)
+
+k =0
+
+where Hm [k] is the triangular filter response for the mth channel, whose area is unity, and F the number of Mel frequency
+bands (also MFCCs). These filters are spaced according to the
+Mel frequency scale [9], and they are defined according to
+Hm [k] =
+⎧
+0,
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+2(k − fm −1 )
+⎪
+⎪
+,
+⎪
+⎪
+⎨ (fm +1 − fm −1 )(fm − fm −1 )
+⎪
+⎪
+2(fm +1 − k)
+⎪
+⎪
+,
+⎪
+⎪
+⎪
+(f
+−
+fm −1 )(fm − fm −1 )
+m +1
+⎪
+⎪
+⎪
+⎪
+⎪
+⎩
+0,
+
+k < fm −1
+fm −1 ≤ k < fm
+(2)
+fm ≤ k < fm +1
+k ≥ fm +1
+
+2359
+
+Fig. 3. Distribution of the frequency bands of H m [k] for a standard configuration with Fs = 16000 and F = 25.
+
+where fm is the central frequency for the mth band filter.
+Fig. 3 shows the distribution of the triangular filter bands for a
+sampling frequency (Fs ) of 16 kHz and F = 25.
+The last step is to convert the Mel frequency spectral coefficients into a cepstral domain. This operation involves the
+computation of the discrete cosine transform (DCT) of the logarithm of Emt
+ 
+	 
+
+F
+
+m k − 12 π
+Mmt =
+log(Ek t ) cos
+, m = 1, . . . , F.
+N
+k =1
+(3)
+Mmt represents the mth MFCC of the tth time frame.
+B. Feature Extraction
+Once MFCCs are calculated, features are determined from
+temporal statistics of each MFCC. Some of the most common
+used statistics are the mean and the standard deviation of the
+MFCCs, which have been successfully used in sound environment problems for hearing aids [6]. On the other hand, there is
+a type of classifiers that highly increase their performance when
+the number input features are doubled by adding quadratic terms
+of the input features [10]. This operation allows the classifiers to
+obtain separation boundaries based on quadratic combinations
+of the input features rather than only linear combinations. As it
+will be described in the next section, the set of statistics considered in this study includes both the mean and the standard
+deviation and their quadratic versions: the square of the mean
+and the variance.
+One important factor to take into account is that obtaining
+the standard deviation is more complex than determining the
+mean value. Consequently, the addition of the standard deviation leads to a possible reduction in the error rate with an
+unavoidable increase in the computational requirements. In this
+paper, we compare the use of different sets of statistics with several classifiers, and the suitability of the different sets is studied
+in terms of both error rate and computational complexity.
+
+2360
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+C. Classification Algorithms
+To analyze the performance of the proposed SEC under different classification scenarios, two different classifiers are studied:
+the least squares linear classifier (LSLC) and the multilayer
+perceptron (MLP).
+1) LSLC: Least squares classifiers are classifiers that render very good results with a very fast learning process and low
+computational complexity after their design, and therefore they
+have been selected for the experiments carried out in this paper.
+Let us consider a set of design patterns composed of L features,
+x = [x1 , x2 , . . . , xL ]T (for instance, and as we described above,
+the mean and/or standard deviation of the used MFCC measurements), where each of these patterns is assigned to one of the
+C possible classes, c = 1, . . . , C. In a linear classifier, the decision rule can be obtained looking for the class that maximizes
+a linear combination of the L features from a set of C different
+combinations given by
+yc = vc0 +
+
+L
+
+
+vcn xn , c = 1, . . . , C
+
+(4)
+
+n =1
+
+where yc is the output for the cth class, and vc0 and vcn are the
+bias and the weights calculated for the cth class.
+In the least squares approach, the weights are adjusted to
+minimize the mean square error (MSE) given by
+MSE =
+
+C
+1 
+(yc − tc )(yc − tc )T
+CP c=1
+
+(5)
+
+where yc is a vector containing the outputs of the linear combination for the cth class and P different design patterns, and tc is
+a vector containing the target values for the same class and the
+P design patterns. The minimization of the MSE is determined
+by solving the Wiener–Hopf equations [11], obtaining
+V = TQT (QQT )−1
+
+(6)
+
+where T is a C × P matrix containing the target values of the P
+design patterns and Q is a (L + 1) × P matrix containing a row
+of ones for the bias and the L features of the P design patterns.
+Note that, in the problem at hand, P corresponds to the number
+of time frames in the design set.
+It is important to highlight that one important advantage associated with the use of the LSLC is that the time required to train
+the classifier is relatively low, making it suitable to be combined
+with feature-selection algorithms.
+2) MLPs: MLPs are feedforward artificial neural network
+models that have successfully been implemented in hearing aids
+as SECs [6]. They consist of multiple layers of nodes in a directed graph, with each layer fully connected to the next one.
+Each node is a denominated neuron, and it processes data by
+applying a nonlinear function called activation function to a
+linear combination of the inputs of the node [12]. MLPs are typically designed to minimize the MSE of the outputs using backpropagation algorithms. In this study, two-layer MLPs have been
+trained using the Levenberg–Marquardt optimization algorithm
+[13]. In an MLP, each neuron of the first layer divides the input
+space into two by means of a hyperplane, and the second layer
+
+combines these hyperplanes to generate more complex boundaries. The complexity of the solutions implemented in an MLP
+can be controlled by the number of neurons.
+It is important to highlight that the two classifiers described
+in this paper are not influenced when their input patterns are
+scaled or shifted, since these kind of changes will only produce
+a corresponding change in the input weights and they will not
+alter the performance of the classifier. This property will be
+exploited in the next sections to reduce the computational cost
+of the implemented solution.
+III. ANALYSIS OF THE COMPUTATIONAL COST OF THE
+PROPOSED MFCC-BASED SEC SYSTEM
+The computational cost required by the system measured in
+number of instructions per second can be calculated as
+ F
+
+
+2Fs 
+2Fs F
+2Fs
+CT =
+CS +
+CC
+CM (m) +
+(7)
+N
+N
+T
+N
+T
+m =1
+where CM (m) is the computational cost associated with the
+computation of the mth MFCC, CS is the computational cost
+associated with the evaluation of the statistics of each MFCC,
+CC is the computational cost associated with the classifier, and
+T is the number of time frames used to calculate the statistics
+(i.e., the SEC takes a decision every T frames).
+In this section, we analyze the computation of the different
+steps to find the specific points that highly increase the computational complexity of SEC, proposing solutions to overcome
+each individual problem.
+A. Computational Cost of the MFCCs
+To compute the MFCCs in a hearing aid, we start from the
+squared values of the STFT. These values are usually available
+since they are already calculated by the multiband compression expansion algorithm used to adapt sounds to the hearing
+losses of the patient. In a typical hearing aid architecture, the
+power consumption is optimized including specific coprocessors that implement the DFT-based analysis and synthesis filterbanks [14]. Those filterbanks have a fixed architecture, although
+a reconfigurable filterbank to improve the hearing ability has
+been recently proposed in [15]. Since the DFT-based analysis
+filterbank is not implemented in the main processor, the computational complexity associated with the evaluation of the terms
+|Xt [k]|2 will not be considered in this study.
+The computational cost of the evaluation of the MFCCs can be
+divided as follows: CM (m) = CF (m) + CL + CD /F , where
+CF (m) is the computational cost associated with the evaluation
+of the Mel filter, CL is the computational cost associated with
+the evaluation of the logarithm, and CD is the computational
+cost associated with the evaluation of the DCT.
+1) CF (m): The computational cost associated with the evaluation of the Mel scale triangular filters is based on a number of instructions that must be taken into account. Theoretically, the number of instructions required to evaluate
+Emt in (1) is proportional to the product F · (N/2 + 1),
+F being the number of filterbanks and N the frame length.
+
+GIL-PITA et al.: COMPUTATIONALLY EFFICIENT SOUND ENVIRONMENT CLASSIFIER FOR HEARING AIDS
+
+Fortunately, since most of the terms of Hm [k] are zero,
+the number of operations is reduced. It is important to
+highlight that in a typical hearing aid DSP architecture,
+the inputs are sampled using B bits, which corresponds
+to the word size. Thus, |Xt [k]|2 will ideally have 2B bits,
+which makes the multiplication by the triangular filters
+not very efficient, making necessary the use of floating
+point operations for such multiplications in most of the
+cases. This process in pseudoassembler language can be
+described as follows:
+a) Load the direction of the first term of the Mel scale
+filter in the pointer register, and the length of the Mel
+scale filter in the loop counter (two instructions).
+b) Load the lower and higher parts of |Xt [k]|2 in the
+accumulator (two instructions).
+c) Load the exponent of Hm [k] in the exponent register
+and conveniently shift the accumulator (two instructions).
+d) Load in the multiplier the 16 bits of the resulting accumulator, load the mantissa of Hm [k] in the multiplier, and load the lower and higher part of the
+accumulated terms of Emt in the accumulator (four
+instructions).
+e) Multiply, accumulate the lower and higher accumulated terms of |Xt [k]|2 , and store the resulting Emt
+in memory (four instructions).
+f) Loop to second step until all the terms of the Mel
+scale filter are obtained (one instruction).
+This implementation assumes CF (m) = 2 + 13 Lm assembler operations per Mel scale filter, where Lm is the number of
+nonzero coefficients of Hm [k].
+A possible alternative that can be easily implemented consists
+of using uniform filters instead of triangular filters. Bearing this
+in mind, we propose the next filter implementation
+
+1, fstart (m) ≤ k < fstop (m)
+(8)
+Hm [k] =
+0,
+Other case
+where fstart (m) and fstop (m) delimit the frequency band, typically valuing fstart (m) = fm −1 and fstop (m) = fm +1 . In this
+case, the terms Hm [k] are either 0 or 1, removing the products
+from the process and making Emt easily obtainable. The proposed alternative, in pseudoassembler language, is described as
+follows:
+a) Load the direction of the first term of the Mel scale filter
+in the pointer register, and load the length of the Mel scale
+filter in the loop counter, and clear the accumulator (three
+instructions).
+b) Load the low and high parts of |Xt[k]|2 in the secondary
+accumulator register and accumulate (three instructions).
+c) Repeat step 2 until all the terms of the Mel scale filter are
+obtained (one instruction).
+This version with uniform filters assumes CF (m) = 3 +
+4Lm assembler operations per Mel scale filter, which is a notable
+lower value in comparison with the previous case.
+2) CL : Concerning the logarithms, they are implemented
+in a typical DSP architecture using a tabulated
+
+2361
+
+implementation. This kind of implementation typically
+requires CL = 9 assembler instructions. The process of
+determining the logarithm is described as follows:
+a) Calculate the position of the most significant bit
+(MSB) of the accumulator, and shift the accumulator
+using the previous MSB position (two instructions).
+b) Shift the accumulator again in order to select the
+bits used to index in the table, and add the starting
+address of the table (two instructions).
+c) Copy the resulting address value to a pointer register, load the exponent in the accumulator and shift
+the exponent taking into account the desired precision of the logarithm (three instructions).
+d) Add the log of the mantissa from the table and store
+the result in memory (two instructions).
+3) CD : The last operation required to determine the MFCCs
+consists in the evaluation of the DCT, which is evaluated
+by means of a set of F linear combinations of F filter
+banks using (3). This supposes F 2 MAC operations for
+each time frame (CD = F (8 + F ) total instructions).
+In the particular case of using the mean value of the
+MFCCs as a feature with a linear classifier or an MLP,
+the use of the DCT can be omitted, since the performance
+of the classifier without the DCT is completely the same.
+The reason is the following. The evaluation of the mean
+value supposes a linear combination of the DCT, and the
+classifier implements linear combinations of these linear
+combinations. Since the weights of the linear classifier
+are determined to minimize the MSE, the use of the DCT
+supposes a change in the values of the weights vcn but it
+will not alter the values of the linear combination of the
+classifiers since a linear combination of a linear combination is another linear combination. Therefore, the final
+error of this particular classification scheme (mean of the
+MFCCs and linear classifier) is completely independent
+of the use of the DCT in the feature extraction process.
+Due to this fact, the next tailored version of the MFCCs
+is proposed
+
+= log(Emt ).
+Mmt
+
+(9)
+
+In the case of a more complex classifier, or in case of the
+use of the standard deviation of the features, the error rate
+might vary with the suppression of the DCT block, but
+the changes in terms of error rate may not compensate the
+drawback of the added computational complexity. This
+affirmation will be supported by the results of the experiments carried out in this study.
+B. Evaluation of the Statistics
+In addition to the mean and the standard deviation of the
+MFCCs, which have been widely used in the literature, we propose to increment the number of features by taking the squares
+of these standard features. This gives us the mean, the square
+of the mean, the standard deviation and the variance. Note that
+the variance can be determined as a linear combination of the
+square of the mean and the mean of the squared values. The
+
+2362
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+TABLE I
+STATISTICS SETS
+Set
+
+Statistics
+
+S1
+
+t = 1 M mt
+
+2
+S 1 ∪ Tt= 1 M mt
+2
+
+T
+S1 ∪
+t = 1 M mt
+2
+
+T
+S2 ∪
+t = 1 M mt
+
+S2
+S3
+S4
+S5
+
+Blocks
+
+T
+
+
+S4 ∪
+
+T
+
+T
+t=1
+
+2 −
+M mt
+
+
+
+T
+t=1
+
+Cost
+
+AE
+
+CS = 8
+
+ACE
+
+C S = 17
+
+ABE
+
+C S = 12
+
+ABCE
+
+C S = 21
+
+ABCDE
+
+C S = 39
+
+2
+M mt
+
+computational cost associated with the computation of the proposed statistics is divided in operation blocks, which are described below.
+1) Evaluation of the Sum: It requires loading the address of
+the terms Mmt in a pointer register, loading the first term
+of Mmt
+Mmt in the accumulator, adding the next terms
+in the accumulator, and storing the resulting t Mmt
+in memory. All these operations require a total of seven
+assembler instructions.
+2) Evaluation of the Square of the Sum: This operation implies four instructions, and consists of copying the accumulator
+to both multipliers, multiplying, and storing
+
+( t Mmt )2 in memory.
+3) Evaluation of the Squared Sum: It requires loading the
+address of the terms Mmt in a pointer register, clearing
+the accumulator, loading the first term Mmt in both multipliers, multiplying, adding and loading the next terms of
+Mmt in both multipliers,adding the last multiplication,
+2
+in memory. The whole
+and storing the resulting t Mmt
+process requires a total of nine instructions.
+4) Evaluation of T Times the Standard Deviation: After
+carrying out steps A, B and C, it typically requires 18
+more
+It consists of first obtaining the term
+ instructions.
+2
+− ( t Mmt )2 , and then determining the
+T Tt=1 Mmt
+square root. It is important to highlight that in order to
+speed up the process, it is 
+convenient that the value of T is
+2
+can be implemented
+a power of two, so that T Tt=1 Mmt
+using a shift operation.
+5) At last, we need to loop for the next band, which requires
+an additional instruction.
+Different sets of statistics are evaluated with the proposed
+classifiers. The five proposed statistics sets are described in
+Table I, showing the operation blocks necessary to calculate
+each set and the associated computational cost (CS ).
+C. Computational Cost of the Proposed Classifiers
+Two classifiers are considered in this paper: the LSLC and the
+MLP. In this section, we analyze the computational cost (CC )
+for both classification schemas.
+1) LSLC: The first classifier is implemented comparing the
+output of C linear combinations of the features. To implement
+it, we have quantized the bias using floating point format and
+the weights using a fixed point format. Empirically, we have
+
+observed that with this configuration there is no significant loss
+in the performance of the classifier due to the quantization of the
+weights. The operations necessary to implement this classifier,
+once it has been designed offline, are the following:
+1) Load the address of the weights of the linear combination,
+and the address of the features to be linearly combined
+(four instructions).
+2) Load the mantissa of the bias and shift it properly in the
+accumulator (two instructions).
+3) Multiply and accumulate L times (L + 1 instructions).
+4) Store the resulting linear combination (one instruction).
+Hence, for a linear combination, the required number of instructions is 8 + L, and taking into account that we have to evaluate C linear combinations and to compare the C outputs, where
+each comparison requires C + 3 instructions, the total number
+of instructions for this case is CC = C(8 + L) + C + 3. Considering that Ns is the number of statistics evaluated per MFCC
+(i.e., L = F Ns ), the computational cost of the linear classifier
+can be rewritten as CCL S L C = 9C + 3 + F CNs . Therefore, the
+total computational cost of the SEC based on the linear classifier
+can be expressed using (10).
+
+
+
+F 
+
++
+CN
+2F
+C
+s
+S
+s
+9C + 3 +
+CM (m) +
+CTLSLC =
+.
+N
+T
+m =1
+(10)
+We can see that there is a high dependence of the number of
+instructions per second with the number of Mel frequency bands:
+replacing and simplifying the terms in (7), we can rewrite the
+total number of instructions for an LSLC as
+LSLC
++
+CTLSLC = Cbase
+
+F
+
+
+LSLC
+Cband
+(m)
+
+(11)
+
+m =1
+
+where
+LSLC
+=
+Cbase
+
+2fs
+(9C + 3)
+N
+
+(12)
+
+and
+LSLC
+Cband
+(m) =
+
+2fs
+(T CM (m) + CS + CNs ).
+NT
+
+(13)
+
+2) MLP: In this case, we have implemented each neuron
+using a similar scheme as the one proposed in [6], where the
+weights of each neuron have been implemented using a block
+floating point format for each group of weights. Since the different statistics have different scales, in the case of MLPs the use
+of a unique block floating point introduces a considerable deviation in the implementation. Thus, features have been grouped
+in Ns = L/F groups as a function of the evaluated statistic, and
+a different block floating point configuration has been used in
+each group. The activation function has been tabulated in memory. With this implementation, and after designing the classifier
+offline, the required operations are:
+1) Load the address of the designed weights, and the address
+of the features to be combined (four instructions).
+2) Load the mantissa of the bias and shift it properly in the
+accumulator (two instructions).
+3) Multiply and accumulate F times (F + 1 instructions).
+
+GIL-PITA et al.: COMPUTATIONALLY EFFICIENT SOUND ENVIRONMENT CLASSIFIER FOR HEARING AIDS
+
+4) Shift the accumulator properly in order to tackle with the
+changes in the block exponent from one group of weights
+to the other (one instruction).
+5) Repeat steps 3 and 4 Ns = L/F times in order to consider
+all the features (one instruction).
+6) Apply the tabulated tan-sigmoid function to the result
+using a table (five instructions).
+7) Store the resulting output of the neuron (one instruction).
+According to this, the computational cost of the MLP with K
+neurons in the hidden layer is
+CCM LP = K(12 + (F + 2)Ns ) + C(8 + K) + C + 3. (14)
+Introducing (14) into (7) and simplifying, the total number of
+instructions per second of an SEC based on an MLP classifier
+can be obtained using the next expression
+M LP
++
+CTM LP = Cbase
+
+F
+
+
+M LP
+Cband
+(m)
+
+(15)
+
+m =1
+
+where now
+M LP
+Cbase
+=
+
+2fs
+(K(12 + 2Ns + C) + 9C + 3)
+N
+
+(16)
+
+2fs
+(T CM (m) + CS + KNs ) .
+NT
+
+(17)
+
+and
+M LP
+Cband
+(m) =
+
+IV. EVOLVED FREQUENCY LOG-ENERGY
+COEFFICIENTS (EFLEC)
+In the previous sections, we have carried out a thorough analysis of the computational cost associated with an MFCC-based
+SEC, finding that most of the computational cost of the system
+depends on the number of frequency bands F [see (11) and
+(15)]. Furthermore, we have proposed different sets of features
+for classification and computed the associated computational
+cost. Although we have already proposed some solutions to
+reduce the computational cost of the system (e.g., the use of
+uniform filters instead of triangular filters and the suppression
+of the DCT in the MFCC extraction stage), the objective now
+is to further reduce this computational cost by optimizing the
+uniform filters Hm [k] proposed in (8) to calculate the MFCCs,
+filters that are defined by their limit frequencies fstart (m) and
+fstop (m). After this optimization, the obtained frequency bands
+are no longer the Mel frequency bands and the obtained coefficients are denominated EFLEC.
+Let us define fm as a two-element vector containing the
+limit frequencies for the mth band of the filterbank, i.e., fm =
+[fstart (m), fstop (m)]T , and F = [f1 , . . . , fF ] a matrix containing all the limit frequencies for F channels. The matrix F completely defines the filterbank: the limits and the number of the
+bands. The optimization problem to solve aims at minimizing
+the MSE of the classifier establishing a constraint in the computational cost, according to
+min(MSE), CT < MaxMIPS · 10−6
+F
+
+(18)
+
+2363
+
+where MaxMIPS is the allowed maximum number of instructions per second (in MIPS), which is given by (11) in the case
+of LSLC and by (15) in the case of MLP.
+The large number of proposed features that appear considering all the possible frequency bands (F ) makes an exhaustive
+search to find the exact solution of (18) unfeasible. However,
+heuristics optimization methods are useful to obtain a good approximation to the global optimum of a given function. Evolutionary algorithms are popular iterative algorithms for heuristic
+optimization, suitable to solve complex optimization problems
+with a large space of candidate solutions. This type of algorithm
+is inspired by natural evolution laws such as selection, mutation
+and crossover, to iteratively search for the optimum solution
+from the solutions obtained in the previous iterations [16]. They
+have three main parts, which are defined in each specific problem: the generation of the candidate solutions of the population,
+the evaluation of a fitness function, and the evolution of the
+population.
+In this study, a tailored evolutionary algorithm has been implemented. It searches for the best coefficients filterbank trying
+to minimize the MSE of the classifier (LSLC or MLP), at the
+same time that limits the number of instructions per second
+in order to control the computational cost (MaxMIPS). The
+proposed selection algorithm is run several times changing the
+value of MaxMIPS, obtaining different combinations of frequency bands, statistics, classifiers, and error rates in each case.
+Note that the effective number of selected features by the algorithm is L = F · Ns , and this value should be low to guarantee
+that the total MIPS is lower than MaxMIPS.
+A. Proposed Feature-Selection Algorithm with Constrained
+Computational Cost
+The evolutionary algorithm designed to approximate the solution to the optimization problem proposed in (18) is described in
+this section. Each candidate solution of the population represents
+a different filterbank F, and the fitness function corresponds to
+the MSE of the classifier (LSLC or MLP) obtained in the design
+set. The complete steps of the optimization algorithm are given
+next:
+1) The design patterns for a given statistics set (see Table I)
+and all the possible frequency bands (i.e., limit frequencies) are generated and stored in memory. The total
+number of possible frequency bands is Ft = (N/2 + 1)
+(N/2 + 2)/2, which corresponds to the total number of
+valid combinations of fstart (m) and fstop (m).
+2) A population of Np candidate solutions is generated. Each
+solution contains a subset of selected frequency bands,
+which is represented by a random binary vector of length
+Ft containing a value of 1 in the positions of the indexes
+of the selected features and 0 in the remaining positions.
+The total number of selected frequency bands F and their
+indexes are random.
+3) The candidates of the population are validated to fulfill
+with two restrictions: Their associated computational cost
+is lower than the limit MaxMIPS (CT < MaxMIPS·10−6 ),
+and the filterbank has the maximum possible number of
+
+2364
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+assigned frequency bands (F ). To fulfill with the restrictions, the candidates are modified to randomly increase or
+decrease their number of frequency bands.
+4) The fitness function is evaluated for each candidate solution of the population: The classifier is designed with
+the subset of features contained in each candidate and the
+MSE in the design set is calculated. The obtained MSE
+value is used as ranking to determine the best solutions
+from the population.
+5) After evaluating the fitness function of each candidate
+solution of the population, a selection process is applied.
+It consists of selecting the best Ps · Np solutions from the
+population (Ps < 1). These elite individuals are those that
+will survive to the next generation.
+6) Breed the new generation by recombining the parents by
+using a crossover operator. The remaining (1 − Ps ) · Np
+solutions of the new generation are then generated by
+random crossovers of the best candidates. The crossover
+operator implemented a uniform crossover (UX) operator
+with a mixing ratio of 0.5.
+7) Then, mutations are applied to the whole new population,
+except to the best solution, which is kept invariable to
+ensure convergence. Mutations consist in changing the
+selection state of one element per candidate. The position
+of the mutated element is randomly selected.
+8) This process is repeated from step 3 until Ng generations
+are evaluated. Since the best solution of each iteration is
+not modified, the best solution obtained in the last iteration
+is considered the best solution. Finally, the classification
+and test error rates are calculated.
+9) Best results are selected according to the lowest MSE
+value over the design set [see (20)].
+To implement the algorithm, it is necessary that the design
+time (the time required to train the classifier) is low, since we
+are going to require the evaluation of Np · Ng candidate subsets. Thus, this makes the use of MLPs unfeasible, since their
+design time uses to be high. Therefore, in the case of the MLPs,
+the feature selection is carried out using a linear classifier to
+obtain the subset of frequency bands, and once the evolutionary
+algorithm finishes, we train the MLP with the resulting bands.
+This whole algorithm is executed five runs for each combination of statistics and each kind of classifier (linear classifier and
+MLPs with five, ten, 15, and 20 hidden layers), totalling 5 × 5 ×
+5 executions. The best MSE value over the design set obtained
+in the different executions is selected as the best solution.
+B. Optimizing the MSE Computation in an LSLC
+To speed up the design process, linear classifiers are used
+along the band-selection process. Thus, in this section, we focus on the design time of the linear classifiers, to improve the
+implementation of the proposed evolutionary algorithm.
+Let us now suppose that for a given set of statistics, the matrix
+Q contains the input patterns for a subset of frequency bands
+(F). The cost related to the computation of the MSE value is
+highly affected by the huge amount of data contained in the
+matrix Q (size (L + 1)xP ), whose manipulation notably slows
+
+down the algorithm that searches for the best subset. However,
+it is possible to avoid the use of Q to calculate the MSE of each
+candidate subset, notably reducing the computation time and
+required memory of the evolutionary algorithm.
+In an LSLC, the weights are calculated according to (6). The
+operational cost of the multiplication T · QT is O(C(L + 1)P 2 )
+and the operational cost of Q · QT is O((L + 1)2 P 2 ), where P
+tends to be a very large value (P is the number of patterns in
+the database). However, the expression to calculate the weight
+vector in (6) can be rewritten as V = AB−1 , where A = TQT
+and B = QQT . Introducing these two expressions in (5), and
+taking into account that Y = VQ, we obtain
+MSE =
+
+C
+1 
+tc tc T − A[c; all]B−1 A[c; all]T
+CP c=1
+
+(19)
+
+where A[c; all] is the submatrix of A selecting the cth row and
+all the columns.
+Let us now consider that s is a vector of length L containing
+the indexes of the features extracted from the selected frequency
+bands. Then, determining the MSE of the given subset of features s can be carried out using (20).
+MSE =
+
+C
+1  T
+tc tc − A[c; s]B[s; s]−1 A[c; s]T .
+CP c=1
+
+(20)
+
+According to this, for a determined subset s of L features, the
+submatrixes A[c; s] and B[s; s] are indexed from the precalculated matrixes A and B. Taking into account that the term
+tc · tTc is constant for all subsets, the cost of computing the
+MSE for this subset is now independent from P , the number
+of available design patterns. Consequently, the computation of
+the MSE with (20) instead of (5) drastically reduces the associated computational cost, thus also implying an important
+reduction in the computation time of the proposed optimization
+algorithm.
+V. EXPERIMENTAL WORK
+A. Description of the Experiments
+The design of a suitable database plays a vital role in any
+kind of problem based on supervised machine learning. In this
+study, the database generated for the evaluation of the proposed
+algorithms consists of a total of 3000 s of audio, including
+samples of the three considered classes (C = 3), which are the
+following:
+1) C1: Speech. Includes speech in quiet, speech in noise
+and speech in music. The original speech files are selected from the database proposed in [17]. The files were
+recorded by digitally sampling FM radio stations, using a
+variety of stations, content styles and levels, and contains
+samples from both male and female speakers. Recordings
+with low speech quality (band-limited and distorted) have
+been manually removed from the database. The sound
+files present different input levels, with a range of 30 dB
+between the lowest and the highest, which allows us to
+test the robustness of the classification system against different sound input levels. A total of 333 s of speech have
+
+GIL-PITA et al.: COMPUTATIONALLY EFFICIENT SOUND ENVIRONMENT CLASSIFIER FOR HEARING AIDS
+
+been mixed with music and other 333 s with noise. A
+determined speech file is only included one time in the
+database. The mixtures have been artificially generated
+with varying degrees of reverberation at different signalto-noise ratios ranging from 0 to 10 dB.
+2) C2: Music. The vocal music and instrumental music files
+are also selected from the database in [17]. The database
+includes samples of jazz, pop, country, salsa, reggae, classical, various nonwestern styles, various sorts of rock, and
+new age music, both with and without vocals.
+3) C3: Noise. Files are selected from a database, which
+contains both stationary and nonstationary noise. The
+database includes sounds from the following environments: aircraft, bus, cafe, car, kindergarten, living room,
+nature, school, shop, sports, traffic, train, and train station.
+All audio files are monophonic, and were sampled with a
+sampling frequency of Fs = 16 kHz and 16 bits per sample.
+The database was manually labeled, and consists of a total of
+1000 s of speech, 1000 s of music, and 1000 s of noise.
+For designing and testing, ten-fold cross-validation has been
+used. The database has been randomly split into ten different
+folds, ensuring that the relative proportion of samples of each
+class is preserved for each set and that each original file has only
+been included in a single fold.
+Each file was processed using the hearing aid simulator described in [18] without feedback. The features were computed
+from the output of the weighted overlap-add (WOLA) filterbank
+with N = 128 DFT points and analysis and synthesis window
+lengths of 128 samples. According to this, the time-frequency
+decomposition is performed with 65 frequency bands. Concerning the architecture, the simulator has been configured for
+a 16-bit word-length Harvard Architecture with an MAC unit
+that multiplies 16-bit registers and stores the result in a 40-bit
+accumulator.
+To study the effects of the limited computational capability
+in a classification scenario in which a small time scale is required like, for example, in speech enhancement applications,
+the classifiers were configured for taking a decision with time
+slots of 16 ms (T = 4). The results we have illustrated show
+the average probability of classification error for the test set and
+the computational complexity of the considered system in percentage of computational load for a five MIPS standard hearing
+aid DSP. The probability of classification error represents the
+average number of time slots that are misclassified in the test
+set.
+With the aim of carrying out an experimental validation of
+the proposals, several experiments have been carried out under
+different scenarios. In these experiments, the objective is to
+determine the effectiveness of the proposed approximations over
+both the error rate and the computational cost. The parameters
+of the group of experiments are:
+1) Statistics: To evaluate the importance of the selected
+statistics of the features, five different choices have been
+considered and compared, which are described in Table I.
+Thus, different combinations ranging from the exclusive
+use of the mean value of the different features (set S1 )
+to the use of both the mean and the standard deviation of
+
+2365
+
+Fig. 4. Test error rate and DSP load, in percentage, for an SEC that uses
+25-bands standard MFCCs (red triangles), 12 first standards MFCCs (green
+circles), 25-bands MFCCs with triangular filters without DCT block (dark blue
+diamonds), 25-bands MFCCs with uniform filters without DCT block (dark
+green squares), and the proposed EFLEC-based filterbank (black points).
+
+the features and their squared versions (set S5 ) have been
+used as input vector for the corresponding classifiers.
+2) Classifiers: Two different classifiers have been evaluated
+for each feature and statistic combination: the LSLC and
+a two-layer MLP. The MLPs have been configured with
+K = 5, K = 10, K = 15, and K = 20 tan-sigmoidal
+neurons in the hidden layer and three linear neurons in
+the output layer (corresponding to the three classes considered in the experiments).
+3) MaxMIPS: The values of MaxMIPS considered for the
+experiments are 0.05, 0.10, 0.15, 0.25, and 0.50, which
+correspond to CPU load of 1%, 2%, 3%, 5%, and 10% for
+the considered DSP architecture.
+Finally, the parameters of the optimization algorithm (population size, number of generations, and number of parents)
+have been chosen to obtain a good tradeoff between design time
+and performance, considering the values of MaxMIPS given in
+the experiments. These values are Np = 4096, Ng = 100, and
+Ps = 0.1.
+B. Results
+For comparison purposes, the performance of the proposed
+EFLEC-based SEC system is compared with the performance
+of the system when it uses the following filterbanks: 25-bands
+standard MFCCs; 25-bands MFCCs with both triangular and
+uniform filters, removing the DCT block in both cases; and first
+12 MFCCs as it was proposed in [8]. All the aforementioned
+cases are evaluated with the different classifiers and statistics
+sets described in the previous section.
+Fig. 4 shows the best results, among the different classifiers
+and statistics sets, obtained with each filterbank. As we can observe, standard MFCC-based features (red triangles) yield the
+worst results in terms of computational cost. On the other hand,
+
+2366
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 5. Test error rate and DSP load for the proposed EFLEC-based SEC
+system, as a function of the selected statistics of the feature set.
+
+the use of just the first 12 MFCCs (green circles) produces a
+light reduction in the DSP load, but in most of the cases with a
+consequent increment in the average error rates. As it was expected, we can deduce that the results achieved with 25 standard
+MFCCs and with the removal of the DCT block are similar in
+terms of error rate. As we stated, the DCT block practically does
+not alter the classifier performance and therefore it can be removed with a considerable reduction in the computational cost.
+The removal of the DCT block yields an average reduction of
+27.96% of the DSP load (which is quite important to minimize
+power consumption) with approximately the same test error.
+Concerning the use of uniform bands in the MFCC extraction
+(dark green squares), we can see that they provide an important
+reduction in the computational cost with comparable results in
+terms of error rate. It practically divides the computational cost
+by two (average reduction of 49.35%) when compared with the
+similar case with triangular filter bands (dark blue diamonds).
+Finally, the results obtained by the proposed EFLEC-based system are represented using black circles in Fig. 4. Each point
+represents the best solution for a given MaxMIPS value. We
+can clearly observe that the use of the proposed band selection
+algorithm achieves the best results in terms of both error rate
+and number of instructions per second.
+To go deeper in the analysis of the proposed EFLEC-based
+SEC system, Fig. 5 shows the best results obtained for the
+different sets of statistics studied in the paper and described in
+Table I. As we can see, the set S5 obtains very good results for
+all the considered MaxMIPS values. It is important to highlight
+that the number of selected frequency bands might be different
+for any of the cases represented in the figure. Thus, the use of
+a reduced set of statistics, which implies a higher number of
+selected frequency bands, does not render good results for any
+of the cases considered in this paper.
+The effects of the classifier in the system performance is
+studied in Fig. 6, which shows the results obtained by the proposed algorithm using the set of statistics S5 with the different
+
+Fig. 6. Test error rate and DSP load for the proposed EFLEC-based SEC
+system, as a function of the selected classifier for the feature set S 5 .
+
+TABLE II
+BEST RESULTS OBTAINED BY THE PROPOSED OPTIMIZATION FOR DIFFERENT
+VALUES OF MAXMIPS
+MaxMIPS
+DSP load (%)
+
+0.05
+1
+
+0.1
+2
+
+0.15
+3
+
+0.25
+5
+
+0.50
+10
+
+Test error (%)
+Quant. test error (%)
+Quant. train error (%)
+Neurons - K
+Freq. bands - F
+Prog. mem. (words)
+Data mem. (words)
+
+23.70
+23.73
+23.23
+5
+4
+72
+135
+
+18.49
+18.49
+17.96
+10
+6
+72
+331
+
+16.85
+16.96
+16.08
+15
+8
+72
+607
+
+15.54
+15.78
+14.71
+20
+11
+72
+1051
+
+14.21
+14.31
+12.46
+20
+24
+72
+2195
+
+classifiers considered in this paper. As we can appreciate, the
+LSLC never obtains the best result for all the cases considered
+in the paper. The most suitable number of hidden neurons in the
+case of the MLPs seems to be related with the DSP load, being
+proportional to the computational complexity.
+Table II shows a detailed description of the best results obtained by the proposed EFLEC-based SEC system, which are
+the results included in Fig. 4 (black points). The table contains
+the test error rate without considering quantization in the implementation (double floating point precision) and the design and
+test error rates of the system when 16-bit quantization is considered. It also contains the best number of selected hidden neurons
+in the MLP (K), the number of selected frequency bands (F ),
+the amount of required program memory measured in words,
+and the amount of data memory required for the implementation
+in the hearing aid. The following points can be highlighted from
+the analysis of the results presented in this table:
+1) The system generalizes quite well for the lower MaxMIPS
+values, since the test and design errors are quite similar.
+There seems to be more problems in the generalization for
+the higher MaxMIPS values, since the design error rate
+is slightly lower than the test error rate. This fact could
+imply that using a larger amount of training data might
+
+GIL-PITA et al.: COMPUTATIONALLY EFFICIENT SOUND ENVIRONMENT CLASSIFIER FOR HEARING AIDS
+
+Fig. 7.
+
+Selected frequency bands for the case of MaxMIPS = 0.10.
+
+be suitable for obtaining better results in the case of large
+MaxMIPS values.
+2) The quantization of the implementation of the proposed
+system does not practically affect the performance, since
+the values of test error rate with and without quantification
+are quite similar.
+3) Both the number of hidden neurons and the number frequency bands selected by the algorithm seem to be proportional to the MaxMIPS value.
+4) The amount of required program memory in the hearing
+aid is quite low, and independent of the MaxMIPS value.
+On the other hand, the amount of data memory required
+proportionally increases with the value of MaxMIPS.
+5) Concerning the levels of significance, for all the cases
+considered in Table II the differences in terms of quantized test error over the different k-folds are statistically
+significant (in all student’s t tests, α < 0.001).
+Finally, concerning the selected frequency bands, Figs. 7
+and 8 show the frequency bands selected in the cases of
+MaxMIPS = 0.10 and MaxMIPS = 0.50. As we can appreciate, the distribution of the frequency bands does not follow
+an exact Mel frequency scale, giving more importance (more
+narrow bands) to the high frequency values than the standard
+configuration (see Fig. 3). This fact can be caused by the need
+of discriminating noise and music from speech, which can be
+easily distinguished by analyzing the higher frequencies where
+the speech energy is low.
+VI. CONCLUSION
+This paper has been motivated by the fact that the implementation of signal processing algorithms in hearing aids is strongly
+constrained by the low computational resources available in the
+DSP of such devices. In this respect, the objective of this paper
+has been the design of a computationally efficient SEC that can
+be implemented with the available resources in a commercial
+hearing aid.
+
+Fig. 8.
+
+2367
+
+Selected frequency bands for the case of MaxMIPS = 0.50.
+
+On the one hand, we have proposed a set of approximations
+in the computation of the MFCC that notably reduce the computational cost in comparison with the use of standard MFCCs.
+The obtained results have demonstrated that both the suppression of the DCT block and the use of uniform frequency bands
+instead of triangular ones in the filterbank do not only reduce the
+computational cost but also reduce (a little) the classification error rate. On the other hand, an optimization algorithm has been
+proposed to design the uniform filterbank used to compute the
+coefficients. The coefficients obtained by the optimized filterbank are labeled as EFLEC. The performance of the proposed
+EFLEC-based SEC system shows a balance between keeping
+error classification probability within low values (in order to not
+disturb the user’s comfort) and achieving this by using a small
+number of instructions per second. The proposed system can be
+undoubtedly implemented in state-of-the-art hearing aids.
+Finally, it is important to highlight that in a real classification
+system the classification evidence can be accumulated across
+the time for achieving lower error rates. This fact motivates a
+study of the tradeoff between the selected time scale, the integration of decision for consecutive time slots, the performance
+of the final system and the required computational complexity.
+This analysis is out of the scope of this paper, since our aim is
+not to propose a particular classification system, which must be
+tuned for the considered hearing aid application. Our aim is to
+illustrate a set of tools and strategies that can be used for determining the way that MFFC-inspired classifiers can efficiently be
+implemented in real time for sound environment classification
+tasks with limited computational capabilities.
+REFERENCES
+[1] V. Hamacher et al., “Signal processing in high-end hearing aids: State of
+the art, challenges, and future trends,” EURASIP J. Appl. Signal Process.,
+vol. 2005, pp. 2915–2929, Jan. 2005.
+[2] M. Buchler et al., “Sound classification in hearing aids inspired by auditory
+scene analysis,” EURASIP J. Appl. Signal Process., vol. 2005, pp. 2991–
+3002, Jan. 2005.
+
+2368
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+[3] L. Min et al., “Perceptual time-frequency subtraction algorithm for noise
+reduction in hearing aids,” IEEE Trans. Biomed. Eng., vol. 48, no. 9,
+pp. 979–988, Sep. 2001.
+[4] J. B. Maj et al., “SVD-based optimal filtering for noise reduction in
+dual microphone hearing aids: A real time implementation and perceptual
+evaluation,” IEEE Trans. Biomed. Eng., vol. 52, no. 9, pp. 1563–1573,
+Sep. 2005.
+[5] M. Marzinzik, “Noise reduction schemes for digital hearing aids and their
+use for hearing impaired,” Ph.D. dissertation, Physics Department, Carl
+von Ossietzky Univ., Oldenburg, Germany, 2000.
+[6] R. Gil-Pita et al., “Analysis of the effects of finite precision in neural network-based sound classifiers for digital hearing aids,” EURASIP
+J. Adv. Signal Process., vol. 2009, pp. 1–12, 2009.
+[7] R. Dong et al., “Low-power implementation of an HMM-based sound
+environment classification algorithm for hearing aid application,” in Proc.
+15th Eur. Signal Process. Conf., 2007, pp. 1635–1638.
+[8] J. Xiang et al., “Evaluation of sound classification algorithms for hearing
+aid applications,” in Proc. IEEE Int. Conf. Acoust. Speech Signal Process.,
+2010, pp. 185–188.
+[9] S. S. Stevens et al., “A scale for the measurement of the psychological
+magnitude pitch,” J. Acoust. Soc. Amer., vol. 8, no. 3, pp. 185–190, 1937.
+[10] E. B. Kosmatopoulos et al., “High-order neural network structures for
+identification of dynamical systems,” IEEE Trans. Neural Netw., vol. 6,
+no. 2, pp. 422–431, Mar. 1995.
+[11] J. Ye, “Least squares linear discriminant analysis,” in Proc. 24th Int. Conf.
+Mach. Learn., 2007, pp. 1087–1093.
+[12] C. M. Bishop and N. M. Nasrabadi, Pattern Recognition and Machine
+Learning. New York, NY, USA: Springer, 2006.
+[13] D. W. Marquardt, “An algorithm for least-squares estimation of nonlinear parameters,” J. Soc. Ind. Appl. Math., vol. 11, no. 2, pp. 431–441,
+1963.
+[14] L. Cuadra et al., “Influence of acoustic feedback on the learning strategies of neural network-based sound classifiers in digital hearing aids,”
+EURASIP J. Adv. Signal Process., vol. 2009, pp. 1–10, Jan. 2009.
+[15] W. Ying and L. Debao, “A reconfigurable digital filterbank for hearing-aid
+systems with a variety of sound wave decomposition plans,” IEEE Trans.
+Biomed. Eng., vol. 60, no. 6, pp. 1628–1635, Jun. 2013.
+[16] R. L. Haupt and S. E. Haupt, Practical Genetic Algorithms. New York,
+NY, USA: Wiley, 2004.
+[17] E. Scheirer and M. Slaney, “Construction and evaluation of a robust multifeature speech/music discriminator,” in Proc. IEEE Int. Conf. Acoust.
+Speech Signal Process., 1997, pp. 1331–1334.
+[18] R. Vicen-Bueno et al., “A hearing aid simulator to test adaptive signal
+processing algorithms,” in Proc. IEEE Int. Symp. Intell. Signal Process.,
+2007, pp. 619–624.
+
+Roberto Gil-Pita (S’02–A’05–M’09) received the
+M. Eng. degree in telecommunication engineering
+and the Ph.D.(Hons.) degree in electrical engineering
+from the University of Alcalá, Madrid, Spain, in 2001
+and 2006, respectively.
+Since 2001, he has been working at the Signal Theory and Communications Department, Applied Signal Processing Research Group, University of Alcalá.
+His research interests include pattern recognition and
+audio signal processing, focusing on sound source
+separation, hearing aids, and emotional speech. In
+these fields, he is the author of more than 20 journal papers included in the Journal Citation Report, and around 70 conference papers. He is also the Project
+Manager of several projects with public and private fundings, including the
+2-year ATREC project for the real-time analysis of combat stress, funded by the
+Spanish Ministry of Defense.
+
+David Ayllón (GS’11–M’13) received the B.Sc.
+(Hons.) degree in telecommunication engineering
+from the University of Valladolid, Valladolid, Spain,
+in 2006, the M.Sc. (Hons.) degree in biomedical engineering from the University of Bors, Bors, Sweden,
+in 2009, and the M.Sc. and Ph.D. (Hons.) degree in
+information and communications technologies from
+the University of Alcala, Madrid, Spain, in 2009 and
+2013, respectively. His dissertation was on speech enhancement algorithms for audiological applications.
+His current research interests include speech and
+biomedical signal processing in distributed sensor networks.
+
+José Ranilla received the Graduate degree in computer science from the Polytechnic University of Valencia, Valencia, Spain, and the Ph.D. degree in computer science from the University of Oviedo, Asturias, Spain.
+He is currently an Associate Professor of computer science at the University of Oviedo, where
+he has taught several courses about parallel computing and programming. His research interests include feature reduction for text categorization, artificial intelligence applied to information retrieval,
+high-performance computing, parallel computing, and numerical methods.
+
+Cosme Llerena Aguilar was born in Badajoz and
+raised in Madrid, Spain. He received the B.Sc. degree
+in telecommunications engineering and the M.Sc. degree in information and communications technologies from the University of Alcalá, Madrid, Spain,
+in 2010 and 2011, respectively, where he is currently
+working toward the Ph.D. degree in information and
+communications technologies.
+His current research interests include blind speech
+separation in distributed networks.
+
+Irene Dı́az received the Ph.D. degree in computer
+science from the University Carlos III of Madrid,
+Madrid, Spain.
+She is currently a Senior Lecturer of computer science at the University of Oviedo, Asturias, Spain. She
+has conducted research in applications of data mining
+to text categorization, information retrieval, or precision agriculture. She is also involved in modeling
+group decision making problems and in the generation of linear extensions for partially ordered sets.
+
+

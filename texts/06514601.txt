@@ -1,0 +1,1433 @@
+2614
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+An Online Semi-supervised Brain–Computer
+Interface
+Zhenghui Gu, Member, IEEE, Zhuliang Yu∗ , Member, IEEE, Zhifang Shen, and Yuanqing Li, Member, IEEE
+
+Abstract—Practical brain–computer interface (BCI) systems
+should require only low training effort for the user, and the algorithms used to classify the intent of the user should be computationally efficient. However, due to inter- and intra-subject variations
+in EEG signal, intermittent training/calibration is often unavoidable. In this paper, we present an online semi-supervised P300
+BCI speller system. After a short initial training (around or less
+than 1 min in our experiments), the system is switched to a mode
+where the user can input characters through selective attention.
+In this mode, a self-training least squares support vector machine
+(LS-SVM) classifier is gradually enhanced in back end with the unlabeled EEG data collected online after every character input. In
+this way, the classifier is gradually enhanced. Even though the user
+may experience some errors in input at the beginning due to the
+small initial training dataset, the accuracy approaches that of fully
+supervised method in a few minutes. The algorithm based on LSSVM and its sequential update has low computational complexity;
+thus, it is suitable for online applications. The effectiveness of the
+algorithm has been validated through data analysis on BCI Competition III dataset II (P300 speller BCI data). The performance of
+the online system was evaluated through experimental results on
+eight healthy subjects, where all of them achieved the spelling accuracy of 85% or above within an average online semi-supervised
+learning time of around 3 min.
+Index Terms—Brain–computer interface (BCI), online learning,
+pattern classification, semi-supervised learning.
+
+I. INTRODUCTION
+RAIN–COMPUTER interface (BCI) technology has
+gained considerable attention over the past years due to its
+potential applications in medical and nonmedical areas [1], [2],
+e.g., helping paralyzed patients in communication and control
+with computer or other devices. A BCI can be viewed as a pattern classification system where user’s intention is translated into
+words or control signal. However, collecting labeled instances
+for classifier training/calibration is either difficult, expensive, or
+
+B
+
+Manuscript received September 16, 2012; revised January 15, 2013; March
+19, 2013; accepted April 24, 2013. Date of publication May 7, 2013; date of
+current version August 16, 2013. This work was supported in part by the National Natural Science Foundation of China under Grants 61105121, 61175114,
+and 91120305, the Natural Science Foundation of Guangdong under Grant
+S2012020010945, the Fundamental Research Funds for the Central Universities, SCUT under Grant 2012ZG0008, the National High-tech R&D Program
+of China (863 Program) under Grant 2012AA011601, and High Level Talent
+Project of Guangdong, China. Asterisk indicates corresponding author.
+Z. Gu, Z. Shen, and Y. Li are with the College of Automation Science and
+Engineering, South China University of Technology, 510640 China (e-mail:
+zhgu@scut.edu.cn; 619370462@qq.com; auyqli@scut.edu.cn).
+∗ Z. Yu is with the College of Automation Science and Engineering,
+South China University of Technology, Guangzhou 510640, China (e-mail:
+zlyu@scut.edu.cn).
+Digital Object Identifier 10.1109/TBME.2013.2261994
+
+time-consuming in many applications, especially for patients. In
+some cases, due to inter- and intra-subject variations in EEG signal, intermittent training/calibration is needed, besides the initial
+training of classifier. An alternative way to solve these problems
+is semi-supervised learning that uses both labeled and unlabeled
+data in the training of the classifier. Such algorithms include expectation maximization (EM), cotraining, self-training, transductive support vector machine, entropy minimization, graphbased methods, etc. Comprehensive survey of semi-supervised
+learning methods can be found in [3] and [4]. For example, to
+minimize the initial training, a cotraining method has been introduced into a P300 BCI speller and constructed high-performance
+classifier by using unlabeled data [5]. Inspired by the idea of
+self-training EM algorithm with a naive Bayes classifier [6], a
+self-training support vector machine (SVM) was proposed and
+successfully applied in a BCI speller system with small number
+of labeled data [7]. A self-training method has also been used to
+calibrate an offline subject-independent model with unlabeled
+data from a new user so that a reliable unsupervised BCI speller
+was achieved for the new user in a short course of adaptation [8].
+Semi-supervised classification is usually considered when labeled data are not enough but unlabeled data are easier to obtain. Most of the existing semi-supervised BCIs require short
+initial training by collecting labeled data but relatively longer
+time to collect unlabeled data. Then, the classifier is trained
+with both types of data. From the viewpoint of user, however,
+the total training time before he/she can use the system involves the data collection periods of both labeled and unlabeled
+data. Hence, for the user, conventional semi-supervised learning has not yet minimized the total training time. On the other
+hand, online semi-supervised classifier update can be used to
+reduce the training time. That is, after initial training with labeled data, the classifier is promptly updated with the arrival
+of one or a few unlabeled data point(s). The challenges for a
+practical online semi-supervised classifier update approach include 1) low latency; 2) low computational complexity; and 3)
+performance close to supervised methods. Conventional semisupervised learning approaches, e.g., self-training SVM [7], are
+generally not tailored for online applications. For online classifier update that requests low latency, with every introduction
+of new unlabeled data point, the conventional semi-supervised
+learning needs to retrain the model with the dataset involving
+all the new and past data points. The computational burden can
+become unacceptably heavy due to the accumulation of data
+points. Hence, we have to seek new solutions to practical online
+semi-supervised learning for BCI¯s.
+In this paper, we present an online semi-supervised P300 BCI
+speller system. After a brief initial training phase, the system
+is switched into a user input mode where the user can input
+
+0018-9294 © 2013 IEEE
+
+GU et al.: ONLINE SEMI-SUPERVISED BRAIN–COMPUTER INTERFACE
+
+characters through visual attention. At the same time, a least
+squares support vector machine (LS-SVM) classifier is updated
+in back end with the unlabeled electroencephalogram (EEG)
+data collected online after every character input. In this way, the
+classifier is enhanced gradually and approaches the performance
+of supervised method. Typically, the user may experience some
+error input in the beginning but satisfactory accuracy (≥85%)
+after some time (about 3 min on average in our system).
+The algorithm of the system is designed based on LS-SVM
+and its sequential update to meet the requirement of both performance and complexity. The renowned SVM maps data into a
+higher dimensional input space and constructs an optimal separating hyperplane in this space. This basically involves solving a
+quadratic programming problem which is time consuming. The
+least squares version of SVMs considers equality constraints in
+least squares sense, resulting in the solution from solving a set of
+linear equations instead of quadratic programming [9]. LS-SVM
+achieves comparable performance as SVM classifiers, but
+with lower computational complexity [10]. Herein, for semisupervised learning in the system, we first propose a self-training
+LS-SVM algorithm abbreviated as ST-LSSVM. Compared with
+the self-training SVM method [7], ST-LSSVM makes it possible to use low computational updating methods, where the direct
+matrix inversion operation (computational complexity O(N 3 ))
+is avoided and replaced with the sequential block updating at
+complexity O(N 2 + M 3 ), with N denoting the number of all
+the labeled and unlabeled training samples, M denoting the
+number of samples to update the classifier, and M  N . Hence,
+it is especially suitable for online applications. The resultant
+semi-supervised algorithm is entitled sequential updating selftraining LS-SVM (SUST-LSSVM). Based on this algorithm, we
+devise the online P300 BCI speller with a small initial training
+set.
+This paper is organized as follows. In Section II, LS-SVM
+and its sequential update are briefly introduced; then, we propose the ST-LSSVM algorithm and its sequential updating version, SUST-LSSVM. In Section III, we briefly introduce the
+offline analysis with SUST-LSSVM on the BCI Competition III
+dataset II (P300 speller BCI data), and then expatiate on the
+online semi-supervised P300 BCI system, where the SUSTLSSVM algorithm has been applied for online model updating.
+Data analysis results on the competition dataset and experimental results from the online P300 BCI system are given in
+Section IV. We compare the proposed system with some existing systems and techniques in Section V. Finally, some brief
+conclusions are given in Section VI.
+II. SEQUENTIAL UPDATING LS-SVM FOR ONLINE
+SEMI-SUPERVISED LEARNING
+A. LS-SVM
+In standard two-class classification problem, a set of training
+data DN = {(xi , yi )}N
+i=1 is given, where the training sample
+xi ∈ Rd is a d-dimensional vector, yi ∈ {−1, +1} is the associated label of the training sample, and N is the number of
+training samples. The LS-SVM considers the following opti-
+
+2615
+
+mization problem [9]:
+min w2 + γe2
+
+w ,b,e
+
+s.t. wT ϕ(xi ) + b = yi + ei ,
+
+i = 1, . . . , N
+
+(1)
+
+where (.)T denotes the transpose operator, and ϕ(xi ) is a mapping function from data space Rd to feature space Rd f with
+df denoting the dimension of feature space, the error vector e = [e1 · · · eN ]T , the regularization term γ ≥ 0. The vector
+w ∈ Rd f and scalar b ∈ R are the weighting vector and bias of
+LS-SVM, respectively.
+Given a positive-definite kernel K : Rd × Rd → R with
+K(xi , xj ) = ϕ(xi )T ϕ(xj ), the problem in (1) is easily solved
+in its dual form. The solution is given by the following set of
+linear equations:
+   
+
+y
+a
+K + γ −1 I 1
+(2)
+=
+T
+0
+b
+1
+0
+where y = [y1 · · · yN ]T is the label vector, a = [a1 · · · aN ]T is
+the dual variable vector [11], i.e., the Lagrange multipliers corresponding to the constraints in the primal optimization problem
+in (1). All the entries in vector 1 are 1. Kij = K(xi , xj ) is the
+(i, j)th element of K ∈ RN ×N .
+The optimal solution of a, b is given by
+b = 1T H−1 y(1T H−1 1)−1
+a = H−1 (y − b1)
+
+(3)
+
+where the model matrix H is defined as
+H = K + γ −1 I.
+With the optimal a, b in (3), the classifier is given as
+N
+
+
+y(x) = sign
+ai yi K(x, xi ) + b .
+
+(4)
+
+(5)
+
+i=1
+
+It is clear that the major computational complexity in solving
+(1) is the inversion of matrix H, which in general is on the order
+of N 3 [12].
+B. Sequential Update of LS-SVM
+During the process of updating the training dataset, upon
+the arrival of a new sample or a small block of samples
+(with the label(s) either known or having been predicted), the
+LS-SVM model is updated. First, the training dataset DN is
+augmented by a newly arrived M -sample data block and its predicted labels D̄M = {(x̄N +i , ȳN +i )}M
+i=1 . Then, the LS-SVM
+is trained with the dataset D̂N +M = DN ∪ D̄M . The inverse
+matrix of the model matrix HN is H−1
+N , which is known in the
+previous training stage, and the corresponding label vector is
+yN = [y1 · · · yN ]T . The predicted label vector corresponding
+to D̄M is denoted by ȳM = [ȳN +1 · · · ȳN +M ]T .
+
+2616
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+Theorem 1: With the new samples and their labels, the matrix
+HN +M and label vector ŷN +M can be expressed as
+
+
+HN UM
+HN +M =
+UTM VM
+
+
+yN
+ŷN +M =
+ȳM
+where UM ∈ RN ×M , with the elements ui,j = K(xi , x̄N +j ),
+i = 1, . . . , N , j = 1, . . . , M ; VM ∈ RM ×M and follows
+⎡
+⎤
+K(x̄N +1 , x̄N +1 ) · · · K(x̄N +1 , x̄N +M )
+⎢
+⎥ −1
+..
+..
+..
+⎥+γ I.
+VM = ⎢
+.
+.
+.
+⎣
+⎦
+K(x̄N +M , x̄N +1 ) · · · K(x̄N +M , x̄N +M )
+Denoting WM = H−1
+N UM , the inverse matrix is updated as
+
+
+A C
+−1
+(6)
+HN +M =
+CT B
+where
+B = (VM − UTM WM )−1
+T
+A = H−1
+N + WM BWM
+
+C = −WM B.
+The optimal solution can be obtained using H−1
+N +M and ŷN +M
+by (3).
+Proof: According to the matrix inversion lemma of a block
+structure matrix [12] and the symmetry of HN +M , the proof of
+Theorem 1 is straightforward and therefore omitted here.
+
+As a special case, when M = 1, i.e., considering a new data
+sample introduced into training, we have [13]
+
+ −1
+HN + svvT −sv
+−1
+(7)
+HN +1 =
+−svT
+s
+where
+−1
+s = (K(x̄N +1 , x̄N +1 ) + γ −1 − hTN +1 H−1
+N hN +1 )
+
+to high computational load, which prohibits its application in
+many online systems.
+C. Proposed Semi-supervised Learning Algorithms
+In this section, the ST-LSSVM algorithm for semi-supervised
+batch processing is presented, followed by its sequential updating version, SUST-LSSVM, according to the updating method
+in Section II-B. The SUST-LSSVM algorithm will be applied
+in the BCI system for sequential model updating.
+Algorithm 1: Self-Training LS-SVM (ST-LSSVM): With a
+training dataset D = {(xi , yi )}N
+i=1 , and an unlabeled evaluation
+,
+the
+ST-LSSVM
+algorithm is described as
+dataset D̄ = {x̄i }M
+i=1
+follows.
+Step 1) Training the LS-SVM classifier using the training
+dataset D to obtain its initial model matrix H according
+to (4), and therefore a(0) , b(0) according to (3), where
+(.)(n ) denotes the nth iteration.
+Step 2) Finding the predicted labels for D̄ by using a(0) and
+(0)
+b(0) into (5) to get ȳi , i = 1, . . . , M . Meanwhile, the
+augmented model matrix Ĥ is directly obtained from
+the augmented dataset D ∪ D̄ according to (4).
+Step 3) For the kth iteration, k = 1, 2, . . ., combining the training dataset D and test dataset into an augmented training
+(k −1) M
+}i=1 . Now the LS-SVM
+dataset D̂ = D ∪ {x̄i , ȳi
+classifier is given by
+
+
+min , w2 + γ1 e2 + ē2
+w ,b,e
+
+s.t. wT ϕ(xi ) + b = yi + ei ,
+wT ϕ(x̄i ) + b =
+
++ ēi ,
+
+i = 1, . . . , N
+i = 1, . . . , M (8)
+
+where γ1 = γ · N/(N + M ), ē = [ē1 · · · ēM ]T is the
+error vector regarding the predicted labels for D̄. The
+training of the classifier (8) with D̂ is equivalent to
+using the augmented model matrix Ĥ and the labels in
+D̂ into (3) to obtain a(k ) and b(k ) .
+Step 4) With a(k ) and b(k ) , finding the predicted labels for D̄
+through
+
+N
+(k )
+(k )
+ȳi = sign
+aj yj K(x̄i , xj )
+j =1
+
+v = H−1
+N hN +1
+and the optimal solution can be obtained using H−1
+N +1 and ŷN +1
+by (3).
+Remark 1: With the known matrix H−1
+N , the inverse matrix
+−1
+HN +M is obtained at computational complexity O(N 2 + M 3 ),
+which is far less than that of direct matrix inversion (O(N 3 ))
+since the updating data block is usually small, i.e., M  N .
+Remark 2: As (6) (and (7)) takes an analytical form, the
+classifier can be updated directly rather than recursively. This is
+an important reason that we choose LS-SVM for online model
+update. As a similar technique, incremental SVM has also been
+developed for online applications of SVM [14]. However, the
+recursive updating of the incremental SVMs may still give rise
+
+(k −1)
+ȳi
+
++
+
+M
+
+
+(k )
+(k −1)
+aN +j ȳj
+K(x̄i , x̄j )
+
+
++b
+
+(k )
+
+,
+
+i = 1, . . . , M.
+
+j =1
+
+(9)
+Step 5)
+
+(k )
+Regarding the predicted labels ȳi , i = 1, . . . , M , if
+(k )
+(k )
+ȳ(k ) = ȳ(k −1) , where ȳ(k ) = [ȳ1 · · · ȳM ]T , termi-
+
+nate the process. Otherwise, repeat Steps 3–5.
+The convergence of Algorithm 1 is proved in the Appendix.
+In the self-training, the learning process uses its own predictions to augment the training dataset and teach itself for better
+classification [4]. During a self-training process, if both labeled
+and unlabeled data used for classifier training can be obtained
+as a batch, the ST-LSSVM algorithm can be directly applied to
+
+GU et al.: ONLINE SEMI-SUPERVISED BRAIN–COMPUTER INTERFACE
+
+find the optimal solution. However, in many online applications,
+the unlabeled samples for self-training arrive sequentially. If the
+classifier is retrained with ST-LSSVM at the arrival of each
+sample, the computational complexity grows cubically with the
+number of all the labeled and unlabeled training samples. On
+the other hand, although we can retrain with ST-LSSVM in
+batch mode, i.e., the classifier is retrained when a batch of
+data samples are collected, this scheme reduces the computational complexity but increases the processing latency. Hence,
+retraining with large data block is not recommended in online
+applications.
+Considering the common case of online updating the model
+with sequentially arriving data sample(s), we present a sequential updating self-training LS-SVM (SUST-LSSVM) in the following Algorithm 2 based on Algorithm 1. Specifically, Algorithm 2 is not a novel one but an extension of Algorithm 1 for the
+sequential model updating upon the arrival of data sample(s).
+Algorithm 2 (Sequential Updating Self-training LS-SVM
+(SUST-LSSVM): With an initial training dataset D =
+{(xi , yi )}N
+i=1 , and the sequentially arriving jth block of
+unlabeled data with K samples (K ≥ 1), i.e., D̄j =
+K
+{x̄i }ji=(j
+−1)K +1 , j = 1, 2, . . . , the SUST-LSSVM is described
+as follows.
+Step 1) With a training dataset D̂(0) = D, the initial model matrix H0 ∈ RN ×N is obtained from (4), and H−1
+0 is calculated through inversion operation. After receiving an
+unlabeled dataset D̄1 , the ST-LSSVM described in Algorithm 1 is applied to find the predicted labels {ȳi }K
+i=1
+for D̄1 . Notice that the above process is slightly different from that in Algorithm 1. Here, the inverse of
+the augmented model matrix is updated according to
+−1
+(N +K )×(N +K )
+.
+Theorem 1 as H−1
+1 , where H1 ∈ R
+(1)
+The
+augmented
+training
+dataset
+is
+defined
+by
+D̂
+=
+
+D {x̄i , ȳi }K
+i=1 .
+Step 2) For the jth data update, j = 2, 3, . . ., with D̂(j −1) and
+the unlabeled update dataset D̄j , the inverse of the kernel matrix is updated according to Theorem 1 to obtain
+(N +j K )×(N +j K )
+. Applying the ST-LSSVM,
+H−1
+j ∈R
+K
+we obtain the predicted labels {ȳi }ji=(j
+−1)K +1 for D̄j .
+This step is repeated until the user stops the online update process.
+Remark 3: Considering insufficient number of initial training data, the self-training mechanism in Algorithm 2 enables a
+probably better classifier as the training set is augmented by the
+sequentially arriving unlabeled data. This advantage of Algorithm 2 will be illustrated in Section IV through experimental
+results.
+Remark 4: The major computational burden of this algorithm is on obtaining H−1
+j . As can be found, the dimension
+of the model matrix Hj increases at each update with new
+sample(s). Since the direct inverse operation
+on Hj incurs
+
+the computational load of O (N + jK)3 , the computational
+complexity grows quickly with more and more new data samples involved into model training. Instead, by using the sequential updating approach, H−1
+is updated at the computaj
+
+
+2
+tional cost of O (N + (j − 1)K) + K 3 based on the knowl-
+
+2617
+
+edge of H−1
+j −1 , which is much lower than the direct inverse
+operation.
+
+III. P300 BCI SPELLER SYSTEMS UNDER STUDY
+P300 is an evoked potential of the brain to some specific
+external stimulus including auditory, visual, or somatosensory
+stimuli in a stream of frequent stimuli. P300-based BCI has
+been implemented to help disabled to communicate with computers through virtual keyboard [15], [16], and the whole system is called a P300 speller. Here, we consider two typical P300
+BCI spellers. Although similar data processing techniques were
+applied, the choices for the parameters were based on our experience of the best results we could achieve on the different
+datasets.
+
+A. BCI Competition III Dataset II
+An offline data analysis has been carried out on the BCI Competition III Dataset II. Here, we briefly introduce the paradigm
+and the data processing. More details of the system and experiment can be found in http://www.bbci.de/competition/iii/.
+The experiment adopted the row-column P300 speller paradigm
+where the user was presented with a 6 × 6 matrix of characters. For the spelling of one character, each of the 12 rows and
+columns was intensified in a random order, and was named a
+sequence of intensifications. The subject was asked to focus on
+the character he would spell to elicit P300 potential in the EEG
+when the row or column containing the character-of-interest
+was intensified. The sequence of intensifications was repeated
+15 times for the input of one character so that data processing
+methods (e.g., averaging) could be applied for reliable spelling.
+The dataset was collected from two subjects, each spelled 85
+characters for training and 100 for testing. When our semisupervised learning was applied, the 85-character training set
+was split into two parts, where a small number of these labeled
+characters was used for initial classifier training, and the rest
+for semi-supervised sequential updating the classifier based on
+Algorithm 2, where the labels were not used.
+The 64-channel EEG was collected, bandpass filtered to [0.1,
+20] Hz, and downsampled to 40 Hz. Since visual P300 is typically significant at the parietal and occipital areas, to reduce the
+feature size, we only used the data from the 22 channels {FC5,
+FC1, FC2, FC6, C3, Cz, C4, CP5, CP1, CP2, CP6, TP8, P5, P1,
+P2, P6, PO7, POz, PO8, O1, Oz, O2}. Temporally, P300 appears
+at about 300 ms after the attended stimulus; hence, we used the
+poststimulus samples within [0.1, 0.7] s. The feature vector xi
+of length 24 × 22 = 528 was constructed by concatenating the
+24 data samples from the 22 channels. xi was labeled “+1”
+only if the spelled character was located on the corresponding
+row/column, which means P300 exists in the associated EEG
+signal. Otherwise, it was labeled “−1.” One spelled character
+would generate 12 × 15 = 180 training samples. Here, we used
+a linear LS-SVM classifier. In the testing session, an averaged
+feature vector over the 15 repeats was used, and the input character was detected by the intersection of the row and the column
+
+2618
+
+Fig. 1.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+Graphical user interface of the in-house P300 speller BCI [17].
+
+with the maximum LS-SVM scores in the six rows and the six
+columns, respectively.
+B. In-House Online P300 BCI Speller System
+1) Experimental Setup of the System: Fig. 1 shows the graphical user interface of the P300 BCI speller we have implemented.
+During the experiment, a 4 × 10 matrix involving 40 different
+characters were presented to the subject on the computer screen.
+Each button flashed successively in a random order. One of these
+40 flashes in a sequence contained a desired character that the
+subject focused attention on, where P300 potential was generated. For the input of one character, nine repeats of 40 flashes
+were carried out, with inter-stimulus interval (ISI) being 25 ms.
+The inter-character (time) gap (ICG) between two character input was 3 s. The EEG signal collected from the scalp of the
+subject has been processed to find out the desired character
+identified on the one with the most significant P300 wave.
+The EEG data have been collected at the rate of 250 Hz in the
+P300 speller BCI experiment on eight healthy subjects in our
+lab, including seven males and one female. We used 30 channels
+in the EEG data collected by NeuroScan SynAmps2, including
+channel FP1, FP2, F7, F3, FZ, F4, F8, FT7, FC3, FCZ, FC4,
+FT8, T7, C3, CZ, C4, T8, TP7, CP3, CPZ, CP4, TP8, P7, P3,
+Pz, P4, P8, O1, Oz, O2.
+2) Preprocessing and Classification: The preprocessing involved three steps, including 0 to 20 Hz low-pass filtering, trial
+averaging, and downsampling. In an epoch, the nine trials corresponding to one character were averaged. We extracted features
+of signal segment within [0, 0.6] s from the start of the intensification. With the downsampling rate of 6, there were 25 data
+points in each signal segment. For the conventional P300 feature extraction, each feature vector of analyzed data contained
+25 × 30 = 750 features.
+The experiment was based on Algorithm 2, and had been carried out in the following way. First, there was an initial training
+session, where each subject was asked to input a few characters
+randomly selected by the system and instructed to the subject.
+The input of one character using EEG took 9 s (25 ms × 40 ×
+9), followed by a rest interval of 3 s. The feature vectors, preprocessed and organized from the acquired EEG data, were labeled
+as “+1” if the desired character was intensified; otherwise, they
+were labeled as “−1.” As there was only one desired character
+
+among all the 40 characters shown in GUI, the data of one character input would generate one feature vector labeled as “+1”
+and 39 feature vectors labeled as “−1.” After the initial training,
+the online user input phase began and the system worked in
+block mode (see Step 2 of Algorithm 2). A block was defined
+by the data corresponding to one character input, i.e., the data
+of one epoch, with block size of K = 40 feature vectors. The
+purpose of block processing was to exploit the prior knowledge
+that, among the 40 feature vectors regarding one character input,
+only one shall be labeled as “+1.” For each block, we adopted
+a two-layer labeling rule. First, the labels of the feature vectors
+{yi } were predicted by a conventional LS-SVM classifier. Then,
+by defining LS-SVM score as si = wT ϕ(xi ) + b − yi , the feature vector with the highest LS-SVM score was labeled as “+1”
+and the other 39 feature vectors were labeled as “−1.” The 40
+feature vectors corresponding to one input character, together
+with their predicted labels, were used to update the classifier
+for the next iteration. After the self-training iterations ended,
+the predicted character was displayed as a feedback to the user
+input. Then, the data of the next input character was used in the
+same way to update the classifier.
+IV. EXPERIMENTAL RESULTS
+In this section, we try to validate the effectiveness of the
+SUST-LSSVM algorithm through data analysis on the BCI
+Competition III dataset II. Then, we study the performance
+of the proposed online P300 BCI speller based on the SUSTLSSVM, with small initial training set under consideration.
+A. BCI Competition Data Analysis
+In this offline analysis, we study the spelling accuracy of the
+proposed SUST-LSSVM applied on the BCI Competition III
+Dataset II, and compare it to the best results achieved by Rakotomamonjy and Guigue [18] in the competition (abbreviated as
+Rakoto results in the following). The accuracy was calculated
+based on the independent 100-character test set. The major differences between the two methods are as follows: 1) Rakoto’s
+method was a supervised one that used the labeled data of the
+85 characters for classifier training and channel/model selection,
+while the SUST-LSSVM used labeled data of a small number
+of characters for initial training (one or two characters in the
+following analysis) and the unlabeled data of the rest characters
+for semi-supervised sequential learning (using the data of one
+character in each update); 2) Rakoto considered the strategy
+of an ensemble of SVM classifiers and channel selection algorithm, while we used a single LS-SVM classifier and prefixed
+channels (see Section III-A). The hyperparameter γ of the LSSVM classifier was set as 0.01, as the labeled training set was
+very small in our study. γ can be determined by cross validation
+when enough training data are available.
+Fig. 2 shows the spelling accuracies of the SUST-LSSVM
+when the number of unlabeled training characters increased
+from 0 to 60. We studied two cases: 1) using all the 15 repeats
+of each character for training and testing, and only the first
+one character for initial training [see Fig. 2(a)]; 2) using ten
+repeats of each character for training and testing, and only the
+
+GU et al.: ONLINE SEMI-SUPERVISED BRAIN–COMPUTER INTERFACE
+
+2619
+
+TABLE I
+NUMBER OF CHARACTERS USED IN THE IN-HOUSE EXPERIMENT 1 FOR
+THE EIGHT SUBJECTS
+
+1
+0.9
+
+accuracy
+
+0.8
+0.7
+0.6
+
+0.5
+Subj A
+Subj B
+Subj A Rakoto
+Subj B Rakoto
+
+0.4
+0.3
+
+0
+
+10
+
+20
+30
+40
+no. of unlabelled input chars
+
+50
+
+60
+
+(a)
+1
+0.9
+0.8
+0.7
+
+accuracy
+
+0.6
+0.5
+0.4
+0.3
+Subj A
+Subj B
+Subj A Rakoto
+Subj B Rakoto
+
+0.2
+0.1
+0
+
+0
+
+10
+
+20
+30
+40
+no. of unlabelled input chars
+
+50
+
+60
+
+(b)
+Fig. 2. Spelling accuracy of the BCI Competition III dataset II for Subjects A
+and B. The SUST-LSSVM learning involved the unlabeled input characters with
+the number from 0 to 60. The Rakoto results from [18] were the best accuracies
+in the competition, and were achieved based on supervised learning with the
+85-character labeled training set. (a) One labeled training char, 15 repeats. (b)
+Two labeled training chars, 10 repeats.
+
+first two characters for initial training [see Fig. 2(b)]. Since the
+initial training set was extremely small, the starting spelling
+accuracies were generally poor. Meanwhile, with less number
+of repeats, the signal-to-noise ratio after averaging was reduced;
+hence, the accuracies in case 2 were not as good as that in case
+1. However, in both cases, it was found that the accuracies of
+SUST-LSSVM gradually go up and approach Rakoto results.
+The spelling accuracies of Subject B after convergency were
+even better than Rakoto’s. These encouraging results validate
+the effectiveness of the SUST-LSSVM.
+B. In-House P300 BCI Experiments
+1) Experiment 1 (P300 BCI Based on SUST-LSSVM): In this
+experiment, we study the performance of the proposed online
+P300 BCI speller based on the SUST-LSSVM, with small initial
+training set under consideration. Data have been acquired online
+for eight subjects and processed by Algorithm 2. Meanwhile, for
+the purpose of performance evaluation, we also applied super-
+
+vised SVM and supervised LS-SVM to the same initial training
+sets. Since the very small training set makes it unreliable to set
+the regularization parameter γ through supervised approaches
+such as cross validation, in the experiment, γ’s of SVM, LSSVM, and SUST-LSSVM were empirically set as 0.00154, 1,
+and 1, respectively. And we chose to use linear kernel. Other
+kernels and values of γ can be tried to further improve the performance of the system, or the best γ can be found by cross
+validation if enough training data are available.
+In the experiment, we recorded the EEG data of Subjects
+1 to 8 with the sizes of training and testing dataset given in
+Table I. As an example, Subject 1 has totally input 40 characters, with two labeled ones for initial training, 25 unlabeled
+ones for sequentially updating the classifier (SSL). The test set
+involved all the unlabeled data of 38 characters, including the
+25 ones for SSL. The number of characters for initial training was determined in the following way: for each subject, we
+started from the initial training set with one character. When the
+performance was not good, the number was increased by one
+until the spelling accuracy in the semi-supervised learning could
+achieve 85% or above. The performance of SUST-LSSVM was
+evaluated through the spelling accuracy of the test set using the
+classifier achieved from the sequential updating. Meanwhile,
+the performance of supervised SVM and LS-SVM classifier
+was also evaluated with the number of training characters given
+by the row of “train” in Table I for each subject.
+The spelling accuracy results of these three classifiers are illustrated in Fig. 3. Supervised SVM/LS-SVM could only make
+use of labeled data in the small initial training set. Hence, such
+classifiers did not achieve satisfactory performance in most
+cases. From Fig. 3, we can find out that with SUST-LSSVM,
+the online accuracy of the system for all the subjects has been
+significantly improved with the introduction of unlabeled data
+into model training. The spelling accuracy gradually approached
+about 90% to 100% for all of the eight subjects, due to the collaboration of the small number of initial training data and the
+moderate number of unlabeled data (about five to 25 characters) to iteratively train the classifier. For all the subjects, the
+initial training took no more than 70 s. Hence, the tedious and
+time-consuming training process can be greatly reduced. Meanwhile, the low complexity of SUST-LSSVM was well tailored
+for the online self-training. It is also worth noticing that each
+self-training in the experiment converged within two iterations.
+Such fast convergency also supports the real-time online application of the SUST-LSSVM. Hence, the effectiveness of the
+SUST-LSSVM has also been proved by this online P300 speller
+experiment.
+
+2620
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+Subject 1
+
+15
+
+20
+
+0
+
+25
+
+0
+
+5
+
+Subject 3
+
+10
+
+15
+
+20
+
+0.5
+
+0
+
+25
+
+0
+
+5
+
+10
+
+15
+
+20
+
+20
+
+0
+
+Subject 7
+
+accuracy
+0
+
+5
+
+10
+
+15
+
+20
+
+0
+
+25
+
+10
+
+25
+
+0.5
+
+0
+
+0
+
+20
+
+0
+
+30
+
+30
+
+0
+
+10
+
+20
+
+30
+
+Subject 6
+
+0
+
+10
+
+20
+
+5
+10
+15
+20
+no. of unlabelled input char
+
+0.5
+
+0
+
+30
+
+0
+
+25
+
+Fig. 3. Spelling accuracy of the online P300 BCI speller in Experiment 1
+for Subjects 1 to 8. The sizes of the initial training sets are given in Table II.
+The SUST-LSSVM learning involved the unlabeled input characters with the
+number from 0 to 25 (∗: SUST-LSSVM, −−: SVM, − · −: LS-SVM.).
+
+2) Experiment 2: P300 BCI Based on SUST-LSSVM With
+Thresholding: In the previous P300 speller experiment, the size
+of the initial labeled training dataset ranged from two to six characters (see Table I). We further reduced it to two characters and
+carried out another P300 speller experiment on the eight subjects. It implies that the initial training time was 21 s. First, the
+same SUST-LSSVM was used for semi-supervised model update with the unlabeled data of 35 characters. The performance
+of the algorithm was evaluated by the spelling accuracy of the
+test set containing all these unlabeled data of 35 characters. The
+results are shown in Fig. 4 indicated by the blue dotted curves
+with triangle markers. It can be found out that three of the
+eight subjects performed poorly with spelling accuracies well
+below 50% during all the updates. The reason for the problem
+is twofold. First, the initial model produced by the small labeled
+training set is often unreliable. Second, all the unlabeled data
+were used to update the model without distinguishment. However, some data were low in signal-to-interference-and-noise ratio, or even being outliers. Involving these ‘poor’ data may damage the semi-supervised model training, especially in the first
+few updates. In order to avoid the second problem, we adopted
+a simple thresholding strategy into the SUST-LSSVM to distinguish and abandon “poor” data during the semi-supervised
+updating. The thresholding approach based on SVM score has
+been proposed for asynchronous P300 detection in [19]. Herein,
+it was modified to use LS-SVM score and detect if there was
+
+20
+
+30
+
+1
+
+0.5
+
+0
+
+10
+
+Subject 8
+
+1
+accuracy
+
+accuracy
+5
+10
+15
+20
+no. of unlabelled input char
+
+20
+
+0.5
+
+Subject 7
+
+1
+
+0.5
+
+10
+
+Subject 4
+
+0.5
+
+Subject 8
+
+1
+
+0
+
+1
+
+0.5
+
+0
+
+25
+
+0
+
+30
+
+Subject 5
+
+accuracy
+
+accuracy
+15
+
+20
+
+1
+
+Subject 6
+
+0.5
+
+10
+
+10
+
+0.5
+
+0
+
+25
+
+1
+
+5
+
+0
+
+0.5
+
+Subject 3
+
+accuracy
+
+accuracy
+
+accuracy
+5
+
+1
+accuracy
+
+0
+
+25
+
+1
+
+Subject 5
+
+0
+0
+
+20
+
+1
+
+0.5
+
+0
+0
+
+15
+
+Subject 4
+
+1
+
+0
+0
+
+10
+
+accuracy
+
+10
+
+0.5
+
+accuracy
+
+5
+
+0.5
+
+1
+
+accuracy
+
+0
+
+accuracy
+
+accuracy
+
+accuracy
+
+0.5
+
+Subject 2
+
+1
+
+1
+
+0
+
+accuracy
+
+Subject 1
+
+Subject 2
+
+1
+
+0
+
+10
+20
+30
+no. of unlabelled input char
+
+0.5
+
+0
+
+0
+
+10
+20
+30
+no. of unlabelled input char
+
+Fig. 4. Spelling accuracy of the online P300 BCI speller in Experiment 2
+for Subjects 1 to 8. The size of the initial labeled training set for each subject
+is two characters. The SUST-LSSVM learning involved the unlabeled input
+characters with the number from 0 to 35. (	: SUST-LSSVM, ∗: SUST-LSSVM
+with thresholding. threshold θ0 = 0.15.).
+
+no significant P300 potential in the data epoch corresponding
+to one character input, which was called “poor” data epoch.
+Specifically, after receiving the unlabeled data epoch of the jth
+input character, the 40 feature vectors corresponding to the 40
+possible characters in the GUI were extracted from the data, with
+their labels being predicted by the LS-SVM model updated in
+the (j − 1)th update. At the same time, we also obtained the 40
+LS-SVM scores {sj,k |k = 1, . . . , 40}. By finding the maximum
+and the second maximum in these 40 scores, and denoting them
+by sj,m 1 and sj,m 2 , the threshold condition was defined by
+1−
+
+sj,m 2
+> θ0
+sj,m 1
+
+(10)
+
+where the threshold θ0 is a predefined positive constant. In the
+following experiment, the value of θ0 was empirically chosen
+as 0.15 for all the subjects. When this condition was satisfied,
+the data epoch was thought to have significant P300 potential
+and thus was involved into model updating. Otherwise, the data
+epoch was abandoned.
+Using the same labeled and unlabeled data collected in this
+experiment from the eight subjects, the SUST-LSSVM with
+thresholding was applied to update the model for classification.
+The achieved spelling accuracy of each subject is shown in Fig. 4
+indicated by the red solid curve with star markers. It is found
+that, with thresholding strategy, the SUST-LSSVM performed
+
+GU et al.: ONLINE SEMI-SUPERVISED BRAIN–COMPUTER INTERFACE
+
+TABLE II
+PERFORMANCE OF THE EIGHT SUBJECTS IN THE IN-HOUSE EXPERIMENT 2 (SSL
+CHARS AND TIME: NUMBER OF INPUT CHARACTERS AND TIME DURATION FOR
+SEMI-SUPERVISED LEARNING TILL THE SPELLING ACCURACY OF 85%,
+ACCURACY: THE BEST ACHIEVED SPELLING ACCURACY, ITR: INFORMATION
+TRANSFER RATE COMPUTED ACCORDING TO THE BEST ACCURACY)
+
+much better. The accuracies went up almost monotonically with
+model updates to about 85–100% for all the subjects, and did not
+drop after then. The detail performance of the subjects is listed
+in Table II. To reach the accuracy of 85%, the average semisupervised learning time over the eight subjects was around
+3 min. The information transfer rate (ITR) was computed according to the definition in [5] and the best achievable spelling
+accuracy of each subject. The average ITR over all the subjects
+was 24.33 bits/min, which was comparable to the performance
+of P300 speller BCI based on fully supervised approaches. During the input of the 35 unlabeled characters, the models of the
+eight subjects have been, respectively, updated with the data
+of 6, 11, 10, 10, 5, 9, 11, and 6 input characters until they
+reached the best accuracies, and the data of 1, 23, 25, 10, 2, 26,
+7, and 2 input characters has been abandoned as the LS-SVM
+scores of the data epochs did not satisfy (10). Therefore, the
+computational complexity was further reduced by introducing
+thresholding.
+V. DISCUSSION
+Our online P300 speller BCI system is similar to conventional
+P300 BCI system [17] in many aspects, including the neurophysiological mechanism, the graphical user interface (GUI)
+design, as well as the preprocessing. However, different from
+the conventional system, our BCI system makes use of only a
+few character input (2 to 6 characters in the experiments) for
+the initial model training. Such a small labeled training dataset
+is usually insufficient to build a reliable classifier. Then, the
+system is switched into the user input mode where the model
+is sequentially updated at back end. The user is requested to
+input desired characters one by one. Meanwhile, by using our
+SUST-LSSVM algorithm, the model is updated with the online
+collected unlabeled EEG data corresponding to one character
+input. The updated model is then used for the classification of
+the data and the predicted character will be displayed on the
+screen as a prompt feedback to the user input. From the viewpoint of the user, the training time is significantly reduced in
+this way.
+It is also worth noticing the difference between the BCI speller
+based on self-training SVM in [7] and our system. On one
+hand, the former can also work in an incremental way. But its
+complexity would be much higher than our sequential updating
+
+2621
+
+approach. On the other hand, regarding the algorithm and experiment in [7] where batch processing was considered, although
+the initial training with labeled data was short (2 characters
+used), user still had to input quite some characters (39 characters used, unlabeled data) for self-training the model, and with
+no feedback. Hence, the exact training time involved both the
+initial training period and the self-training period, i.e., the training time was in fact not reduced by the semi-supervised learning.
+As for our online semi-supervised learning after the short initial
+training, i.e., in the user input mode, instant feedback is given
+and processing latency is avoided. The data of 4 to 35 character input can sequentially update the model to achieve acceptable spelling accuracy (≥ 85%) (see the experimental results in
+Section IV).
+In practical applications, facing nonstationary EEG signal,
+system performance degrades even if an extensive initial training
+has been carried out. Since the proposed online semi-supervised
+learning algorithm promptly incorporates new incoming data to
+update the classifier, it is possible to enhance system adaptability
+to the nonstationary EEG. Our future study will focus on this
+issue through algorithm design and experimental study.
+For disabled people, they might require even more number of
+initial training characters, and semi-supervised learning might
+be less effective. This is since they might find it harder than
+healthy subjects to pay overt attention to the target character,
+and it has been reported that an overt attention gives a better
+accuracy than a covert attention [20].
+VI. CONCLUSION
+In this paper, we proposed an online BCI with sequential updating self-training LS-SVM (SUST-LSSVM). It has the advantages of reduced training effort, low computational complexity,
+and low latency. Experimental results from an in-house P300based BCI speller show that the spelling accuracies for all the
+eight subjects were significantly improved with the introduction
+of unlabeled data into model training. By using the system based
+on the SUST-LSSVM with thresholding strategy, the subjects
+spent 21 s for the initial training and an average of around 3 min
+for the online semi-supervised learning to reach the spelling
+accuracy of 85% or above. Further improvement of the system
+for more practical applications will be considered in our future
+research.
+APPENDIX
+CONVERGENCE OF ALGORITHM 1
+Considering the convergence of Algorithm 1, we have the
+following Theorem 2. As the relationship of w(k ) and a(k ) is
+given by
+ N (0 )
+w(k ) =
+
+i= 1
+
+N
+
+ai yi ϕ(xi ),
+
+(k )
+i = 1 ai yi ϕ(xi )
+
++
+
+k=0
+
+M
+
+(k )
+(k −1 )
+ϕ(x̄i ),
+i = 1 aN + i ȳi
+
+k≥1
+
+in the following theorem on the convergency of Algorithm 1
+and its proof, we use w(k ) instead of a(k ) for the convenience
+of description.
+
+2622
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+Theorem 2: For the ST-LSSVM with training dataset D and
+test dataset D̄, define the cost function at the kth iteration as
+
+
+f (w(k ) , b(k ) ) = w(k ) 2 + γ1 e(k ) 2 + ē(k ) 2 ,
+k = 1, 2, . . .
+
+(11)
+
+where e(k ) = φTx w(k ) + b(k ) 1 − y, ē(k ) = φTx̄ w(k ) + b(k ) 1 −
+ȳ(k −1) , φx = [ϕ(x1 ) · · · ϕ(xN )], φx̄ = [ϕ(x̄1 ) · · · ϕ(x̄M )], and
+(k )
+(k )
+y = [y1 · · · yN ]T ; ȳ(k ) = [ȳ1 · · · ȳM ]T .
+Then, at the kth iteration, we have
+f (w(k ) , b(k ) ) ≤ f (w(k −1) , b(k −1) ), k = 2, 3, . . . .
+When f (wk , b(k ) ) converges, the associated ȳ(k ) also converges.
+Proof: According to Steps 1 and 2 of Algorithm 1, with
+training set D = {(xi , yi )}N
+i=1 , the optimization problem (1)
+has the solution (w(0) , b(0) ), and the predicted labels ȳ(0) of
+dataset D̄ = {x̄i }M
+i=1 are obtained from (5).
+According to Step 3 of Algorithm 1, for iteration k − 1 (k ≥
+2), with the augmented training set D̂, the optimization problem
+(8) is solved and gives the solution (w(k −1) , b(k −1) ). The cost
+function of this iteration is given by
+f (w(k −1) , b(k −1) ) = w(k −1) 2
+
+
++ γ1 e(k −1) 2 + ȳ(k −2) − φTx̄ w(k −1) − b(k −1) 12 .
+(12)
+The updated labels are given by
+
+
+ȳ(k −1) = sign φTx̄ w(k −1) + b(k −1) 1 .
+
+(13)
+
+Using ȳ(k −1) to take the place of ȳ(k −2) in (12), we obtain an
+intermediate cost function given by
+fˆ(w(k −1) , b(k −1) ) = w(k −1) 2
+
+
++ γ1 e(k −1) 2 + ȳ(k −1) − φTx̄ w(k −1) − b(k −1) 12 .
+(14)
+From (12)–(14), it is straightforward to know that
+fˆ(w(k −1) , b(k −1) ) ≤ f (w(k −1) , b(k −1) ).
+If the equality holds, then the predicted labels of D̄ remain unchanged, and the iteration is terminated as the algorithm has converged. Otherwise, using ȳ(k −1) to update the
+labels of D̄, the model is retrained in the next iteration with
+(k −1) M
+D̂ = D ∪ {x̄i , ȳi
+}i=1 by solving the optimization problem
+reformulated from (8), which is given by
+minf (k ) (w, b) = w2
+
+
++ γ1 y − φTx w − b12 + ȳ(k −1) − φTx̄ w − b12 .
+(15)
+It has the solution (w(k ) , b(k ) ), and the cost function becomes
+f (w(k ) , b(k ) ), which satisfies f (w(k ) , b(k ) ) ≤ f (k ) (w, b) for
+any w and b. Hence, f (w(k ) , b(k ) ) ≤ f (k ) (w(k −1) , b(k −1) ).
+
+From (14) and (15), it is easy to find that
+f (k ) (w(k −1) , b(k −1) ) = fˆ(w(k −1) , b(k −1) ).
+
+(16)
+
+Hence, we have
+f (w(k ) , b(k ) ) ≤ fˆ(w(k −1) , b(k −1) ) < f (w(k −1) , b(k −1) ).
+(17)
+
+
+On the other hand, f (w(k ) , b(k ) )|k = 1, 2, . . . are nonnegative and monotonically descending according to (11) and (16).
+As iteration goes on, it will arrive at an infimum, where the
+corresponding classifier and predicted labels keep unchanged,
+
+i.e., ȳ(k ) converges.
+ACKNOWLEDGMENT
+The authors would like to thank the associate editor and the
+anonymous reviewers for their valuable comments and suggestions to improve the quality of this paper.
+REFERENCES
+[1] B. Blankertz, M. Tangermann, C. Vidaurre, S. Fazli, C. Sannelli, S. Haufe,
+C. Maeder, L. Ramsey, I. Sturm, G. Curio, and K. R. Muller, “The Berlin
+brain–computer interface: Non-medical uses of BCI technology,” Frontiers Neurosci., vol. 4, pp. 1–17, Dec. 2010.
+[2] J. N. Mak and J. R. Wolpaw, “Clinical applications of brain-computer
+interfaces: Current state and future prospects,” IEEE Rev. Biomed. Eng.,
+vol. 2, no. 1, pp. 187–199, Dec. 2009.
+[3] O. Chapelle, B. Scholkopf, and A. Zien, Semi-Supervised Learning.
+Cambridge, MA, USA: MIT Press, 2006.
+[4] X. Zhu and A. B. Goldberg, Introduction to Semi-Supervised Learning.
+San Rafael, CA, USA: Morgan Claypool Publishers, 2009.
+[5] R. C. Panicker, S. Puthusserypady, and Y. Sun, “Adaptation in P300 brain–
+computer interfaces: A two-classifier cotraining approach,” IEEE Trans.
+Biomed. Eng., vol. 57, no. 12, pp. 2927–2935, Dec. 2010.
+[6] L. Xu and M. I. Jordan, “On convergence properties of the EM algorithm
+for Gaussian mixtures,” Neural Comput., vol. 1, pp. 129–151, 1996.
+[7] Y. Li, C. Guan, H. Li, and Z. Chin, “A self-training semi-supervised
+SVM and its application in an EEG-based brain computer interface speller
+system,” Pattern Recognit. Lett., vol. 29, pp. 1285–1294, 2008.
+[8] S. Lu, C. Guan, and H. Zhang, “Unsupervised brain computer interface
+based on intersubject information and online adaptation,” IEEE Trans.
+Neural Syst. Rehabil. Eng., vol. 17, no. 2, pp. 135–145, Apr. 2009.
+[9] J. A. K. Suykens and J. Vandewalle, “Least squares support vector machine classifiers,” Neural Process. Lett., vol. 9, no. 3, pp. 293–300, Jun.
+1999.
+[10] T. Van Gestel, J. A. K. Suykens, B. Baesens, S. Viaene, J. Vandewalle,
+G. Dedene, and B. De Moor, “Benchmarking least squares support vector
+machine classifiers,” Mach. Learn., vol. 54, no. 1, pp. 5–32, Jan. 2004.
+[11] S. Boyd and L. Vandenberghe, Convex Optimization. Cambridge, U.K.:
+Cambridge Univ. Press, 2004.
+[12] G. H. Golub and C. F. Van Load, Matrix Computations. Baltimore, MD,
+USA: The John Hopkins Univ. Press, 1983.
+[13] S. Yu, X. Yang, Z. Hao, and Y. Liang, “An adaptive support vector machine
+learning algorithm for large classification problem,” in Proc. 3rd Int. Symp.
+Neural Netw., 2006, pp. 981–990.
+[14] G. Cauwenberghs and T. Poggio, “Incremental and decremental support
+vector machine learning,” in Advances in Neural Information Processing
+Systems. vol. 13, Cambridge, MA, USA: MIT Press, 2001, pp. 409–415.
+[15] L. Farwell and E. Donchin, “Talking off the top of your head: Toward
+a mental prosthesis utilizing event-related brain potentials,” Electroencephalogr. Clin. Neurophysiol., vol. 70, no. 6, pp. 510–523, 1988.
+[16] E. Donchin, K. Spencer, and R. Wijesinghe, “The mental prosthesis: Assessing the speed of a P300-based brain-computer interface,” IEEE Trans.
+Rehabil. Eng., vol. 8, no. 2, pp. 174–179, Jun. 2000.
+[17] C. Guan, M. Thulasidas, and J. Wu, “High performance P300 speller for
+brain-computer interface,” in IEEE Int. Workshop Biomed. Circuits Syst.,
+Dec. 2004, pp. INV.13–16.
+[18] A. Rakotomamonjy and V. Guigue, “BCI competition III: Dataset IIensemble of SVMs for BCI P300 speller,” IEEE Trans. Biomed. Eng.,
+vol. 55, no. 3, pp. 1147–1154, Mar. 2008.
+
+GU et al.: ONLINE SEMI-SUPERVISED BRAIN–COMPUTER INTERFACE
+
+[19] Y. Li, J. Long, T. Yu, Z. Yu, C. Wang, H. Zhang, and C. Guan, “An
+EEG-based BCI system for 2-D cursor control by combining mu/beta
+rhythm and P300 potential,” IEEE Trans. Biomed. Eng., vol. 57, no. 10,
+pp. 2495–2505, Oct. 2010.
+[20] M. S. Treder and B. Blankertz, “(C)overt attention and visual speller design in an ERP-based brain-computer interface,” Behav. Brain Funct.,
+vol. 6, no. 28, pp. 1–13, 2010.
+
+Zhenghui Gu (S’00–AM’02–M’03) received the
+Ph.D. degree from Nanyang Technological University, Singapore, in 2003.
+From 2002 to 2008, she was with the Institute for
+Infocomm Research, Singapore. In 2009, she joined
+the College of Automation Science and Engineering,
+South China University of Technology, Guangzhou,
+China, as an Associate Professor. Her research interests include the fields of brain signal processing and
+pattern recognition.
+
+Zhuliang Yu (S’02–M’06) received the B.S.E.E. and
+M.S.E.E. degrees in electronic engineering from the
+Nanjing University of Aeronautics and Astronautics,
+Nanjing, China, 1995 and 1998, respectively, and the
+Ph.D. degree from Nanyang Technological University, Singapore, in 2006.
+From 1998 to 2000, he was with Shanghai Bell
+Company Ltd., as a Software Engineer. In 2000, he
+joined the Center for Signal Processing, Nanyang
+Technological University as a Research Engineer,
+where he later became a Research Fellow. He is
+a Professor in the College of Automation Science and Engineering, South
+China University of Technology, Guangzhou, China. His research interests include array signal processing, acoustic signal processing, and adaptive signal
+processing.
+
+2623
+
+Zhifang Shen received the B.E. degree in automation
+from the Xi’an University of Post and Telecommunications, Xi’an, China, in 2011.
+She is currently a postgraduate in the College of
+Automation Science and Engineering, South China
+University of Technology, Guangzhou, China. Her
+research interests include signal processing, pattern
+recognition, and its applications in brain–computer
+interfaces.
+
+Yuanqing Li (M’05) was born in Hunan, China, in
+1966. He received the B.S. degree in applied mathematics from Wuhan University, Wuhan, China, in
+1988, the M.S. degree in applied mathematics from
+South China Normal University, Guangzhou, China,
+in 1994, and the Ph.D. degree in control theory
+and applications from the South China University
+of Technology, Guangzhou, in 1997.
+Since 1997, he has been with the South China
+University of Technology, where he became a Full
+Professor in 2004. From 2002 to 2004, he was with
+the Laboratory for Advanced Brain Signal Processing, RIKEN Brain Science
+Institute, Saitama, Japan, as a Researcher. From 2004 to 2008, he was with
+the Laboratory for Neural Signal Processing, Institute for Infocomm Research,
+Singapore, as a Research Scientist. He is the author or coauthor of more than
+60 scientific papers in journals and conference proceedings. His research interests include, blind signal processing, sparse representation, machine learning,
+brain–computer interface, EEG, and fMRI data analysis.
+
+

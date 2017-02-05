@@ -1,0 +1,1076 @@
+1434
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 5, MAY 2015
+
+Real-Time Closed-Loop Control of Human Heart
+Rate and Blood Pressure
+Amirehsan Sarabadani Tafreshi∗ , Verena Klamroth-Marganska, Silvio Nussbaumer,
+and Robert Riener, Member, IEEE
+
+Abstract—Prolonged bed rest has significant negative impacts
+on the human body, particularly on the cardiovascular system.
+To overcome adverse effects and enhance functional recovery in
+bedridden patients, the goal is to mobilize patients as early as possible while controlling and stabilizing their cardiovascular system.
+In this paper, we used a robotic tilt table that allows early mobilization by modulating body inclination and automated leg movement
+to control the cardiovascular variables heart rate (HR) or systolic
+or diastolic blood pressures (sBP, dBP). The design and use of a
+control system is often done with a simulation model of a plant, but
+the time-variant and nonlinear nature of the cardiovascular system
+and subject-specific responses to external stimuli makes the modeling and identification challenging. Instead, we implemented an intelligent self-learning fuzzy controller that does not need any prior
+knowledge about the plant. The controller modulates the body inclination in order to adjust the cardiovascular parameters, with
+leg movement considered as a perturbing factor to the controller.
+The controller performance was evaluated in six healthy subjects.
+Measured mean values of HR, sBP, and dBP differed from desired
+reference values by 1.11 beats/min, 5.10 mmHg, and 2.69 mmHg,
+respectively. With this new control strategy, HR and dBP could
+be successfully controlled within medically tolerable ranges (deviations <2.5 beats/min and <5 mmHg from desired values, respectively). The control of sBP was less accurate; the results suggest
+that simultaneous control of multiple input stimuli rather than only
+adaptive automatic change of the tilt table angle might improve the
+controllability.
+Index Terms—Actuated tilt table, bed rest, cardiovascular system, early mobilization, fuzzy control, rehabilitation, reinforcement learning.
+
+I. INTRODUCTION
+ATIENTS who require intensive care treatment, e.g., after
+stroke, are facing prolonged bed rest. Long-term bed rest
+negatively affects the cardiovascular, respiratory, musculoskeletal, and neuropsychological systems of these patients and can
+postpone recovery [1]–[3]. Early mobilization has the potential
+to promote functional outcome and accelerate recovery in these
+
+P
+
+Manuscript received October 17, 2014; revised December 31, 2014; accepted
+January 5, 2015. Date of publication January 5, 2015; date of current version
+April 17, 2015. This work was supported by the Commission for Technology and
+Innovation CTI, the Gottfried and Julia Bangerter-Rhyner Foundation, the National Center of Competence in Research Neural Plasticity and Repair, Switzerland, and the European Community’s Seventh Framework Program FP7/20072013 under Grant 312815 STAMAS. Asterisk indicates corresponding author.
+∗ A. Sarabadani Tafreshi is with the Sensory-Motor Systems Lab, ETH
+Zurich, 8092 Zurich, Switzerland, and also with the Spinal Cord Injury Center,
+Balgrist University Hospital, 8008 Zurich, Switzerland (e-mail: Sarabadani@
+hest.ethz.ch).
+V. Klamroth-Marganska and R. Riener are with the Sensory-Motor Systems
+Lab, ETH Zurich, and also with the Spinal Cord Injury Center, Balgrist University Hospital.
+S. Nussbaumer is with Hocoma AG, Switzerland.
+Digital Object Identifier 10.1109/TBME.2015.2391234
+
+critically ill patients [4]–[6]. To mobilize the patients safely,
+their cardiovascular parameters have to be considered carefully. Control of these parameters is important to enable early
+mobilization while avoiding any further adverse effects e.g.,
+decompensation due to fatigue or falling during mobilization
+[7], [8].
+Here, our objective is to design an intelligent rehabilitation
+bed that allows automatic mobilization of bedridden patients
+while controlling and stabilizing their cardiovascular system.
+This will allow patients to get in a vertical position (stand and
+walk) while reducing risks of side effects, such as dizziness
+or syncope. It is expected that such a rehabilitation approach
+reduces secondary complications, personnel effort, and patient
+time in bed. As an initial prototype, we use a robotic tilt table that
+allows early mobilization through modulating body inclination
+and automated leg movement. These external mechanical stimuli are used in a closed-loop framework not only to provide early
+mobilization but also to control cardiovascular parameters, i.e.,
+Heart rate (HR) and blood pressure (BP).
+In our previous work, a nonlinear multiinput multioutput
+(MIMO) model predictive controller was developed to control
+HR and BP, and its feasibility was proven in patients [9]. The
+strategy was based on a relatively complex physiological model,
+required an identification phase of 11 min and presumed constant circumstances (e.g., no changes in hemodynamic response,
+which might happen due to different sources like alterations in
+blood volume over time [10]). Due to dependence of the controller on individual steady-state responses identified during the
+identification phase at the beginning of each session, changes in
+these assumptions over time could lead to deviations of the controlled values during the therapy session. The small differences
+between the nominal model used in the control and true system could be addressed by using robust control approaches.
+However, this might be of special concern in patients with
+autonomic nervous system dysfunction and continuous and significant changes in the cardiovascular response over time. Furthermore, the physiological model used in the previous strategy
+was constructed based on healthy subjects’ body responses and
+there might be cases where the model does not fit due to underlying disease and a successful control experiment would not be
+possible.
+In this paper, we move away from model predictive control
+toward model-free approaches [11], [12] that require neither
+an identification phase nor prior detailed knowledge about the
+human body. These characteristics allow adaptation of the controller to time-variant significant changes in the human body
+response regardless of physical characteristics (e.g., weight,
+height, lesion, etc. of the subject). As an initial step, we
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+SARABADANI TAFRESHI et al.: REAL-TIME CLOSED-LOOP CONTROL OF HUMAN HEART RATE AND BLOOD PRESSURE
+
+1435
+
+TABLE I
+PARTICIPATED SUBJECTS’ DATA
+Subject
+
+Gender
+
+Age
+
+Weight[kg]
+
+Height [cm]
+
+BMIa
+
+A
+B
+C
+D
+E
+F
+
+Female
+Male
+Male
+Male
+Male
+Male
+
+24
+26
+28
+29
+29
+30
+
+70
+76
+108
+83
+85
+77.5
+
+178
+183
+168
+190
+192
+182
+
+22.1
+22.7
+38.3
+23.0
+23.1
+23.4
+
+a
+
+Fig. 2.
+Fig. 1. Evaluation of the controller with tilt angle as input, HR, sBP or dBP
+as output, and stepping as disturbing factor.
+
+implemented an online self-adaptive fuzzy controller with a
+single-input single-output (SISO) structure. HR, systolic blood
+pressure (sBP) or diastolic blood pressure (dBP) values were
+controlled at desired values via the mechanical stimulus “body
+tilting.” The controller learns from the interaction with the human subject. The goals of the present study were 1) to evaluate
+the controller performance in controlling the cardiovascular parameters among healthy subjects (with the inclination angle of
+the tilt table as only control input), and 2) to investigate the
+robustness of the controller with respect to significant external changes in the cardiovascular system response. To simulate
+such significant changes, we used passive stepping through the
+stepping device that is integrated in the Erigo tilt table (in an
+open-loop manner) as an external disturbance. The controller
+had no knowledge about utilizing this passive leg movement on
+the body and treated it as a disturbing factor (see Fig. 1).
+II. MATERIALS AND METHODS
+A. Robotic Tilt Table and Measurement Equipment
+The rehabilitation tilt table Erigo (Hocoma AG, Volketswil,
+Switzerland) is a robotic tilt table enhanced with a motor-driven
+stepping device. The inclination angle α of the table can be continuously adapted between 0° and 75°. Passive leg movement
+is provided by two leg drives with a constant adjustable speed
+between 0 and 80 steps/min (maximum stepping frequency of
+fm ax . Step = 1.33 Hz) and equal periods of extension and flexion phases (see Fig. 1).
+For the continuous noninvasive measurement of biosignals
+(i.e., HR and BP), a CNAP monitor 500 (CNSystems AG, Austria) was deployed. The monitor requires a short initial calibration for each subject (about 2 min), and uses an arm and a
+finger cuff to measure the BP signal. The raw BP signal was
+extracted from the monitor in terms of an analog signal with
+the rate of 100 Hz and via a galvanic separation (for safety rea-
+
+BMI
+
+Experimental protocol.
+
+sons) fed into an input card of the bed PC. The BP wave signal
+was buffered online. The peaks of the signal were detected and
+averaged, allowing real-time values of sBP and dBP to be computed. Moreover, heart period was obtained by averaging the
+time length between successive dBP peaks in order to calculate
+the real-time HR value.
+B. Subjects and Experiments Protocol
+The controller was evaluated in six healthy subjects (age ±
+standard deviation (SD)): 27.7 ± 2.05 years; height: 182.2 ±
+7.9 cm; weight 83.2 ± 12.1 kg; body mass index (BMI) 25.4
+± 5.3). The participants had no known cardiovascular disease
+(for further details, see Table I). Informed consent was obtained
+from all subjects.
+For each subject, three experiments of HR, sBP, and dBP control were done. Each experiment took 33 min. Since a stabilized
+steady-state response of the cardiovascular system at a sustained
+position can be reached in about 5 min [13], each experiment
+started with a 5 min initial measurement in the supine position,
+followed by four 7-min blocks where the controller had to keep
+the HR or each BP signal at predefined values by providing the
+appropriate inclination angle. To evaluate the performance of the
+controller and detect potential limitations of the system, appropriate, predefined desired values had to be chosen. To calculate
+the appropriate desired values and to obtain an approximate
+value for the steady-state response, the cardiovascular parameter was averaged during the last minute of the initial 5 min
+supine position phase. Then, we assigned the set points: For
+the HR control experiment, 3 beats/min for the first two 7-min
+blocks, and 9 beats/min for the second two blocks, were added
+to the calculated steady-state supine values (see Fig. 2). For BP
+experiments, 5 and 15 mmHg, respectively, were added to the
+calculated steady-state supine values. The goal from choosing
+relatively lower set point values in the first two 7-min blocks was
+to evaluate the performance of the controller and its robustness
+with respect to external disturbance. For the second two blocks,
+higher values were assigned to find potential limitations of the
+
+1436
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 5, MAY 2015
+
+Fig. 3. General steady-state response of cardiovascular parameters to passive
+tilting and stepping.
+
+system. To evaluate the performance of the controller with respect to external disturbance, a passive leg movement (stepping)
+with a constant frequency of 24 steps/min was initiated in the
+beginning of the second 7-min block and continued for 14 min
+(to cover the third block as well, see Fig. 2).
+C. Cardiovascular System Response of Healthy Subjects
+In general, passive tilting results in an increase of the HR
+and the dBP [13]–[21] in healthy subjects, while the sBP either increases [13], [14] or does not change [15]–[21]. Similar
+changes can be observed in patients [22]–[24]. Even in healthy
+subjects, passive tilting can result in syncope [25], which can be
+prevented through additive passive leg movement [25], [26]. As
+the inclination angle during passive tilting has an either increasing or stabilizing but not decreasing effect on the cardiovascular
+parameters, we assume a positive monotonicity with increasing
+inclination angle.
+To our knowledge, there are no consistent quantitative data on
+the effect of passive leg movement alone on the cardiovascular
+system. In our previous work, we observed that passive stepping
+induces 1) an initial increase in the HR followed by a decrease,
+2) increase in sBP, and 3) no significant effect on dBP [9] (see
+Fig. 3).
+
+Fig. 4. Fuzzy controller structure used in this study; E = Error and CE =
+Change in error, MFs represented in colors.
+
+negative, zero (negligible value), and positive. Hence, the controller is composed of nine rules with scalar value consequences.
+In the proposed fuzzy controller, multiplication is used as Tnorm operator to compute the firing strength of each rule and
+weighted average is used for “defuzzification.” Thus, the controller output at time step k is
+n
+i=1 Ci fi
+(1)
+αinclination = 
+n
+i=1 fi
+where n is the total number of rules (all possible combination of
+MFs of E and CE without repetition), which is here “nine.” Ci
+is the consequence of the ith rule, and fi is the firing strength of
+each rule, which can be calculated using
+fi =
+
+T
+
+
+μj
+
+(2)
+
+j =1
+
+D. Self-Adapting Fuzzy Controller Design
+Generally, design of a control system requires a model of the
+plant in order to meet desired performance objectives. However,
+a physiologically realistic model of the cardiovascular system
+is difficult to obtain due to factors such as nonlinearity, intersubject, and time variability. As an alternative approach, we
+propose a self-adaptive fuzzy controller that does not need any
+previous knowledge about the plant. The controller is a zeroorder Takagi–Sugeno type fuzzy controller [27] enhanced with
+self-adaptive capability, which combines the fuzzy logic control with reinforcement learning concepts [12]. Error (E) and
+change in error (CE) between measured and desired biosignal
+values (i.e., HR, sBP, or dBP) were considered as inputs to the
+controller. The structure of our controller was defined using
+the three membership functions (MFs) “negative,” “zero,” and
+“positive” for each variable, E and CE (see Fig. 4). The three
+MFs divide the range of E and CE into three different areas of
+
+with T as the number of MFs associated with each rule (number
+of input variables, i.e., here T = 2), and μi as the activation
+degree of MFs associated with the corresponding ith rule.
+At the start of each experiment, the rule consequences are
+initialized at zero and adapted during the experiment by interaction with the plant (i.e., the human body, based on the strategy
+employed from [12]). At each step, the rule consequences are
+adapted online based on the error between the output of the plant
+(yk = measured HR, sBP, or dBP at time k) and the previously
+attempted desired value, rk −1 . The error ek = rk −1 − yk is considered at every time step and a correction (reward/punishment)
+is applied on the rule consequences that have been responsible
+for the error. Assuming a positive monotonicity of HR, sBP,
+and dBP responses (see Section III), three conditions can be
+considered for the reward or punishment of rule consequences:
+1) A negative error yk > rk −1 implies that the previously
+applied inclination angle at time k has been too large and
+
+SARABADANI TAFRESHI et al.: REAL-TIME CLOSED-LOOP CONTROL OF HUMAN HEART RATE AND BLOOD PRESSURE
+
+the consequences of the involved rules should be punished
+(decreased).
+2) A positive error yk < rk −1 implies that the previously
+applied inclination angle at time k has been too small
+and the consequences of the involved rules need to be
+rewarded (increased).
+3) Reaching the desired value ek = 0 demonstrates that the
+previously applied inclination angle at time k has been
+sufficient and no change in rule consequences are needed.
+Since the contribution of each rule to the current error is
+different, the reward/punishment for each rule has to be
+proportional to the degree of contribution (i.e., the firing
+strength of each rule at the previous time step). Therefore,
+the ith rule consequence will be rewarded/penalized, (i.e.,
+increased/decreased) based on the following formula:
+ΔCi (k) = L.fi (k − 1).e(k)
+
+(3)
+
+with “L” as the learning factor of the controller, which is known
+from prior knowledge about the plant. Its absolute value is defined as
+|L| =
+
+Δu
+Δr
+
+(4)
+
+where Δu is the range of change in the input variable (inclination angle α) and Δr is the range of possible changes in the
+output (HR, sBP, or dBP) caused by the input. The inclination
+angle of the bed varies between 0° and 75° (Δu = 75). Based
+on available experimental data, it was assumed that the maximum change in response due to inclination angle would be
+about 60 (beats/min or mmHg) such that (Δr = 60) was chosen. Accordingly, during our experiments, a constant learning
+factor of L = 75/60 = 1.25 was used. The rule consequences
+are updated in an online manner using
+Ci (k) = Ci (k − 1) + ΔCi (k).
+
+1437
+
+Fig. 5. Mean absolute errors of HR (columns) and corresponding SDs (black
+lines) among six healthy subjects. Set points 1 and 2 correspond to addition of
+3 beats/min, and set points 3 and 4 to addition of 9 beats/min to the steady-state
+supine value. The stepping was active during set points 2 and 3.
+
+which attenuates noise but also the short-term natural fluctuations. For the HR, a window size of 30 (group delay of 14.5 s)
+and for the BP signals, a window size of 10 (group delay of
+4.5 s) with a sampling frequency of 1 Hz were used. These
+values correspond to cutoff frequencies at approximately 0.02
+and 0.04 Hz, respectively, and attenuation of around 30% of the
+signals at these frequencies.
+F. Performance Evaluation of the Controller
+The difference between the true, nonfiltered measured biosignals and the desired values during the last 2 min of each of the
+four 7-min experimental phases was computed. The mean and
+SD of the errors of each experimental phase were calculated
+for all subjects (see appendix). We considered that mean values stand in for long-term dynamics of the cardiovascular system, while SDs represent natural short-term fluctuations. Based
+on the literature [30]–[32] and personal communications with
+physicians, deviations of less than 2.5 beats/min for HR and
+5 mmHg for both sBP and dBP are clinically insignificant and,
+thus, can be considered as successful control of desired values.
+
+(5)
+
+The direction of the change (ΔCi (k)), i.e., increase/decrease
+of rule consequence is determined by the sign of e(k), for which
+each rule consequence has to be applied. If the plant response
+(e.g., HR) with respect to the control input (inclination angle α)
+has a negative monotonicity, then the applied change has to be
+in the opposite direction and consequently a negative sign has
+to be added to (3).
+To compensate physiological dead time and transient phases
+in the natural response of the cardiovascular system to a change
+in the inclination angle, the sampling time of the controller was
+set to 20 s and the control input was applied every 20 s.
+E. Filtering of the Signals
+The goal was to control the long-term dynamics of the cardiovascular parameters. To cut the frequencies not representing the
+long-term dynamics, low-pass filtering of the biosignals was
+necessary. These frequencies not only include high frequencies such as measurement noise, but also low frequency, natural
+physiological fluctuations [28]. Before entering the control loop,
+HR, sBP, and dBP biosignals were filtered using a moving average infinite impulse response filter of the Direct-Form II [29],
+
+III. RESULTS
+The average of absolute mean error for HR over all the four
+set points was below 2 beats/min for each subject (see Fig. 5).
+The total absolute mean error was greater for sBP compared
+to dBP, whereas the error SDs (i.e., short-term dynamics) did
+not differ significantly. We calculated the average of absolute
+mean errors in HR and BP, and their corresponding SDs among
+the subjects (see Figs. 5 and 6, respectively). Fig. 7 depicts the
+controller performance in one of the subjects where the filtered
+value shows how successful the controller was in reaching the
+desired values.
+In the first two 7-min blocks, the set points were chosen to
+show the performance of the controller and its robustness with
+respect to external disturbances. During these set points for
+HR, sBP, and dBP, an average absolute error of 1.17 beats/min,
+2.44 mmHg, and 0.85 mmHg were observed, respectively.
+Considering performance evaluation in all the four blocks, average absolute errors for HR, sBP, and dBP were 1.11 beats/min,
+5.1 mmHg, and 2.69 mmHg, respectively.
+In the present study, the first two set points were chosen such
+that they show the accuracy and robustness of the proposed
+controller, and the second two set points were chosen to show
+
+1438
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 5, MAY 2015
+
+Fig. 6. Mean absolute errors of sBP and dBP (solid columns) and corresponding SDs (black lines) among six healthy subjects. Set points 1 and 2 correspond
+to addition of 5 mmHg, and set points 3 and 4 to addition of 15 mmHg to the
+steady-state supine value. The stepping was active during set points 2 and 3.
+
+the limitations of the system and borders of the reachable values
+when trying to affect cardiovascular parameters through applied
+external stimuli. Hence, the control of variables generally seems
+to be more difficult in the last two set points. HR could be controlled accurately in all the four set points, and the errors were
+generally below 2.5 beats/min (i.e., clinically insignificant error
+border). dBP could be controlled accurately only during the first
+two set points, and the errors during these two set points were
+generally below 5 mmHg (clinically insignificant error border).
+In contrast to dBP, the sBP could hardly be elevated to 5 mmHg
+with tilting alone (without stepping). Successful control was
+only observed in the second 7-min block with an average absolute error of 1.32 mmHg, and an increase of +5 mmHg with
+respect to the supine value when stepping was added. The comparison of “set point 1 and set point 2 together,” and “set point 3
+and set point 4 together” reveals that the controller reaches the
+desired values of sBP only when the stepper is active.
+While passive tilting might result to syncope [25], no such
+occasion was observed during the study.
+
+Fig. 7. Evaluation of the controller on subject E; SISO control of HR, sBP, and
+dBP through inclination. To illustrate the biosignal trend, the measured signal
+was zero-phase filtered [1] by a second-order Butterworth filter with a cutoff
+frequency of 0.02 Hz.
+
+IV. DISCUSSION
+Previous efforts to control cardiovascular parameters nonpharmacologically have been mainly focused on control of
+the HR with the aim to increase motivation of users during
+exercise games [33] to provide optimum exercise protocol in
+sport training or rehabilitation [34], [35], or to increase patient
+engagement without undue harm during the rehabilitation process [36], [37]. The primary focus has been on HR control during
+gait training and various control strategies have been proposed.
+HR control was achieved through adjustment of gait speed either voluntarily [37] or by automated adaptation of treadmill
+speed [34], [37]–[39]. The proposed strategies require either
+an identification phase of a relatively complex model or tuning
+of the parameters in preexperiments. Apparently, they are only
+
+applicable to healthy subjects or patients who are able to walk.
+There has been almost no attention on nonpharmacological control of cardiovascular parameters in bedridden patients. In this
+paper, we addressed the control of cardiovascular parameters in
+bedridden patients to rehabilitate their deconditioned cardiovascular system following the long duration bed rest. The proposed
+self-adapting fuzzy controller enabled us to control cardiovascular parameters of the subjects independent of the characteristics
+of the single subjects enrolled in the study.
+A. Controller Performance
+In general, dBP control was more successful than sBP control. This result is in agreement with other studies [15]–[21]
+
+SARABADANI TAFRESHI et al.: REAL-TIME CLOSED-LOOP CONTROL OF HUMAN HEART RATE AND BLOOD PRESSURE
+
+that report hardly distinguishable changes in sBP as a reaction to passive tilting, indicating rather physiological features
+of healthy response to tilting than technical limitations. HR, in
+contrast, could be controlled accurately in all conditions and
+even increased to 9 beats/min in the last two set points.
+The study design with the stepping disturbance only active in
+set points 2 and 3 was unsymmetrical. However, due to adaptation of the controller to the external disturbance in set points 2
+and 3, the withdrawal of stepping in set point 4 can also be considered as another disturbance to the controller. Nevertheless,
+as the HR results suggest, the controller successfully adapts and
+copes this challenge. Such a conclusion is more difficult to make
+in case of sBP and dBP, as during the last two set points, in most
+cases, the set points are unreachable and the control input goes
+to saturation.
+The rise time is another important aspect of the controller
+performance. In the initial learning phase when the controller is
+relatively naive, the rise time of the controller depends on the
+speed of learning (i.e., learning factor “L”), and furthermore, it
+depends on how steep each individual’s body reacts to tilting.
+After the initial learning phase, the reaction is expected to be
+faster; however, it might be constrained by the speed of the actuators (a full tilt from 0° to 75° takes approximately 20 s). Since
+the cardiovascular system response is nonlinear with respect to
+tilting and is subject dependent [15], and moreover, the study
+design is unsymmetrical and the controller continuously learns,
+the exact analysis of the controller rise time is difficult to make.
+However, as the analysis of controller performance in reaching
+the desired value is performed in the last 2-min periods of each
+set point, the results suggest that on average a 5-min time period
+is enough to learn the body reactions and reach the desired values. Considering the clinical settings such as intensive care (24
+hr patient support) or short-term therapy (30–60 min duration),
+the mentioned time period (about 5 min) seems to be acceptable. One point which might arise here is whether the difficulty
+in control of sBP might be also due to the learning process and
+rise time of the controller. The observations suggest that in case
+of sBP, the issue is rather lack of reaction with respect to inclination angle, as in many cases, one can observe saturation in
+the control input without reaching the desired value (e.g., sBP
+response of subject E in Fig. 7 at around 650 s).
+The order of the set points is another important issue to be
+considered when interpreting the results. While introduction and
+withdrawal of stepping can be considered as a disturbing factor
+to the controller and, therefore, imposes adaptation of the controller, the longer learning time, and therefore, the opportunity
+to learn from more actions is expected to improve the controller
+performance. Therefore, beside all the issues, to some extent,
+it can be expected that the controller in set point 4 performs
+better than, for example, set points 1 or 2. This means that, for
+example, when the lower set points 1 and 2 are skipped and
+we directly start with the higher set point (i.e., set points 3 and
+4), the controller needs to explore a larger space (go to higher
+angles), and therefore, the initial rise time is expected to be
+larger. However, when the initial learning phase is passed, no
+significant changes in controller performance (e.g., rise time)
+are expected by reordering the set points.
+
+1439
+
+Besides stepping and tilting, other factors, e.g., psychological factors, might influence the cardiovascular system. The influence of such factors could also be observed in the result of
+subject E (see Fig. 7), where, after the change of the set point
+at 1140 s (third 7-min block), a large peak in HR could be
+seen. It exemplifies the learning strategy of the controller. In the
+beginning, the controller tried to increase the HR by increasing
+the inclination angle but had no success in reaching the desired
+value. Later, in the sequence of increasing the inclination (occurring between 1140 and 1220 s), the controller experienced a
+sudden, unexpected HR increase at 1240 s and, consequently,
+strongly responded by decreasing the inclination angle. Eventually, the controller was successful to reject this unknown-source
+external disturbance and to regulate the HR to the desired value.
+The main advantage of the controller is its ability for adaptation and response to external disturbances. However, positive
+monotonicity of the human body response with respect to tilting
+was considered for the control strategy in healthy subjects. In
+case of patients, reactions might be different due to the underlying disease (e.g., autonomic dysregulation) or medication [22]–
+[24]. As the next step, we should, therefore, check whether the
+assumption of positive monotonicity holds in a patient population. Nevertheless, the positive monotonicity assumption might
+hold in many settings (e.g., increase of HR by physical activity
+intensity), which make the proposed controller potentially applicable to other domains outside the scope of our paper (e.g.,
+gait training).
+The adaptability of the controller allowed us to select our
+subjects without considering their physical characteristics such
+as height and weight. As an example, subject C shows a relatively large BMI factor which sets him apart from other subjects.
+However, the controller performance on this subject was similar
+to other subjects; successful HR control in all conditions, sBP
+control in set point 2, and dBP control in set points 1 and 2.
+Nonetheless, similar to any other adaptive control scheme, in
+our approach, the persistency of excitation and convergence of
+the controller parameters to true values is a challenging topic
+and requires further investigations [40].
+B. Pathophysiological Considerations
+We propose that early mobilization under control of the cardiovascular parameters may be capable to effectively restore
+cardiovascular conditioning in bedridden patients. Autonomic
+dysregulation has been recognized as an important factor of
+cardiovascular deconditioning. Altered cardiovascular reflex responses [41] with decrease in the cardiac baroreflex sensitivity
+and alteration of the sympathetic–parasympathetic balance [42]
+play major roles for the onset of orthostatic intolerance after
+prolonged bed rest [43]–[45]. A decrease in BP can be partially compensated by the body through a rise in HR. But a
+sudden deflection in the BP in absence of further HR increases
+precedes orthostatic hypotension [43]. Control of the cardiovascular parameters with early recognition of threatening values
+during early mobilization may not only allow to retrain the reflex responses by exercising within safe limits but also to restore
+functional capacity to before-bed rest levels.
+
+1440
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 5, MAY 2015
+
+TABLE II
+CONTROLLER PERFORMANCE ON HEALTHY SUBJECTS (μ IS THE MEAN ERROR AND σ THE SD)
+
+Experiment
+
+Subject
+
+Set point 1
+μ
+
+σ
+
+Set point 2
+(Set point 1 + f s t e p )
+μ
+
+HR (beats per minute)
+
+A
+–0.74
+2.25
+0.73
+B
+3.66
+4.27
+–1.3
+C
+1.21
+1.93
+0.2
+D
+1.28
+1.96
+–1.85
+E
+0.58
+1.92
+–1.01
+F
+0.56
+2.78
+–0.95
+sBP (mmHg)
+A
+2.94
+3.14
+–4.43
+B
+–1.79
+5.35
+0.23
+C
+–6.25
+1.69
+–1.31
+D
+–3.02
+4.07
+0.28
+E
+–3.2
+4.61
+1.57
+F
+–4.72
+3.33
+0.11
+dBP (mmHg)
+A
+–0.54
+2.57
+0.19
+B
+0.37
+1.67
+–1.12
+C
+–1.33
+1.41
+–0.02
+D
+1.4
+2.89
+–2.23
+E
+0.49
+2.48
+–1.78
+F
+0.42
+1.95
+0.27
+Total (absolute mean)
+HR
+1.34
+2.52
+1.01
+sBP
+3.65
+3.70
+1.32
+dBP
+0.76
+2.16
+0.94
+f s t e p is applied stepping pattern considered as external disturbance.
+
+Set point 3
+(Set point 4 + f s t e p )
+
+Set point 4
+
+Total
+(absolute mean)
+
+σ
+
+μ
+
+σ
+
+μ
+
+σ
+
+μ
+
+σ
+
+4.96
+1.52
+2.06
+2.82
+1.3
+1.61
+5.14
+3.03
+3.34
+2.92
+3.36
+1.48
+3.14
+2.8
+2.7
+2.98
+2.06
+1.26
+2.38
+3.21
+2.49
+
+–1.21
+–1.76
+–0.59
+–3.34
+–0.93
+0.54
+–6.91
+–4.07
+–11.14
+–1.44
+–3.98
+–3.87
+–6.39
+–14.5
+–6.12
+0.85
+–0.27
+–3.22
+1.40
+5.24
+5.23
+
+3.13
+4.35
+2.58
+3.76
+1.87
+3.18
+4.29
+2.69
+1.89
+5.77
+1.28
+2.62
+2.0
+2.01
+2.47
+4.86
+2.57
+1.30
+3.15
+3.09
+2.54
+
+–0.33
+–1.14
+0.94
+0.94
+0.01
+–0.83
+–10.96
+–12.84
+–11.54
+–16.42
+–0.92
+–8.51
+–5.59
+–9.8
+–4.93
+–1.0
+0.68
+–1.01
+0.70
+10.20
+3.84
+
+2.3
+3.13
+2.88
+3.19
+2.03
+3.28
+2.51
+3.26
+2.44
+2.42
+3.52
+2.01
+2.74
+1.21
+3.58
+5.39
+2.13
+1.11
+2.80
+2.69
+2.69
+
+0.75
+1.96
+0.73
+1.85
+0.63
+0.72
+6.31
+4.73
+7.56
+5.29
+2.42
+4.30
+3.18
+6.45
+3.1
+1.37
+0.8
+1.23
+1.11
+5.10
+2.69
+
+3.16
+3.32
+2.36
+2.93
+1.78
+2.71
+3.77
+3.58
+2.34
+3.79
+3.19
+2.36
+2.61
+1.92
+2.54
+4.03
+2.31
+1.41
+2.71
+3.17
+2.47
+
+The table shows the detailed performance of the controller on every subject and at each set point. μ is the mean error between measured and
+desired values during the last 2 min of each set point. σ is the SD of the error during the same period and represents the short-term dynamics of
+the cardiovascular parameter.
+
+The main goals of the study were to present this novel rehabilitation approach and validate the proposed control strategy. To
+this end, we decided to choose exact and clinically significant
+values as set points. In clinical setting, however, the goal is to
+control and keep the cardiovascular parameters within a certain
+range (e.g., HR between 60 and 100 beats/min or sBP between
+120 and 140 mmHg [46]). Extension from controlling exact
+values to intervals is a simplification of the current approach.
+By putting the set points in the middle of the clinically relevant
+desired ranges, the control loop would try to keep the cardiovascular parameters in the middle of the target intervals, and
+therefore, it would continuously maximize the distance from
+the unsafe borders.
+C. Limitations
+The main limitation of our approach to control the human
+body originated from existing constraints both in inputs (i.e., the
+range of applicable physical stimuli) and outputs (i.e., the range
+of achievable range of physiological outputs). As an example,
+the steady-state response of the cardiovascular system to tilting
+in average corresponds to 15–30% HR increase, 10–15% dBP
+increase, and no significant change in sBP [15].
+A multiinput single-output structure instead of SISO would
+allow physiological signals such as sBP to be controlled more
+precisely and over a wider range, as multiple inputs (e.g., stepping, inclination) could be used to affect each output. However,
+it is questionable whether this could be implemented using the
+same method that we presented here as it would require us to
+be able to identify each input’s exact contribution to the error.
+
+This might be complex when both inputs are changed simultaneously. To control multiple parameters simultaneously (e.g.,
+HR and sBP together [9]), designing a MIMO control structure
+would be required.
+V. CONCLUSION AND OUTLOOK
+Early mobilization can avert negative effects of long bed rest
+and side effects may be prevented with control of the cardiovascular system. Control of cardiovascular parameters is governed
+by autonomic nervous system and, in particular, baroreflex regulation. Impairment of this internal controller causes orthostatic
+intolerance and is prevalent among bedridden patients. Due to
+the involved risks, this makes the patients mobilization cumbersome. Augmentation of the impaired internal controller by
+using an external controller providing suitable external stimuli
+type and intensity might impede associated risks such as sudden drop of sBP and consequence syncope during mobilization
+in patients. The goal of this project is to mobilize bedridden
+patients very early while controlling the cardiopulmonary function through external mechanical and electrical stimuli. As an
+initial step, this paper proposes an online self-adapting SISO
+fuzzy controller for HR, sBP, and dBP control through inclination and learning without detailed knowledge about the human
+body. The experimental results show successful results for HR
+and dBP control, while sBP could only be regulated within
+small ranges; adding stepping increased the reachable set of
+sBP. Therefore, additional external stimuli might be required
+to successfully control the cardiovascular system and keep the
+variables within safe ranges for patients. In a next step, we
+
+SARABADANI TAFRESHI et al.: REAL-TIME CLOSED-LOOP CONTROL OF HUMAN HEART RATE AND BLOOD PRESSURE
+
+will integrate stepping and functional electrical stimulation of
+leg muscles as additional control inputs into a MIMO control
+structure, and study the outcome in bedridden patients over a
+prolonged time (several hours).
+ACKNOWLEDGMENT
+The authors would like to thank M. Ida Kamber for her support in preparation of the ethics documents, M. Herold-Nadig
+for his technical support, as well as N. Gerig, L. Heinicke,
+U. Keller, N. Müller, and D. Novak for their experimental support during the study.
+APPENDIX
+See appendix Table II in previous page.
+REFERENCES
+[1] R. G. Brower, “Consequences of bed rest,” Crit. Care Med., vol. 37,
+pp. S422–S428, 2009.
+[2] S. M. Fortney et al., “The physiology of bed rest,” Comprehensive Physiology. Hoboken, NJ, USA: Wiley, 1996.
+[3] D. K. Dittmer and R. Teasell, “Complications of immobilization and
+bed rest. Part 1: Musculoskeletal and cardiovascular complications,” Can.
+Family Physician, vol. 39, pp. 1428–1432, 1993.
+[4] P. E. Morris, “Moving our critically ill patients: Mobility barriers and
+benefits,” Crit. Care Clin., vol. 23, pp. 1–20, 2007.
+[5] G. Bourdin et al., “The feasibility of early physical activity in intensive
+care unit patients: A prospective observational one-center study,” Respir.
+Care, vol. 55, pp. 400–407, 2010.
+[6] C. Burtin et al., “Early exercise in critically ill patients enhances short-term
+functional recovery∗,” Crit. Care Med., vol. 37, pp. 2499–2505, 2009.
+[7] W. L. Ooi et al., “The association between orthostatic hypotension and
+recurrent falls in nursing home residents,” Amer. J. Med., vol. 108, no. 2,
+pp. 106–111, 2000.
+[8] A. J. Campbell et al., “Risk factors for falls in a community-based prospective study of people 70 years and older,” J. Gerontol., vol. 44, pp. M112–
+M117, 1989.
+[9] M. Wieser et al., “Cardiovascular control and stabilization via inclination
+and mobilization during bed rest,” Med. Biol. Eng. Comput., vol. 52,
+pp. 53–64, 2013.
+[10] P. E. Marik and J. Lemson, “Fluid responsiveness: An evolution of our
+understanding,” Brit. J. Anaesthesia, vol. 112, pp. 617–620, 2014.
+[11] J. L. Castro and J. Lemson, “Fuzzy logic controllers are universal approximators,” IEEE Trans. Syst., Man Cybern., vol. 25, no. 4, pp. 629–635,
+Apr. 1995.
+[12] A. B. Cara et al., “A new methodology for the online adaptation of
+fuzzy self-structuring controllers,” IEEE Trans. Fuzzy Syst., vol. 19,
+pp. 449–464, Jun. 2011.
+[13] W. H. Cooke et al., “Human responses to upright tilt: A window on central
+autonomic integration,” J. Physiol., vol. 517, pp. 617–628, 1999.
+[14] L. Chi et al., “Cardiovascular response to functional electrical stimulation and dynamic tilt table therapy to improve orthostatic tolerance,” J.
+Electromyography Kinesiol., vol. 18, pp. 900–907, 2008.
+[15] J. J. Smith et al., “Hemodynamic response to the upright posture,” J. Clin.
+Pharmacol., vol. 34, pp. 375–386, 1994.
+[16] S. Mukai and J. Hayano, “Heart rate and blood pressure variabilities during
+graded head-up tilt,” J. Appl. Physiol., vol. 78, pp. 212–216, 1995.
+[17] R. Hainsworth and Y. Al-Shamma, “Cardiovascular responses to upright
+tilting in healthy subjects,” Clin. Sci., vol. 74, pp. 17–22, 1988.
+[18] M. Petersen et al., “The normal response to prolonged passive head up tilt
+testing,” Heart, vol. 84, pp. 509–514, 2000.
+[19] M. P. Tulppo et al., “Effects of exercise and passive head-up tilt on fractal
+and complexity properties of heart rate dynamics,” Amer. J. Physiol.-Heart
+Circulatory, vol. 280, pp. H1081–H1087, 2001.
+[20] T. Heldt et al., “Circulatory response to passive and active changes in
+posture,” in Proc. Comput. Cardiol., 2003, pp. 263–266.
+[21] F. A. Ramirez-Marrero et al., “Cardiovascular dynamics in healthy subjects with differing heart rate responses to tilt,” J. Appl. Physiol., vol. 105,
+pp. 1448–1453, 2008.
+
+1441
+
+[22] S. Houtman et al., “Sympathetic nervous system activity and cardiovascular homeostasis during head-up tilt in patients with spinal cord injuries,”
+Clin. Autonomic Res., vol. 10, pp. 207–212, 2000.
+[23] S. F. Figoni, “Cardiovascular and haemodynamic responses to tilting
+and to standing in tetraplegic patients: a review,” Spinal Cord, vol. 22,
+pp. 99–109, 1984.
+[24] J. Legramante et al., “Positive and negative feedback mechanisms in the
+neural regulation of cardiovascular function in healthy and spinal cord–
+injured humans,” Circulation, vol. 103, pp. 1250–1255, 2001.
+[25] D. Czell et al., “Influence of passive leg movements on blood circulation
+on the tilt table in healthy adults,” J. Neuroeng. Rehabil., vol. 1, no. 4,
+2004.
+[26] M. S. Luther et al., “Comparison of orthostatic reactions of patients still
+unconscious within the first three months of brain injury on a tilt table with
+and without integrated stepping. A prospective, randomized crossover
+pilot trial,” Clin. Rehabil., vol. 22, pp. 1034–1041, 2008.
+[27] T. Takagi and M. Sugeno, “Fuzzy identification of systems and its applications to modeling and control,” IEEE Trans. Syst., Man Cybern.,
+vol. SMC-15, no. 1, pp. 116–132, Jan./Feb. 1985.
+[28] G. Parati et al., “Spectral analysis of blood pressure and heart rate variability in evaluating cardiovascular regulation a critical appraisal,” Hypertension, vol. 25, pp. 1276–1286, 1995.
+[29] A. V. Oppenheim et al., Discrete-Time Signal Processing, vol. 5. Upper
+Saddle River, NJ, USA: Prentice-Hall, 1999.
+[30] J. Achten and A. E. Jeukendrup, “Heart rate monitoring,” Sports Med.,
+vol. 33, pp. 517–538, 2003.
+[31] C. Hug and G. D. Clifford, “An analysis of the errors in recorded heart
+rate and blood pressure in the ICU using a complex set of signal quality
+metrics,” in Proc. Comput. Cardiol., 2007, pp. 641–644.
+[32] T. G. Pickering et al., “Recommendations for blood pressure measurement
+in humans and experimental animals part 1: Blood pressure measurement
+in humans: A statement for professionals from the subcommittee of professional and public education of the American heart association council
+on high blood pressure research,” Circulation, vol. 111, pp. 697–716,
+2005.
+[33] T. Stach et al., “ Heart rate control of exercise video games,” in Proc.
+Graph. Interface Can. Inf. Process. Soc., 2009, pp. 125–132.
+[34] T. M. Cheng et al., “Nonlinear modeling and control of human heart rate
+response during exercise with various work load intensities,” IEEE Trans.
+Biomed. Eng., vol. 55, no. 11, pp. 2499–2508, Nov. 2008.
+[35] R. A. Cooper et al., “Model reference adaptive control of heart rate during
+wheelchair ergometry,” IEEE Trans. Control Syst. Technol., vol. 6, no. 4,
+pp. 507–514, Jul. 1998.
+[36] A. C. Koenig and R. Riener, “The human in the loop,” Neurorehabilitation
+Technology. London, U.K.: Springer, 2012, pp. 39–56.
+[37] A. Koenig et al., “Controlling patient participation during robot-assisted
+gait training,” J. Neuroeng. Rehabil., vol. 8, no. 14, 2011.
+[38] S. W. Su et al., “Identification and control for heart rate regulation during
+treadmill exercise,” IEEE Trans. Biomed. Eng., vol. 54, no. 7, pp. 1238–
+1246, Jul. 2007.
+[39] S. Scalzi et al., “Nonlinear control techniques for the heart rate regulation in treadmill exercises,” IEEE Trans. Biomed. Eng., vol. 59, no. 3,
+pp. 599–603, Mar. 2012.
+[40] K. S. Narendra and A. M. Annaswamy, “Persistent excitation in adaptive
+systems,” Int. J. Control, vol. 45, pp. 127–160, 1987.
+[41] R. Mukkamala et al., “Noninvasive identification of the total peripheral resistance baroreflex,” Amer. J. Physiol.-Heart Circulatory, vol. 284,
+no. 3, pp. H947–H959, 2003.
+[42] N. Montano et al., “Power spectrum analysis of heart rate variability to
+assess the changes in sympathovagal balance during graded orthostatic
+tilt,” Circulation, vol. 90, no. 4, pp. 1826–1831, 1994.
+[43] A. Adami et al., “Cardiovascular re-adjustments and baroreflex response
+during clinical reambulation procedure at the end of 35-day bed rest
+in humans,” Appl. Physiol. Nutr. Metabolism, vol. 38, pp. 673–80, Jun.
+2013.
+[44] F. Aletti et al., “Short-term variability of blood pressure: Effects of lowerbody negative pressure and long-duration bed rest,” Amer. J. Physiol.
+Regul. Integr. Comp. Physiol., vol. 303, pp. R77–85, Jul. 1, 2012.
+[45] X. Xiao et al., “Effects of simulated microgravity on closed-loop cardiovascular regulation and orthostatic intolerance: Analysis by means of
+system identification,” J. Appl. Physiol., vol. 96, no. 2, pp. 489–497,
+2004.
+[46] N. Cooper et al., Essential Guide to Acute Care. New York, NY, USA:
+Wiley, 2008.
+
+1442
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 5, MAY 2015
+
+Amirehsan Sarabadani Tafreshi received the M.Sc.
+degree in robotics, systems and control, in 2011, from
+ETH Zürich, Zurich, Switzerland, where he is currently working toward the Ph.D. degree at SensoryMotor Systems Lab.
+His research interests include rehabilitation
+robotics, human–robot interaction, pattern recognition, and biomedical signal processing.
+
+Silvio Nussbaumer received the B.Sc. degree in human movement sciences and the M.Sc. degree in human movement sciences with a major in biomechanics, from ETH Zurich, Zurich, Switzerland, in 2007
+and 2009, respectively.
+From 2008 to 2009, he was with the Neuromuscular Research Laboratory, Schulthess Clinic, Zurich,
+where he conducted research in the field of musculoskeletal disorders. In 2009, he joined Hocoma AG,
+Volketswil, Switzerland, where he is currently working as a Product Manager in the early rehabilitation
+business.
+
+Verena Klamroth-Marganska studied human
+medicine at Freie Universitaet and HumboldtUniversitaet, Berlin, Germany, and received the Doctoral degree from Westfälische Wilhelms-Universität
+Münster, Münster, Germany, in 2004.
+From 2000 to 2006, she was a Research Assistant
+with the Institute of Human Genetics at University
+Hospital Muenster, Germany, and from 2006 to 2007,
+was an Intern at the Department of Neurology, MEDIAN KLINIK, Berlin, Germany. Since 2008, she
+has been a Senior Research Associate at the SensoryMotor Systems Lab, Department of Health Science and Technologies, ETH
+Zurich, Zurich, Switzerland.
+
+Robert Riener (M’99) studied mechanical engineering from TU München, München, Germany, and from
+the University of Maryland, College Park, MD, USA.
+He received the Dr. Ing. degree in engineering from
+the TU München in 1997.
+From 1998 to 1999, he was a Postdoctoral Researcher with the Centro di Bioingegneria, Politecnico di Milano, and then he returned to TU München,
+where he completed his Habilitation in the field of
+biomechatronics in 2003. In 2003, he became an Assistant Professor at ETH Zurich, Zürich, Switzerland,
+and Spinal Cord Injury Center of the University Hospital Balgrist (“doubleprofessorship”). Since 2010, he has been a Full Professor for sensory-motor
+systems, ETH Zurich. Since 2012, he has been with the Department of Health
+Sciences and Technology. His research interests include the investigation of the
+sensory-motor actions in and interactions between humans and machines. This
+includes the design of novel user-cooperative robotic devices and virtual reality
+technologies applied to neurorehabilitation. He is the Creator and Organizer of
+the Cybathlon 2016. He has published more than 400 peer-reviewed journal and
+conference articles, 20 books and book chapters, and filed 20 patents.
+Dr. Riener has received 18 personal distinctions and awards including the
+Swiss Technology Award in 2006, the IEEE TNSRE Best Paper Award 2010,
+and the euRobotics Technology Transfer Awards in 2011 and 2012.
+
+

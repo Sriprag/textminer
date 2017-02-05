@@ -1,0 +1,2174 @@
+406
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Epsilon-Tube Filtering: Reduction of
+High-Amplitude Motion Artifacts From
+Impedance Plethysmography Signal
+Sardar Ansari, Member, IEEE, Kevin Ward, and Kayvan Najarian, Senior Member, IEEE
+
+Abstract—The impedance plethysmography (IP) has long been
+used to monitor respiration. The IP signal is also suitable for
+portable monitoring of respiration due to its simplicity. However,
+this signal is very susceptible to motion artifact (MA). As a result, MA reduction is an indispensable part of portable acquisition
+of the IP signal. Often, the amplitude of the MA is much larger
+than the amplitude of the respiratory component in the IP signal.
+This study proposes a novel filtering method to remove the highamplitude MA’s from the IP signal. The proposed method combines
+the idea of ε-tube loss function and an autoregressive exogenous
+model to estimate the MA while leaving the periodic respiratory
+component of the IP signal intact. Also, a regularization method is
+used to find the best filter coefficients that maximize the regularity
+of the output signal. The results indicate that the proposed method
+can effectively remove the MA, outperforming the popular MA reduction methods. Several different performance measures are used
+for the comparison and the differences are found to be statistically
+significant.
+Index Terms—Autoregressive exogenous model, epsilon-tube,
+impedance plethysmography, motion artifact reduction, portable
+monitoring of respiration.
+
+I. INTRODUCTION
+OTION artifact (MA) reduction is one of the most challenging problems encountered during filtering and processing of physiological signals, especially those that are collected using portable monitoring devices. The main difficulty
+in dealing with MA is its dynamic nature and the fact that the
+amplitude of such artifacts is often much larger than the amplitude of the signal of interest. The previous studies that address
+this problem can be broadly divided into three groups. The first
+group is focused on instrumentation. The aim of these studies
+is to provide alternative instruments for signal recording, such
+as electrodes, sensors, or wires, as well as different electrode
+
+M
+
+Manuscript received September 18, 2013; revised January 20, 2014; accepted
+March 31, 2014; Date of publication April 9, 2014; date of current version
+March 2, 2015. This work was supported by the U.S. Army Medical Research
+and Material Command Combat Casualty Care Research Program under Grant
+05-0033-02. The opinions expressed herein are the personal opinions of the
+authors and are not to be construed as representing those of the Department of
+Defense, the Department of the Army, or the U.S. Army.
+S. Ansari is with the Department of Computer Science and the Department of Statistical Sciences and Operations Research, Virginia Commonwealth
+University, Richmond, VA 23284 USA (e-mail: ansaris@vcu.edu).
+K. Ward is with the Department of Emergency Medicine, University of
+Michigan, Ann Arbor, MI 48105 USA (e-mail: keward@med.umich.edu).
+K. Najarian is with the Department of Computational Medicine and Bioinformatics, University of Michigan, Ann Arbor, MI 48109 USA (e-mail: kayvan@
+umich.edu).
+Digital Object Identifier 10.1109/JBHI.2014.2316287
+
+placements that are less susceptible to MA [1], [2]. Such improvements are outside the scope of this paper.
+The second group uses independent component analysis
+(ICA) and principal component analysis (PCA) to estimate the
+MA as an independent source of variation in the signal [3]–[6].
+The goal of ICA is to estimate the set of linear coefficients
+through which the signal of interest and the MA have been
+mixed. It requires multichannel recordings of the signal which
+are often available for the electrocardiogram (ECG) and electroencephalography signals. However, the IP signal is typically
+measured through a single channel recording. The multichannel
+recording of the IP signal will require excessive instrumentation
+and hardware which is not desirable when designing a portable
+device. Therefore, ICA is not an appropriate candidate for MA
+reduction from the IP signal here. Another disadvantage of using ICA is that the assumption of linear mixing process is not
+guaranteed to hold.
+The third group of MA reduction methods uses adaptive filters to estimate the MA. Different varieties of adaptive filters
+have been applied to this problem including least mean squares
+(LMS) [7]–[9], recursive least squares (RLS), [10], [11], normalized LMS (NLMS) [12], and normalized signed regressor
+LMS [13]. Despite the popularity of adaptive filters, there is a
+disadvantage associated with them. Adaptive filters tend to not
+only model the MA, but they can also adapt to the signal of interest. In particular, the MA in the IP signal is similar in shape and
+frequency bandwidth to the respiratory component of the signal.
+Therefore, an adaptive filter that successfully models the MA
+will also model the respiratory component in the calm (not contaminated by MA) sections of the signal. This is due to the fact
+that adaptive filters do not have a mechanism to distinguish between the MA and the component of interest when they are similar. However, the ε-tube filtering method that is proposed in this
+paper focuses only on the MA and is not affected by the semisinusoidal pattern of the respiratory component of the IP signal.
+The proposed filtering method is applied to the IP signal to
+eliminate the MA. The main component of this signal is highly
+correlated with respiration which has a regular periodic pattern
+with an amplitude that is almost constant within a short window
+of time. The amplitude of the interfering MA is often larger
+than the amplitude of the respiratory component. Therefore,
+the proposed filtering method can be applied to this signal to
+remove the MA. The end-tidal CO2 (EtCO2 ) signal is used as the
+reference signal in this study to compare the filter output to the
+actual respiration waveform. The EtCO2 signal is considered the
+gold standard in monitoring the respiration. In order to show that
+
+2168-2194 © 2014 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution
+requires IEEE permission. See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+ANSARI et al.: EPSILON-TUBE FILTERING: REDUCTION OF HIGH-AMPLITUDE MOTION ARTIFACTS
+
+407
+
+the ε-tube filtering, in fact, has a better performance compared
+to the currently existing methods, it is compared to the ICA
+algorithm, and the RLS and NLMS filtering methods in the
+results section.
+The remainder of this paper is organized as follows. Next
+section will introduce the IP signal and the respiratory rate. Section III introduces the proposed filtering method. The regularization term is discussed in Section IV, and the gradients of the
+objective function and the constrains are derived in Section V.
+The nonrecursive version of the gradients for fast computing
+are presented in Section VI. Finally, Section IX discusses the
+conclusions and the future work.
+
+(1)
+
+II. IMPEDANCE PLETHYSMOGRAPHY
+AND RESPIRATORY RATE
+Measuring electrical impedance of different segments of the
+body, a.k.a. IP, has been widely used in different fields of
+medicine for decades. Examples of applications of plethysmography in medicine are measuring lung volume, blood volume
+variations, blood flow, muscle contraction, eye movement, autonomic nervous system activity, and activity of brain cells [14].
+Plethysmography is performed by injecting a high-frequency
+low-amplitude sinusoidal current into the segment of interest
+using a pair of skin electrodes (current electrodes) and measuring the imposed voltage difference between the injection points
+using another pair of skin electrodes (voltage electrodes) [15].
+Electrical resistance of the tissue of interest is then calculated
+using the injected current and the measured voltage difference
+between the electrodes, which is caused by the passage of current through the tissue. The result is the IP signal, whose main
+component is highly correlated with respiration [16], [17]. The
+respiratory signal and the respiratory rate could be easily extracted from the IP signal acquired from the thorax and abdomen
+area when the subject is motionless. However, motion is another
+main source of blood volume variation. Motion can create drastic variations in the measured IP signal [18]–[22], resulting in
+artifacts whose amplitudes are much larger than the amplitude
+of the respiratory component in many cases [23]. As a result, it
+is necessary to use filtering methods to eliminate MA’s before
+the signal can be used to monitor respiration. The IP signals
+used in this study are measured on the subject’s back between
+the third and tenth ribs. This setting has been used instead of the
+traditional transthoracic electrode placement, since it is suitable
+for portable acquisition of the IP signal.
+III. ε-TUBE AND AUTOREGRESSIVE EXOGENOUS MODELS
+The idea of using ε-tube along with the tangent sigmoid (TS)
+activation functions (AF) was first introduced in our previous
+paper [24]. However, the TS functions have a predetermined and
+rigid structure that prevents it from modeling complex MA’s effectively. In particular, the derivative of the TS function does
+not change sign. Therefore, a new TS function is required every time the derivative of the MA changes sign. Instead, we
+use an autoregressive exogenous (ARX) model here in order
+to increase the flexibility of the model. The concept of ε-tube
+was first introduced in the context of support vector machines
+
+and support vector regression in the form of Vapnik’s loss function [25]. Unlike the conventional Euclidean norms, Vapnik’s
+loss function allows for a margin, called the tube, where the
+error that is assigned to the points that fall inside the tube is
+zero. In mathematical terms,
+|gt − yt (U, w)|ε = max(0, |gt − yt (U, w)| − ε)
+
+where gt is the value of the signal at time t, yt is the output of the
+filter at t, U is a matrix whose rows are the accelerometer signals,
+w is the vector of filter coefficients, and ε is the width of the
+tube. In other words, the points for which the distance between
+the model output and the target value is less than ε (points that
+fall within the tube) will be assigned a zero error. Moreover, the
+error increases in a linear fashion outside the tube. Therefore,
+the ε-tube filtering seems to be a natural fit for removing MA’s
+with high amplitude from periodic signals. The assumptions
+made here are that the amplitude of the periodic signal does not
+change rapidly in a short period of time and that the signal has
+a regular recurring pattern. For example, the main component
+of the IP signal is respiration which is periodic with an almost
+constant amplitude within short windows of time. Therefore,
+ε-tube can be used to estimate the MA while it refrains from
+modeling the respiratory component of the signal by forming a
+tube around it that only encompasses the respiratory component.
+The ε-tube filter is formulated as a constrained optimization
+problem which can be expressed as
+Minimize
+
+N
+−1
+
+
+ζt +
+
+t=0
+
+N
+−1
+
+
+ζt
+
+(2)
+
+t=0
+
+subject to
+gt − yt (U, w) ≤ ε + ζt ,
+
+t = 0, . . . , N − 1
+
+(3)
+
+ζt ,
+
+t = 0, . . . , N − 1
+
+(4)
+
+t = 0, . . . , N − 1
+
+(5)
+
+yt (U, w) − gt ≤ ε +
+ζt ≥ 0,
+
+ζt ≥ 0,
+
+where ζt and ζt are slack variables and N is the length of the
+signal.
+In our previous work, yt (U, w) was a combination of TS
+functions that modeled the MA. However, the TS functions are
+too rigid and are not flexible enough to model complex MA’s.
+As a result, an ARX model is used in this paper enabling the
+filter to model MA’s with generic shapes. The ARX model is
+defined as
+nb
+na
+
+
+ai yt−i +
+biT ut−i+1
+(6)
+yt = −
+i=1
+
+i=1
+
+where na , the number of poles, and nb , the number of zeros plus
+1, are design parameters. Also, ai is the ith feedback coefficient,
+ut is the vector of accelerometer readings at time t (the column
+of U associated with t), and bi is the corresponding vector
+of the ith feedforward coefficients. Hence, the vector w in (1)
+is composed of ai ’s and the elements of bi ’s. Therefore, the
+problem reduces to finding the vector w that minimizes (2)
+subject to (3), (4), and (5). The solution to this optimization
+problem is unique only if the signal of interest is exactly periodic
+with a constant amplitude and a regular pattern, and the MA is
+
+408
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fig. 2. S-transform of an irregular signal. The S-transform reflects the irregularities as high magnitude components around t = 12 s and f = 2 Hz.
+
+Fig. 1. (a) Instance of the IP signal contaminated by MA, (b) Filtered using
+ε-tube method without regularization, and (c) Filtered using ε-tube method
+with regularization. It is evident in (b) that the ε-tube by itself is not able to
+successfully remove the MA, although, the error is zero with respect to the
+ε-tube norm. On the other hand, using the regularization term in (3) leads to the
+successful removal of MA.
+
+generated through an ARX process. However, none of these
+assumptions hold in reality; thus, the optimal solution is not
+unique. Instead, there is a set of filter coefficients all of which
+minimize the objective function in (2). This set includes the
+coefficients by which the MA has been generated. Fig. 1(a)
+shows an IP signal that is corrupted by MA. The same signal is
+shown in Fig. 1(b) after it was filtered using ε-tube as defined
+by (2)–(6). The filtered signal has an error of zero; thus, it
+is an optimal solution to the optimization problem. However,
+it does not resemble the shape of the respiratory component
+and contains some high-frequency noise. As a result, a second
+criterion is needed to choose the solution that is most likely to
+be the generator of the MA. Assuming that the IP signal follows
+a regular pattern, we use regularity of the signal as the second
+objective to maximize:
+Minimize f =
+
+N
+−1
+
+t=0
+
+ζt +
+
+N
+−1
+
+
+ζt − cR(s, U, w)
+
+(7)
+
+t=0
+
+where R(s, U, w) is a regularization term, discussed in the next
+section, and c is a design parameter which adjusts the balance
+between the two objectives. The parameter c should be typically
+set to a small enough value so that the regularization term acts
+as a secondary objective, ensuring that we are searching for the
+solution with the most regular pattern among the ones that have
+the smallest error. The regularization term is discussed in the
+next section.
+IV. REGULARIZATION
+As discussed in the previous section, one needs to use a regularity measure to choose the ARX coefficients, among the
+
+ones that minimize the Vapnik norm, that lead to the most
+regular results. It is worth noting that the notion of regularity
+discussed here is different from the regularization in statistics
+and machine learning. Here, a regular signal is one that has a
+constant recurring pattern and regularity is the quantity which
+measures this characteristic. Consequently, a regular signal has
+a frequency composition that is invariant as time progresses.
+One way to measure this property is to use Stockwell transform
+(S-transform) [26]. S-transform is a generalization of short time
+Fourier transform and provides a time–frequency representation
+of the signal that is sensitive to irregularities in the signal. Fig. 2
+shows an example of the magnitude of the S-transform of an
+IP signal that contains irregularities after it was filtered using
+the ε-tube without regularization. An ideal signal with a regular
+pattern would have a S-transform for which the frequency decompositions along the frequency axis for any two given points
+on the time axis are identical. Hence, the average correlation between the vertical slices of the S-transform in Fig. 2 can be used
+as a measure for the regularity of the signal. It is noteworthy that
+several other regularization terms were investigated in this study,
+e.g., several measures were extracted from the Fourier transform
+of the signal, including variance, kurtosis, and entropy, as well
+as several features extracted from the Wavelet transformation of
+the signal. However, S-transform proved to be the most sensitive
+to the irregularities in the signal. Therefore, it has been used in
+this study.
+The discrete S-transform of y[kT ] is a linear transformation
+defined as
+
+
+N −1
+
+m + n − 2 π 2 2m 2 j 2 π m p
+n  
+=
+Y
+e n e N ,
+Sy pT,
+NT
+N
+T
+m =0
+
+n = 0
+(8)
+
+and
+N −1
+
+n 
+1   m 
+Sy pT,
+y
+=
+,
+NT
+N m =0 N T
+
+n=0
+
+(9)
+
+where Y is the Fourier transform of y; p and n are the time
+and frequency indices of the S-transform, respectively, N is the
+number of samples in the signal, and T is the sampling interval.
+
+ANSARI et al.: EPSILON-TUBE FILTERING: REDUCTION OF HIGH-AMPLITUDE MOTION ARTIFACTS
+
+409
+
+Also, the inverse S-transform of Sy is defined as
+y[kT ] =
+
+N −1 N −1
+
+n  j 2π n k
+1 
+e N .
+Sy pT,
+N n =0 p=0
+NT
+
+(10)
+
+In the rest of this paper, Sy [pT, NnT ] is denoted by Syp,n .
+Stockwell [27] proposes a Shift theorem for the continuous
+S-transform. Here, we present similar results for the discrete
+case.
+Theorem 1: The Shift theorem for the discrete S-transform:
+Assume that the S-transform of y[kT ] is Syp,n , i.e.,
+S
+
+y[kT ] ←→ Syp,n .
+
+(11)
+
+Then, the S-transform of y after being translated by r samples
+can be calculated as
+S
+
+y[(k − r)T ] ←→ e
+
+−j 2 π n r
+N
+
+Syp−r,n .
+
+(12)
+
+The proof can be found in Appendix. A negative shift will
+represent a circular shift toward the older signal values in the
+rest of this paper.
+The S-transform of (6), denoted by Sy , can be obtained using
+Theorem 1 as
+
+ n
+nb
+a
+
+
+p,n
+T
+Sy = S −
+ai yt−i +
+bi ut−i+1
+i=1
+
+= −
+
+na
+
+
+i=1
+
+ai S{yt−i } +
+
+i=1
+
+= −
+
+na
+
+i=1
+
+nb
+
+
+ai e
+
+goal of this filter is to maintain the respiratory component of the
+signal and not the heart rate. All in all, the proposed filter is able
+to successfully recover the IP signal that is contaminated by MA.
+In order to find the optimal solution to (7) subject to (3)–(5),
+one needs to compute the gradients of the objective function
+and the constraints. These gradients are computed in the next
+section.
+
+biT S{ut−i+1 }
+
+V. GRADIENTS
+
+i=1
+−j 2 π n i
+N
+
+Fig. 3. S-transform of a regular signal (after MA removal). The decomposition has an almost constant frequency pattern along the time axis. The white
+band around f = 0.25 Hz corresponds to respiration which is the dominant
+component of the signal. The gray band around f = 1.3 Hz corresponds to
+heart rate that is the second most dominant component of the signal.
+
+Syp−i,n +
+
+nb
+
+
+biT e
+
+−j 2 π n ( i −1 )
+N
+
+Sup−i+1,n
+
+i=1
+
+(13)
+where S{ut−i+1 } indicates applying S-transform to the rows
+of U (accelerometer signals) after they were shifted by i − 1
+samples and Sup−i+1,n is a column vector whose hth element is
+the S-transform of the hth row of U at p − i + 1 and n.
+Finally, we define the regularization term as
+1 
+log(|rpq |)
+(14)
+R(s, ut , w) = 2
+N p q
+where rpq is the Pearson correlation coefficient between Sgp,n
+−y
+,n
+and Sgq−y
+. Note that we use log(| · |) in (14) since the natural
+log of the magnitude of a complex number is differentiable.
+The results of filtering the IP signal in Fig. 1(a) using the ε-tube
+method and the regularization term in (14) are shown in Fig. 1(c).
+The proposed filtering method is successful in removing the
+MA and recovering the respiratory component of the signal.
+Regularization leads the optimization process toward the right
+filter coefficients and successfully removes the irregularities in
+the signal. The S-transform of the filtered signal is free of the
+high-frequency noise that was present in Fig. 2. The vertical
+slices of the S-transform (the frequency components at different
+times) are correlated. The low-amplitude variations on top of the
+IP signal that correspond to the heart rate are deteriorated after
+filtering in Fig. 1(c). The discontinuity in the horizontal band at
+f = 1.3 Hz in Fig. 3 is caused by this deterioration. However, the
+
+The gradients of (3)–(5) and (7) are found in this section. We
+start with finding recursive formulas for the partial derivatives
+of yt .
+	 n
+
+
+nb
+a
+
+
+∂
+∂
+yt =
+ai yt−i +
+biT ut−i+1
+−
+∂al
+∂al
+i=1
+i=1
+= −
+
+na
+
+
+ai
+
+i=1
+
+∂
+yt−i − yt−l ,
+∂al
+
+(15)
+
+for t = 0, . . . , N − 1 and l = 1, . . . , na . Also,
+	 n
+
+
+nb
+a
+
+
+∂
+∂
+yt = h −
+ai yt−i +
+biT ut−i+1
+∂bhl
+∂bl
+i=1
+i=1
+= −
+
+na
+
+i=1
+
+ai
+
+∂
+yt−i + uht−l+1
+∂bhl
+
+(16)
+
+where uht−l+1 is the hth element in vector ut−i+1 , i.e., the reading for the hth input accelerometer signal at time t − l + 1,
+for t = 0, . . . , N − 1 and l = 1, . . . , nb . Therefore, the partial
+derivatives of (3) and (4) with regards to al and bl can be
+recursively calculated using (15) and (16). Moreover, the partial
+derivatives of (3) with respect to ζt and ζt are −1 and 0, respectively. Likewise, the partial derivatives of (4) is 0 with respect
+to ζt and −1 with respect to ζt . The partial derivatives of (5) are
+trivial.
+Next, we compute the gradient of Syp,n which is composed
+of the partial derivatives with respect to al and bl . It will be
+used later to derive the gradient of (7). The partial derivative of
+
+410
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+S-transform with respect to al can be found as
+∂ p,n
+S
+=S
+∂al y
+
+
+
+= −
+
+na
+
+
+∂
+−
+ai
+yt−i − yt−l
+∂al
+i=1
+
+na
+
+
+ai
+
+i=1
+
+= −
+
+na
+
+
+ai
+
+i=1
+
+= −
+
+na
+
+
+
+
+∂
+S{yt−i } − S{yt−l }
+∂al
+−j 2 π n l
+∂  −j 2 π n i p−i,n 
+e N Sy
+− e N Syp−l,n
+∂al
+
+ai e
+
+i=1
+
+where Re[.] denotes the real part of a complex number. Therefore,
+
+
+∂
+c 
+∂
+f =− 2
+Re
+log(rpq ) .
+(22)
+∂al
+N p q
+∂al
+
+−j 2 π n i
+N
+
+−j 2 π n l
+∂ p−i,n
+Sy
+− e N Syp−l,n .
+∂al
+
+q ,n
+The Pearson correlation coefficient between Sgp,n
+−y and Sg −y
+is defined as
+spq
+rpq = √
+(23)
+spp sq q
+q ,n
+where spq is the covariance between Sgp,n
+−y and Sg −y and spp is
+p,n
+the variance of Sg −y . Thus,
+
+log(rpq ) = log(spq ) −
+
+(17)
+Similarly, the partial derivative of Syp,n with respect to bhl is
+
+1
+1
+log(spp ) − log(sq q )
+2
+2
+
+(24)
+
+and
+
+∂
+∂spq /∂al
+1 ∂spp /∂al
+1 ∂sq q /∂al
+log(rpq ) =
+−
+−
+.
+∂al
+spq
+2 spp
+2 sq q
+∂ p,n
+∂
+h
+S
+=
+S
+−
+a
+y
++
+u
+i
+t−i
+t−l+1
+(25)
+∂bhl y
+∂bhl
+q ,n
+i=1
+The covariance of Sgp,n
+and
+S
+is
+defined
+as
+−y
+g −y
+na
+
+
+ h
+	N
+	N
+
+	 N
+
+
+
+∂
+= −
+ai h S{yt−i } + S ut−l+1
+ p,n q ,n 1 
+ q ,n
+1
+p,n
+∂b
+l
+S S −
+S
+Sg −y
+spq =
+i=1
+N − 1 n =1 g −y g −y N n =1 g −y
+n
+=1
+n
+a
+
+
+−j 2 π n ( l −1 )
+∂  −j 2 π n i
+(26)
+N
+ai h e N Syp−i,n + e
+Sup−l+1,n
+=−
+p,n
+p,n
+h
+where
+S
+is
+the
+complex
+conjugate
+of
+S
+.
+Consequently,
+∂b
+g −y
+g −y
+l
+i=1
+the derivative of spq with respect to al can be computed as
+na
+
+−j 2 π n ( l −1 )
+−j 2 π n i
+∂ p−i,n
+following:
+N
+= −
+ai e N
+Sy
++e
+Sup−l+1,n
+h
+h
+ N 
+∂bl
+
+i=1
+ ∂ p,n q ,n
+∂
+1
+p,n ∂
+q ,n
+S S
++ Sg −y
+S
+(18) ∂a spq = N − 1
+∂al g −y g −y
+∂al g −y
+l
+n =1
+	N
+
+	 N
+
+
+is the S-transform of the hth row of U at p −
+where Sup−l+1,n
+ q ,n
+h
+1  ∂ p,n
+S
+Sg −y
+−
+l + 1 and n. Equations (17) and (18) can be used to recursively
+N n =1 ∂al g −y
+n =1
+compute the gradient of the S-transform.
+	N
+
+	 N
+
+
+The partial derivative of the objective function, (7), with re ∂ q ,n
+1  p,n
+spect to al can be obtained as
+S
+S
+.
+(27)
+−
+N n =1 g −y
+∂al g −y
+n =1
+
+
+	N −1
+N
+−1
+
+
+∂
+∂
+By rearranging, we obtain
+f=
+ζt +
+ζt − cR(s, U, w)
+∂al
+∂al t=0
+ N
+t=0
+ ∂ p,n q ,n
+∂
+1
+spq =
+S S
+∂
+∂al
+N − 1 n =1 ∂al g −y g −y
+R(s, U, w)
+= −c
+∂al
+	N
+
+	 N
+
+
+ q ,n
+c  ∂
+1  ∂ p,n
+log(|rpq |).
+(19)
+= − 2
+−
+S
+Sg −y
+N p q ∂al
+N n =1 ∂al g −y
+n =1
+ N
+ p,n ∂ q ,n
+1
+It is shown in [28] that the log of a complex number can be
+S
+S
++
+N − 1 n =1 g −y ∂al g −y
+written as
+
+	 N
+
+
+	N
+ ∂ q ,n
+1  p,n
+(20)
+log(rpq ) = log(|rpq |) + j(arg(rpq ) + 2πk)
+−
+S
+S
+N n =1 g −y
+∂al g −y
+n =1
+for integer k’s. Therefore, the derivative of log(|rpq |) can be
+(28)
+= sp(l)q + spq (l)
+found as
+q ,n
+
+
+where sp(l)q denotes the covariance between ∂∂a l Sgp,n
+−y and Sg −y ,
+∂
+∂
+log(|rpq |) = Re
+log(rpq )
+(21) and s
+p,n
+q ,n
+∂
+pq (l) denotes the covariance between Sg −y and ∂ a l Sg −y .
+∂al
+∂al
+
+
+na
+
+
+
+
+ANSARI et al.: EPSILON-TUBE FILTERING: REDUCTION OF HIGH-AMPLITUDE MOTION ARTIFACTS
+
+⎛
+
+Also, it is easy to show that
+∂
+spp = 2sp(l)p ,
+∂al
+
+∂
+sq q = 2sq q (l) .
+∂al
+
+(29)
+
+Substituting (28) and (29) into (25), one finds
+sp(l)q + spq (l)
+sp(l)p
+sq q (l)
+∂
+log(rpq ) =
+−
+−
+.
+∂al
+spq
+spp
+sq q
+
+(30)
+
+⎜
+⎜
+y=⎜
+⎜
+⎝
+
+y0
+y1
+y2
+..
+.
+
+411
+
+⎞
+
+⎛
+
+⎟
+⎟
+⎟,
+⎟
+⎠
+
+⎜
+⎜
+d=⎜
+⎜
+⎝
+
+⎞
+
+d0
+d1
+d2
+..
+.
+
+⎟
+⎟
+⎟
+⎟
+⎠
+
+(34)
+
+dN −1
+yN −1
+n b T
+where dt = i=1 bi ut−i+1 . Thus, (6) can be expressed as
+Cy = d.
+
+Hence, the derivative of the objective function with respect to
+al is
+
+
+sp(l)q + spq (l)
+sp(l)p
+sq q (l)
+∂
+c 
+f= − 2
+Re
+−
+−
+∂al
+N p q
+spq
+spp
+sq q
+
+
+
+
+sp(l)q
+sp(l)p
+2c  
+2c 
+Re
+Re
+= − 2
++
+.
+N p q
+spq
+N p
+spp
+(31)
+
+(35)
+
+Each row of the matrix C can be obtained by rotating the previous row by one element to the right. Therefore, C is a circulant
+matrix. As a result, (35) can be expressed as a convolution between the first column of C, denoted by c and y,
+c ∗ y = d.
+
+(36)
+
+Applying Fourier transform to both sides, we obtain
+F {c ∗ y} = F {d} ⇒ F {c} · F {y} = F {d} .
+
+(37)
+
+Hence,
+The derivative of f with respect to bhl can be computed in a
+ 
+
+
+F{d}w
+dˆw
+similar manner
+−1
+−1
+y
+=
+F
+=
+F
+.
+(38)
+t
+
+
+
+
+F{c}w t
+ĉw
+sp(l,h)q
+sp(l,h)p
+∂
+2c  
+2c 
+t
+f =− 2
+Re
+Re
++
+N p q
+spq
+N p
+spp
+∂bhl
+Note that the division is element-wise. The vector c is treated
+(32) as a signal when the Fourier transform is being computed. This
+signal can be expressed as
+where sp(l,h)q denotes the covariance between ∂ ∂b h Sgp,n
+−y and
+l
+
+,n
+. The partial derivatives of f with respect to ζt and ζt are
+Sgq−y
+equal to 1. Therefore, we obtained the gradient of f by deriving
+all of its partial derivatives.
+The recursive equations introduced in this section are suitable
+for real-time filtering of the IP signal. There are cases when the
+process takes place in batch mode. Recursive equations will
+be very inefficient in such applications. Hence, nonrecursive
+versions of the same equations are derived in the next section
+for batch processing.
+
+c(i) = δ(i) + a1 δ(i − 1) + a2 δ(i − 2) + · · · + an a δ(i − na )
+(39)
+where δ(·) denotes the Dirac delta function. The index i corresponds to the row number in vector c. Also, it is the time index
+when c is treated as a signal. The two representations of c, as
+a column vector and as a signal, are mathematically equivalent.
+The Fourier transform of c can be written as
+na
+
+−j 2 π i w
+ai e N
+(40)
+ĉw = 1 +
+i=1
+
+VI. IMPLEMENTATION
+Previous section introduced recursive equations to compute
+yt , ∂∂a l yt , ∂ ∂b h yt , Syp,n , ∂∂a l Syp,n , and ∂ ∂b h Syp,n . Recursive equal
+l
+tions are desirable in adaptive filters. However, evaluating these
+equations is inefficient in nonadaptive settings. Therefore, nonrecursive versions of the same equations are introduced in this
+section. The new equations, which are based on Fourier transform and inverse Fourier transform, can be evaluated more
+efficiently. The input signals are assumed to be circular, i.e.,
+yt+k N = yt for integer k’s.
+Let us define the matrix C and vectors y and d as follows:
+C=
+⎛
+1
+⎜ a1
+⎜
+⎜ a2
+⎜ .
+⎝ ..
+
+0
+1
+a1
+..
+.
+
+0
+0
+1
+..
+.
+
+···
+···
+···
+
+0
+0
+0
+..
+.
+
+an a
+0
+0
+..
+.
+
+an a −1
+an a
+0
+..
+.
+
+···
+···
+···
+
+a2
+a3
+a4
+..
+.
+
+⎞
+a1
+a2 ⎟
+⎟
+a3 ⎟
+.. ⎟
+. ⎠
+
+0
+
+0
+
+0
+
+···
+
+an a
+
+an a −1
+
+an a −2
+
+···
+
+a1
+
+1
+(33)
+
+by applying the Fourier transform to both sides of (39). Moreover, the Fourier transform of d can be found as
+n
+
+nb
+b
+
+
+T
+ˆ
+b u
+=
+bT {û
+}
+(41)
+d =F
+w
+
+i
+
+i=1
+
+t−i+1
+
+i
+
+w
+
+−i+1 w
+
+i=1
+
+where {û−i+1 }w is a vector whose hth element is computed by
+shifting uht by −i + 1 elements in a circular manner and then
+applying the Fourier transform to the shifted signal, evaluated
+at w. Substituting (40) and (41) into (38), we obtain
+
+
+nb
+T
+−1
+i=1 bi {û−i+1 }w
+.
+(42)
+yt = F
+ a
+−j 2 π i w
+1 + ni=1
+ai e N
+t
+Matrix U is composed of the input signals; hence, {û−i+1 }w can
+be computed prior to the optimization and be treated as constant
+−j 2 π i w
+can also be precomputed since
+thereafter. The term e N
+they do not depend on the optimization variables. Therefore,
+the numerator and denominator in (42) are linear combinations
+of the optimization variables ai and bhi . Computing yt using
+(42) involves dividing two linear combinations and finding the
+
+412
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+inverse Fourier transform of the result. Fourier transform of a
+signal and its inverse can be found very efficiently using the
+fast Fourier transform algorithm. On the other hand, using (6)
+to compute yt involves an iterative procedure which can be very
+inefficient. The empirical observations indicate that computing
+yt using (42) is on average 12.6 times faster than using (6).
+The derivative of yt with respect to al can be found in a
+similar manner. The recursive equation for ∂∂a l yt , (15), can be
+written as
+∂
+y = −y−l
+(43)
+C
+∂al
+where ∂∂a l y is a vector composed of the derivatives of yt with
+respect to al , and y−l is the vector of y values after a shift of
+size −l, namely, yt−l . Therefore, ∂∂a l y can be found by taking
+the same steps as in (35)–(38), as follows:
+
+
+
+
+−j 2 π l w
+N
+∂
+F{y
+}
+e
+ŷ
+−l
+w
+w
+yt = − F −1
+= −F −1
+∂al
+F{c}w t
+ĉw
+t
+
+
+ŷw
+= − F −1
+.
+(44)
+n a
+−j 2 π i w
+1 + i=1 ai e N
+t−l
+Substituting the Fourier transform of the right-hand side of (42)
+for ŷw yields
+ 
+
+nb
+T {û
+b
+}
+∂
+−i+1
+i
+−1
+i=1
+w
+yt = −F
+.
+(45)
+ a
+−j 2 π i w
+∂al
+(1 + ni=1
+ai e N )2 t−l
+Furthermore, we can rewrite (16) as
+C
+
+∂
+y = (uh−l+1 )T
+∂bhl
+
+(46)
+
+where uh−l+1 is the hth row of U after it is shifted by −l + 1
+elements. Therefore, the derivative of yt with respect to bhl can
+be computed as
+
+
+ h T
+û
+∂
+−l+1
+w
+yt = F −1
+.
+(47)
+ a
+−j 2 π i w
+∂bhl
+1 + ni=1
+ai e N
+t
+Next, we derive nonrecursive equations to compute Syp,n ,
+∂
+∂
+p,n
+p,n
+∂ a l Sy , and ∂ b h Sy . Let
+
+ b T p−i+1,n −j 2 π n ( i −1 )
+−j 2 π n i
+N
+bi Su
+e
+.
+where λni = ai e N and βpn = ni=1
+Then, we can rewrite (13) using (48) and (49) as
+Λn γyn = β n
+which leads to
+Syp,n = F −1
+
+⎜ λn1
+⎜ n
+⎜ λ2
+⎜ .
+⎝ .
+.
+
+0
+1
+λn1
+..
+.
+
+0 ···
+0 ···
+1 ···
+..
+.
+
+0
+0
+0
+..
+.
+
+λnn a
+
+0
+
+0
+
+0 ···
+
+λnn a
+
+λnn a −1
+
+λnn a −1
+λnn a
+
+0
+0
+..
+.
+
+0
+..
+.
+λnn a −2
+
+···
+···
+···
+···
+
+λn2
+λn3
+λn4
+..
+.
+λn1
+
+λn1
+λn2
+λn3
+
+⎞
+
+⎟
+⎟
+⎟
+.. ⎟
+⎠
+.
+1
+(48)
+
+and
+
+⎛
+⎜
+⎜
+⎜
+n
+γy = ⎜
+⎜
+⎝
+
+Sy0,n
+Sy1,n
+Sy2,n
+..
+.
+
+SyN −1,n
+
+⎞
+⎟
+⎟
+⎟
+⎟,
+⎟
+⎠
+
+⎛ βn
+0
+⎜ β1n
+⎜ n
+β
+βn = ⎜
+⎜ .2
+⎝ .
+.
+n
+βN
+−1
+
+⎞
+⎟
+⎟
+⎟
+⎟
+⎠
+
+(49)
+
+β̂wn
+λ̂nw
+
+
+.
+
+(51)
+
+p
+
+The first column of Λn , when treated as a signal, can be expressed as
+λn (i) = δ(i) + a1 e
+
+−j 2 π n
+N
+
++ · · · + an a e
+
+δ(i − 1) + a2 e
+
+−j 2 π n a n
+N
+
+−j 2 π 2 n
+N
+
+δ(i − 2)
+
+δ(i − na )
+
+(52)
+
+which has a Fourier transform of the form
+λ̂nw = 1 +
+
+na
+
+
+ai e
+
+−j 2 π i ( n + w )
+N
+
+.
+
+(53)
+
+i=1
+
+Also, the Fourier transform of β n can be derived as
+β̂wn =
+
+nb
+
+
+
+ −j 2 π n ( i −1 )
+N
+bi T Ŝu−i+1,n
+e
+
+(54)
+
+w
+
+i=1
+
+where Su−i+1,n is a matrix whose hth row is the S-transform of
+the hth row of u at n after a shift of size −i + 1, and {Ŝu−i+1,n }w
+is a vector whose hth element is the Fourier transform of the
+hth row of Su−i+1,n evaluated at w. One can derive
+
+ −j 2 π n ( i −1 ) ⎫
+⎧ n
+b
+N
+⎨ i=1
+⎬
+bi T Ŝu−i+1,n
+e
+w
+(55)
+Syp,n = F −1
+
+−j
+2
+π
+i
+(
+n
++
+w
+)
+a
+⎩
+⎭
+N
+1 + ni=1
+ai e
+p
+
+by substituting (53) and (54) into (51). Likewise, the similar
+equations for ∂∂a l Syp,n and ∂ ∂b h Syp,n can be written as
+l
+
+
+ −j 2 π n ( l + i −1 ) ⎫
+⎧ n
+b
+N
+⎨ i=1
+⎬
+bi T Ŝu−i+1,n
+e
+∂ p,n
+w
+Sy =− F −1
+ a
+−j 2 π i ( n + w )
+⎩
+⎭
+∂al
+N
+(1 + ni=1
+ai e
+)2
+
+p−l
+
+l
+
+Λn =
+⎛ 1
+
+
+
+(50)
+
+∂ p,n
+S
+∂bhl y
+
+
+
+⎫
+⎬
+Ŝu−i+1,n
+h
+w
+= F −1
+
+−j
+2
+π
+i
+(
+n
++
+w
+)
+⎩ 1 + n a ai e
+⎭
+N
+i=1
+⎧
+⎨
+
+(56)
+(57)
+
+p
+
+}w is the hth element of {Ŝu−i+1,n }w .
+where {Ŝu−i+1,n
+h
+All of the derived nonrecursive equations involve linear combinations of the filter coefficients, vector and matrix multiplications, element-wise multiplications and divisions, and inverse
+Fourier transform. Modern computers can efficiently perform all
+of these operations. On the other hand, the recursive equations
+derived in the previous section are much more time consuming. In particular, the iterative equations can only be executed
+sequentially while the operations that are involved in the nonrecursive equations can be computed in parallel mode. Depending
+on the framework and application, one might choose to either
+use the recursive equations or the nonrecursive ones.
+
+ANSARI et al.: EPSILON-TUBE FILTERING: REDUCTION OF HIGH-AMPLITUDE MOTION ARTIFACTS
+
+413
+
+Fig. 4. Sample of the input signals contaminated by a movement that imitates
+opening a window. The IP and EtCO2 signals are shown in (a) and (b) illustrates
+the accelerometer signals in X-, Y-, and Z-directions.
+
+VII. EXPERIMENTS AND DATA
+The experiments that are presented in this study were conducted using a Biopac MP150 system, equipped with a Biopac
+EBI100C to measure the IP signal and a Biopac CO2100C to
+measure the EtCO2 signal. All the signals were collected at
+250 Hz and were later down-sampled to 10 Hz for processing
+purposes. The collected IP signals were filtered using a Butterworth bandpass filter with cutoff frequencies of 0.001 and 2 Hz.
+A three-axis accelerometer sensor was used to capture the subject’s movements. The module was placed on the subject’s right
+arm and the signals were transferred to the Biopac machine and
+stored on a laptop. This setting was used because the movements
+of the arm capture most of the movements that can induce MA
+into the signal. However, choosing the optimal setting for the
+electrodes and the accelerometer sensors is outside the scope of
+this paper and requires further investigation. The accelerometer
+signals were bandpass filtered using a Butterworth filter with
+cutoff frequencies of 0.05 and 2 Hz. A sample of the data that
+is contaminated with MA is shown in Fig. 4.
+The plethysmograph’s electrodes were placed on the subject’s
+back between serratus posterior superior and serratus posterior
+inferior muscles. Similarly, voltage electrodes were placed on
+the back right beside the current electrodes along the path between them. Fig. 5 shows the placements of the electrodes.
+Two experiments were conducted to assess the performance
+of the proposed ε-tube filtering method. The first experiment
+was performed to compare the proposed method to the ICA
+algorithm. The FastICA package, which maximizes the nonGaussianity, was used in this study. For this experiment, the
+data were collected from six subjects. The subjects performed
+a total of 272 maneuvers in 280.6 min (72.0 min of the signals
+were contaminated by MA). The ICA algorithm requires at
+least two readings of the IP signal from two different sights.
+The traditional transthoracic electrode placement was used as
+the second channel of the IP signal. The second experiment
+was conducted to compare the proposed method to the RLS and
+NLMS filtering methods. Thirteen subjects participated in this
+experiment where a total of 501 maneuvers were performed by
+the subjects in 589.5 min, where 143.9 min of the signals were
+contaminated by MA.
+
+Fig. 5.
+
+Placements of electrodes.
+
+TABLE I
+MANEUVERS THAT WERE PERFORMED IN THE EXPERIMENTS
+
+Subjects were asked to perform several maneuvers to imitate transient and periodic movements in both experiments. The
+experimented maneuvers are described in Table I. Maneuvers
+1–9 are transient movements while maneuvers 10–14 are periodic. Each maneuver was performed roughly three times by
+each subject, except maneuvers 13 and 14 which were each performed once. All the maneuvers except 7 and 8, 13 and 14 were
+performed while the subject was sitting on a chair.
+After removing the MA’s, the respiratory rate is extracted
+from both the filtered IP and the EtCO2 signals. To do so, the
+S-transform of the signal is computed and the most dominant
+frequency component between 0 and 2 Hz is considered to be
+the respiratory rate at each time t. The S-transform is computed
+within a sliding window which is 30 s long and a step length
+of 10 s. The respiratory rate is extracted from 10 s of the signal
+in the middle of the window. Also, a threshold on the amplitude
+of the signal is used to detect whether the subject is breathing
+or not. The extracted respiratory rates from the IP and EtCO2
+signals are then compared to assess the performance of the proposed filtering method. No postprocessing has been performed
+prior to the respiratory rate extraction.
+
+414
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+TABLE II
+RESULTS OF THE FIRST EXPERIMENT COMPARING ε-TF VERSUS ICA
+
+TABLE III
+RESULTS OF THE SECOND EXPERIMENT COMPARING ε-TF VERSUS RLS
+AND NLMS
+
+Fig. 6. Motion artifact reduction from an example of maneuver five using
+the proposed ε-TF method as well as the NLMS, RLS, and ICA methods.
+(a)–(d) show the contaminated IP signal along with the estimated MA, while
+(e)–(h) illustrate the signals after MA reduction and the reference EtCO2 signal.
+
+VIII. RESULTS AND DISCUSSION
+This section presents the results of comparing the respiratory rates extracted from the filtered IP signal and the EtCO2
+(reference) signal using two criteria, the error and the correlation, where the error is defined as the amount of discrepancy
+between the respiratory rates in breaths per minute (BPM). The
+filter parameters are selected using subject-wise cross validation, i.e., the signals for one of the subjects is used as the test
+data while the rest of the subjects are used to find the optimal
+parameters in each fold. The criterion used for selecting the optimal parameters is the mean error. The filter orders for ε-tube
+were na = 1 and nb = 6 in all the folds, and c = 20 in nine
+and c = 10 in four folds. For the NLMS filter, the selected filter
+order is 35 in all the folds, the step size is 0.1 in nine folds
+and 0.05 in the others, and the leakage is 0.93 in six folds and
+0.95 for the others. The selected filter orders and forgetting factors for the RLS filters are five and 0.99 in all the folds, respectively. For the ICA algorithm, cross validation selects the tangent
+hyperbolic AF with a1 = 10 in tanh(a1 u) in five folds and the
+Gaussian AF’s with a2 = 5 and a2 = 10 in u exp(−a2 u2 /2) for
+the remaining two folds. The RLS and NLMS filters are chosen as the representatives of the family of adaptive filters since
+they are the most commonly used filtering methods in different
+signal processing applications, including MA reduction.
+The results of MA reduction using ε-TF, NLMS, RLS, and
+ICA from a sample of maneuver five are shown in Fig. 6. The
+amplitude of the filtered IP signal in Fig. 6(b) is within the
+imposed tube. On the other hand, the NLMS, RLS, and ICA
+methods, as shown in Figs. 6(f) and (g) do not guarantee that
+the amplitude of the filtered signal is within the acceptable range
+of amplitudes for the IP signal. Furthermore, none of the methods except ε-TF are able to successfully recover the respiratory
+
+Fig. 7. Comparison between ε-TF, NLMS, and RLS using the mean correlations for different maneuvers. The bars indicate one standard deviation. Notice
+that ε-TF outperforms NLMS and RLS in all the maneuvers.
+
+component of the signal. Hence, the proposed method seems to
+outperform the existing methods. The proposed filter and ICA
+are compared in Table II using several different performance
+measures. A similar comparison between the proposed ε-TF,
+NLMS, and RLS filters is shown in Table III. The first performance measure that is used, Corr, is the Pearson correlation
+coefficient between the filtered IP signal and the EtCO2 signal,
+which measures how much the morphological features of the
+two signals agree in the time domain. The error between the
+extracted respiratory rates is also used to compute several performance measures. The first measure, Exact, is the proportion
+of the times when the extracted respiratory rate from the IP and
+EtCO2 signals are equal. Moreover, Dev1 and Dev3 are the proportions of the times when the average error is less than 1 and 3
+BPM, respectively. Finally, Mean Err and Max Err are the mean
+and maximum error between the respiratory rates extracted from
+the filtered IP signal and the EtCO2 signal, respectively.
+Figs. 7 and 8 show the comparison between the proposed and
+the conventional methods for different maneuvers using correlation. The results indicate that the proposed method outperforms
+the other methods with no exceptions. Moreover, Figs. 9 and 10
+show a similar comparison using mean error. Again, the performance of the proposed method is superior to the other methods
+in all the maneuvers. As a result, we can conclude that the proposed method is more successful in removing the MA compared
+to ICA, NLMS, and RLS. The statistical significance of the differences are tested using Tukey’s honestly significant difference
+(HSD) for NLMS and RLS and using two-sample t-tests for ICA.
+The Box–Cox transform is successfully applied to the response
+
+ANSARI et al.: EPSILON-TUBE FILTERING: REDUCTION OF HIGH-AMPLITUDE MOTION ARTIFACTS
+
+415
+
+TABLE IV
+RESULTS OF TWO-SAMPLE t-TESTS OF ε-TF VERSUS ICA, AS WELL AS THE RESULTS OF TUKEY’S HSD TESTS OF ε-TF
+VERSUS NLMS AND RLS ON MEAN CORRELATIONS (α = 0.05)
+
+TABLE V
+RESULTS OF TWO-SAMPLE t-TEST OF ε-TF VERSUS ICA, AS WELL AS THE RESULTS OF TUKEY’S HSD TESTS OF ε-TF
+VERSUS NLMS AND RLS ON MEAN ERRORS (α = 0.05)
+
+Fig. 8. Comparison between ε-TF and ICA using the mean correlations for
+different maneuvers. The bars indicate one standard deviation. Notice that ε-TF
+outperforms the ICA in all the maneuvers.
+
+variables to improve the normality and homogeneity of the variances. The analysis includes subject and replication[subject]
+(replication nested within subject) as random effects, and filtering method as a fixed effect. It is performed separately for each
+maneuver.
+The statistical tests indicate that most of the differences in
+Figs. 7–10 are statistically significant. Tables IV and V show
+the results of the statistical analysis. The results indicate that 33
+of the tests on correlations and 36 of the tests on mean errors out
+of the total of 42 tests that have been conducted in each case are
+significant. Similar results are obtained using pair-wise t-tests
+and Bonferroni’s correction, except for the difference between
+the mean errors of ε-tube and RLS which becomes significant
+when pair-wise t-test is used. As a result, we can conclude that
+the proposed method outperforms the existing method and the
+differences between this method and the existing methods are
+statistically significant.
+All in all, the results indicate that the proposed method is
+superior compared to ICA, NLMS, and RLS.
+IX. CONCLUSION AND FUTURE WORKS
+
+Fig. 9. Comparison between ε-TF, NLMS, and RLS using the mean error for
+different maneuvers. The bars indicate one standard deviation. Notice that ε-TF
+outperforms NLMS and RLS in all the maneuvers.
+
+Fig. 10. Comparison between ε-TF and ICA using the mean error for different maneuvers. The bars indicate one standard deviation. Notice that ε-TF
+outperforms ICA in all the maneuvers.
+
+The ε-tube filter proposed in this study is a novel approach
+for removing high-amplitude MA’s from the IP signal with a
+regular pattern. The only assumption that is made is that the
+amplitude of the signal of interest does not change rapidly during
+a short period of time. An ARX model is used to relate the input
+accelerometer signals to the filter output which is an estimate of
+the MA. A ε-tube is used to measure the estimation error. This
+allows for modeling the MA while refraining from modeling the
+signal of interest. In order to choose the best filter coefficients
+among those that minimize the estimation error, a regularization
+term is introduced to maximize the regularity of the output
+signal. The results show that the ε-tube filter with regularization
+can effectively reduce the MA in the IP signal. In particular,
+the proposed method outperforms ICA, NLMS, and RLS in
+all the maneuvers that were performed in the experiments. The
+statistical tests indicate that the differences between ε-TF and
+the conventional methods are statistically significant in most of
+
+416
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+the cases. Hence, the proposed method is more successful in
+removing the MA from the IP signal than ICA, NLMS, and
+RLS.
+One of the future works of this study is to evaluate the performance of ε-tube filter in removing MA’s from other physiological signals, such as ECG and PPG. Moreover, the proposed
+method should be compared to other existing MA reduction
+methods. The adaptive version of the same filter will also be
+developed to be used in real-time applications.
+APPENDIX
+PROOF OF THE SHIFT THEOREM
+FOR DISCRETE S-TRANSFORM
+Consider the Fourier transform of y,
+ n 
+F
+.
+y[kT ] ←→ Y
+NT
+The Fourier transform of y after a shift of size r is
+ n 
+j 2π n r
+F
+y[(k − r)T ] ←→ e− N Y
+.
+NT
+
+(58)
+
+(59)
+
+Substituting the Fourier transform of y[(k − r)T ] into (8) will
+lead to
+
+n 
+Sy k −r pT,
+NT
+
+
+N
+−1
+
+m + n − j 2 π ( m + n ) r − 2 π 2 2m 2 j 2 π m p
+N
+Y
+e n e N
+=
+e
+N
+T
+m =0
+
+
+
+m + n − 2 π 2 2m 2 j 2 π m ( p −r )
+N
+e n e
+NT
+m =0
+
+j 2π n r
+n 
+.
+= e− N Sy (p − r)T,
+NT
+= e−
+
+j 2π n r
+N
+
+N
+−1
+
+
+Y
+
+Hence,
+S
+
+y[(k − r)T ] ←→ e
+
+−j 2 π n r
+N
+
+
+n 
+.
+Sy (p − r)T,
+NT
+
+(60)
+
+(61)
+
+ACKNOWLEDGMENT
+The authors would like to thank BodyMedia Inc. and Dr. A.
+Belle for their constructive feedbacks. They would also like to
+thank Dr. K. Gunnerson for his comments and medical advice
+as the PI for the project IRB. The opinions expressed herein
+are the personal opinions of the authors and are not to be construed as representing those of the Department of Defense, the
+Department of the Army, or the U.S. Army.
+REFERENCES
+[1] J. Ottenbacher, M. Kirst, L. Jatoba, M. Huflejt, U. Grossmann, and
+W. Stork, “Reliable motion artifact detection for ECG monitoring systems with dry electrodes,” in Proc. IEEE 30th Annu. Int. Conf. Eng. Med.
+Biol. Soc., 2008, pp. 1695–1698.
+[2] Y. Liu and M. Pecht, “Reduction of motion artifacts in electrocardiogram
+monitoring using an optical sensor,” Biomed. Instrum. Technol., vol. 45,
+no. 2, pp. 155–163, 2011.
+[3] M. Chawla, “PCA and ICA processing methods for removal of artifacts
+and noise in electrocardiograms: A survey and comparison,” Appl. Soft
+Comput., vol. 11, no. 2, pp. 2216–2226, 2011.
+
+[4] M. Milanesi, N. Martini, N. Vanello, V. Positano, M. Santarelli, and
+L. Landini, “Independent component analysis applied to the removal of
+motion artifacts from electrocardiographic signals,” Med. Biol. Eng. Comput., vol. 46, pp. 251–261, 2008.
+[5] A. Griffiths, A. Das, B. Fernandes, and P. Gaydecki, “A portable system
+for acquiring and removing motion artefact from ECG signals,” J. Phys.,
+Conf. Series, vol. 76, no. 1, 012038, 2007.
+[6] M. Milanesi, N. Martini, N. Vanello, V. Positano, M. Santarelli,
+R. Paradiso, D. De Rossi, and L. Landini, “Multichannel techniques
+for motion artifacts removal from electrocardiographic signals,” in Proc.
+IEEE 28th Annu. Int. Conf. Eng. Med. Biol. Soc., 2006, pp. 3391–
+3394.
+[7] D. Jeong and S. Kim, “Development of a technique for cancelling motion
+artifact in ambulatory ECG monitoring system,” in Proc. IEEE 3rd Int.
+Conf. Convergence Hybrid Inf. Technol., 2008, vol. 1, pp. 954–961.
+[8] D. Tong, K. Bartels, and K. Honeyager, “Adaptive reduction of motion
+artifact in the electrocardiogram,” in Proc. IEEE 24th Annu. Int. Conf.
+Eng. Med. Biol., 2002, vol. 2, pp. 1403–1404.
+[9] S. Liu, “Motion artifact reduction in electrocardiogram using adaptive
+filter,” J. Med. Biol. Eng., vol. 31, pp. 67–72, 2011.
+[10] S. Luo and W. Tompkins, “Experimental study: Brachial motion artifact
+reduction in the ECG,” in Proc. Comput. Cardiol., 1995, pp. 33–36.
+[11] M. Raya and L. Sison, “Adaptive noise cancelling of motion artifact in
+stress ECG signals using accelerometer,” in Proc. IEEE 24th Annu. Int.
+Conf. Eng. Med. Biol., 2002, vol. 2, pp. 1756–1757.
+[12] S. Yoon, S. Min, Y. Yun, S. Lee, and M. Lee, “Adaptive motion artifacts reduction using 3-axis accelerometer in e-textile ECG measurement
+system,” J. Med. Syst., vol. 32, no. 2, pp. 101–106, 2008.
+[13] M. Ur Rahman, R. Shaik, and D. Reddy, “An efficient noise cancellation
+technique to remove noise from the ECG signal using normalized signed
+regressor LMS algorithm,” in Proc. IEEE Int. Conf. Bioinformat. Biomed.,
+2009, pp. 257–260.
+[14] L. A. Geddes and L. E. Baker, Principles of Applied Biomedical Instrumentation. New York, NY, USA: Wiley, 1968.
+[15] A. Pacela, “Impedance pneumography–A survey of instrumentation techniques,” Med. Biol. Eng. Comput., vol. 4, pp. 1–15, 1966.
+[16] E. Alt, M. Heinz, C. Hirgstetter, H. P. Emslander, S. Daum, and H. Blmer,
+“Control of pacemaker rate by impedance-based respiratory minute ventilation,” Chest, vol. 92, no. 2, pp. 247–252, 1987.
+[17] L. E. Baker, “Applications of the impedance technique to the respiratory
+system,” IEEE Eng. Med. Biol. Mag., vol. 8, no. 1, pp. 50–52, Mar.
+1989.
+[18] R. D. Allison, E. L. Holmes, and J. Nyboer, “Volumetric dynamics
+of respiration as measured by electrical impedance plethysmography,”
+J. Appl. Physiol., vol. 19, no. 1, pp. 166–173, 1964.
+[19] D. Warburton, A. R. Stark, and H. W. Taeusch, “Apnea monitor failure in
+infants with upper airway obstruction,” Pediatrics, vol. 60, no. 5, pp. 742–
+744, 1977.
+[20] G. Little, R. Ballard, J. Brooks et al., “National institute of health consensus development: Course on infantile apnea and home monitoring,
+September 1986,” Pediatrics, vol. 79, pp. 292–299, 1987.
+[21] T. M. Baird and M. R. Neuman, “Effect of infant position on breath amplitude measured by transthoracic impedance and strain gauges,” Pediatric
+Pulmonol., vol. 10, no. 1, pp. 52–56, 1991.
+[22] S. Luo, V. Afonso, J. Webster, and W. Tompkins, “The electrode system in
+impedance-based ventilation measurement,” IEEE Trans. Biomed. Eng.,
+vol. 39, no. 11, pp. 1130–1141, Nov. 1992.
+[23] J. Rosell, K. Cohen, and J. Webster, “Reduction of motion artifacts using
+a two-frequency impedance plethysmograph and adaptive filtering,” IEEE
+Trans. Biomed. Eng., vol. 42, no. 10, pp. 1044–1048, Oct. 1995.
+[24] S. Ansari, K. Ward, and K. Najarian, “ε-tube regression: A new method
+for motion artifact reduction,” in Proc. IEEE Annu. Int. Conf. Eng. Med.
+Biol. Soc., 2011, pp. 2736–2739.
+[25] V. Vapnik, Statistical Learning Theory (Series Adaptive and Learning
+Systems for Signal Processing, Communications, and Control). New York,
+NY, USA: Wiley, 1998.
+[26] R. Stockwell, L. Mansinha, and R. Lowe, “Localization of the complex
+spectrum: The S transform,” IEEE Trans. Signal Process., vol. 44, no. 4,
+pp. 998–1001, Apr. 1996.
+[27] R. Stockwell, “Why use the S-transform,” Pseudo-Differential Operators:
+Partial Differential Equations and Time-Frequency Analysis (Fields Inst.
+Commun. Series), vol. 52. Providence, RI, USA: Amer. Math. Soc., 2007,
+pp. 279–309.
+[28] D. Sarason, Complex Function Theory, 2nd ed. Providence, RI, USA:
+Amer. Math. Soc., 2007.
+
+ANSARI et al.: EPSILON-TUBE FILTERING: REDUCTION OF HIGH-AMPLITUDE MOTION ARTIFACTS
+
+Sardar Ansari (M’13) received the Bachelor’s degree in software engineering from the Department of
+Electrical and Computer Engineering, University of
+Tehran, Tehran, Iran, in 2008, and the M.S. degree
+in computer science from Virginia Commonwealth
+University (VCU), Richmond, VA, USA, in 2010. He
+received the M.S. degree in statistics and the Ph.D.
+degree in computer science from VCU, in December
+2013.
+He is currently with Virginia Commonwealth University, Richmond, VA, USA. His research interests
+include signal and image processing, machine learning, and data mining, as well
+as nonlinear and discrete optimization and queuing theory.
+
+Kevin Ward received the B.S. degree in physiology
+from Louisiana State University in Baton Rouge and
+his degree in medicine from Tulane University in New
+Orleans, LA, USA. He then completed a residency in
+Emergency Medicine at the University of Pittsburgh,
+USA.
+He is an M.D. and a Professor in the Department of Emergency Medicine, University of
+Michigan, Ann Arbor, MI, USA. He has published in
+more than 200 peer-reviewed articles, abstracts, and
+chapters. His research interests include development
+of broad platform technologies for the diagnosis, monitoring, and treatment of
+the critically injured including a focus on combat casualty care. He is an Instrumental Member of the Michigan Critical Injury and Illness Research Center.
+Dr. Ward received many awards including the Peter Safar Award in Graduate
+Research from the University of Pittsburgh, the Society of Academic Emergency Medicines Young Investigator Award, and the U.S. Army’s Advanced
+Technologies Applications in Combat Casualty Care Award. He is also a Prolific Inventor and was awarded the 2010 VCU Billie Martin Innovator of the
+Year Award.
+
+417
+
+Kayvan Najarian (SM’07) received the B.Sc. degree in electrical engineering from Sharif University,
+Tehran, Iran, the M.Sc. degree in biomedical engineering from Amirkabir University, Tehran, and the
+Ph.D. degree in electrical and computer engineering
+from the University of British Columbia, Vancouver,
+Canada.
+He is an Associate Professor in the Departments
+of Computational Medicine and Bioinformatics, and
+Emergency Medicine at the University of Michigan,
+Ann Arbor, MI, USA. He also serves as the Director
+of the Michigan Center for Integrative Research in Critical Care’s BiosignalImage and Computational Core program. His research interests include design
+of signal/image processing and machine learning methods to create computerassisted clinical decision support systems that improve patient care. Dr. Najarian
+serves as the Editor-in-Chief of a journal in the field of biomedical engineering
+as well as the Associate Editor of two journals in the field of biomedical informatics. He is also a Member of many editorial boards and has served as a Guest
+Editor of special issues for several journals.
+
+

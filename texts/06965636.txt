@@ -1,0 +1,1096 @@
+948
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+Multilabel Region Classification and Semantic
+Linking for Colon Segmentation in CT Colonography
+Xiaoyun Yang, Xujiong Ye, Member, IEEE, and Greg Slabaugh∗ , Senior Member, IEEE
+
+Abstract—Accurate and automatic colon segmentation from CT
+images is a crucial step of many clinical applications in CT colonography, including computer-aided detection (CAD) of colon polyps,
+3-D virtual flythrough of the colon, and prone/supine registration.
+However, the existence of adjacent air-filled organs such as the lung,
+stomach, and small intestine, and the collapse of the colon due to
+poor insufflation, render accurate segmentation of the colon a difficult problem. Extra-colonic components can be categorized into
+two types based on their 3-D connection to the colon: detached and
+attached extracolonic components (DEC and AEC, respectively).
+In this paper, we propose graph inference methods to remove extracolonic components to achieve a high quality segmentation. We
+first decompose each 3-D air-filled object into a set of 3-D regions. A classifier trained with region-level features can be used
+to identify the colon regions from noncolon regions. After removing obvious DEC, we remove the remaining DEC by modeling the
+global anatomic structure with an a priori topological constraint
+and solving a graph inference problem using semantic information provided by a multiclass classifier. Finally, we remove AEC by
+modeling regions within each 3-D object with a hierarchical conditional random field, solved by graph cut. Experimental results
+demonstrate that our method outperforms a purely discriminative
+learning method in detecting true colon regions, while decreasing
+extra-colonic components in challenging clinical data that includes
+collapsed cases.
+Index Terms—CT colonography (CTC), graph inference,
+segmentation.
+
+I. INTRODUCTION
+OLORECTAL cancer is the second leading cause of
+cancer-related death in western countries [1]. Most colorectal cancers arise from premalignant polyps in the colon that
+develop into cancer over time. The progression from polyp to
+cancerous lesion takes more than ten years for most patients.
+Because of this slow growth rate, colon cancer screening [2] is
+an effective method for polyp detection, and subsequent removal
+reduces the risk of colorectal cancer by up to 90% [3]. In recent
+years, there has been much interest in CT colonography (CTC)
+[4], also called “virtual colonoscopy,” where a clinical reader
+screens for colorectal disease using CT images of the cleansed
+
+C
+
+Manuscript received July 17, 2014; revised October 11, 2014 and November
+14, 2014; accepted November 15, 2014. Date of publication November 24, 2014;
+date of current version February 16, 2015. Asterisk indicates corresponding
+author.
+X. Yang is with Hometrack Data Systems Ltd (e-mail: xrobertyang@gmail.
+com)
+X. Ye is with the School of Computer Science, University of Lincoln, LN6
+7TS, UK (email: xye@lincoln.ac.uk).
+∗ G. Slabaugh is with the School of Mathematics, Computer Science, and Engineering, City University London, London EC1V 0EH, U.K. (e-mail: gregory.
+slabaugh.1@city.ac.uk).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2374355
+
+Fig. 1. Illustration of the colon, (license to reproduce the image granted by
+Terese Winslow).
+
+and insufflated colon [5]. Compared to optical colonoscopy,
+CTC has advantages that it affords rapid imaging of the entire
+colon, is less invasive, and has virtually no risk of perforation of
+the colon. In clinical practice, it is common to scan the patient
+twice to better identify polyps, once with the patient in supine
+position, and again in the prone position. This often generates a
+large quantity of data (typically 800–2000 images per patient).
+Several imaging techniques have been developed to help the
+clinicians to view and analyze the data more efficiently and effectively. In a “flythrough,” a clinician searches for polyps by
+looking at rendered views of the endoluminal colon surface.
+In the last decade, many computer-aided detection (CAD) and
+diagnosis systems [6]–[8] have been developed to assist the
+reader by automatically analyzing the CT data and highlighting potential lesions, boosting reader performance [9], [10].
+More recently, advanced prone/supine registration techniques
+are proposed to better differentiate polyps from pseudopolyps
+[11]–[13]. All of the aforementioned clinical applications rely
+on automatic and robust colon segmentation.
+The colon, located in the abdomen below the stomach and
+lungs, is separated into five sequential anatomic sections: ascending, transverse, descending, sigmoid and rectum, as shown
+in Fig. 1. When CT scanning is performed, the patient’s colon
+is distended with carbon dioxide (or air), which appears very
+dark in the CT image. However, for tagging liquid and solid
+residues in the colon, the patient may have been administered
+oral contrast agents. In the CT image, these agents appear as
+bright regions (typically with Hounsfield units (HU) > 300).
+There are two major challenges to robust colon segmentation:
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+YANG et al.: MULTILABEL REGION CLASSIFICATION AND SEMANTIC LINKING FOR COLON SEGMENTATION IN CT COLONOGRAPHY
+
+first, there are other structures partially or fully filled with air
+adjacent to the colon, such as lung, small intestine, and stomach.
+These structures may appear 3-D connected with the colon as a
+result of partial volume effect (PVE). Second, ideally the colon
+is one connected air-filled region as a result of the distension.
+However, when poorly insufflated, the colon may be collapsed
+into several disconnected sections. Due to the extracolonic components, CAD systems may produce out-of-colon false positives
+[14], which the clinical reader must dismiss and may affect their
+confidence in the CAD. We classify the extracolonic components into two categories: detached extracolonic components
+(DEC), which are not 3-D connected to the colon, and the attached extracolonic components (AEC), which are connected.
+A. Related Work
+Automatic colon segmentation has been addressed in
+recent research [14]–[15]. Nappi et al. [16] proposed a
+knowledge-guided approach to segment the colon in two steps:
+anatomy-based extraction (ABE) and colon-based analysis
+(CBA). ABE removes extracolonic components such as bones
+and lung in an “outside-to-inside” approach; CBA remove digestive extracolonic components such as stomach and small bowels
+in an “inside-to-outside” approach, by starting a region growing
+process from a seed placed in the rectum. Multiple seeds are
+required when presented with partially or completely collapsed
+colon regions. This method and those described in [14] and [16]–
+[18] are more capable of dealing with DEC and not designed
+for AEC removal. In [19] and [20], centerline-based colon
+segmentation is proposed to remove AEC, but is only valid for
+well distended or slightly collapsed colon cases. However, these
+methods, as well as other published colon segmentation methods require numerous rules and parameter values to be set
+empirically. Recently [15] is the first to rely on machine
+learning to solve this problem in a systematic way. This
+approach first extracts all the 3-D air components and applies
+a binary classifier to classify them into colon components and
+extracolonic components. The method then applies a “daisychaining” algorithm based on the distance to sequentially merge
+the components between the rectum and cecum. However, due
+to colon collapses and nearby extracolonic segments, distance
+alone can be insufficient to provide robust linking. Furthermore,
+this method does not address the issue of AEC. Collapsed
+colons and AEC remain the major barriers to achieve robust
+segmentation when presented with such difficult cases that are
+common in clinical practice.
+B. Our Contributions
+To address these limitations, in this paper, we propose a graph
+inference scheme for colon segmentation using semantic information derived from a multiclass classifier. We first preprocess
+the data to form a collection of single-connected 3-D objects.
+Each 3-D object can be decomposed into and represented by
+a set of 3-D regions. The obvious noncolon DEC objects are
+removed if none of its constituent regions is selected by a binary classifier trained from region-level features. A semantic
+linking strategy is employed to further remove DEC objects.
+
+949
+
+For each remaining object, we identify any AEC regions using a
+conditional random field (CRF) that incorporates appearance
+features and spatial dependences.
+The contributions of this paper are three-fold.
+1) We introduce a method to detect the colon at a region level.
+This provides robustness in the presence of collapses or
+AEC, particularly for salient regions that are more easily
+discriminated from noncolon regions.
+2) We present a semantic linking strategy to guide the colon
+segmentation using a multiclass classifier to provide the
+semantic knowledge that indicates to which section of the
+colon each salient region belongs.
+3) We formulate the task of AEC removal in a hierarchical
+framework as a CRF problem, solved by performing graph
+cut at each level.
+II. METHODOLOGY
+A. Terminology
+Before describing the approach, for clarity, we define some
+important terms used in this paper. We define a node as a set of
+connected pixels in 2-D. We intend nodes to model the colon
+on a particular transverse slice forming a 2-D image of the 3-D
+volume. However, as there are other adjacent air-filled anatomies
+near the colon, nodes may exist for extracolonic image regions as
+well. Fundamental to this paper is the concept of a region, which
+is a collection of strongly connected nodes (one can think of a
+region as a type of supervoxel). The regions group nearby nodes
+together, and typically nodes in a region will be from the same
+anatomical section of the colon (e.g., sigmoid colon). Finally, an
+object is a collection of voxels that are simply connected in 3-D.
+Working directly with objects is problematic because a single
+object may have AEC or model different anatomical sections of
+the colon. Therefore, in this paper, we will decompose objects
+into regions. In terms of set theory, N ⊆ R ⊆ O, where N is a
+2-D node, R is a 3-D region, and O is a 3-D object. Our objective
+in this paper is to find the set of regions that model the colon,
+and link them together semantically to form a segmentation.
+A schematic diagram showing AEC and DEC, along with
+objects, regions, nodes, and true positive colon is shown in
+Fig. 2. In the figure, each object enclosed in a red dashed line
+consists of a number of regions (shown as blue rectangles),
+while each region has a number of nodes (small yellow circles).
+The blue dotted dash rectangle indicates true positive colon
+consisting of three objects (Objects 1, 2, and 4) and Region 1
+in Object 3. Therefore, Region 2 in Object 3 is AEC, which
+is attached to the colon; while Object 5 in the figure consists
+of two DEC regions. The proposed method aims to remove the
+DEC and AEC while retaining the true positive colon volume.
+B. Overview
+Fig. 3 provides a high-level overview of the approach. Given
+a CT image, the method first forms regions, which consist of
+strongly connected nodes. Working with regions is advantageous in this problem, since due to partial volume effect and
+pseudo-enhancement, simple connectivity can group colon with
+
+950
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+Fig. 2. Schematic diagram illustrating AEC and DEC, along with objects,
+regions, and nodes.
+
+noncolon voxels. Once regions are determined, all subsequent
+processing is region based. We extract features that characterize
+each region’s location and shape. The features are used in two
+classifiers. The first, binary classifier, determines if the region
+is colon or noncolon. Then, a multiclass classifier categorizes
+the region into one of six classes, based on the anatomical sections of the colon. A semantic linking strategy uses the anatomic
+labels to group the regions in the proper order to eliminate remaining DEC, and a final CRF problem is solved to remove
+any AEC to produce the final segmentation. Below we describe
+these steps in detail.
+C. Region Formation
+1) Image Processing: Normally, the colon is insufflated with
+gas, which appears as a low intensity in the image. However, oral
+contrast agents (tagging) are often used to opacify any liquid or
+solid remains in the colon. These contrast agents have a high
+intensity. Therefore, we first apply pixel-wise thresholding on
+each slice of the input volume based on predefined Hounsfield
+(HU) values described in (1). Pixels are then labeled as air, high
+intensity and background (noncolon), respectively.
+⎧
+air
+if I < −700
+⎪
+⎨
+f (I) = high intensity if I > 300
+(1)
+⎪
+⎩
+background
+otherwise
+where I is the HF value of a given pixel. Fig. 4(a) shows a CT
+slice, and in (b) and (c), the results of detecting the air and liquid
+regions.
+One difficulty to the simple thresholding described previously
+is at the interface between air and liquid. Due to partial volume
+effect, this “gap area” can have HF units that are in the background (tissue) class, and can disconnect a set of colonic voxels
+into disjoint sets. However, this gap area is part of the colon and
+should be included in the segmentation, and we would prefer
+these adjacent air and liquid regions merged. We note that the
+
+air/liquid interface is small, and flat due to gravity. We use these
+properties to identify the gap area and merge the colonic air with
+tagged liquid.
+After thresholding, we identify the liquid tagged area on each
+slice by finding high-intensity pixels neighboring the air. Distance transforms (using the bwdist function in MATLAB) are
+computed from the air pixels and the high-intensity pixels in
+each slice, respectively. In the gap between colon air and tagging fluid, the gradient of the respective distance transforms
+should point oppositely in the vertical direction. We apply a dot
+product operation with the y (corresponding to gravity) gradients. If the dot product is less than Tgrady (e.g., −0.98), we
+detect that the gradients point oppositely in the vertical direction. Furthermore, the distance value for that pixel from either
+distance transform should be less than a threshold TGapW idth .
+The pixels satisfying both conditions are considered as the gap
+area between colon air and liquid, as shown the dark area in
+Fig. 4(d). This process is described by the following equation:
+⎧
+M1 = dt(air) < TGapW idth
+⎪
+⎪
+⎪
+⎪
+⎪
+⎪
+M = dt(high intensity) < TGapW idth
+⎪
+⎨ 2
+M3 = grady (dt(air)).∗
+(2)
+⎪
+⎪
+⎪
+⎪
+grady (dt(high intensity))
+⎪
+⎪
+⎪
+⎩
+M4 = (M3 < Tgrady ). ∗ (M1 ). ∗ (M2 )
+where dt(.) represents the distance transform operation,
+grady (.) represents the y component of the gradient. For robustness, the area is further filtered by features (area, eccentricity, and the flatness), producing the final gap area illustrated in Fig. 4(e). The gap area is accepted if area > 3 pixels,
+eccentricity > 0.9, ﬂatness < 0.45 (ﬂatness = height(rect)
+width(rect) ).
+High-intensity areas, along with the adjacent gap areas are considered as tagged liquid and merged with the colon air using
+morphological operations.
+2) Grouping: We form 3-D regions by checking the strength
+of the connection between constituent 2-D nodes on transverse
+slices; a depiction is shown in Fig. 5(a). A node ni in slice k
+may overlap a node nj in its neighboring slice k + 1 (or k − 1).
+E(ni , nj ) represents the Jaccard index between node ni and nj
+and is defined as
+E(ni , nj ) =
+
+area(ni ) ∩ area(nj )
+.
+area(ni ) ∪ area(nj )
+
+(3)
+
+We define an adjacency matrix A(ni , nj ) to encode the connectivity between nodes. An element of the adjacency matrix is set
+to one if
+1) E(ni , nj ) ≥ 0.5. In this case, nodes ni and nj are strongly
+connected and very likely to be part of the same structure.
+2) 0 < E(ni , nj ) < 0.5 and ni does not connect with more
+than two nodes nj and nk . This allows for rapid area
+changes in the 3-D segment when there is no branching
+connection.
+In Fig. 5(a), we show different regions within the volume
+with a different color. Based on the adjacency matrix, the colon
+is naturally separated into different regions at turning points
+(such as near the hepatic/splenic flexures) and branching points
+
+YANG et al.: MULTILABEL REGION CLASSIFICATION AND SEMANTIC LINKING FOR COLON SEGMENTATION IN CT COLONOGRAPHY
+
+951
+
+Fig. 3.
+
+Overview of the methodology.
+
+Fig. 4.
+liquid.
+
+Colon air and liquid merging. (a) Original slice (b) air (c) high-intensity pixels, > 300 (d) gap area (e) selected gap area (f) merged colon air and tagging
+
+Fig. 5. (a) A schematic of region formation, consisting of 2-D nodes (ellipses) that are grouped into regions (green, orange, yellow). (b) Regions identified in a
+real dataset. A zoom-in is shown for the ascending colon position, where we can see a salient region (coded by dark red) and small fragment regions (coded by
+light red or yellow).
+
+952
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+TABLE I
+FEATURES OF COLON REGIONS, 114 FEATURES IN TOTAL
+Features
+
+Name
+
+Num features
+
+Category 1
+
+body position, normalized body position, number of 2-D regions,
+volume
+, surface area, length, radius
+volume, number
+( D regions)
+
+18
+
+Category 2
+
+area, eccentricity, perimeter, solidity, equivalent diameter,
+Euler number
+holes, concavities
+
+6 × 4 = 24
+9 × 4 × 2 = 72
+
+Category 3
+
+when connected with other structures. As we will show, this
+enables the separation of the colon from AEC. However, due
+to the complex shape of the colon, small fragment regions are
+often generated [illustrated in Fig. 5(b)]. The features from these
+small regions are not discriminative and are not useful for the
+task of classification.
+The ith 3-D connected set of voxels forms an object, denoted by vi . Using the method described previously, each individual object vi can be decomposed into a set of regions
+(vi1 , vi2 , ..., vip ) that we use in subsequent sections of this
+paper.
+D. Feature Extraction
+A colon object usually consists of a number of 3-D salient
+colon regions, and nonsalient colon regions that are mainly
+fragments. The salient colon regions have a different geometric
+appearance and spatial distribution than the noncolon or nonsalient colon regions. To differentiate colon regions (particularly
+salient ones) from noncolon regions, we developed a set of 114
+features listed in Table I (this includes some features from [15]).
+The features are grouped into three categories. Category 1 are
+3-D features, computed over the entire 3-D region. This includes
+the 3-D enclosing box (represented by six values) and its normalized position (another six values) relative to the bounding
+box formed from all candidate regions in the volume. Also in2
+cluded is the region’s length, approximated by 4×πarea
+×volum e , and
+e
+, where area is the side
+the radius, approximated by 2×volum
+area
+surface area and volume is the volume of the 3-D region.
+Category 2 looks at the distribution of the 3-D region’s features across its constituent 2-D nodes on transverse slices. More
+specifically, we compute the maximum, minimum, mean, and
+median of each measure, specifically area, eccentricity, perimeter, solidity (true area divided by convex area), equivalent diameter, and Euler number of each node.
+Finally, category 3 features are based on the holes in each
+node, as well as concavities along its boundary. A given region
+may contain a number of nodes; and each node will consist of
+a set of pixels with a boundary. Holes are found using inverting
+the node and counting the number of connected components. Intuitively, the number of holes will be low in the colon, but high
+for noncolon anatomy like the lungs, which contain a large number of a vessels that appear as holes in the original (uninverted)
+node. Concavities are based on the critical points technique described in [14, Sec. 4.1], which analyzes the curvature of points
+along the boundary of a node to determine a concave area. For
+both, a region’s holes and concavities, a set of nine statistics
+
+(number, as well as sum, maximum, minimum, mean, median,
+variance, entropy, mode of the area forming the hole or concavity) are computed for each transverse slice. Then, a set of four
+summary statistics (maximum, minimum, mean, and median)
+are computed across all the slices in the region, forming a set of
+9 × 4 features; one set of 36 features for holes, and another for
+concavities.
+E. Probabilistic Classification
+Next, we train two classifiers (a binary and a multiclass classifier) to classify 3-D regions. The binary classifier is designed
+to discriminate between colon and noncolon regions, while the
+multiclass classifier labels a region into one of the six anatomic
+colon classes to provide semantic information required for linking the regions as discussed in Section III-A.
+For the binary classifier, we use a boosting tree introduced
+in [21], that consists of an ensemble of a serial of trees built in
+an additive manner. It uses a tree classifier as a weak learner
+to generate a hypothesis h1 . The distribution of weights of the
+training samples is updated by a function of the classification
+error. A next hypothesis h2 is generated by training a weak
+classifier on the samples randomly drawn but controlled by the
+distribution of weights from the training data space. The samples
+misclassified in the previous round can be drawn repeatedly by
+chance. This process continues iteratively until a target error
+bound or maximum number of rounds has been reached. The
+final hypothesis H is formed by linearly combining the set of
+trees (h1 ,h2 , ..., ht ) generated at each round with their weighted
+votes. During testing, after the classifier has been trained, the
+probability [21] of a region being colon is estimated as
+P (c1ip |vip , I, θ) =
+
+exp(F (c1ip ))
+exp(F (c0ip )) + exp(F (c1ip ))
+
+(4)
+
+where I is the volume data and θ is the model generated by
+training the classifier. cip is the set of labels for each candidate
+region vip . c1ip represents the region corresponding to colon and
+c0ip represents the region corresponding to noncolon. F (c1ip ) and
+F (c0ip ) is the classifier prediction value for colon and noncolon,
+respectively.
+The regions with high volume appear more salient, with
+more discriminative features. Also, misclassification of highvolume colon regions is highly undesirable. To differentiate
+these salient regions, we give more weight to the regions with
+high volume during classifier training, but less weight to smallvolume regions. The weight factor is defined by the square root
+
+YANG et al.: MULTILABEL REGION CLASSIFICATION AND SEMANTIC LINKING FOR COLON SEGMENTATION IN CT COLONOGRAPHY
+
+of the region’s volume, which penalizes misclassification of
+high-volume regions. During testing, the classifier estimates the
+probability of each region to be colon, and for any object vi , if
+one of its constituent part vip is assigned to be colon, the whole
+object vi will be labeled as colon for the subsequent processing. Otherwise, the region is labeled as noncolon and discarded
+as DEC.
+To build a semantic contextual information for the graph inference in the next stage, we employ a multiclass classifier to label
+the regions into anatomic five sections by their locations: rectum
+(1), sigmoid (2), descending colon (3), transverse colon (4), and
+ascending colon (5), class number m = [0, 1, ..., 5] is arranged
+in a semantic sequence; the class number is 0 for noncolon. The
+colon regions are categorized into these classes according to
+which colon section most of its volume is located. Multiclass
+LogitBoost [21] directly estimates the multiclass probability as
+m
+))
+exp(F (lip
+m
+|vip , I, θ) = 
+P (lip
+m
+exp(F
+(l
+ip ))
+l
+
+(5)
+
+where θ is the model generated by training the classifier, and
+m
+represents the region vip corresponding to colon section m.
+lip
+m
+) is the classifier prediction value of class number m for
+F (lip
+that candidate region vip . We adopt the same principle to train
+the multiclass classifier, weighting the misclassification cost of
+each region with the square root of the region’s volume.
+For training the binary classifier, we could automatically label
+each region as colon/noncolon by checking whether the region
+overlaps with the annotated targeted object. For the multiclass
+training data, we are only interested in the semantic information of the salient regions. The salient regions (on average 15
+per volume) are checked visually to determine which anatomic
+section of the colon they best represent. The salient regions are
+the regions with the volume exceeding 1% of the total volume
+of the air-filled regions. There are some uncertainties when the
+regions are crossing two anatomic sections; however, the majority of the regions reflects the distributions of each anatomic
+section and is suitable to train the multiclass classifier.
+The posterior probability of being colon/noncolon estimated
+by the binary classifier and the output of the multiclass classifier
+are used in subsequent graph inference methods described in the
+next section.
+III. GRAPH INFERENCE
+In this section, we present a graph scheme with two separate
+graph inference steps to remove the remaining DEC if existing
+and AEC, respectively.
+A. Semantic Linking
+To further remove the DEC, we propose a class-level topology
+graph to characterize the classes’ spatial relationship and use it to
+guide the linking of each colon regions. A variant of the pictorial
+structures (PS) model [22] is employed to identify the rectum
+and ascending colon regions. We then solve a minimum path
+problem between these identified end regions using anatomic
+constraints induced by the multiclass classifier. This effectively
+removes the remaining DEC.
+
+953
+
+1) Rectum and Ascending Colon Identification: We note that
+the rectum and cecum are distinctive landmarks in the colon
+and their detection is an important component of related work
+[15]. In our approach, we do not detect the cecum directly, but
+rather seek to identify the ascending colon regions, which will
+naturally include the cecum due to strong connectivity.
+The PS [22] is a probabilistic model that allows the representation of an object as a collection of regions in an image,
+which are linked, pairwise, by deformable spring-like connections. Each connection defines the relationship between the two
+regions it connects. In our approach, the connections correspond
+to the relative spatial positions between regions. The model can
+be further formulated into two terms, as shown in (6). The first
+term describes the probability of a region being the target (rectum or ascending) by its geometric appearance features. The
+second term describes the spatial configuration of the regions,
+which is encoded through a pair-wise term between regions
+labeled by the multiclass classifier, as
+p(L|I, θ) ∝ P (I|L, θ)P (L|θ)
+
+(6)
+
+where L represents the region label, and θ = (φ, ψ), φ represents
+the model derived from individual’s appearance features, and ψ
+describe the interrelationship of objects, and in the PS model
+can be reexpressed as
+p(L|I, θ) ∝ P (I|L, φ)P (L|ψ)
+∝ P (L|I, φ)P (L|ψ).
+
+(7)
+
+This can also be viewed as a CRF problem. The first term
+P (L|I, φ) acts as an unary term representing the probability
+of a label given the region’s appearance features. The second
+term P (L|ψ) acts as a pairwise term, to model the relative
+spatial relationship between regions with different labels. This
+can be directly estimated by the multiclass boosting classifier
+as described earlier. Equation (7) is approximately equivalent
+to
+
+
+p(lip , lj q |ψ) .
+(8)
+p(L|I, θ) ∝
+p(lip |vip , I, φ)
+
+	
+
+
+	
+
+
+ﬁrst term
+
+second term
+
+More specifically, we are looking for two regions, one from
+the rectum and the other from the ascending colon
+1
+))
+exp(F (lip
+1
+p(lip
+|vip , I, φ) = 
+m
+m exp(F (lip ))
+
+(9)
+
+exp(F (lj5q ))
+p(lj5q |vj q , I, φ) = 
+m
+m exp(F (lj q ))
+1
+, lj5q |ψ1,5 ) = N (o(vj q ) − o(vip ), Σ1,5 ).
+p(lip
+
+(10)
+
+This equation describes a spatial relationship of two candidates,
+1
+region vip being the rectum class (lip
+), region vj q being the
+5
+ascending colon class (lip ), and their positions o(vip ), o(vj q )
+using a multivariate normal distribution. The relative spatial
+position of the two regions can be represented as a vector
+o(vj q ) − o(vip ), which is a translation of o(vj q ) (ascending
+colon) if using o(vip ) as a reference region (rectum). The joint
+probability for the locations of the regions is based on the deviation between their observed ones (o(vip ), o(vj q )) and their
+
+954
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+following equation:
+
+Wp (vip , vj q ) =
+Fig. 6. Class-topology diagram, where (R, S, D, T, A) represent rectum, sigmoid, descending, transverse, and ascending sections of the colon, respectively.
+Valid connections are shown in black, and an invalid connection is rendered in
+red.
+
+ideal relative values characterized by a covariance matrix Σ1,5 ,
+which is learned from the rectum and ascending colon regions
+in the training data through maximum likelihood. The covariance matrix Σ1,5 can be viewed as the stretchiness between two
+regions. Using o(vip ) (rectum) as reference, varying the location of o(vj q ) (ascending colon) can result in a different cost
+depending on the covariance matrix Σ1,5 . For example, the ascending colon should be located to the left and above the rectum.
+A region located to the right (a wrong direction of ascending
+colon relative to the rectum) will have a low probability, and
+thus, be unlikely to be identified as ascending colon.
+2) Class-Topology Graph: The topology of the colon is
+known a priori in this problem; colon regions should follow
+a valid, sequential linking from the rectum, sigmoid, descending colon, transverse colon, and ascending colon. Ideally, the
+colon regions are initially linked through the entire colon in the
+proper anatomic sequence. However, often a colon anatomic
+section may be broken into a number of disconnected regions.
+Additionally, the regions may skip the next class in the sequence
+and instead connect with regions from the class after the next
+if the colon is collapsed, as shown in Fig. 6. Consequently, we
+define a class-topology graph Gc , defined by
+
+0
+
+if i = j
+
+Gc (vip , vj q ) ∗ Δ(vip , vj q )
+
+if i = j
+
+(12)
+
+where Δ(vip , vj q ) represents a minimum distance between the
+terminal regions of object vi that contains vip and the terminal regions of vj that contains vj q . Distance between any
+two regions is based on the Euclidean distance between their
+bounding box centers. If regions vip and vj q are from a single
+simple-connected 3-D set (i = j), then the weight in (12) is
+zero. Otherwise, the two regions vip and vj q are not from the
+same 3-D object (i = j), and their weight is Δ multiplied by
+a class-topology matrix Gc [defined by (11)], which encodes
+the semantic information of the colon. For example, once the
+3-D object (vi ) including descending colon regions has been
+identified (m = 3), the 3-D object (vj ) identified as transverse
+colon (at least one region being m >= 3) is expected instead
+of sigmoid or rectum. To encourage the proper sequence, the
+pairwise term for out-of-sequence regions is penalized to be
+very large value (t = ∞). This limits the search range for the
+subsequent components to the regions from neighboring classes
+by giving a penalty to the regions from other classes, which are
+not admissible based on the class-topology graph. The colon
+segmentation problem is thus reduced to a minimum path problem between two end regions identified by the PS model, and
+solved by using the Floyd–Warshall algorithm [23]. All the 3-D
+objects containing the regions on the resulting path are considered as colon objects and go to subsequent processing. All the
+other unselected objects are removed as DEC.
+C. AEC Removal
+
+B. Minimum-Cost Path Problem
+
+After removing DEC in the previous step, we aim to remove
+AEC in the final stage. For example, Fig. 9(a) shows a case
+of lung attached to a descending colon region, and Fig. 9(a)
+and (d) illustrates two cases of small intestine connected to the
+colon (a more commonly occurring phenomenon). Given a 3D object and its constituent regions, we represent the regions
+of the object on a graph Gi = (Vi , Ei ), where Vi is a set of
+nodes vi1 , vi2 , ..., vik , Ei describes the connections between
+the regions. We seek a labeling L = 1, 0 corresponding to colon
+or noncolon for each region, and the ones labeled as noncolon
+are removed as AEC. An assignment of labels to each region is
+denoted as y. This can be formulated as a CRF [24] problem,
+where each random variable associates a region with one of the
+possible labels L. This problem can be formulated in terms of
+energy minimization, as shown in the following equation:
+
+
+E(y) =
+α(y) +
+β(y)
+(13)
+
+After we have the class-topology graph Gc and identified two
+end regions vrectum and vascending of the colon, the problem
+of identifying the remaining regions representing the colon can
+be formulated as a minimum-path problem. A graph Gp is defined over the set of regions selected by the binary classifier
+vip , vj q , ... to be colon. A vertex of the graph represents a selected region vip ; an adjacency matrix is defined by a weighted
+distance cost function between two regions, as defined in the
+
+where α is a unary term and β is a pair-wise term. The unary
+term α is represented by the probability of individual object
+being colon provided their appearance features, which can be
+estimated by the binary boosting tree classifier described in (4).
+The pair-wise term β describes the interactions between the
+regions to enforce a consistency between neighboring regions if
+they are strongly connected and is described later. Much research
+has been published to solve this class of optimization problem,
+
+⎡
+
+1
+
+⎢
+⎢t
+⎢
+⎢
+Gc = ⎢ t
+⎢
+⎢t
+⎣
+t
+
+1
+
+1
+
+t
+
+1
+
+1
+
+t
+
+⎤
+
+t
+
+⎥
+t⎥
+⎥
+⎥
+1 1 1⎥
+⎥
+t 1 1⎥
+⎦
+
+t
+
+t
+
+1
+t
+
+t
+
+(11)
+
+1
+
+where each node represents a class from m = 1, 2, ..., 5 sequentially, and use a large value t (representing infinity) to penalize
+undesired transitions. After we reach one class, the search of
+regions is limited to regions of the current class, the next class
+and the class after the next. Backward links or links that skip
+two classes are unlikely and will be penalized based on (11).
+
+YANG et al.: MULTILABEL REGION CLASSIFICATION AND SEMANTIC LINKING FOR COLON SEGMENTATION IN CT COLONOGRAPHY
+
+Fig. 7.
+
+Diagram of a hierarchical graph.
+
+and graph cut [25] is proved to be one of the most efficient
+solutions.
+As discussed earlier, we force the 3-D object into a set of
+regions by only checking the strength of the connection between
+constituent 2-D regions on transverse slices. This could lead to
+undesired small fragments when the 3-D shape is complex. The
+features of these low-volume regions are not as distinctive as
+the features of high-volume regions. This may confound the
+classifier and misclassify these low-volume regions of the colon
+as noncolon.
+Therefore, instead of performing the conventional graph inference, we propose a hierarchical graph cut to robustly infer
+the labels of the constituent regions on the graph: we use the
+original graph Gi that incorporates all the constituent regions of
+the given object as a low-level graph Gli , and from which we can
+construct a high-level graph Ghi that only consists of the subset
+that are high volume, as shown in Fig. 7. CRF can be employed
+to model the regions and their interactions on each level of the
+graph. The inference is first started by performing a graph cut
+on the high-level graph, and the resulting labels are then passed
+to the same high volume regions on the low-level graph as initialization and a low-level graph cut is then performed to infer
+the labels for all the regions.
+On the low-level graph Gli , the probability estimation given
+by the classifier is unreliable for small volume regions, and
+therefore, cannot acted as the unary term. We instead assign 0.5
+as their unary term value, which gives them a 50% probability of
+being colon, and their labels, thus, depends on the connections
+and labels of their neighborhood. The pair-wise term β(y),
+defined over graph edges, is designed to describe the connection
+strength (CS) between regions in the 3-D object. The CS is
+measured by the Jaccard index of the interfacing 2-D regions
+between the two regions vi and vj . We categorize CS into two
+types: CS between the regions from different structures (e.g.,
+colon and lung) and CS between the regions from the same
+structure (e.g., both from the colon). The distribution of Jaccard
+index is modeled as two normal distributions, with mean values
+0.35 (between the same structures) and 0.1 (between different
+structures) learned from a training dataset. We then apply linear
+
+955
+
+discriminant analysis (LDA) [26] to learn the distribution of the
+CS directly, and the estimated posterior probability from the
+LDA classifier is used to describe the likelihood that the regions
+come from the same structure. The value of the pairwise term
+will be close to 1 if the Jaccard index value between the two
+regions is large (e.g., above 0.35) and that indicates they are
+from the same structure, either both are colon or noncolon.
+Otherwise, the value will be close 0 if the Jaccard index value is
+low (e.g., 0.01) and there will be no constraint to enforce them
+to have the same labels.
+On the high-level graph Ghi , the features of the high volume
+regions are distinctive and their probabilities of being colon
+estimated by the boosting tree classifier can be reliable. We, thus,
+use these as the values of unary term. The value of the pair-wise
+term between any high volume regions in graph Ghi is defined to
+be the minimum of the pair-wise values along the shortest path
+connecting them at the low-level graph Gli . In Fig. 7, the red
+nodes are the high-volume regions appearing in both graphs. If
+two regions in high-level graph Gh are neighboring in low-level
+graph Gli , such as node 2 and 7 in the figure, the value of pairwise term between them in Ghi is the same value in Gli . If the
+two regions in Ghi are not neighboring in Gli , such as node 2 and
+9, the value of pair-wise term in Ghi is the smallest edge weight
+on the shortest path between the regions in Gli .
+In summary, the labeling of the high-level graph is passed to
+the low-level graph to act as an unary term for the corresponding regions. Unreliable smaller volume regions in the low-level
+graph that do not have corresponding regions in the high-level
+graph are given a unary value of 0.5, which means that they can
+be equally likely to be colon or noncolon. A second graph cut
+performed on the low-level graph gives the final labeling of all
+the regions on the graph. The regions labeled as noncolon are
+removed as AEC.
+IV. MATERIALS
+We have collected 52 CTC volumes from five different institutions in Europe and the USA using different scanning hardware (GE LightSpeed Plus, GE LightSpeed Ultra, Siemens SOMATOM Plus 4 Volume Zoom). None of the data came from
+public databases. Patients were prepared using a standard cathartic preparation [27] to eliminate residual waste in the colon
+before scanning. In addition, oral contrast agents were administered so that liquid and solid regions were “tagged,” resulting
+in large (>1000) Hounsfield units. Patients were insufflated
+with carbon dioxide gas to result in distension of the colon.
+kVp ranged from 120 to 140, and exposure ranged from 29 to
+500 mAs. Each volume consisted of a set of 512 by 512 image slices. Slice thickness varied from 1.0 to 1.25 mm, with
+the in-plane resolution from 0.54 to 0.85 mm. The total number of slices for each scan ranged from 294 to 514, with an
+average of 404. Data were acquired subject to full institutional
+review board (IRB) approval, and followed ethics protocols to
+anonymize patient records.
+Although standard CTC protocols involve scanning the patient in two orientations (prone and supine), we randomly selected one of these orientations per patient when constructing
+
+956
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+our dataset (to avoid training one orientation of a patient and
+testing on the other orientation). As a result, each volume in
+our data is from a different patient. The 52 volumes were split
+randomly into 26 training and 26 independent testing datasets
+so that no selection bias was present. Annotations made by radiologists were used as ground truth. As described previously,
+the regions with the volume exceeding 1% of the total volume
+of that data after preprocessing were exported into a separate
+file, and visually checked in which of the five sections they were
+more likely to be located more likely.
+The region formation (see Section II-C) was performed using
+a custom application written in C++ using Visual Studio 2010
+(Microsoft, Redmond, WA, USA). Subsequent processing was
+performed using MATLAB (Mathworks, Natick, MA, USA)
+version 7.6.
+V. EXPERIMENTAL RESULTS
+We implement an object-level DEC removal method inspired
+by [15] as our baseline algorithm for comparison. First, we
+group all the 2-D nodes into 3-D regions and compute the 114
+features for each 3-D region to train a boosting tree classifier.
+3-D regions are selected and output if the chance of being colon
+estimated by the classifier is greater than of being noncolon.
+The result is checked against the ground truth. This baseline
+approach can eliminate DEC but does not address AEC, which
+is a challenge for data often seen in clinical use.
+We defined the following three measures to compare the performance of the methods: false negative (FN) volume and false
+positive (FP) volume. FN volume measures the volume of colon
+regions missed by the algorithm. FP volume measures the volume of the extracolonic components labeled as true colon regions by the algorithm. We additionally compute the Jaccard
+index of the final colon segmentation with the ground truth. If
+there are extra noncolon regions remaining in the output, such
+as lung, stomach, or small intestine, the overlap ratio will be
+low.
+In the testing data, 16 out of the 26 volumes have collapses,
+and 10 out of the 26 volumes have AEC (typically small bowel,
+lung, or stomach). Due to untagged liquid remains, there is one
+dataset with no air in the rectum, and therefore, no rectum in the
+segmentation. The PS model correctly identifies the rectum and
+ascending colon for the other 25 cases, demonstrating the power
+of the PS model. Fig. 8(a) and (b) illustrates two examples. For
+the liquid-filled rectum case, it finds the region at the sigmoid
+section as an alternative to the rectum shown in Fig. 8(c). Since
+the rectal point is shifted in this dataset, the model mistakenly
+picks up a region near the hepatic flexure. However, the selected
+region and the true ascending colon region are connected in
+3-D. Measuring the performance at the 3-D object level, the PS
+model has identified the 3-D objects containing the rectum or
+ascending regions with 100% accuracy, respectively.
+Table II tabulates the segmentation results on the 26 testing
+datasets. Among them, 15 volumes are less challenging; our algorithm and the baseline method give the same result. However,
+the remaining 11 volumes are challenging as most of them have
+strong presence of both collapses and AEC. The FPs generated
+
+in step one (binary classification) may be corrected in step two
+(semantic linking), however, FNs generated in step one are unrecoverable in step two. Compared to the baseline method that
+applies a classifier to each 3-D object directly, the first step of
+our method (binary classification) achieves less FN volume, but
+at the expense of more FP volume. Such a result is expected
+at the first step, as the segmentation still includes DEC and
+AEC, the latter of which is not addressed until the second step
+of the approach. Compared to the baseline algorithm, the FN
+volume decreases by 37.8% but with the FP volume increasing
+by 17.9% on average. This shows a better detection rate by introducing some extracolonic components. However, the overall
+performance measured by the Jaccard index increases by 8.4%,
+which demonstrates that the power of the region-level classification, based on the salient regions, is more immune to collapses
+than a purely discriminative approach.
+The second row of the table gives the final result of our graph
+inference (semantic linking and AEC removal). Compared to
+the baseline, the FN volume decreases by 9.7% on average,
+the FP volume reduces by 63.1% on average. The improvement in the FN reduction is less pronounced that first stage,
+however, it still outperforms the baseline algorithm by 9.7%
+in terms of FN volume reduction. Importantly, the FP volume
+is hugely decreased by 63.1% compared to the baseline algorithm. The overall performance increases by 12.9% in terms of
+Jaccard index, outperforming the baseline and the first stage of
+our method. Quantitatively, these results demonstrate a notable
+improvement with the proposed technique.
+Fig. 9 shows colon segmentations comparing our proposed
+method against the baseline. In the examples, although the baseline algorithm has provided good performance, in some data,
+especially, when the lung, stomach, and small intestine are connected with large intestine, it fails to remove those extracolonic
+components, which our algorithm better handles. However, under insufflated colons remain a challenge, particularly those
+with small volume regions where the colon is collapsed into
+fragments or appear to be very thin in the CT images. Extracolonic components that remain belong primarily to lung,
+small bowel, or stomach, and are typically smaller misclassified
+regions. Our method prioritizes the larger volume regions representing the majority of the colon volume, but as a consequence,
+smaller volume regions may be harder to disambiguate a colon
+versus noncolon. Nonetheless, our method produces encouraging results, improving the Jaccard index by 12.9% for the 11
+challenging datasets in our data.
+The trained classifiers were tested on a computer with 2.40GHz quad core CPU and 8-GB memory. On average, it takes
+about 17 s to process the whole image (including loading and
+writing images) to achieve the colon segmentation.
+VI. DISCUSSION AND CONCLUSION
+In this paper, we have presented a novel region-level colon
+segmentation method that introduces graph inference and multiclass semantics. We tackle the two challenges in colon segmentation in a systematic manner: colon collapses and the removal
+of AEC.
+
+YANG et al.: MULTILABEL REGION CLASSIFICATION AND SEMANTIC LINKING FOR COLON SEGMENTATION IN CT COLONOGRAPHY
+
+957
+
+Fig. 8. This figure (a-c) illustrates the results generated by the PS model, where the identified rectum and ascending colon is coded by dark color. The red arrow
+indicates the place of the rectum and the green arrow indicates the ascending colon. (a)-(b) show two cases with correct detections, (c) the identified ascending
+region is not at the correct location, but in this data it shares the same 3D object with the ascending regions and thus no targeted colon is missed in the result.
+
+TABLE II
+RESULTS COMPARED TO THE BASELINE ALGORITHM. WHEN USING THE PROPOSED METHOD ON THE CHALLENGING DATA, THE JACCARD INDEX IMPROVES 12.9%,
+THE FN VOLUME REDUCES BY 9.7% AND THE FP VOLUME REDUCES BY 63.1% ON AVERAGE COMPARED WITH THE BASELINE APPROACH. VOLUMES MEASURED
+IN CM3 , AND IMPROVEMENT IS MEASURED RELATIVE TO THE BASELINE METHOD
+
+We decompose each 3-D object into a set of 3-D regions,
+and detect the 3-D colon object from the salient regions that
+have strong discriminative features. The collapse of the colon
+may occur at various locations in the colon. In addition, the true
+colon object may be attached to extracolon components due to
+PVE. The AEC could generate a mixing effect at the object-level
+detection, and learning the generated features may confound the
+classifier and lower its performance. Trained with the features
+from solely the salient regions, the classifier model pays more
+attention to the coherent appearance and spatial features for
+more consistent performance.
+When presented collapsed colons, conventional approaches
+identify the rectum and the ascending colon and sequentially
+add the colon components to minimize the interobject distance.
+However, such methods are difficult to apply robustly to the
+variations observed in real clinical data. We proposed a semantic linking strategy that sequentially merges the colon components based on their anatomical sequence. To achieve this,
+we employed a variant of the PS model to identify the rectum
+and ascending colon objects together accurately. Second, we
+build the semantic knowledge with a multiclass labeler from the
+
+result of a region-level detection. The interobject distance
+guided by the semantic knowledge links the collapsed colon
+objects sequentially from the rectum to ascending colon. In
+the removal of AEC, we propose a hierarchical graph cut
+method to model the dependences of the regions within each
+3-D object: for each object, we construct a high-level graph to
+skip the small-volume regions and make the inference between
+the salient regions. The labeling of the salient regions from
+the high-level graph is passed to the low-level graph to initiate
+the inference at the low-level graph.
+While the results are encouraging, future work could focus
+on further reduction of both the FNs and the FPs. In particular,
+FN regions produced in the first binary classifier step are unrecoverable in the graph inference step that follows. Although
+our approach includes 114 discriminative features, informed by
+the literature, to differentiate colon from noncolon, the problem of identifying additional features to improve classification
+performance remains. In addition, our method assigns more
+importance to the salient regions of the colon by weighting
+the classifier training based on the region volume. This provides greater robustness for larger regions, but at the expense
+
+958
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+Fig. 9. Performance comparison: the left column (a, d, h) is the input volume, the middle column (b, e, i) is the baseline result, and the last column (c, f, j) is our
+algorithm result. The figures show that the baseline algorithm failed in removing lung and small intestine portions, and erroneously detects small bowel segments
+due to collapse, indicated by arrows in the middle column. Our algorithm clearly outperforms the baseline.
+
+of smaller region classification performance. In future work,
+we would like to explore the possibility of training separate
+classifiers based on the region size; however, to do this would
+require additional datasets beyond those used in this study. Currently, we are most interested in applying the proposed colon
+segmentation in a CAD pipeline, to evaluate its effect on polyp
+detection. We expect a considerable improvement, particularly
+a reduction in FPs produced in noncolon anatomy.
+
+Through our experimental results, we demonstrate that
+modeling the dependences between the regions outperforms
+a pure discriminative learning method at object level, by
+improving true detections and reducing extra components
+in real, clinical data. These encouraging results can improve the performance of applications that rely on the colon
+segmentation, such as fly-through, CAD, and prone/supine
+registration.
+
+YANG et al.: MULTILABEL REGION CLASSIFICATION AND SEMANTIC LINKING FOR COLON SEGMENTATION IN CT COLONOGRAPHY
+
+REFERENCES
+[1] “Cancer facts and figures,” American Cancer Society Annual Report,
+vol. 12, no. 1, pp. 11–12, 2007.
+[2] M. E. Zalis et al., “Ct colonography report and data system: A consensus
+proposal,” Radiology, vol. 236, pp. 3–9, 2005.
+[3] S. Winawer, “The achievements, impact, and future of the national polyp
+study,” Gastrointestinal Endoscopy, vol. 64, no. 6, pp. 975–978, 2006.
+[4] D. J. Vining et al., “Virtual colonscopy with computer-assisted polyp
+detection,” in Computer-Aided Diagnosis in Medical Imaging, K. Doi,
+H. MacMahon, M. Giger, and K. R. Hoffman, Eds. Amsterdam, The
+Netherlands: Elsevier, 1999, pp. 445–452.
+[5] C. D. Johnson and A. H. Dachman, “Ct colonography: The next colon
+screening examination?” Radiology, vol. 216, no. 2, pp. 311–319, 2000.
+[6] R. M. Summers et al., “Automated polyp detection at ct colonography: Feasibility assessment in a human population,” Radiology, vol. 219,
+no. 1, pp. 284–290, 2000.
+[7] H. Yoshida and J. Nappi, “Three-dimensional computer-aided diagnosis
+scheme for detection of colonic polyps,” IEEE Trans. Med. Imag., vol. 20,
+no. 12, pp. 1261–1274, Dec. 2001.
+[8] K. Suzuki et al., “Mixture of expert 3D massive-training ANNs for reduction of multiple types of false positives in cad for detection of polyps in
+ct colonography,” Med. Phys., vol. 35, no. 2, pp. 694–703, 2008.
+[9] D. Burling et al., “Virtual colonoscopy: Effect of computer-assisted detection (CAD) on radiographer performance,” Clinical Radiol., vol. 63,
+no. 5, pp. 549–556, 2008.
+[10] E. Lawrence et al., “Computer-aided detection of colorectal polyps: Diagnostic performance in a large asymptomatic screening population,” presented at the Int. Symp. Virtual Colonoscopy, Reston, VA, USA, 2009.
+[11] Z. Lai et al., “Intra-patient supine-prone colon registration in ct colonography using shape spectrum,” in Proc. Med. Image Comput. Comput.Assisted Intervention, 2010, pp. 332–339.
+[12] W. Zeng et al., “Supine and prone colon registration using quasiconformal mapping,” IEEE Trans. Vis. Comput. Graphics, vol. 16, no. 6,
+pp. 1348–1357, Nov/ Dec. 2010.
+[13] H. R. Roth et al., “Registration of the endoluminal surfaces of the colon
+derived from prone and supine ct colonography,” Med. Phys., vol. 38,
+pp. 1348–1357, May. 2011.
+[14] G. Slabaugh et al., (2010). A robust and fast system for CTC computeraided detection of colorectal lesions. Algorithms [Online]. 3(1), 21–43.
+Available: http://www.mdpi.com/1999-4893/3/1/21/
+
+959
+
+[15] L. Lu et al., “A two-level approach towards semantic colon segmentation: Removing extra-colonic findings,” in Medical Image Computing and
+Computer-Assisted Intervention (ser. Lecture Notes in Computer Science),
+vol. 5762. Berlin, Germany: Springer /Heidelberg, 2009, pp. 1009–1016.
+[16] J. Nappi et al., “Automated knowledge-guided segmentation of colonic
+walls for computerized detection of polyps in CT colonography,” J. Comput. Assisted Tomogr., vol. 26, no. 4, pp. 493–504, Jul/Aug. 2002.
+[17] T. A. Chowdhury et al., “A method for automatic segmentation of collapsed colons at CT colonography,” in Proc. Indian Int. Conf. Artif. Intell.,
+2005, pp. 3517–3532.
+[18] G. Iordanescu et al., “Automated seed placement for colon segmentation
+in computed tomography colonography,” Acad. Radiol., vol. 12, no. 2,
+pp. 182–90, Feb. 2005.
+[19] H. Frimmel et al., “Centerline-based colon segmentation for CT colonography.” Med. Phys., vol. 32, no. 8, pp. 2665–2672, 2005.
+[20] J. Nappi et al., “Centerline-based colon segmentation for CAD of CT
+colonography,” Proc. SPIE Med. Imag., vol. 6144, pp. 1767–1774,
+Mar. 2006.
+[21] J. Friedman et al., “Additive logistic regression: A statistical view of
+boosting,” The Ann. Statist., vol. 38, no. 2, pp. 337–407, 2000.
+[22] P. F. Felzenszwalb and D. P. Huttenlocher, “Pictorial structures for object
+recognition,” Int. J. Comput. Vis., vol. 61, no. 1, pp. 55–79, 2005.
+[23] T. H. Cormen et al., Introduction to Algorithms, 2nd ed. New York, NY,
+USA: McGraw-Hill, 2001.
+[24] H. M. Wallach, “Conditional random fields: An introduction,” Tech. Rep.,
+University of Pennsylvania CIS Technical Report MS-CIS-04-21, 2004.
+[25] Y. Boykov et al., “Fast approximate energy minimization via graph cuts,”
+IEEE Trans. Pattern Anal. Mach. Intell., vol. 23, no. 11, pp. 1222–1239,
+Nov. 2001.
+[26] T. Hastie et al., The Elements of Statistical Learning: Data Mining, Inference, and Prediction: with 200 Full-Color Illustrations. New York, NY,
+USA: Springer-Verlag, 2001.
+[27] P. Pickhardt, “Screening CT colonography: How i do it,” Am. J.
+Roentgenol., vol. 189, no. 2, pp. 290–298, 2007.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

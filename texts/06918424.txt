@@ -1,0 +1,800 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+609
+
+Exact Surface Registration of Retinal Surfaces From
+3-D Optical Coherence Tomography Images
+Sieun Lee, Evgeniy Lebed, Marinko V. Sarunic, and Mirza Faisal Beg∗
+
+Abstract—Nonrigid registration of optical coherence tomography (OCT) images is an important problem in studying eye diseases, evaluating the effect of pharmaceuticals in treating vision
+loss, and performing group-wise cross-sectional analysis. High
+dimensional nonrigid registration algorithms required for crosssectional and longitudinal analysis are still being developed for accurate registration of OCT image volumes, with the speckle noise
+in images presenting a challenge for registration. Development of
+algorithms for segmentation of OCT images to generate surface
+models of retinal layers has advanced considerably and several
+algorithms are now available that can segment retinal OCT images into constituent retinal surfaces. Important morphometric
+measurements can be extracted if accurate surface registration
+algorithm for registering retinal surfaces onto corresponding template surfaces were available. In this paper, we present a novel
+method to perform multiple and simultaneous retinal surface registration, targeted to registering surfaces extracted from ocular
+volumetric OCT images. This enables a point-to-point correspondence (homology) between template and subject surfaces, allowing
+for a direct, vertex-wise comparison of morphometric measurements across subject groups. We demonstrate that this approach
+can be used to localize and analyze regional changes in choroidal
+and nerve fiber layer thickness among healthy and glaucomatous
+subjects, allowing for cross-sectional population wise analysis. We
+also demonstrate the method’s ability to track longitudinal changes
+in optic nerve head morphometry, allowing for within-individual
+tracking of morphometric changes. This method can also, in the
+future, be used as a precursor to 3-D OCT image registration to
+better initialize nonrigid image registration algorithms closer to
+the desired solution.
+Index Terms—Glaucoma, image analysis, image registration,
+image segmentation, optical coherence tomography (OCT), optic
+nerve head, retina.
+
+I. INTRODUCTION
+OLUMETRIC spectral domain optical coherence tomography (SD-OCT) is rapidly emerging as a preferred medical imaging modality in diagnostic ophthalmology. Recent advances in OCT image acquisition, focusing on increasing the
+line rate [1] and decreasing the overall scan time [2], [3], have
+
+V
+
+Manuscript received April 16, 2014; revised July 27, 2014 and September 24,
+2014; accepted September 24, 2014. Date of publication October 8, 2014; date
+of current version January 16, 2015. This work was supported by the Canadian
+Institute of Health Research, Natural Science and Engineering Research Council
+of Canada, Michael Smith Foundation for Health Research, Alzheimer Society
+Research Program, and Brain Canada. (S. Lee and E. Lebed are the co-first
+authors of the manuscript). Asterik indicates corresponding author.
+S. Lee, E. Lebed, and M. V. Sarunic are with the School of Engineering
+Science, Simon Fraser University, Burnaby, BC V5A 1S6, Canada (e-mail:
+leeau@sfu.ca; elebed@sfu.ca; msarunic@sfu.ca).
+∗ M. F. Beg is with the School of Engineering Science, Simon Fraser University, Burnaby, BC V5A 1S6, Canada (e-mail: mfbeg@sfu.ca).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2361778
+
+allowed researchers to obtain very high resolution images from
+which subsequent morphometric measurements can be derived.
+In studying glaucoma, several biomarkers, derived from analyzing the optic nerve head (ONH), such as rim area, horizontal integrated rim width, and vertical integrated rim area, have
+been used to discriminate between healthy and glaucomatous
+eyes [4]. More recently, nerve fiber layer (NFL) thickness, the
+Euclidean distance between the NFL and inner limiting membrane (ILM), has been proposed as a biomarker for glaucoma,
+suggesting that glaucomatous patients have significantly decreased NFL thickness in peripapillary region compared to
+healthy subjects [5].
+Recent advances in OCT image acquisition, allowing for
+deeper tissue penetration, have allowed researchers to obtain
+accurate segmentations of deeper structures in the eye. While it
+is well established that mean NFL thickness is lower in glaucomatous subjects, it has only recently been proposed [6], [7] that
+choroidal thickness, a measure of separation between Bruch’s
+membrane (BM) and choroid, could also serve as a biomarker
+for glaucoma.
+Cross-sectional studies, analyzing changes in glaucoma based
+on biomarkers mentioned derived from OCT, typically rely on
+measurements being averaged over local, anatomically meaningful areas. The areas are typically split into quadrants—
+superior, inferior, nasal, and temporal, which are then further
+subdivided into circumferential areas (or sectors), resulting in
+approximately 40 distinct regions. One advantage is that being
+an intrinsic measurement approach, no registration to a prototype template, or the individual’s own baseline image (or
+surfaces) is needed. One disadvantage is that important, high
+frequency information could be lost due to the averaging process. For example, if a subject has very small cysts filled with
+subretinal fluid, this would show as very localized regions of
+decreased NFL thickness. Averaging the NFL thickness over
+a relatively large sector could potentially wash out any highly
+localized change in thickness, thus impacting clinical diagnosis.
+Segmentations of clinically relevant structures obtained from
+volumetric OCT, required to produce vertex-wise measurements, typically consist of triangulated surfaces (2-D manifolds
+embedded in R3 ), which contain well over 100 000 vertices.
+Averaging this many measurements over a relatively few number of regions could significantly undermine the bias-variance
+tradeoff used in subsequent analysis and even produce inconsistent results, with some researchers reporting no significant
+change [7] in averaged choroidal thickness, while others finding significantly different measurements [6] in choroidal thickness between healthy and glaucomatous subjects. This motivates
+the need to develop tools that can transfer measurements for
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+610
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+subsequent statistical analysis to a central template (or geometrically aligned surfaces) on a vertex-to-vertex basis, without
+having to resort to averaging data in local regions.
+Nonrigid registration of OCT images is an important problem
+in studying eye diseases, evaluating pharmaceuticals’ effectiveness in treating vision loss, and performing group-wise crosssectional analysis. Existing registration methods are classifiable
+into three categories: 1) image-based registration [8]–[10], relying on pixel intensity information to bring images into alignment (these methods, however, pose a challenge for accurate
+OCT image registration due to high levels of speckle noise in
+OCT images), 2) landmark or surface-based registration [11],
+relying on extracted features (landmarks, surfaces) from volumetric images, and 3) hybrid image-surface-based registration
+[12].
+Most previous studies involving registration of OCT images
+focus on image correction or longitudinal data from the same
+eye. Consecutive scans acquired at the same retinal location
+were registered and averaged in 2-D scans [13] and 3-D scans
+[3] in order to improve the image signal-to-noise ratio. Thinplate spline fitting [14], feature-based registration with fiducial
+markers [15], and particle filtering [16] were explored in motion artifact correction. The authors of [17] demonstrated 3-D
+rigid registration of longitudinal data using n-dimensional scale
+invariant feature transform, and nonrigid registration consisting of iterative closest point algorithm for lateral registration of
+blood vessel segmentation followed by graph-based search for
+the optimal translation of each A-scan by mean-squared error
+cost images [18]. Different strategies employed by commercial
+devices to ensure the same retinal position for repeat scans were
+compared in [19]. Affine registration and symmetric normalization registration were implemented in [20] to refine retinal layer
+segmentation in a generative model segmentation algorithm.
+To the best of our knowledge, two articles so far explicitly focused on cross-sectional registration of multiple OCT images.
+In [12], several ILM 3-D surfaces were registered to a single
+template surface, first by rigid and nonrigid intensity-based volumetric registration, followed by spherical mapping and spherical demons registration [21] of the surfaces. The first step brings
+the surfaces into close proximity, and the second step establishes
+voxel-wise homology between the surfaces. Another group performed intensity-based nonrigid registration of macular OCT
+images [22], [23] by a combination of rigid registration, which
+aligns foveae, and A-scan-wise affine and nonrigid registration
+with radial basis functions.
+In this study, we propose a registration method, falling into
+category c, that produces a homology, or point-to-point correspondence between two sets of surfaces. Our method consists
+of using surface currents [11], (in-exact matching) to bring two
+surfaces into close proximity of each other, followed by a spherical demons-based registration [21], a topology-preserving mapping, to find an exact point-to-point correspondence between the
+given surfaces. The established homology facilitates the ability to 1) perform comparisons of morphometric measurements
+across the entire population to localize regions where there are
+significant differences in morphometric measurements among
+healthy and diseased subjects and 2) perform longitudinal analy-
+
+sis (change over time) of morphometric measurements to study
+disease progression. In the latter part of this paper, we show
+that our method can be used as a powerful tool to distinguish
+between healthy and glaucomatous eyes using surface topology and thickness measurements. Our novel method allows for
+direct point-to-point comparison of measurements on surfaces
+and eliminates the need to average measurements over sectors.
+II. METHODS
+A. Participants
+For this methods study, we imaged a small cohort: three
+healthy subjects and three glaucomatous subjects. From each
+subject, we acquired volumetric OCT images of both eyes (OD
+and OS). Ethics review of this study was approved by Simon
+Fraser University (SFU).
+B. OCT Image Acquisition
+A custom-built Michelson interferometer-based 1060-nm
+swept-source OCT system developed at SFU was used to acquire volumetric images of the ONH region of healthy and diseased subjects. 1060-nm light source allows clear visualization
+of deeper structures such as choroid, relative to most commercial OCT imaging devices which come with a 830-nm range
+light source. A 3-D image, approximately centered at the ONH,
+was acquired over an approximate area of 4.4 mm × 4.4 mm and
+depth of 2.8 mm with an axial resolution of 2.7 μm. Resolution
+in lateral direction varied between 12 to 18 μm, depending on
+the subject’s axial length. The image consisted of 400 B-scans
+with 400 A-scans per B-scan and 1024 pixels per A-scan. The
+acquisition speed was 100 KHz, requiring approximately 1.6 s
+to acquire a full volumetric image.
+Following acquisition, simple motion correction was performed in order to account for eye motion; each B-scan was
+translated in the axial direction in order to achieve the maximum
+cross correlation with the adjacent frame. Before segmentation,
+all volumes were visually inspected for motion-related errors.
+To aid the segmentation algorithm, (see Section II-C) we applied
+a 3-D-bounded variation edge-preserving denoising algorithm
+to all the volumes.
+C. Segmentation
+For all the acquired data volumes, we segmented the ILM,
+the boundary between the NFL and inner plexiform layer (NFLIPL boundary), BM, Bruch’s membrane opening (BMO) and the
+choroid (Chor). A 3-D graph-theoretic algorithm was used to
+automatically segment the ILM, NFL-IPL boundary, BM and
+choroidal layers [24], [25]. In this method, a weighted geometric graph is constructed such that the nodes correspond to the
+voxels in the volume and arcs are created based on geometrical
+proximity, a smoothness parameter, and minimum and maximum distances between the surfaces. The target surfaces are
+segmented by computing a minimum closed set in this graph by
+a minimum s-t cut in a derived arc-weighted digraph. We used
+the MaxFlow Software [26] (v3.02) to compute the minimum
+cut. The cost function used here was intensity gradient in the
+
+LEE et al.: EXACT SURFACE REGISTRATION OF RETINAL SURFACES FROM 3-D OPTICAL COHERENCE TOMOGRAPHY IMAGES
+
+611
+
+1) Currents: The surfaces extracted from the segmentation algorithm described previously are represented as currents
+[11]—objects that reside in a linear space with a computable
+norm. Equipping surfaces with a computable norm allows the
+measurement of how “close” two surfaces are to each other.
+Let S and T be two discretized submanifolds of Rn represented in the space of currents via summation of the surface’s
+discretized elements
+(Dirac currents δ). That is, the surface S is
+η
+represented as S = f δc ff where f denotes the face of a triangulated surface, cf its center, and ηf denotes the face’s normal
+vector (insert in Fig. 1). The optimal registration from S to T is
+performed through minimization of the following functional:
+ 1
+vt 2V dt + λ φ S − T 2H
+(1)
+J(vt ) =
+  
+
+
+
+0
+regularizer
+
+Fig. 1. Four surfaces, ILM, NFL, BM and choroid, extracted from a prototypical volumetric SD-OCT image by a segmentation algorithm detailed
+ ηin
+Section II-C. The surface is represented as a triangulated mesh S =
+δ f
+f cf
+where f denotes the face of a triangulated surface, cf its center, and η f denotes
+the face’s normal vector. Colorbar represents thickness in mm.
+
+where φ represents a diffeomorphism corresponding to the flow
+of vector fields vt at time t = 1, and φ S is the push-forward of
+S defined below.
+The pull-back φ ω of a differential two-form ω by a
+mapping φ is the two-form defined by φ ω(x)(u1 ∧ u2 ) =
+ω(φ(x))(dx φ · u1 ∧ dx φ · u2 ). The push-forward of φ on a current S is the current φ S such that for every differential twoform ω, φ S(ω) = S(φ ω). In a finite, discrete setting the data
+attachment term of the functional J can be written as
+	
+	 η 
+	
+
+2
+η
+A=
+δc ff −
+δc gg  =
+k(cf , cf )ηf , ηf 
++
+
+D. Registration
+Our proposed registration scheme consists of two parts: an inexact, currents-based estimation of the deformation φc , which
+brings the template and subject surfaces into close proximity
+of each other, followed by spherical demons registration φs to
+produce exact matching between the subject and template. The
+final deformation, a composition of φc and φs , will be denoted
+by Φi = φs (φc (Si )), where Si refers to subject i.
+
+	
+
+H
+
+g
+
+f
+
+axial direction. Thus, the algorithm found the ILM, NFL-IPL
+boundary, BM and choroid as the optimal surfaces, represented
+as high-density triangulated meshes (≈100 000 vertices per surface), given the intensity gradient, smoothness restriction, and
+intersurface distance restriction. We used Delaunay triangulation to convert the point clouds produced by this segmentation
+method into surfaces represented by triangulated meshes.
+Subsequently, at each vertex on the NFL, we computed the
+NFL thickness, defined as the closest Euclidean distance between the NFL and ILM. Also, at each vertex on the choroid,
+we computed the choroidal thickness, defined as the closest Euclidean distance between the BM and choroid surfaces. Typical
+ILM, NFL, BM and choroidal surfaces by the segmentation
+algorithm described previously are shown in Fig. 1. The NFL
+thickness is shown in color on the NFL surface, and the choroidal
+thickness is shown in the BM surface. Warm colors represent
+relatively high thickness, while cool colors represent relatively
+low thickness.
+
+data attachm ent
+
+k(cg , cg )ηg , ηg  − 2
+
+g ,g
+
+f ,f
+
+	
+
+k(cf , cg )ηf , ηg 
+
+(2)
+
+f ,g
+
+ η
+ η
+where f δc ff and g δc gg represent the discrete versions of
+φ S and T , respectively, cf and ηf represent the centres and
+normal vectors of the respective faces (triangular elements) and
+k is a positive kernel defining a reproducing kernel Hilbert space
+(RKHS) norm on Hilbert space H. In the framework of these
+deformations, it has been shown [11] that the optimal vector
+fields to be found from (1) take the form
+vt (x) =
+
+N
+	
+
+G(qi (t), x)αi (t)
+
+(3)
+
+i=1
+
+where qi (t) = φx i (t) are the trajectories of the surface’s vertices
+xi and the momentum vectors αi (t) are the solutions to the
+following system of linear equations:
+	
+∂
+qj (t) =
+G(qi (t), qj (t))αi (t)
+∂t
+i=1
+n
+
+(4)
+
+where G is a positive kernel inducing a RKHS norm on V . It
+turns out that, from a computational perspective, it is easier to
+find the deformation in terms of the momentum vectors αi (t)
+rather than the trajectories qi (t), which are needed to calculate
+vt , and thus we replace the functional J from (1) by
+ 1 	
+N
+G(qi (t), qj (t))αi (t), αj (t)dt
+J(αi (t)) =
+0
+
+i,j =1
+
++A(qi (1)).
+
+(5)
+
+612
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Fig. 2. Proposed registration scheme. (a) Subject S is first brought into close proximity with the template T by the method of surface currents φ c to produce an
+in-exact matching result. (b) Point-to-point correspondence between S and T is achieved by registering φ c (S) to T via spherical demons. The end result matches
+the topology of the template. (c) Registration of the four anatomical surfaces (ILM, BM, NFL and choroid) to the template by φ s (φ c (S i )).
+
+Fig. 3. 3-D checkerboard pattern propagation by the computed inverse mappings Φ −1
+i . The top row shows the propagated checkerboard patterns of the NFL
+surface while the bottom row shows the propagated checkerboard pattern on the ILM surfaces. The surfaces shown in the first column are the NFL and ILM
+surfaces of the template T .
+
+For computational details on computing the variation functional J(αi (t)) we refer the reader to [27].
+2) Spherical Demons Registration: The currents-based registration, achieved by minimization of J, brings the template
+T and subject S surfaces into close proximity of each other.
+However, a point-to-point correspondence is yet to be achieved
+(see Fig. 2). Since the goal is to achieve a topology-preserving
+and an invertible transformation, a simple projection of vertices
+from the transformed template to subject surface is insufficient
+as it does not guarantee that the transformation will be invertible.
+To achieve a point-to-point correspondence between S and
+T , we project each of the four anatomical surfaces of S and T
+onto a hemispherical domain. In mapping the anatomical surfaces to a hemisphere, the surfaces are first transformed to a
+circle-bounded planar graph [28]. The boundary vertices are assigned a fixed position on the unit circle, nonboundary (interior)
+vertices are expressed as a nonnegative weighted sums of their
+neighbor vertices, and the equations are solved for new posi-
+
+tions of the nonboundary vertices [29]. By this construction, all
+nonboundary vertices lie within the unit disc. Using an inverse
+stereographic projection from point [0, 0, 1] onto a unit sphere,
+this disc surface can be warped to a hemispherical surface. Finally, by mirroring this surface across the equator, the spherical
+representation of surfaces are presented to the spherical registration algorithm to form a point-to-point correspondence between
+the spherical representations of surfaces.
+Registration of the surfaces in the spherical domain is performed by the method known as spherical demons, detailed in
+[21]. Briefly, spherical demons-based registration of surfaces
+involves applying the registration φs to φc (S) (the inexactly
+matched surface found by the method of currents), where φs is
+found by minimizing the following functional:
+(γ, φs ) = arg min{ζ(T ) − ζ(φs (φc (S)))2
+γ ,φ s
+
++
+
+1
+1
+dist(γ, φs ) + 2 Reg(γ)}.
+σx2
+σT
+
+(6)
+
+LEE et al.: EXACT SURFACE REGISTRATION OF RETINAL SURFACES FROM 3-D OPTICAL COHERENCE TOMOGRAPHY IMAGES
+
+613
+
+is invertible. Following the strategy of [12], we use ζ to perform
+registration between two spherical representations of surfaces.
+Since currents-based surface matching and the spherical
+demons are guaranteed to be invertible, the combination of
+currents-based matching followed by spherical demons registration also produces a mapping that is smooth and invertible.
+With this method, one can now perform statistics on the vertexwise measurements of each subject by transforming any surfaceindexed biomarker into template coordinates.
+For a typical volumes consisting of approximately 100 000
+vertices, the total run time of our registration algorithm, between
+a template and target volume, was about 11.5 h on a computer
+with an i7 Intel CPU running at 3.50 GHz and 32 GBs of
+memory.
+III. RESULTS
+
+Fig. 4. Left column: NFL. First image: mean NFL thickness of the control
+group. Second image: mean NFL thickness of the glaucomatous group. Third
+and fourth images: t and p-values, respectively. Right column: choroid. First
+image: mean choroidal thickness, shown in mm, of the control group. Second
+image: mean choroidal thickness of the glaucomatous group. Third and fourth
+images: t and p-values, respectively.
+
+Here, γ refers to a hidden transformation that acts as a prior on
+φs , and σx2 , σT2 are the tradeoff parameters to the last two terms
+in the objective function. The term dist(γ, φs ) in (6) encourages
+φs to be close to γ and Reg(γ) penalizes the gradient magnitude
+of the displacement filed γ. For details on appropriate choices of
+dist(γ, φs ), Reg(γ) on a spherical domain, and on minimizing
+the objective function in (6), we refer the reader to [30]. The
+authors of [21] employed cortical thickness as the function ζ
+to perform the registration of cortical surfaces in the spherical
+domain. This method has been altered in [12] to employ the coordinate function ζ, defined by ζ(·) = (·x , ·y , ·z ) on each vertex
+of (·), to register spherical representations of the ILM with a high
+degree of precision. In a nutshell, maximizing the overlap of the
+coordinate functions for registration is essentially akin to finding
+a regularized straight line correspondence between the two surfaces. The smoothness constrain ensures that this transformation
+
+For each subject, we registered the four extracted surfaces:
+ILM, NFL, BM, and choroid, and two different measurements:
+NFL thickness and choroidal thickness, to a common template
+by the registration methodology described previously. One of
+the healthy subjects was chosen to serve as the template. Each
+subject was then registered to the template; this allows us to
+directly compare measurements at vertices on the registered surfaces. A schematic illustrating the proposed registration process
+is shown in Fig. 2.
+As it is commonly done with verification of registration algorithms when ground truth is unavailable, we relied on a visual
+assessment (see Fig. 3) to evaluate the fidelity of our proposed
+registration method. A 3-D colored checkerboard-texture, plotted on the template surface T as a colormap, was propagated to
+the subject surfaces Si by the inverse of the computed final surface registration Φ−1
+i , showing the mapping of points between
+the surfaces. Fig. 3 shows the propagation of the checkerboard
+pattern to the NFL and ILM surfaces of several subjects. One
+can see that the relative anatomical locations of the different
+colored patches closely match those of the template surface.
+A. Group Differences
+Since all subjects’ surfaces have been resampled into a common space, the vertices number, arrangement and location are directly comparable. Hence, if the surface consists of NT vertices
+with each having a thickness value (either NFL or choroidal),
+each subject’s surface can be represented as a point in RN T
+dimensional space and standard dimensionality reduction and
+multivariate statistical analysis tests can be applied.
+After establishing point-to-point correspondence between the
+registered surfaces, we localized significant differences in NFL
+and choroidal thickness measurements across the control and
+glaucomatous subject groups. This localization was carried out
+using the SurfStat package [31], a collection of routines designed to analyze univariate and multivariate surface data, based
+on linear mixed effects models and random field theory [32]. At
+each vertex on the NFL and choroid surfaces, a mixed effects
+model was used to identify vertex-wise differences in NFL and
+choroidal thickness. Clusters of vertices where the vertex-wise
+differences are above a threshold (p = .001) were identified and
+
+614
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Fig. 5. Phantom longitudinal data registration and validation. (a) Schematic depicting the presence of a focal damage on the NFL and retinal thinning. Blue and
+green lines represent the surfaces at time points 1 and 2, respectively. (b) 3-D rendering of the phantom NFL surface at time point 2, showing the modeled focal
+damage and retinal thinning. Colormap represents the computed NFL thickness. (c) NFL surface at time point 1. (d) Modified NFL surface at time point 2. The
+surface is translated by [0.4, 0.6, 0.2]mm, and rotated by −10◦ . Red rectangles highlight the modeled changes in morphometry. (e) Surface from (d) registered to
+the surface from (c). Colormap represents the differences in NFL thickness between time point 1 and registered time point 2. (f) Colormap from (e) thresholded
+by the intrinsic axial resolution of the OCT system. Red represents decreased NFL thickness while green represents increased NFL thickness.
+
+a correction for multiple comparisons was performed. The significance of each cluster is assessed by comparing the extent of
+the cluster with an analytic distribution of cluster extents based
+on T-fields, as described by [33].
+Fig. 4 shows the t-values and clusters of p-values that contained significantly different measurements in choroidal and
+NFL thickness between the two subject groups. From the images shown in the bottom row of Fig. 4, we observe that there are
+significant (p = .001) differences in the choroidal thickness between healthy and glaucomatous subjects, occurring primarily
+in inferior regions of the ONH. NFL thinning of the glaucomatous group is observed to occur predominantly in the superiortemporal region, concentrated around the blood-vessels flowing
+to the optic cup.
+
+B. Longitudinal Analysis—Phantom Data
+The surface registration framework presented in this paper
+allows us to not only analyze cross-sectional group differences (see Section III-A) but also analyze longitudinal changes
+(changes over time) for one individual subject.
+In a validation of our proposed registration scheme, we generated phantom longitudinal data by simulating changes in ONH
+morphometry. Simulated changes were performed by deforming
+the NFL surface to model the presence of focal damage on the
+NFL and retinal thinning [see Fig. 5(a)]. The focal damage was
+modeled by creating a small circular depression in the NFL and
+retinal thinning was modeled by deforming a small region of the
+NFL around the BMO toward the ILM [see Fig. 5(b)]. Following
+these deformations, we recomputed the new NFL thickness and
+applied an affine transformation to the surface, intended to simulate artificial differences between subsequent acquisitions. The
+
+entire surface was translated by [0.4, 0.6, 0.2]mm and rotated
+by applying the following rotation matrix:
+⎡
+
+cos(θ)
+
+⎢
+R = ⎣ sin(θ)
+0
+
+−sin(θ)
+cos(θ)
+0
+
+0
+
+⎤
+
+⎥
+0⎦
+
+(7)
+
+1
+
+where θ = −10◦ , to each vertex of the surface. The original surface, shown in Fig. 5(c), is referred to as time point 1, and the
+new, deformed surface, shown in Fig. 5(d), is referred to as time
+point 2. Using our proposed registration scheme, we registered
+the surface from time point 2 to the surface from time point 1.
+Following the registration process, the differences between the
+original and the new, simulated NFL thicknesses are shown in
+Fig. 5(e). As expected, the regions of modeled NFL thickness
+difference appear as “hot spots” on the difference map. We note
+that there are other regions that show slight differences in the
+registered NFL thickness, primarily in the periphery regions of
+the NFL. These errors are due to the fact that the modified surface at time point 2 contains an affine transformation relative
+to the surface at time point 1. In registering the two surfaces,
+we applied the registration scheme as presented in Section II-D,
+without preregistering with an affine registration. An accurate
+affine preregistration step would likely further improve the registration results. Finally, we thresholded the observed differences
+in the NFL thickness in terms of the intrinsic axial resolution
+of the OCT system. The thresholded map of the differences is
+shown in Fig. 5(f). We observe differences only in the regions
+that we have manually modified: increased NFL thickness in
+the region where we modeled the focal damage, and decreased
+NFL thickness where we modeled retinal thinning.
+
+LEE et al.: EXACT SURFACE REGISTRATION OF RETINAL SURFACES FROM 3-D OPTICAL COHERENCE TOMOGRAPHY IMAGES
+
+615
+
+C. Longitudinal Analysis—Real Data
+In this experiment, we tracked the changes in NFL thickness
+and choroidal thickness of a 36-year-old male subject, imaged
+at two different time points 1 year apart. The top two rows
+of Fig. 6 show the NFL thickness and choroidal thickness of
+this single subject, imaged at two time points (time point 1
+and time point 2), separated by approximately one year. The
+surfaces and measurements from time point 1 were registered
+to the surfaces of time point 2 by the method described in
+Section II-D. The registered surfaces and measurements are
+shown in the third row of Fig. 6. Once the homology between the
+surfaces belonging to the two time points has been established,
+we can visualize and study the changes in the computed NFL
+and choroidal thicknesses. The changes in the computed NFL
+and choroidal thickness are shown in the fourth row of Fig. 6. To
+better understand the changes in NFL and choroidal thickness,
+we thresholded the difference map according the the intrinsic
+axial resolution lc of the OCT system. The axial resolution for
+the system used to image this particular subject was lc = 6 μm.
+We observed that the NFL thickness predominantly decreased in
+the region surrounding the blood vessels by 1 − 3lc . Similarly,
+choroidal thickness was also found to be decreased, primarily
+in the inferior region around the BMO. Few isolated regions
+showed an increase in choroidal thickness by 1lc .
+IV. DISCUSSION
+We have reported on a novel registration method capable of
+point-to-point comparison between, not only intrasubject, but
+also intersubject retinal OCT data. In this section, we discuss
+some of the limitations and goals for further improvement of
+this proof-of-concept study.
+In Fig. 3, propagation of the template surface is shown for
+ten target surfaces. In each case, the optic disc is shown to
+serve as a strong morphological landmark that functions as a
+major determinant in overall deformation. The optic disc center
+is commonly used as a reference structure in rigidly aligning
+OCT images for retinal layer thickness analysis by lateral translation. The result in Fig. 3 indicates that the proposed nonrigid
+registration sufficiently handles the misalignment between the
+discs within the sample data used in this study, and that disc
+alignment is an intrinsic part of the registration process due to
+the role of the optic disc as a prominent shape feature. However,
+in the phantom data experiment in Section III-B, we observed
+that a global affine transformation to a test image was not fully
+restored by the nonrigid registration only, and caused some regions of slight difference in the result. Although this difference
+was less than the axial resolution of the image and the rest of
+the simulated retinal thinning and deformation were accurately
+detected, performing a 3-D affine preregistration before the nonrigid registration will likely improve the final registration result
+and reduce the deformation energy for the nonrigid registration.
+Further experimentation is needed to investigate how a preregistration, such as aligning disc centers by translation and rotation,
+would affect the registration accuracy.
+The phantom data experiment in Section III-B demonstrated
+the axial-resolution level of accuracy of the registration algo-
+
+Fig. 6. Longitudinal analysis of NFL and choroidal thickness. Top row: Surfaces and data from time point 1. Second row: Surfaces and data from time point
+2 (one year later). Third row: Surfaces and data from time point 1 registered to
+surfaces from time point 2. Fourth row: Difference in thickness measurements
+from the two time points. Last row: Thresholded difference in thickness, in
+terms of the axial resolution of the OCT system lc (lc = 6 μm). Increased and
+decreased thicknesses are represented by green and red, respectively.
+
+rithm; however, the final accuracy and vertex-wise correspondence of real data of different eyes would still depend on the
+accuracy and repeatability of the rest of the processing pipeline,
+in particular the layer segmentation. The segmentation module
+in this study has been used in one of our previous studies [34]
+where 192 retinal layers from 50 eyes were segmented with
+88–92% agreement with a trained manual rater. Similar in the
+study, the automatically segmented surfaces in this report were
+checked and corrected by a manual rater before layer thickness
+measurement and registration. This potentially introduces intrarater variability to the data which may undermine the overall
+vertex-wise correspondence. A detailed comparative study of
+retinal segmentation algorithms and their influence on subsequent registration remain a topic for future research.
+We note that the registration algorithm in this study was implemented in MATLAB and not optimized for speed. The current run time of 11.5 h per registration may be significantly
+
+616
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+reduced by using efficient implementations in C++, and also by
+exploiting the massively-parallel architecture of a GPU. Including an affine preregistration may also reduce the run time of the
+nonrigid registration step.
+Another important question to be addressed is the effect of
+template choice on registration. The current algorithm registers
+a target set of surfaces to a template set of surfaces, and when
+several eyes are thus individually registered to a single template,
+it establishes a common spatial correspondence among the eyes
+based on the anatomy of the template eye. Thickness at each
+point can be compared and averaged among the subject eyes and
+a pseudomean anatomy can be also created by computing the
+average deformation between the template and targets. In such
+way, a normative mean topology and thickness map of healthy
+eyes can be generated that can serve as a reference to quantify
+the deviation of a particular eye from the normative model.
+However, it is not clear whether and how such a mean template
+would be affected by the choice of the initial template—more
+specifically, how close the initial template is to the true mean
+of the averaged observations. This effect will also likely depend
+on the number of total observations being averaged. We hope to
+further investigate these issues in more detail and with a larger
+cohort, and compare mean retinas generated by the same data
+but with different initial templates, and by different numbers of
+subjects.
+V. CONCLUSION
+We have presented a new method for registering multiple
+surfaces extracted from volumetric OCT images that produces a
+common coordinate frame across all the surfaces. The homology
+produced by this method allowed for a direct comparison of morphometric measurements such as NFL thickness and choroidal
+thickness at every vertex.
+We demonstrated that this method can be used to localize the
+regions where significant changes in morphometric measurements (NFL and choroidal thicknesses) are occurring between
+healthy and glaucomatous subjects on a vertex-to-vertex basis.
+This offers an advantage over having to resort to averaging measurements in localized regions, as is commonly done in analyzing ONH morphometry [7]. The proposed registration scheme
+can potentially serve as a powerful tool in computer-aided diagnosis methods that employ classification algorithms. These
+classification algorithms [31], [35] typically require accurate
+registrations of morphometric measurements to a common template, which our proposed registration scheme is able to provide.
+Our method is also applicable as a precursor to image intensity-based registration and would help initialize the
+high-dimensional nonrigid algorithms to better avoid local
+minimums. In addition to cross-sectional analysis, the proposed
+registration scheme allows us to perform longitudinal studies of
+morphometric measurements, where the goal is to study disease
+progression over time, or determine if the subject has converted
+from being healthy to diseased between subsequent scans.
+The proposed exact surface registration method is not limited
+to registering surfaces extracted from OCT, and can be used for
+registering surfaces extracted from other imaging modalities,
+
+such as MRI and CT. Automated diagnoses of neurodegenerative diseases, such as Alzheimer’s, commonly rely on registering
+whole-brain morphometric measurements such as cortical thickness and gyrification [36] to a common template which could
+be potentially achieved with the registration method proposed
+in this paper.
+The proposed registration method uses several surfaces to
+compute deformation from subject to template over an entire
+volume. This can potentially aid tensor-based morphometry
+(TBM) [37] analysis in detecting local volumetric changes that
+would otherwise be impossible to detect with standard TBM
+analysis due to high speckle noise level in OCT images.
+
+REFERENCES
+[1] B. Povazay, B. Hofer, C. Torti, B. Hermann, A. R. Tumlinson,
+M. Esmaeelpour, C. A. Egan, A. C. Bird, and W. Drexler, “Impact of
+enhanced resolution, speed and penetration on three-dimensional retinal
+optical coherence tomography,” Opt. Exp., vol. 17, no. 5, pp. 4134–4150,
+2009.
+[2] E. Lebed, P. J. Mackenzie, M. V. Sarunic, and M. F. Beg, “Rapid volumetric
+OCT image acquisition using compressive sampling,” Opt. Exp., vol. 18,
+no. 20, pp. 21003–21012, 2010.
+[3] M. Young, E. Lebed, Y. Jian, P. J. Mackenzie, M. F. Beg, and M. V. Sarunic,
+“Real-time high-speed volumetric imaging using compressive sampling
+optical coherence tomography,” Biomed. Opt. Exp., vol. 2, no. 9,
+pp. 2690–2697, 2011.
+[4] G. Wollstein, H. Ishikawa, J. Wang, S. Beaton, and J. Schuman, “Comparison of three OCT scanning areas for detection of glaucomatous damage,”
+Amer. J. Ophthal., vol. 139, no. 1, pp. 39–43, 2005.
+[5] V. R. Mamikonian, E. E. Kazarian, N. S. Gloian, and O. A. ShmelevaDemir, “Comparative analysis of several morphometric parameters
+received using optic coherent tomography and scanning laser ophthalmoscopy in initial glaucoma diagnosis,” Vestn. Oftalmol., vol. 127, no. 2,
+pp. 18–20, 2011.
+[6] M. Bron, A.M. Francoz, J. Beynat, F. Nicot, A. Cattaneo, and C. Creuzot,
+“Is choroidal thickness different between glaucoma patients and healthy
+subjects?” Acta Ophthalmologica, vol. 89, pp. 1755–3768, 2011.
+[7] J.-C. Mwanza, F. E. Sayyad, and D. L. Budenz, “Choroidal thickness
+in unilateral advanced glaucoma,” Invest. Ophthalmol. Vis. Sci., vol. 53,
+no. 10, pp. 6695–6701, 2012.
+[8] J. B. A. Maintz and M. A. Viergever, “A survey of medical image registration,” Med. Image Anal., vol. 2, no. 1, pp. 1–36, 1998.
+[9] S. Klein, M. Staring, K. Murphy, M. A. Viergever, and J. P. W. Pluim,
+“Elastix: A toolbox for intensity-based medical image registration,” IEEE
+Trans. Med. Imag., vol. 29, no. 1, pp. 196–205, Jan. 2010.
+[10] M. Deshmukh and U. Bhosle, “A survey of image registration,” Int. J.
+Image Process., vol. 5, no. 3, pp. 245–269, 2011.
+[11] M. Vaillant and J. Glaunés, “Surface matching via currents,” Inf. Process.
+Med. Imag., vol. 19, pp. 381–392, 2005.
+[12] E. Gibson, M. Young, M. V. Sarunic, and M. F. Beg, “Optic nerve head registration via hemispherical surface and volume registration,” IEEE Trans.
+Biomed. Eng., vol. 57, no. 10, pp. 2592–2595, Jul. 2010.
+[13] T. M. Jorgensen, J. Thomadsen, U. Christensen, W. Soliman, and
+B. Sander, “Enhancing the signal-to-noise ratio in ophthalmic optical coherence tomography by image registration method and clinical examples,”
+J. Biomed. Opt., vol. 12, no. 4, pp. 041280-1–041280-10, 2007.
+[14] B. Antony, M. D. Abramoff, L. Tang, W. D. Ramdas, J. R. Vingerling,
+N. M. Jansonius, K. Lee, Y. H. Kwon, M. Sonka, and M. K. Garvin,
+“Automated 3-D method for the correction of axial artifacts in spectral domain optical coherence tomography images,” Biomed. Opt. Exp.,
+vol. 2, no. 8, pp. 2403–2416, 2011.
+[15] Y. M. Liew, R. A. McLaughlin, F. M. Wood, and D. D. Sampson, “Motion
+correction of invivo three-dimensional optical coherence tomography of
+human skin using a fiducial marker,” Biomed. Opt. Exp., vol. 3, no. 8,
+pp. 1774–1786, 2012.
+[16] J. Xu, H. Ishikawa, G. Wollstein, L. Kagemann, and J. S. Schuman,
+“Alignment of 3-D optical coherence tomography scans to correct eye
+movement using a particle filtering,” IEEE Trans. Med. Imag., vol. 31,
+no. 7, pp. 1337–1345, Jul. 2012.
+
+LEE et al.: EXACT SURFACE REGISTRATION OF RETINAL SURFACES FROM 3-D OPTICAL COHERENCE TOMOGRAPHY IMAGES
+
+[17] M. Niemeijer, M. K. Garvin, K. Lee, B. van Ginneken, M. D. Abramoff,
+and M. Sonka, “Registration of 3D spectral OCT volumes using 3D SIFT
+feature point matching,” Proc. SPIE Med. Imag. Process., pp. 72591I-1–
+72591I-8, Mar. 2009. Doi:10.1117/12.811906
+[18] M. Niemeijer, K. Lee, M. K. Garvin, M. D. Abràmoff, and M. Sonka, “Registration of 3D spectral OCT volumes combining ICP with a graph-based
+approach,” Proc. SPIE Med. Imag. Process., pp. 83141A-1–83141A-9,
+Feb. 2012. Doi:10.1117/12.911104
+[19] A. Giani, M. Pellegrini, A. Invernizzi, M. Cigada, and G. Staurenghi,
+“Aligning scan locations from consecutive spectral-domain optical coherence tomography examinations: A comparison among different strategies,” Invest. Ophthalmol. Vis. Sci., vol. 53, no. 12, pp. 7637–7643,
+2012.
+[20] Y. Zheng, R. Xiao, Y. Wang, and J. C. Gee, “A generative model for
+OCT retinal layer segmentation by integrating graph-based multi-surface
+searching and image registration,” Med. Image Comput. Assist. Interv.,
+vol. 16, pp. 428–435, 2013.
+[21] B. T. T. Yeo, M. Sabuncu, T. Vercauteren, N. Ayache, B. Fischl, and
+P. Golland, “Spherical demons: Fast surface registration,” Med. Image
+Comput. Assist. Interv., vol. 11, pp. 745–753, 2009.
+[22] M. Chen, A. Lang, E. Sotirchos, H. S. Ying, P. A. Calabresi, J. L.
+Prince, and A. Carass, “Deformable registration of macular OCT using
+a-mode scan similarity,” in Proc. IEEE Int. Symp. Biomed. Imag., 2014,
+pp. 476–479.
+[23] M. Chen, A. Lang, H. S. Ying, P. A. Calabresi, J. L. Prince, and
+A. Carass, “Analysis of macular OCT images using deformable registration,” Biomed. Opt. Exp., vol. 5, no. 7, pp. 2196–2214, 2014.
+[24] K. Li, X Wu, D. Z. Chen, and M. Sonka, “Optimal surface segmentation
+in volumetric images—A graph-theoretic approach,” IEEE Trans. Pattern
+Anal. Mach. Intell., vol. 28, no. 1, pp. 119–134, Jan. 2006.
+[25] M. D. Abramoff, K. Lee, M. Niemeijer, W L. M. Alward, E. C. Greenlee,
+M. K. Garvin, M. Sonka, and Y. H. Kwon, “Automated segmentation of
+the cup and rim from spectral domain OCT of the optic nerve head,”
+Invest. Ophthalmol. Vis. Sci., vol. 50, no. 12, pp. 5778–5784, 2009.
+[26] Y. Boykov and V. Kolmogorov, “An experimental comparison of mincut/max-flow algorithms for energy minimization in vision,” IEEE Trans.
+Pattern Anal. Mach. Intell., vol. 26, no. 9, pp. 1124–1137, Sep. 2004.
+[27] J. Glaunes, A. Trouvé, and L. Younes, “Diffeomorphic matching of distributions: A new approach for unlabelled point-sets and sub-manifolds
+matching,” in Proc. IEEE Comput. Vis. Pattern Recog., 2004, pp. 712–718.
+
+617
+
+[28] R. Zayer, C. Rossl, and H.-P. Seidel, “Discrete tensorial quasi-harmonic
+maps,” in Proc. Int. Conf. Shape Model. Appl., 2005, pp. 278–287.
+[29] M. S. Floater, “Mean value coordinates,” Comput. Aided Geom. Des.,
+vol. 20, no. 1, pp. 19–27, 2003.
+[30] B. T. T. Yeo, M. Sabuncu, T. Vercauteren, N. Ayache, B. Fischl, and
+P. Golland, “Spherical demons: Fast diffeomorphic landmark-free surface registration,” IEEE Trans. Med. Imag., vol. 29, no. 3, pp. 650–668,
+Mar. 2010.
+[31] M. Chung, K. Worsley, B. Nacewicz, K. Dalton, and R. Davidson, “General multivariate linear modelling of surface shapes using SurfStat,”
+NeuroImage, vol. 53, no. 2, pp. 491–501, 2010.
+[32] K. J. Worsley, J. Cao, T. Paus, M. Petrides, and A. C. Evans, “Applications
+of random field theory to functional connectivity,” Human Brain Mapping,
+vol. 6, no. 6, pp. 364–367, 1998.
+[33] J. Cao, “The size of the connected components of excursion sets of chi
+squared, t and F fields,” Adv. Appl. Probability, vol. 31, pp. 577–593,
+1999.
+[34] S. Lee, X. Han, M. Young, M. F. Beg, M. V. Sarunic, and P. J. Mackenzie,
+“Optic nerve head and peripapillary morphometrics in myopic glaucoma,”
+Invest. Ophthalmol. Vis. Sci., vol. 55, no. 7, pp. 4378–4393, 2014.
+[35] Y. Fan, D. Shen, R. C. Gur, R. E. Gur, and C. Davatzikos, “COMPARE: Classification of morphological patterns using adaptive regional
+elements,” IEEE Trans. Med. Imag., vol. 26, no. 1, pp. 93–105, Jan.
+2007.
+[36] E. Lebed, C. Jacova, L. Wang, and M. F. Beg, “Novel surface-smoothing
+based local gyrification index,” IEEE Trans. Med. Imag., vol. 32, no. 4,
+pp. 660–669, Apr. 2013.
+[37] A. D. Leow, I. Yanovsky, N. Parikshak, X. Hua, S. Lee, A. W. Toga,
+C. R. Jr, Jack, M. A. Bernstein, P. J. Britson, J. L. Gunter, C. P. Ward,
+B. Borowski, L. M. Shaw, J. Q. Trojanowski, A. S. Fleisher, D. Harvey,
+J. Kornak, N. Schuf, G. E. Alexander, M. W. Weiner, and P. M. Thompson,
+“Alzheimer’s disease neuroimaging initiative: A one-year follow up study
+using tensor-based morphometry correlating degenerative rates, biomarkers and cognition,” Neuroimage, vol. 45, no. 3, pp. 645–655, 2009.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

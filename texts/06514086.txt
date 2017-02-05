@@ -1,0 +1,814 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+2585
+
+A Fully Adaptive Multiresolution Algorithm for
+Atrial Arrhythmia Simulation on Anatomically
+Realistic Unstructured Meshes
+Alessandro Cristoforetti, Michela Masè, and Flavia Ravelli∗
+
+Abstract—Biophysically detailed and anatomically realistic
+atrial models are emerging as a valuable tool in the study of atrial
+arrhythmias, nevertheless clinical use of these models would be favored by a reduction of computational times. This paper introduces
+a novel adaptive mesh algorithm, based on multiresolution representation (MR), for the efficient integration of cardiac ordinary
+differential equation (ODE)-partial differential equation (PDE)
+systems on unstructured triangle meshes. The algorithm applies a
+dynamically adapted node-centered finite volume method (FVM)
+scheme for integration of diffusion. The method accuracy and efficiency were evaluated by simulating propagation scenarios of increasing complexity levels (pacing, stable spirals, atrial fibrillation)
+on tomography-derived three-dimensional monolayer atrial models, based on a monodomain reaction–diffusion formulation coupled with the Courtemanche atrial ionic model. All simulated propagation patterns were accurately reproduced with substantially
+reduced computational times (10%–30% of the full-resolution
+simulation time). The proposed algorithm, combining the MR computational efficiency with the geometrical flexibility of unstructured meshes, may favor the development of patient-specific multiscale models of atrial arrhythmias and their application in the
+clinical setting.
+Index Terms—Adaptive mesh refinement, atrial fibrillation,
+patient-specific model, PDE integration.
+
+I. INTRODUCTION
+OMPUTER simulation is becoming an important tool in
+the study of cardiac arrhythmias. Recent advances in computational biology and tomographic imaging techniques have
+laid the foundations for the development of patient-specific
+cardiac models, characterized by anatomically realistic geometries and biophysically detailed cell dynamics. Multiscale
+cardiac modeling may help to disclose arrhythmia mechanisms in the single patient and potentially facilitate treatment
+planning [1]–[3].
+
+C
+
+Manuscript received September 26, 2012; revised February 19, 2013 and
+April 11, 2013; accepted April 22, 2013. Date of publication May 6, 2013;
+date of current version August 16, 2013. This work was supported in part by a
+grant from the Fondazione Cassa di Risparmio di Trento e Rovereto. Asterisk
+indicates corresponding author.
+A. Cristoforetti and M. Masè are with the Laboratory of Biophysics and
+Biosignals, Department of Physics, University of Trento, 38123 Povo, Italy
+(e-mail: ale@science.unitn.it; mase@science.unitn.it).
+∗ F. Ravelli is with the Laboratory of Biophysics and Biosignals, Department of Physics, University of Trento, 38123 Povo, Italy (e-mail: ravelli@
+science.unitn.it).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2261815
+
+Achieving computational efficiency and reducing computational cost is a key element for the development and wider
+application of multiscale models in the clinical setting [4]. The
+spatiotemporal characteristics of electrical impulse propagation
+in the heart involve fast transients, requiring high temporal resolution, and steep wavefronts, necessitating fine spatial resolution. High spatial and temporal resolutions need to be conciliated
+with the scale of anatomically realistic models and the long time
+course of arrhythmia evolution.
+The problem of reducing computational times in cardiac simulations has been addressed with different approaches. Improving algorithm scalability in parallel implementations aims to
+take advantage of the progresses in computational hardware
+introduced by multicore machines, graphics processing units
+(GPUs), and supercomputer facilities, especially for demanding computational settings such as ventricular or whole heart
+simulations [4], [5]. On the other hand, numerical optimization focuses on reducing the number of effective computations
+without compromising the accuracy of the results. Numerical
+efficiency can be pursued by directly exploiting the sparse spatiotemporal structure of propagating waves, concentrating computational accuracy where fast transitions in time are translated
+into steep gradients in space (i.e., in proximity of propagating
+wavefronts). This involves a dynamical adaptation of the resolution of the temporal and/or spatial discretization to properly
+track the evolution of state variables.
+Adaptive discretization has been applied to cardiac simulations according to different strategies, which include pure
+time adaptation [6]–[8], space-time adaptive mesh refinement
+algorithms (AMRA) [9], multilevel finite element [10], mortar
+finite element [11], [12], autonomous leaves graph [13], multiresolution representation (MR) [14], and remeshing [15]–[17].
+Mesh adaptation algorithms have been successfully applied to
+structured and regular grids with computational speedup factors
+ranging from 4 to 80 [9], [12]–[14]. On the contrary, meshadapted integration of cardiac equations on unstructured triangular meshes is sparser and more problematic (e.g., in [15]
+and [18]), with a degradation of performance mostly related to
+the computational cost of the adaptation routine [19]. Nonetheless, the use of unstructured meshes is crucial to perform arrhythmia simulations in a realistic anatomic context, since they
+provide a smooth representation of the topologically complex
+geometries that characterize cardiac anatomy [20].
+In this paper we present and validate an efficient fully adaptive
+ODE-PDE integration scheme based on multiresolution analysis, specifically designed for atrial arrhythmia simulations on
+
+0018-9294 © 2013 IEEE
+
+2586
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+unstructured triangle monolayers. The algorithm is devised in
+a MR setting, where state variables are compressed as a nested
+sequence of point-value discretizations. The MR setting provides faster flux computation with respect to AMRA [21], accuracy control over the PDE solution spatial profile and indirect control of the perturbation error in the temporal domain [22]–[24]. In addition, the algorithm is fully adaptive,
+since the compressed representation is directly used as input to
+the integration scheme. Integration on unstructured triangular elements is performed by a node-centered finite volume diffusion
+scheme [25], [26], here extended to MR application. The algorithm accuracy and efficiency are tested simulating propagation
+scenarios of different complexity level on tomography-derived
+atrial three-dimensional (3-D) surface models with cellular dynamics described by the Courtemanche ionic model [27].
+II. METHODS
+A. Ionic Model
+Cellular ionic dynamics were described by the
+Courtemanche–Ramirez–Nattel (CRN) model for the human atrial action potential (AP) [27]. Cell coupling followed
+a monodomain formulation, leading to the reaction–diffusion
+ODE-PDE system for the transmembrane potential V :
+Iion
+Ist
+∂V
+= ∇D∇V −
++
+∂t
+Cm
+Cm
+
+Fig. 1. Construction of the MR geometrical model. (A) Raw mesh of the inner
+atrial surface obtained by segmentation of CT data. (B) Processed regularized
+atrial backbone mesh. (C) Dyadic refinement of the MR mesh triangles, from
+the backbone mesh up to resolution level 3. The numbers on the nodes indicate
+their refinement level, while arrows indicate resolution transitions.
+
+(1)
+
+where Iion is the sum of all ionic currents obtained by the 21
+state variable ODE system in [27], Ist is an external stimulus
+current, Cm is the membrane capacitance, and D is the diffusion
+tensor.
+B. Geometrical Model
+The integration domain of (1) was constituted by anatomically realistic unstructured triangle monolayer meshes, obtained by segmentation of cardiac tomographic images [28]
+[e.g., Fig. 1(A)], further processed to produce coarse regularized backbone meshes [see Fig. 1(B)]. After manual trimming
+of redundant structures (vessel tree and valve openings), mesh
+smoothing techniques [29] combined with iterative collapsing
+of short edges were performed to obtain homogeneous triangle
+shapes, stable with respect to diffusion integration. Two simulation geometries were produced: a left atrial (LA) model (see
+Fig. 1(B), 4.3 K nodes, average internodal distance of 1.92 mm)
+and a more complex anisotropic biatrial model (see Fig. 2,
+11.9 K nodes, average internodal distance of 2.0 mm). The
+latter was composed of several connected structures, manually
+added to the atrial chambers, with geometry and fiber orientation
+mimicking [30], [31].
+C. Adaptive Multiresolution Scheme
+The principle of MR is to represent state variables at different resolution levels on a discretization space formed by several
+nested dyadic meshes [see Fig. 1(C)]. The local resolution level
+is dynamically tuned according to the grade of local smoothness
+of the variables, maximizing data compression at minimal loss
+
+Fig. 2. (A) Posterior and (B) anterior views of the anisotropic biatrial model
+with atrial interconnections and substructures. White dashes indicate fiber direction. BB: Bachmann’s bundle; CT: crista terminalis; FO: fossa ovalis; IB:
+intercaval bundle; LFO, limbus of the fossa ovalis; PM: pectinate muscles.
+
+of representation accuracy. The latter is estimated by details,
+given by the discrepancy between representations at different
+resolutions. Transitions of state variables between resolution
+levels are mediated by interpolation operators called prediction
+(resolution increase) and decimation (resolution decrease). During PDE integration the discretization is updated to cope with
+solution complexity, preserving only the details above a tolerance threshold. Equation integration and data storage are then
+performed on a reduced number of nodes organized in the MR
+mesh.
+1) MR Domain and Variable Discretization: The MR domain was built by an iterative refinement similar to the procedure in [32]. Be N1 and E1 the sets of nodes and edges that
+formed the backbone mesh, a sequence of nested dyadic meshes
+(Nl , El ) at resolution levels l = 2, . . . , L, was obtained by recursively subdividing each triangle into four similar triangles,
+joining the midpoints of its edges [Fig. 1(C)]. Specifically, Nl
+was constructed adding to Nl −1 the midpoints of all edges in
+El −1 . The nodes on the two tips of each decomposing edge were
+defined as parents of the midpoint child node in Nl \Nl −1 . The
+edges in El were formed by splitting the edges in El −1 , plus
+
+CRISTOFORETTI et al.: FULLY ADAPTIVE MULTIRESOLUTION ALGORITHM FOR ATRIAL ARRHYTHMIA SIMULATION
+
+2587
+
+adding the three connections between midpoints of El −1 . At
+each refinement step, the new nodes in Nl \Nl −1 and edges
+in El were assigned with refinement level l, a property that remained fixed during the simulation. Conversely, the resolution
+level of a node was defined by the mesh (Nl , El ) temporarily
+active around the node, and dynamically varied between the refinement level of the node and L [see Fig. 1(C)]. Importantly,
+the resolution level defined the first connected neighbors of a
+node, which composed the finite difference stencil for diffusion
+integration. In this paper, the refinement procedure was applied
+to the regularized backbone meshes up to level L = 4, producing MR meshes for the LA (275 K nodes) and biatrial (765 K
+nodes) models with 0.24 and 0.25 mm average internodal distance, respectively.
+State variables were represented on the MR mesh according
+to the nested point value discretization in [33]. Specifically,
+for each resolution level l = 1, . . . , L, a continuous variable u
+was discretized as ul , which comprised u values at the nodal
+positions xil in the (Nl , El ) mesh
+ 
+(2)
+∀i ∈ Nl , uil = u xil .
+2) Transitions Between Resolution Levels: State variable
+transitions between different resolution levels were controlled
+by prediction (resolution increase) and decimation (resolution
+decrease) local operators.
+The prediction operator Pl−1→l (from resolution level l–1 to
+l) approximated ul by interpolation from ul−1 :
+ũl = Pl−1→l ul−1 .
+
+(3)
+
+State variable values were linearly interpolated on nodes of
+refinement level l from their parent nodes, while preexisting
+values were injected on nodes of lower refinement levels (< l):
+
+
+2
+(4a)
+∀i ∈ Nl \Nl−1 , ũil = ujl−1 + uhl−1
+∀i ∈ Nl−1 ,
+
+ũil = uil−1
+
+(4b)
+
+where j and h in Nl −1 are parents of i in Nl \Nl −1 .
+Conversely, the decimation operator Pl→l−1 removed state
+variable values at refinement level l, preserving those on nodes
+of lower refinement levels (< l):
+Pl→l−1 ul = ul−1
+
+(5)
+
+so that prediction was consistent with decimation:
+Pl+1→l ◦ Pl→l+1 = Id.
+
+(6)
+
+3) Compressed Variable Representation on the MR Mesh:
+In the MR setting [22]–[24], a variable uL , discretized on the
+full mesh, is one-to-one equivalent to
+uL ≡ (u1 , d2 , ..., dL )
+
+Diagram of the integration scheme including MR adaptation.
+
+grant robustness to the MR approximation (error growth linear
+in time [23]), the tolerance threshold was made dependent on
+the detail resolution level, i.e.,
+εl = εL 2r (l−L )
+
+(9)
+
+where the domain dimension r is 2 in the present application.
+Mesh nodes with preserved details were defined active. Similarly, an edge was defined active if it was connected two active
+nodes and its midpoint node was inactive. A compressed discretized state variable took values only on active nodes, which
+formed a hybrid resolution mesh.
+In order to assure coherence to the hybrid mesh, a set of
+conditions was imposed on nodes and edges:
+1) Active nodes must have active parent nodes.
+2) Active edges of refinement level l must alternatively have:
+(a) both tip nodes at resolution level l; (b) one tip node at
+l and the other at l+1.
+3) Nodes up to refinement level 2 must be always active.
+Conditions 1 and 2 assured a domain coverage composed of
+regions at uniform resolution, separated by transition boundaries
+(resolution interface) with minimal occurrence of gaps between
+FVM reference volumes. Condition 3 was required by (8) to
+consent the performance of resolution increase operation even
+at minimal resolution level.
+
+(7)
+
+where the details dl , defined on the disjointed subdomains
+Nl \Nl −1 , are estimates of the accuracy loss in ul caused by
+decreasing its resolution level by one
+∀i ∈ Nl \Nl−1 ,
+
+Fig. 3.
+
+dil = uil − ũil = uil −Pl−1→l ◦ Pl→l−1 uil . (8)
+
+Based on MR representation, uL was compressed by truncating all the details below a predefined tolerance threshold. To
+
+D. Integration With Mesh Adaptation
+The MR adaptation algorithm was included in the integration
+scheme as depicted in Fig. 3. After initialization, the main algorithm loop performed the integration of reaction and diffusion
+equations, while adaptation routines were executed only at specific iterations, which involved resolution increase or decrease
+operations.
+
+2588
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+1) Initialization: The hybrid mesh was initialized with a
+suitable number of nodes to allow the fulfillment of conditions
+1–3 and the proper spatial delineation of inhomogeneous PDE
+parameters (e.g., diffusion coefficient D and sodium current coefficient gN a ). This was accomplished by iterating decimation
+from (NL , EL ) while keeping the details of inhomogeneous
+parameters above tolerance threshold, as described in Section
+II-D3(c). The activation state of the initialized mesh determined
+the minimal local resolution level attainable during subsequent
+resolution decrease routines.
+2) Integration Step: Diffusion and reaction equations were
+sequentially integrated on currently active nodes with time step
+of Δt = 0.05 ms. The reactive part was integrated using the Rush
+Larsen nonstandard finite difference forward Euler method [34],
+implemented with precomputed lookup tables. Diffusion equation (1) was integrated using explicit node-centered local finite
+difference stencils derived from the FVM discretization for unstructured triangle meshes in [25], [26]. The tessellation was
+centered on the mesh nodes, each reference volume bounded by
+segments between triangle barycenters and edge midpoints. For
+each resolution level l, the diffusion stencil of an active node
+was determined by applying the FVM scheme to (Nl , El ).
+For stencils at the resolution interface, transmembrane potential
+values were interpolated on inactivated nodes prior to convolution using prediction operators. Unstable nodes were dealt with
+nondynamic local time substepping for diffusion at each node i
+
+
+−m
+
+Δti = max Δt · 2
+m ∈N
+
+
+
+	
+
+
+ 
+L
+Zik
+, such that Δti < 0.9
+
+−1
+
+k
+
+(10)
+L
+are the coefficients of the diffusion stencil at node i at
+where Zik
+maximal refinement level. Thanks to the preprocessing applied
+to LA and biatrial meshes, up to 99% of the nodes resulted stable
+for the main time step Δt.
+3) Mesh Resolution Update: At specific timings, the mesh
+resolution was increased/decreased based on the comparison
+between local details and tolerances εl , as well as on the preservation of a high resolution buffer zone in proximity of the wavefront.
+a) Buffer zone: To allow mesh adaptation to properly cope
+with a steep propagating wavefront without frequent mesh updating, a buffer zone was kept at maximal resolution in front of
+the potential upstroke. Before resolution increase routine, the
+buffer zone nodes were detected by setting a threshold on the
+sodium current IN a (−30 pA/pF), and adding nearby unexcited
+nodes within the range of Nb connections. When diffusion inhomogeneity was included in the model, Nb was locally scaled
+according to the square root of the largest eigenvalue of the
+diffusion tensor, allowing the buffer zone width to adjust to the
+local wavefront speed. Maximal Nb was set to 5 and 15 in the
+LA and biatrial models, respectively.
+b) Mesh resolution increase: The resolution increase routine
+performed detail analysis on nodes with refinement level < L,
+connected to at least one active edge of the same refinement
+level. Nodes with detail exceeding tolerance or belonging to
+the buffer zone were detected, and all their connected active
+
+edges were flagged as decomposable. The resolution level of
+the tip nodes of each decomposable edge was increased by one,
+unless it already exceeded the edge refinement level. To preserve condition 2, the decomposable edge list was progressively
+expanded by sequentially analyzing the remaining active edges,
+according to a decreasing refinement order. Specifically, active
+edges with resolution level difference between tip nodes >1
+were flagged, and the tip lower resolution level was increased
+by 1. After this processing, active edges with refinement level
+l and both tip resolution levels at l + 1 were also flagged as
+decomposable. At the end of the routine, all midpoint nodes
+of decomposable edges were activated and assigned with state
+variables interpolated by the prediction operator.
+c) Mesh resolution decrease: The resolution decrease routine
+performed detail analysis on nodes with refinement level >2
+and equal to their resolution level, and not belonging to the
+initialization set nor to the buffer zone. Detailed analysis was
+carried out with tolerances modified to h·εl (h = 0.5), and, for
+each candidate node with refinement level l, it was extended to
+parent node(s) with refinement level l–1. A node was labeled as
+inactivating, if both the details dl and dl−1 were below the respective tolerance thresholds. The resolution level of the active
+nodes with all children belonging to the inactivating list was
+decreased by one. Subsequently, to fulfill condition 2, inactivating nodes with refinement level equal to both their parents’
+resolution level were removed from the inactivating list. Nodes
+on the final list were inactivated and state variables were decimated accordingly. It is worth noticing that the double level
+check (dl and dl−1 ) and the hysteresis factor h were meant to
+prevent improper deactivation of recently activated nodes and
+resolution fluctuations.
+d) Optimization of resolution update timing: To minimize
+mesh adaptation computational demand without impinging on
+accuracy, resolution increase and decrease routines were performed at different timings (Δtup and Δtdown , respectively).
+Furthermore, the mesh resolution increase was divided in two
+subroutines that performed detail analysis on the sole fast variables at intervals Δtupfast , and on all variables at longer intervals
+Δtup > Δtupfast . Fast variable analysis was limited to the transmembrane potential, since fast gates (e.g., m, h) display rapid
+transitions concurrently with the potential upstroke. In the paper, the intervals for mesh updating were set to: Δtup = 2 ms
+to follow the dynamics of all slow variables; Δtdown = 2 ms
+as a compromise between decimation computational advantage
+and the operation burden; Δtupfast = 0.3 ms to prevent the
+wavefront from exiting the buffer zone.
+E. Validation
+The MR adaptive scheme was validated by a quantitative
+comparison between simulations performed at full resolution
+and with mesh adaptation. The performance was quantified
+in terms of accuracy and computational efficiency over different simulation scenarios, which comprised increasing levels
+of propagation pattern complexity. Simulations and data elaboration were performed in MATLAB programming language
+on a Intel Core 2 Duo E6750 (2.66 GHz) processor. Three
+
+CRISTOFORETTI et al.: FULLY ADAPTIVE MULTIRESOLUTION ALGORITHM FOR ATRIAL ARRHYTHMIA SIMULATION
+
+Fig. 4. Centrifugal propagation from a low-frequency pacing source (S) using
+MR adaption at precision grade II. (Upper panels) snapshot of the transmembrane potential on the LA model. The edges of the MR mesh close to the wavefront are magnified in the inlay panel. (Lower panels) Frequency histograms of
+the CV relative error, AP duration (APD5 0 ) relative error, and PTP error.
+
+propagation patterns were simulated on the anatomically realistic LA geometrical model [see Fig. 1(B)]: a regular lowfrequency pacing from a single source, a stable spiral pattern,
+and a complex multiple wavelet pattern (atrial fibrillation (AF)).
+In all cases, the substrate had a uniform isotropic diffusion coefficient of 0.5×10−3 cm2 /ms, except in the inactive areas of the
+deep pulmonary vein sleeves and around the mitral valve, where
+D and gN a were set to zero. In the first scenario, a dot source
+(4 mm in diameter, black dot in Fig 4) was placed close to the left
+inferior PV, firing at 500 ms intervals. The spiral scenario was
+obtained by a modified Courtemanche model [35], characterized
+by shorter APD and nonsteep restitution, while the AF scenario
+was simulated with steep restitution [36], leading to frequent
+spiral breakups. Both spiral and AF patterns were produced by
+a preparatory phase involving four rapid firing sources. In order
+to validate the algorithm in presence of anisotropic and inhomogeneous conduction and higher level of topological complexity,
+an additional fibrillatory pattern was simulated on the biatrial
+model (see Fig. 2). In this fourth scenario, D maximal eigenvalue was set to 0.88 × 10−3 cm2 /ms in the bulk tissue and to
+0.80 × 10−2 cm2 /ms on the fast conducting pathways, while D
+anisotropy ratios were set to 3:1 and 9:1, respectively.
+Spiral and AF simulations were analyzed after 5 s from source
+deactivation to allow pattern stabilization. For each scenario,
+the mesh adaptation algorithm was tested with two different
+tolerance thresholds εL , which determined different precision
+grades and active node percentages. At precision grade I, εL was
+set to 5 mV for the potential V and infinity for all other variables,
+which determined an adaptation led by the sole potential. At
+precision grade II, εL was set to 1 mV for the potential, 0.05
+for gating variables, and to 5% of their excursion during an AP
+cycle for ionic concentrations. The tolerances εL used for D and
+gN a during initialization were 5% of their maximal values on
+the model.
+The accuracy of the algorithm was quantitatively assessed
+by comparing full-resolution and adapted simulations in terms
+
+2589
+
+Fig. 5. Regular spiral wave propagation using MR adaption at precision
+grade II. (Upper panels) snapshot of the transmembrane potential on the LA
+model. The edges of the MR mesh in proximity of the wavefront are magnified
+in the inlay panel. (Lower panels) Frequency histograms of CV and APD5 0
+relative errors, and PTP error.
+
+of conduction velocity (CV), AP duration at 50% repolarization
+(APD50 ), and transmembrane potential temporal profiles (PTP).
+CV was computed on the triangles of (NL , EL ) by inverting the
+norm of the spatial gradient of AP onsets, which were detected
+on NL nodes at the upward crossing of the 0.5 threshold by the
+m gate variable. PTP and APD50 were instead recorded from
+1500 randomly distributed probing nodes. Relative differences
+of CV and APD50 between full-resolution and adapted simulations were directly computed for three AP cycles. In order to
+separate actual profile errors from temporal shifts caused by CV
+differences, PTP signals of full-resolution and adapted simulations were separated into segments corresponding to AP cycles,
+and temporally aligned on AP onsets before comparison. The
+PTP error was then quantified on each AP segment as the root
+mean square of the differences between aligned profile strips.
+The computational efficiency of the MR algorithm was quantified in terms of relative CPU time of adapted versus full resolution simulations and relative computational overhead of the
+MR subroutine over total adapted simulation time.
+III. RESULTS
+Representative examples of the simulations performed with
+the MR algorithm are displayed in Figs. 4–7, which show still
+frames of the transmembrane potential propagation for the four
+simulated scenarios. Propagation patterns involved different degrees of complexity, which could be properly tracked by the
+algorithm. The pacing from the focal source (see Fig. 4) produced a single centrifugal wavefront, self-extinguishing on the
+other side of the atrial body before the next stimulation cycle.
+The spiral pattern (see Fig. 5) consisted in four stable spirals
+on the atrial body with localized tip meandering. The AF scenario (see Fig. 6) presented unstable spirals changing in number (2–5) and location with preferential anchoring around the
+PV sleeves. The anisotropic biatrial model (see Fig. 7) allowed
+the simulation of a more realistic fibrillation scenario, where
+zones with complex propagation patterns coexisted with areas
+
+2590
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+Fig. 6. Fibrillatory pattern using the MR adaption at precision grade II. (Upper
+panels) Snapshot of the transmembrane potential on the LA model. The edges
+of the MR mesh in proximity of the wavefront are magnified in the inlay panel.
+(Lower panels) Frequency histograms of CV and APD5 0 relative errors, and
+PTP error.
+
+Fig. 7. Fibrillatory pattern on the biatrial model using MR adaption at precision grade I. Snapshots of the transmembrane potential are shown in (A)
+posterior and (B) antero-caudal views.
+
+characterized by more organized activity. Specifically, the left
+atrium was activated by a changing number (1–3) of spiral
+waves, with fibrillatory conduction to the right atrium. Here,
+the presence of oriented fibers (e.g., crista terminalis) favored
+the canalization of electrical impulses, resulting in a more regular activation of the chamber. The mesh adaptation algorithm
+was able to follow the spatiotemporal profile of all propagation patterns, increasing the mesh resolution in proximity of the
+activation wavefronts (see magnified panels in Figs. 4–6).
+The accuracy performance of the algorithm is reported in
+the lower panels of Figs. 4–6 and summarized in Table I. The
+algorithm was able to reproduce all simulated scenarios with
+substantial computational gain and without significant accuracy
+decrease. Accuracy levels were conditioned by the complexity of the patterns and the required precision grade, with larger
+errors for complex patterns and larger tolerances. The best accuracy was obtained in the pacing scenario, where 50th percentiles
+of CV and APD50 relative errors were <0.2% and 0.07%, respectively, and the 50th percentile of PTP errors was <0.04 mV
+(around 0.0004% of AP amplitude). While the pacing case displayed narrow error distributions with small 90th percentiles,
+regular spiral and AF patterns produced error distributions with
+larger median values and more extended tails, with maximal
+
+error spread for AF patterns. At precision grade I, the 50th percentiles of CV and APD50 relative errors were between 0.35%
+and1.2% and that of PTP error was below 0.62 mV, whereas 90th
+percentiles spanned from 1.8% to 10.6% for CV and APD50 ,
+and from 0.99 to 4.6 mV for PTP error. In the LA simulations,
+errors were significantly reduced at precision grade II, where
+90th percentiles decreased to <4.7% and <2.1% for CV and
+APD50 , respectively, and below 1.27 mV for PTP. Conversely,
+for biatrial AF, slight error differences were observed between
+precision grades, although 90th percentiles were <3.94% for
+CV and APD50 and <1.91 mV for PTP. The small accuracy
+difference among precision grades in the anisotropic model
+suggests a predominant accuracy control exerted by the buffer
+zone with respect to detail analysis. Indeed, being tuned to the
+fastest directional speed, the buffer zones resulted widened in
+the anisotropic model (0.8–6 mm versus 0.75–2 mm in the LA
+simulations), likely contributing to the smaller errors observed
+in the biatrial versus LA AF I scenarios (see Table I). In the spiral and two AF scenarios, the moderate CV differences caused
+progressive spatial pattern misalignments, but these did not affect the nature of the patterns (number/stability of spirals, tip
+meandering, etc.) during the analyzed 5 s evolution.
+In terms of algorithm efficiency, the computational gain depended on the fraction of active nodes, being more pronounced
+for simpler scenarios and higher tolerances. The percentage of
+active nodes was limited (9%–11.5%) for the pacing scenario at
+both precision grades, since a single wavefront was present at
+any time during the simulation. This led to a consistent computational gain with a reduction of the adapted simulation time to
+10%–13% of the full-mesh time. For the spiral and AF scenarios,
+the computational times at precision grade II ranged between
+22% and 32% of the full-mesh time, since the percentage of
+active nodes increased to 19% and 28% to cope with the higher
+complexity of the patterns. A reduction in the number of active
+nodes (from 24.0 ± 4.6% to 12.5 ± 1.9%) and simulation time
+(from 28.4 ± 5.1% to 14.6 ± 3.6%) could be obtained for these
+patterns by imposing weaker accuracy conditions, as it can be
+observed comparing precision grades I and II. In particular, in
+the biatrial model absolute computational times for 1 s of simulation were reduced from 11.5 h to a minimum of 1.2 h at
+the precision grade I. The percentage of computational time of
+the adaptation routine varied marginally in different scenarios,
+ranging between 22% and 27% of the total time.
+IV. DISCUSSION
+In this paper, we developed a flexible, fully adaptive ODEPDE integration scheme based on multiresolution analysis applied to atrial unstructured triangular meshes. The algorithm
+was validated by simulating complex propagation patterns in
+CT-derived and biophysically detailed atrial monolayer models,
+demonstrating a consistent reduction of the computational time
+with preserved accuracy.
+A. Comparison With Previous Adaptive Approaches
+Adaptive mesh approaches for cardiac equations on unstructured grids have been previously introduced with varying
+
+CRISTOFORETTI et al.: FULLY ADAPTIVE MULTIRESOLUTION ALGORITHM FOR ATRIAL ARRHYTHMIA SIMULATION
+
+2591
+
+TABLE I
+ACCURACY AND EFFICIENCY OF THE MR ADAPTATION ALGORITHM
+
+degrees of success, which indicates the crucial role of adaptation devising to translate a reduction of degrees of freedom (dof)
+to an actual reduction of computational time. The space-time
+adaptation introduced in [10] led to a very poorly performing
+implementation [18], due to computational overheads related to
+mesh modification, error estimator and assembly of stiffness and
+mass matrices [19]. Similarly, the anisotropic remeshing algorithm introduced in [15] for two-dimensional (2-D) unstructured
+meshes, led to a reduction of dof by a factor 18 but not to any
+consistent speedup. Its extension to 3-D meshes [16] achieved a
+6.4 speedup only on a cubic geometry. Conversely, the adaptive
+anisotropic mesh optimization proposed in [17] succeeded to
+obtain a 11.2 speedup in a heart model under pacing conditions,
+where the adaptation algorithm occupied, however, 79% of the
+computation time. Our algorithm displayed performances comparable with the latter study, reaching a speedup of about 10
+in a biatrial AF simulation, but with better translation of dof
+reduction to speedup, since the computational overhead of the
+adaptation routine was less than 30% of the overall CPU time.
+The reduced overhead derived primarily by the fully adaptive
+MR setting [23], [24], which displayed accelerated flux computation with respect to AMRA [21], computed diffusion and
+reaction exclusively on the compressed state variables, and limited local detail analysis to the terminal nodes of the MR data
+tree. Second, differently from methods performing adaptation at
+each time step (e.g., [16], [18]), mesh adaptation was performed
+at lower updating frequencies, tuning the MR algorithm routine
+to the dynamical properties of the atrial model. This was accomplished by predicting a high-resolution buffer zone before
+the sharp transition of the wavefront, and adjusting detail computation timings to slow and fast state variable dynamics. The
+buffer zone exerted a dominant role in the anisotropic biatrial
+
+model, allowing accelerated computations without significant
+deterioration of accuracy. Third, to adapt the MR algorithm
+to unstructured grids, our MR method built the multiresolution unstructured triangle mesh before integration, by applying
+a progressive dyadic decomposition of the original backbone
+mesh and a node-centered point-value MR discretization of state
+variables [33]. Diffusion was then efficiently computed by resolution dependent stencils derived from the node-centered FVM
+diffusion scheme for unstructured mesh in [25]. This strategy
+allowed us to avoid continuous gridding operations and corresponding matrix recalculations, as requested by remeshing and
+mesh moving techniques.
+
+B. Clinical Implications
+Multiscale models are emerging as valuable tools to understand the mechanisms and plan the treatment of cardiac arrhythmias [1]–[3]. Our adaptive algorithm may favor the diffusion
+of patient-specific AF simulations [31] in the clinical setting by
+reducing computational costs and hardware requirements. For
+instance, thanks to the 90% decrease in workload, simulations
+could be accurately performed on nondedicated desktop computers in clinically acceptable times (1 h for 1 s simulation).
+The algorithm supported detailed ionic models, necessary for
+an accurate description of the atrial AP, and was capable to
+adapt the mesh resolution to the complex spatiotemporal profile of multiple propagating wavefronts typical of AF. Being
+devised for unstructured meshes, it is well-suited for patientspecific anatomies, derived from preablative tomographic cardiac images [28], [31]. Finally, the method may be tuned to meet
+the different accuracy/efficiency simulation requirements (e.g.,
+
+2592
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 9, SEPTEMBER 2013
+
+tests for model parameter identification versus high accuracy
+simulations).
+
+by imposing conditions 1–3, which assured domain coverage
+completeness within MR regions at uniform resolution, and
+minimized gaps at resolution interfaces.
+
+C. Study Limitations and Future Perspective
+In its present formulation our MR algorithm is applicable
+only to 2-D triangle surfaces. Although 2-D surfaces have been
+profitably used to approximate atrial anatomies [2], the accurate
+reproduction of specific atrial structures, as well as potential
+applications to ventricular simulations require 3-D modeling elements. Future studies are necessary to evaluate the feasibility
+of extending the MR algorithm to 3-D problems; however, this
+possibility is suggested by the compatibility of the MR algorithm with tetrahedral meshes. In fact, the algorithm operations
+refer to a triangle-based internodal connectivity, characterizing
+both tetrahedral and triangle meshes. Furthermore, refinement
+schemes for tetrahedra already exist (e.g., in [37]), as well as the
+extended 3-D version of the employed diffusion scheme [26].
+The MR algorithm was here implemented in a fully explicit
+integration scheme. Explicit integration with the Rush–Larsen
+strategy has been demonstrated the most efficient way to solve
+the Courtemanche ODE system [38], which dominated the computational burden of our simulations. In this condition, the integration of diffusion equation with an explicit scheme at time step
+equal to reaction (0.05 ms) was convenient, since the mesh geometrical uniformity obtained by preprocessing restricted substepping to a minimal number of nodes. On the other hand, applications of our algorithm in other conditions or models (e.g.,
+bidomain equations) may require integration with an implicit
+solver. The similarity of the MR hierarchic structure with multigrid methods used to accelerate implicit integration suggests the
+feasibility of a MR implicit version (e.g., as in [39]), which may
+be addressed in future works.
+The MR algorithm was developed in MATLAB programming language and validated in a nonparallel implementation
+on a nondedicated workstation, achieving numerical optimization and a consistent reduction of computational times from
+11.5 to 1.2 h for 1 s of biatrial AF simulation (765 K nodes).
+The current implementation of the algorithm precludes a direct
+comparison of computational times with those obtained in different computational frameworks (C++, parallelization, use of
+GPUs) and with different geometrical models. Given the rapid
+development of computational resources and the importance
+that parallel computing is assuming in the contest of cardiac
+simulations [4], future studies should focus on a parallel implementation of the MR algorithm in nonmassively parallel machines. Dynamic load balancing of adaptive routines has been
+addressed (e.g., [37], [40]–[44]), reporting 50%–80% efficiency
+on 16 cores. Assuming similar efficiency for our algorithm, the
+CPU time for 1 s of biatrial simulation would be reduced to
+5 min. However, the realization of a robust parallel implementation of a complex code may be costly and not well suited for
+GPU accelerators [5].
+Our MR scheme is not strictly conservative for the potential,
+since the node-centered tessellation of the domain causes reference volumes to intersect between resolution levels. However,
+the impact of diffusive flux imbalance on accuracy was limited
+
+V. CONCLUSION
+This paper introduces a novel mesh-adaptation algorithm for
+atrial simulations on unstructured meshes, based on an MR of
+state variables. Validation in tomography-derived atrial models
+proved the algorithm able to accurately reproduce arrhythmic
+propagation patterns with consistently reduced computational
+times. The combination of MR computational efficiency with
+the geometrical flexibility of unstructured meshes fosters the
+potential use of the algorithm for the development of patientspecific multiscale models of atrial arrhythmias in the clinical
+setting.
+REFERENCES
+[1] E. Vigmond, F. Vadakkumpadan, V. Gurev, H. Arevalo, M. Deo, G. Plank,
+and N. Trayanova, “Towards predictive modelling of the electrophysiology
+of the heart,” Exp. Physiol., vol. 94, no. 5, pp. 563–577, May 2009.
+[2] O. Dossel, M. W. Krueger, F. M. Weber, M. Wilhelms, and G. Seemann,
+“Computational modeling of the human atrial anatomy and electrophysiology,” Med. Biol. Eng. Comput., vol. 50, no. 8, pp. 773–799, Aug. 2012.
+[3] V. Jacquemet, L. Kappenberger, and C. S. Henriquez, “Modeling atrial arrhythmias: impact on clinical diagnosis and therapies,” IEEE Rev. Biomed.
+Eng., vol. 1, pp. 94–114, Dec. 2008.
+[4] S. Niederer, L. Mitchell, N. Smith, and G. Plank, “Simulating human
+cardiac electrophysiology on clinical time-scales,” Front. Physiol., vol. 2,
+no. 14, pp. 1–7, 2011.
+[5] A. Neic, M. Liebmann, E. Hoetzl, L. Mitchell, E. J. Vigmond, G. Haase,
+and G. Plank, “Accelerating cardiac bidomain simulations using graphics
+processing units,” IEEE Trans. Biomed. Eng., vol. 59, no. 8, pp. 2281–
+2290, Aug. 2012.
+[6] W. Quan, S. J. Evans, and H. M. Hastings, “Efficient integration of a
+realistic two-dimensional cardiac tissue model by domain decomposition,”
+IEEE Trans. Biomed. Eng, vol. 45, no. 3, pp. 372–385, Mar. 1998.
+[7] Z. Qu and A. Garfinkel, “An advanced algorithm for solving partial differential equation in cardiac conduction,” IEEE Trans. Biomed. Eng., vol. 46,
+no. 9, pp. 1166–1168, Sep. 1999.
+[8] E. J. Vigmond and L. J. Leon, “Computationally efficient model for simulating electrical activity in cardiac tissue with fiber rotation,” Ann. Biomed.
+Eng., vol. 27, no. 2, pp. 160–170, Mar. 1999.
+[9] E. M. Cherry, H. S. Greenside, and C. S. Henriquez, “Efficient simulation
+of three-dimensional anisotropic cardiac tissue using an adaptive mesh
+refinement method,” Chaos, vol. 13, no. 3, pp. 853–865, Sep. 2003.
+[10] P. C. Franzone, P. Deuflhard, B. Erdmann, J. Lang, and L. F. Pavarino,
+“Adaptivity in space and time for reaction–diffusion systems in electrocardiology,” SIAM J. Sci. Comput., vol. 28, no. 3, pp. 942–962, 2006.
+[11] M. Pennacchio, “The mortar finite element method for the cardiac “bidomain” model of extracellular potential,” J. Sci. Comput., vol. 20, no. 2,
+pp. 191–210, Apr. 2004.
+[12] J. A. Trangenstein and C. Kim, “Operator splitting and adaptive mesh
+refinement for the Luo-Rudy I model,” J. Comput. Phys., vol. 196, no. 2,
+pp. 645–679, May 2004.
+[13] R. Oliveira, B. Rocha, D. Burgarelli, W. Meira, and R. dos Santos, “An
+adaptive mesh algorithm for the numerical solution of electrical models
+of the heart,” in Proc. Comput. Sci. Appl. (ICCSA 2012), pp. 649–664.
+[14] M. Bendahmane, R. Burger, and R. Ruiz-Baier, “A Multiresolution spacetime adaptive scheme for the bidomain model in electrocardiology,” Numer. Methods Partial Differ. Equ., vol. 26, no. 6, pp. 1377–1404, Nov.
+2010.
+[15] Y. Belhamadia, “A time-dependent adaptive remeshing for electrical
+waves of the heart,” IEEE Trans. Biomed. Eng., vol. 55, no. 2, pp. 443–452,
+Feb. 2008.
+[16] Y. Belhamadia, A. Fortin, and Y. Bourgault, “Towards accurate numerical
+method for monodomain models using a realistic heart geometry,” Math.
+Biosci., vol. 220, no. 2, pp. 89–101, Aug. 2009.
+
+CRISTOFORETTI et al.: FULLY ADAPTIVE MULTIRESOLUTION ALGORITHM FOR ATRIAL ARRHYTHMIA SIMULATION
+
+[17] J. Southern, G. J. Gorman, M. D. Piggott, P. E. Farrell, M. O. Bernabeu,
+and J. Pitt-Francis, “Simulating cardiac electrophysiology using
+anisotropic mesh adaptivity,” J. Comput. Sci., vol. 1, no. 2, pp. 82–88,
+Jun. 2010.
+[18] P. Deuflhard, B. Erdmann, R. Roitzsch, and G. T. Lines, “Adaptive finite
+element simulation of ventricular fibrillation dynamics,” Comput. Vis. Sci.,
+vol. 12, no. 5, pp. 201–205, 2009.
+[19] M. Weiser, B. Erdmann, and P. Deuflhard, “On efficiency and accuracy in
+cardioelectric simulation,” in Proc. Prog. Ind. Math. (ECMI 2008), 2010,
+pp. 371–376.
+[20] A. J. Prassl, F. Kickinger, H. Ahammer, V. Grau, J. E. Schneider, E. Hofer,
+E. J. Vigmond, N. A. Trayanova, and G. Plank, “Automatically generated,
+anatomically accurate meshes for cardiac electrophysiology problems,”
+IEEE Trans. Biomed. Eng, vol. 56, no. 5, pp. 1318–1330, May 2009.
+[21] M. J. Berger and P. Colella, “Local adaptive mesh refinement for shock
+hydrodynamics,” J. Comput. Phys., vol. 82, no. 1, pp. 64–84, May 1989.
+[22] A. Harten, “Multiresolution algorithms for the numerical solution of hyperbolic conservation laws,” Commun. Pure Appl. Math., vol. 48, no. 12,
+pp. 1305–1342, Dec. 1995.
+[23] A. Cohen, S. M. Kaber, S. Muller, and M. Postel, “Fully adaptive multiresolution finite volume schemes for conservation laws,” Math. Comput.,
+vol. 72, no. 241, pp. 183–225, 2003.
+[24] O. Roussel, K. Schneider, A. Tsigulin, and H. Bockhorn, “A conservative
+fully adaptive multiresolution algorithm for parabolic PDEs,” J. Comput.
+Phys., vol. 188, no. 2, pp. 493–523, Jul. 2003.
+[25] S. Zozor, O. Blanc, V. Jacquemet, N. Virag, J. M. Vesin, E. Pruvot,
+L. Kappenberger, and C. Henriquez, “A numerical scheme for modeling wavefront propagation on a monolayer of arbitrary geometry,” IEEE
+Trans. Biomed. Eng., vol. 50, no. 4, pp. 412–420, Apr. 2003.
+[26] V. Jacquemet and C. S. Henriquez, “Finite volume stiffness matrix for
+solving anisotropic cardiac propagation in 2-D and 3-D unstructured
+meshes,” IEEE Trans. Biomed. Eng., vol. 52, no. 8, pp. 1490–1492, Aug.
+2005.
+[27] M. Courtemanche, R. J. Ramirez, and S. Nattel, “Ionic mechanisms underlying human atrial action potential properties: insights from a mathematical model,” Am. J. Physiol., vol. 275, no. 1 Pt 2, pp. H301–H321, Jul.
+1998.
+[28] A. Cristoforetti, L. Faes, F. Ravelli, M. Centonze, M. Del Greco,
+R. Antolini, and G. Nollo, “Isolation of the left atrial surface from cardiac
+multi-detector CT images based on marker controlled watershed segmentation,” Med. Eng. Phys., vol. 30, no. 1, pp. 48–58, Jan. 2008.
+[29] J. Vollmer, R. Mencl, and H. Muller, “Improved laplacian smoothing of
+noisy surface meshes,” Comput. Graph. Forum, vol. 18, no. 3, pp. C131–
+C138, 1999.
+[30] D. M. Harrild and C. S. Henriquez, “A computer model of normal conduction in the human atria,” Circ. Res., vol. 87, no. 7, pp. E25–E36, Sep.
+2000.
+[31] M. Krueger, W. Schulze, K. Rhode, R. Razavi, G. Seemann, and
+O. Doessel, “Towards personalized clinical in-silico modeling of atrial
+anatomy and electrophysiology,” Med. Biol. Eng. Comput., special issue,
+pp. 1–10, Oct. 2012.
+[32] A. Cohen, N. Dyn, S. M. Kaber, and M. Postel, “Multiresolution schemes
+on triangles for scalar conservation laws,” J. Comput. Phys., vol. 161,
+no. 1, pp. 264–286, Jun. 2000.
+[33] R. Abgrall and A. Harten, “Multiresolution representation in unstructured
+meshes,” SIAM J. Numer. Anal., vol. 35, no. 6, pp. 2128–2146, Nov. 1998.
+[34] S. Rush and H. Larsen, “A practical algorithm for solving dynamic membrane equations,” IEEE Trans. Biomed. Eng, vol. 25, no. 4, pp. 389–392,
+Jul. 1978.
+[35] M. Courtemanche, R. J. Ramirez, and S. Nattel, “Ionic targets for drug
+therapy and atrial fibrillation-induced electrical remodeling: insights from
+a mathematical model,” Cardiovasc. Res., vol. 42, no. 2, pp. 477–489,
+May 1999.
+[36] V. Jacquemet, N. Virag, Z. Ihara, L. Dang, O. Blanc, S. Zozor, J. M. Vesin,
+L. Kappenberger, and C. Henriquez, “Study of unipolar electrogram morphology in a computer model of atrial fibrillation,” J. Cardiovasc. Electrophysiol., vol. 14, no. 10, pp. S172–S179, Oct. 2003.
+[37] C. Kavouklis and Y. Kallinderis, “Parallel adaptation of general threedimensional hybrid meshes,” J. Comput. Phys., vol. 229, no. 9, pp. 3454–
+3473, May 2010.
+[38] M. C. Maclachlan, J. Sundnes, and R. J. Spiteri, “A comparison of nonstandard solvers for ODEs describing cellular reactions in the heart,”
+Comput. Methods Biomech. Biomed. Engin., vol. 10, no. 5, pp. 317–326,
+Oct. 2007.
+
+2593
+
+[39] J. Rosam, P. K. Jimack, and A. Mullis, “A fully implicit, fully adaptive
+time and space discretisation method for phase-field simulation of binary
+alloy solidification,” J. Comput. Phys., vol. 225, no. 2, pp. 1271–1287,
+2007.
+[40] P. Bastian, “Load balancing for adaptive multigrid methods,” SIAM J. Sci.
+Comput., vol. 19, no. 4, pp. 1303–1321, Jul. 1998.
+[41] M. T. Jones and P. E. Plassmann, “Parallel algorithms for adaptive mesh
+refinement,” SIAM J. Sci. Comput., vol. 18, no. 3, pp. 686–708, 1997.
+[42] L. Oliker, R. Biswas, and H. N. Gabow, “Parallel tetrahedral mesh adaptation with dynamic load balancing,” Parallel Comput., vol. 26, no. 12,
+pp. 1583–1608, Nov. 2000.
+[43] W. F. Mitchell, “A refinement-tree based partitioning method for dynamic
+load balancing with adaptively refined grids,” J. Par. Dist. Comput., vol. 67,
+no. 4, pp. 417–429, 2007.
+[44] J. Southern, G. J. Gorman, M. D. Piggott, and P. E. Farrell, “Parallel
+anisotropic mesh adaptivity with dynamic load balancing for cardiac electrophysiology,” J. Comput. Sci., vol. 3, no. 1–2, pp. 8–16, Jan. 2012.
+
+Alessandro Cristoforetti received the M.S. (Laurea) and the Ph.D. degrees in physics from the University of Trento, Trento, Italy, in 2004 and 2009,
+respectively.
+Since 2009, he has been a Postdoctoral Fellow in
+the Laboratory of Biophysics and Biosignals, Department of Physics, University of Trento, collaborating
+to projects in the field of cardiac arrhythmias. His
+current research interests include image processing,
+segmentation and registration of cardiac multimodal
+data, and numerical methods for cardiac arrhythmia
+simulations.
+
+Michela Masè received the M.S. (Laurea) and the
+Ph.D. degrees in physics from the University of
+Trento, Trento, Italy, in 2002 and 2006, respectively.
+Since 2006, she has been a Postdoctoral Fellow
+in the Laboratory of Biophysics and Biosignals, Department of Physics, University of Trento, where she
+is involved in projects in the field of cardiac arrhythmias. Her current research interests include biomedical signal processing, time series analysis, and mathematical modeling of physiological systems with main
+interests in the study of atrial arrhythmia mechanisms
+and cardiovascular system regulation.
+
+Flavia Ravelli received the M.S. (Laurea) degree in
+physics from the University of Trento, Trento, Italy,
+in 1986, and the Ph.D. degree in physiology from the
+University of Torino, Torino, Italy, in 1991.
+She was a Postdoctoral Fellow in the Department
+of Anatomy and Physiology, University of Torino,
+from 1992 to 1994, and afterward, she was a Researcher in the Division of Medical Biophysics of the
+Institute for Scientific and Technological Research,
+Trento. Since 2001, she has been with the Laboratory
+of Biophysics and Biosignals, Department of Physics,
+University of Trento. Her current research interests include cardiac electrophysiology, the mechanisms of atrial arrhythmias, mechanoelectrical coupling in the
+heart, and modeling and analysis of cardiac signals.
+
+

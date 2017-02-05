@@ -1,0 +1,1233 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+859
+
+Automatic Ki-67 Counting Using Robust Cell
+Detection and Online Dictionary Learning
+Fuyong Xing∗ , Student Member, IEEE, Hai Su, Janna Neltner, and Lin Yang, Member, IEEE
+
+Abstract—Ki-67 proliferation index is a valid and important
+biomarker to gauge neuroendocrine tumor (NET) cell progression
+within the gastrointestinal tract and pancreas. Automatic Ki-67
+assessment is very challenging due to complex variations of cell
+characteristics. In this paper, we propose an integrated learningbased framework for accurate automatic Ki-67 counting for NET.
+The main contributions of our method are: 1) A robust cell counting and boundary delineation algorithm that is designed to localize
+both tumor and nontumor cells. 2) A novel online sparse dictionary
+learning method to select a set of representative training samples.
+3) An automated framework that is used to differentiate tumor
+from nontumor cells (such as lymphocytes) and immunopositive
+from immunonegative tumor cells for the assessment of Ki-67 proliferation index. The proposed method has been extensively tested
+using 46 NET cases. The performance is compared with pathologists’ manual annotations. The automatic Ki-67 counting is quite
+accurate compared with pathologists’ manual annotations. This is
+much more accurate than existing methods.
+Index Terms—Cell detection, classification, Ki-67, neuroendocrine tumor (NET), segmentation.
+
+I. INTRODUCTION
+EUROENDOCRINE tumor (NET) is one of the most common cancers leading to death worldwide. Personalized diagnosis and treatment have significant influences on the survival
+of the NET patients. Recently, Ki-67 proliferation index, which
+is represented as the ratio between the numbers of immunopositive tumor cells and all tumor cells, is increasingly considered as
+a valid biomarker to evaluate tumor cell progression and predicting therapy responses [1]. Manual Ki-67 assessment is subject
+to a low throughput processing rate and pathologist-dependent
+bias. Computer-aided pathological image analysis is a promising approach to improve the objectivity and reproducibility.
+However, it is difficult to access automatic and accurate Ki-67
+counting in digitized NET images, since the complex nature of
+
+N
+
+Manuscript received June 13, 2013; revised September 23, 2013 and November 6, 2013; accepted November 8, 2013. Date of publication November 20,
+2013; date of current version February 14, 2014. Asterisk indicates corresponding author.
+∗ F. Xing is with the Division of Biomedical Informatics, Department of Biostatistics, and the Department of Computer Science, University of Kentucky,
+Lexington, KY 40506 USA (e-mail: fuyong.xing@uky.edu).
+H. Su and L. Yang are with the Division of Biomedical Informatics, Department of Biostatistics, and the Department of Computer Science, University of Kentucky, Lexington, KY 40506 USA (e-mail: hai.su@uky.edu;
+lin.yang@uky.edu).
+J. Neltner is with the Department of Pathology, University of Kentucky, Lexington, KY 40506 USA.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2291703
+
+histopathological images, such as variations of image texture,
+color, size, and shape, presents significant challenges for accurate automatic Ki-67 counting. In addition, tumor and nontumor
+cells are usually clustered such that the nontumor cells are also
+counted using many traditional methods, which lead to large
+counting errors.
+In Ki-67 staining for NET, the color of immunonegative to immunopositive tumor cells ranges from blue to brown (see Fig. 1)
+in terms of the stage of Ki-67 proliferation. Many computerized
+methods rely on the color feature to detect and classify cells
+for Ki-67 scoring. Al-Lahham et al. [2] first applied K-means
+clustering to a transformed color space, and subsequently used
+mathematical morphology and connected component analysis
+to segment and count cells on Ki-67 stained histology images.
+An image analysis system is utilized in [3] to quantify tumor
+cells, where color intensity thresholds need to be properly selected. In [4], color deconvolution and binarization thresholds
+are reported for automated assessment of Ki-67 expression in
+breast cancer. However, it is difficult for these methods to differentiate tumor from nontumor and to handle touching cells.
+Recently, Nielsen et al. [5] first used a MART1 verification
+strategy to select tumor areas, and calculated cell areas and
+irregularity to classify positive and negative tumor cells that
+are obtained by using intensity-based thresholding functions.
+In [6], an established image analysis software [7] is applied
+to quantitation of the Ki-67 proliferation index, and multiple
+staining methods are used to discriminate tumor from nontumor cells. In order to handle touching cells, Loukas et al. [8]
+detected all cells using a Laplacian-of-Gaussian (LoG) filter followed by a distance map transformation for cancer cell counting, and then applied principal component analysis to a transformed color space for immunopositive and immunonegative
+cells. Markiewicz et al. [9], [10] employed the watershed algorithm to separate touching cells and a support vector machine (SVM) classifier to differentiate immunopositive from
+immunonegative cells, and similar methods are also presented
+in [11] and [12]. However, these methods cannot precisely differentiate tumor from nontumor cells and separate touching cells
+simultaneously. The Aperio image analysis software is utilized
+in [13] and [14] for the assessment of Ki-67 proliferation index, but the nontumor cells such as lymphocytes and stromal
+cells need to be excluded manually [13], and therefore it is not
+completely automatic.
+Besides the aforesaid methods, more general and sophisticated cell detection algorithms can also be used to estimate Ki67 proliferation index. Bernardis and Yu [15] formulated cell
+detection as a spectral graph problem, where pixels are graph
+nodes and locating cells become dissecting the graph based on
+
+0018-9294 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+860
+
+Fig. 1.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+Workflow of the proposed automatic Ki-67 proliferation index scoring system.
+
+weighted connections between nodes. Another graph-based cell
+detection and counting method can be found in [16], where a
+graph-based image representation is first created using luminance information and then a graph mining process is employed
+to detect the cells. In [17], an object detection and segmentation
+method based on concavity detection and ellipse fitting is presented for automatic cell counting. Lou et al. [18] detected and
+segmented cell nuclei using blob-like shape prior, and solved an
+optimization problem in the graph cut framework. A K-nearest
+neighbor-based graph is proposed in [19] for Ki-67 hot spots
+detection on glioblastoma, and a voronoi diagram-based nuclei
+detection and segmentation is presented in [20].
+Watershed and its variants are another popular group of cell
+detection and segmentation methods. Yang et al. [21] detected
+the cell markers based on condition erosion morphology and
+applied the marker-based watershed to cell segmentation. A
+supervised learning-based marker detection approach for watershed cell segmentation is presented in [22]. Lin et al. [23]
+proposed a 3-D watershed algorithm incorporating intensity gradient and geometric distance for nuclei segmentation. In [24],
+an enhanced watershed transform based on flood level thresholds is presented for nuclei detection and segmentation on RNAi
+fluorescent cellular images. Jung and Kim [25] applied distance
+transformation-constrained H-minima transform to nuclei detection on cervical and breast cell images, while an adaptive
+H-minima transform is presented in [26]. Another H-minima
+transform-based watershed algorithm combined with a region
+merging technique is proposed in [27] to handle the oversegmentation.
+For cells that usually exhibit circular or approximately circular shapes, radial voting has been widely used. Parvin et al. [28]
+proposed an iterative radial voting (IRV) algorithm based on
+oriented kernels to localize cell nuclei, in which the voting
+direction and areas are dynamically updated within each consecutive iteration. A computationally efficient single-pass voting (SPV) for cell detection is reported in [29], which applies
+mean shift clustering instead of iterative voting to final seed
+localization. Schmitt and Hasse [30] detected individual cells
+using an iterative kernel voting based on the distance transformation and the local intensities, and another similar iterative voting algorithm for nucleus center detection is reported
+in [31]. A fast radial symmetry transform is presented in [32]
+for nuclei localization on H&E stained breast cancer biopsy
+images.
+
+Another class of methods uses spatial filters to detect
+cells/nulcei. A LoG filter-based algorithm to automatically detect cell nuclei is presented in [33] and [34]. Bao et al. [35]
+proposed to recognize nuclei for cell tracking using a 3-D spatial filter on caenorhabditis elegans. Supervised learning-based
+methods are also utilized to automatically localize cells. In [36],
+a statistical model using nonoverlapping extremal regions is reported to detect cells, while a learned shape model in [37] is
+employed to localize nuclei. Another learning-based cell detection algorithm [38] is proposed to first segment cluster on
+histopathology images and then individual cells are obtained by
+an iterative method based on detected concave points and radialsymmetry centers. Karsnas et al. [39] utilized learned intensity
+and label dictionaries [40] to segment out cells and further split
+the touching cases using a marker-based watershed algorithm
+based on cell shapes and areas. The algorithm is tested on two
+sets of stained images and achieves good performance. Recently,
+some other techniques are proposed for cell detection. In [41],
+cell detection for myxococcus xanthus bacteria is achieved using the Hessian matrix and an outer medical axis spike-based
+method. A spatially constrained EM algorithm with Markov
+prior is proposed in [42] to detect cell nuclei. More recently, a
+modified ultimate erosion process is developed in [43] to decompose a mixture of cells into markers, and an edge-to-marker
+association method is used to identify the set of evidences for
+cell delineation. Methods based on adaptive thresholds [44], [45]
+and mode finding [46], [47] are also presented for cell detection.
+In addition, statistical shape model [48], [49], learning-based deformable model [50], [51], Bayesian inference [52], [53], and
+shape prior-based level set [54], [55] are reported for object detection and segmentation and achieve high accuracy on specific
+medical images.
+The aforementioned general cell detection and segmentation
+algorithms are not specifically designed to calculate Ki-67 proliferation index. The nontumor cells such as lymphocytes, stromal, and/or epithelial cells thus often need to be excluded manually. Meanwhile, additional steps need to be designed to separate
+immunonegative and immuopositive tumor cells. In this paper,
+we propose an integrated learning-based algorithm (see Fig. 1)
+for automatic scoring of Ki-67 proliferation index of NET, with
+addressing the problems eariler simultaneously. In order to accurately and simultaneously localize a large number of cells, we
+propose a robust and efficient region-based voting algorithm to
+detect cell seeds (geometric centers). These seeds will be used to
+
+XING et al.: AUTOMATIC Ki-67 COUNTING USING ROBUST CELL DETECTION AND ONLINE DICTIONARY LEARNING
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+861
+
+(e)
+
+(f)
+
+Fig. 2. Procedure of hierarchical voting-based seed detection. (a) Illustration of voting area and direction, (b) original image, (c) distance map, (d) confidence
+map, (e) mean-shift clustering (the circle represents one point and the arrow denotes the mean-shift vector) on the final confidence map, (f) final seeds. Please note
+that pixel (x, y) in (a) sums all the voting values created by neighboring pixels {(m, n), (m 2 , n 2 ), (m 3 , n 3 ), . . .} whose voting areas contain (x, y).
+
+initialize a repulsive deformable model to extract touching cell
+boundaries with known object topology constraints. Next, an
+efficient online sparse dictionary learning algorithm is applied
+to select a set of representative training samples. Finally, tumor
+and nontumor cells are separated by a trained SVM classifier
+with both the cellular features and regional structure information. The Ki-67 proliferation index is calculated based on the
+classification results of immunopositive (brown cells in Fig. 1)
+and immunonegative (blue cells in Fig. 1) tumor cells.
+The rest of the paper is organized as follows: Section II
+presents the automatic Ki-67 counting algorithm. Section III illustrates the experimental results and discussion, and Section IV
+concludes the paper.
+II. METHODS
+Our novel integrated learning-based algorithm for automatic
+Ki-67 scoring of NET contains the following steps: 1) Robust
+cell detection and boundary delineation followed by cellular
+features extraction. 2) A learning-based region segmentation
+algorithm is used to generate a probability map to differentiate tumor and nontumor regions. 3) Both the cellular features
+and regional structure information are combined to provide accurate tumor cell detection. 4) The Ki-67 proliferation index
+is finally calculated using a classifier with color histograms to
+separate immunopositive (brown cells in Ki-67 staining) and
+immunonegative (blue cells in Ki-67 staining) tumor cells. The
+whole algorithm flowchart is shown in Fig. 1.
+A. Automatic Cell Detection and Boundary Delineation
+Robust cell detection is achieved by finding the geometric
+centers (seeds) of the cells. SPV in [29] localizes the seeds by
+performing a gradient magnitude-weighted majority vote, but it
+is not able to efficiently handle cell size and shape variations,
+since its single voting area and mean shift clustering with a
+unit bandwidth are not appropriate for different types of cells
+in one image. For a specific pixel, SPV only sums its own
+votes without counting those votes from its neighbors, which
+are important in localizing cell seeds. In addition, the gradient
+magnitudes are sensitive to noise, and pixels inside the cells
+may have much smaller magnitudes. Intuitively, the pixels close
+to cell centers should obtain higher weights than those near
+cell boundaries. Based on these observations, we introduce a
+
+region-based hierarchical voting in a distance transform map,
+which applies a Gaussian pyramid to the voting procedure to
+handle scale variations.
+Let T (x, y) denote the original image, and ∇T (x, y) be the
+gradient, for each pixel (x, y) at layer l the proposed cell detection algorithm defines its cone-shape voting areas Al with
+vertex at (x, y) and votes along the negative gradient direction:
+−∇T (x,y )
+∇T (x,y ) = − (cos(θ(x, y)), sin(θ(x, y))), where θ represents
+the angle of the gradient direction with respect to x-axis. A
+confidence map V (x, y) is calculated by weighting the distance
+transform map with a Gaussian kernel g(m, n, μx , μy , σ)
+V (x, y) =
+
+L
+
+
+
+I[(x, y) ∈ Al (m, n)]·
+
+l=0 (m ,n )∈S
+
+Cl (x, y)g(m, n, μx , μy , σ)
+
+(1)
+
+where S represents the set of all voting pixels, Al (m, n) denotes the cone-shape voting area with vertex (m, n) at layer
+l, and it is defined by the radial range (rm in , rm ax ) and angular range Δ, see Fig. 2(a). I(x) = I[(x, y) ∈ Al (m, n)] is
+the indicator function, and Cl (x, y) represents the distance
+transformation map at layer l, which can be the Euclidean
+distance transform. The isotropic Gaussian kernel is parametrically defined with (μx , μy ) = (x + (r m a x −r2m i n ) cos θ , y −
+(r m a x −r m i n ) sin θ
+) and scalar σ, which is used to encourage the
+2
+voting toward the cell central regions. Fig. 2(c) shows that pixels with higher Cl (x, y) values near the geometric center of
+a cell will enhance their contributions in (1). For each pixel
+(x, y), (1) provides a weighted sum of all the voting values created by its neighboring pixels whose voting areas contain (x, y)
+[see Fig. 2(a)], instead of only counting those votes created by
+its own. After the confidence map is generated [see Fig. 2(e)],
+mean shift [56] is employed to calculate the final seed for each
+individual cell, see Fig. 2(f). In comparison with SPV, hierarchical voting is more robust with respect to the detection of cells
+with relatively large size variations.
+The proposed cell detection algorithm indiscriminately detects both tumor and non-tumor cells, and therefore, the results
+cannot be directly used to calculate the Ki-67 proliferation index. Differentiation between tumor and nontumor cells is the
+critical step for accurate automatic Ki-67 scoring. In order to
+
+862
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+TABLE I
+MORPHOLOGICAL FEATURES FOR THREE-STAGE LEARNING-BASED
+CLASSIFICATION
+
+Fig. 3. Left: Seed detection used to initialize repulsive level set [24] and the
+proposed model. Middle and Right: Cell segmentation result using the repulsive
+level set and the proposed repulsive balloon snake. Please note that repulsive
+level set splits the green contour into two disconnected contours, and therefore
+creates a small hole on the top of the figure, while the repulsive balloon snake can
+precisely preserve the known object topology. It only generates three contours
+given three seeds.
+
+extract distinctive morphological features to separate tumor
+from nontumor cells, accurate cellular boundary delineation is a
+prerequisite. This is a challenging problem due to the complex
+color and intensity variations inside the cells, especially within
+touching cell clumps. Based on the cell detection results, we propose to describe cell boundaries by segmenting each individual
+cell with an improved deformable model.
+We introduce a contour-based repulsive term into the deformable model [57] to prevent evolving contours from crossing
+and merging with one another. For each cell, the model deforms
+the contour vi (s) until it achieves a balance between the internal
+F int (vi ) and external FRext (vi ) forces: F int (vi ) + FRext (vi ) = 0
+F int (vi ) = αvi (s) − βvi (s)
+∇Eext (vi (s))
+Eext (vi (s))
+N
+  1
+d−2
++ω
+ij (s, t)nj (t)dt
+
+(2)
+
+FRext (vi ) = γni (s) − λ
+
+j =1,j = i
+
+(3)
+
+and therefore each evolving contour only represents one cell
+without splitting or merging. This topology preserving feature
+makes the proposed method relatively more robust to inhomogeneous regions inside the cell. 2) The method in [55] utilizes
+watershed-based results to initialize the following level set evolution. The watershed can create a lot of oversegmented regions,
+but in our algorithm, we specifically designed a robust hierarchical voting method to provide robust seeds to initialize and
+guide the proposed topology preserving parametric deformable
+models to move contours toward the cell boundaries.
+
+0
+
+where the two terms in (2) are the second and fourth derivative
+of vi (s) with corresponding weights α and β, respectively. The
+ni (s) together with weight γ in (3) represents the pressure force,
+and ∇Eext (vi (s)) denotes the image force where Eext (vi (s)) =
+−∇T [x(s), y(s)]2 .
+Our newly introduced term (last term) in (3) represents the
+repulsive force, where N is the number of cells, dij (s, t) =
+vi (s) − vj (t)2 denotes the Euclidean distance between contour vi (s) and vj (t). The parameter ω controls the weight for
+the repulsive force. Using the previously detected seed as initializations, this repulsive deformable model can handle touching
+cells effectively. In order to prevent numerical instability, the
+repulsive force near dij = 0 is clipped and set as the one with
+dij = 1.
+Compared with [54], [55], [58] that introduce an area-based
+penalty term to avoid contour overlapping, we design a contourbased model to improve the computational and memory efficiency. In addition, there are several major differences: 1) Similar to the design of the geometric snake models [24], [59]–[61],
+the model in [55] is formulated within the level set framework
+that allows topological changes. This feature, although sometimes can provide desirable properties, may introduce false holes
+especially in the inhomogeneous regions inside or outside the
+cell (see Fig. 3). On the other hand, the proposed parametric repulsive deformable model can preserve known object topology,
+
+B. Training Sample Selection and Online Dictionary Learning
+Based on the results of cellular segmentation, a classifier can
+be trained to determine the segmented cell category (tumor or
+nontumor cells) with the following cellular features in (listed in
+Table I Stage I): geometric descriptors, color intensity, and cell
+shapes that are represented by Fourier shape descriptor [62].
+In total, we have extracted p = 5 + 9 × 3 + 80 = 112 features,
+where 3 represents R, G, and B color channels, and 80 denotes
+the first 20 harmonics (each corresponds to four coefficients)
+that are chosen in the Elliptical Fourier transformation.
+For more efficient and robust training, we propose to choose
+a set of representative samples that can approximate the entire
+training set. This is a data summary problem that can help to reduce the number of training samples, improve the computational
+efficiency, and more important, to increase the robustness by removing outliers from the original training set. A K-selection
+dictionary learning algorithm [63] is chosen to select K representatives {φk ∈ RW ×1 } to form a dictionary Φ ∈ RW ×K from
+the original dataset
+
+2
+2
+
+
+N 
+K
+
+
+
+
+
+
+
+
+
+φk ξik  + θei  ξi 
+min
+fi −
+
+
+
+{φ k }
+
+i=1 
+k =1
+2
+2
+
+s.t. 1 ξi = 1, ∀ i
+T
+
+(4)
+
+XING et al.: AUTOMATIC Ki-67 COUNTING USING ROBUST CELL DETECTION AND ONLINE DICTIONARY LEARNING
+
+where φk is the kth basis vector selected from the original
+training sample set, fi ∈ RW ×1 denotes the ith feature vector, ξi ∈ RK ×1 is the sparse coefficient with a weight θ, and
+ei ∈ RK ×1 represents the distance between fi and the basis
+vectors. Unlike the popular sparse dictionary learning method
+KSVD [64], where the dictionary bases are not consisted with
+the original samples, (4) enforces the bases to be directly selected from the dataset.
+The training data often do not come in one batch. Instead,
+they are often collected from different pathologists in different
+institutes in a sequential mode. It is not only time consuming but
+also impractical to retrain the dictionary whenever new training
+samples arrive. To deal with training in a sequential mode, the
+dictionary Φ is required to be online updated for classification.
+Recreation of the dictionary using the whole dataset including
+the old {fi }, i = 1, 2, . . . , N and new {finew }, i = 1, 2, . . . , M
+data are neither efficient nor feasible. Because the selected K
+representatives can efficiently describe the old dataset, it is sufficient to evaluate whether or not Φ are good representatives
+for {finew }. Thus, we can solve the optimization problem on a
+reduced dataset
+
+2
+2
+
+
+M
++K 
+K
+
+
+ new 
+
+
+
+fi
+
+e
+−
+φ
+ξ
++
+θ
+
+ξ
+min
+
+
+k ik
+i
+i
+
+
+
+{φ k }
+
+i=1 
+k =1
+2
+2
+
+s.t. 1 ξi = 1, ∀ i
+T
+
+(5)
+
+where {finew }, i = 1, 2, . . . , M are the new data, and
+{finew }, i = M + 1, M + 2, . . . , M + K are the previously selected representatives Φ. K  denotes the number of the representatives need to be selected for the new dataset that contains both
+old and new training samples. The data size in (5) is M + K
+which is much smaller than M + N (N represents the size of the
+original training dataset), and hence the optimization problem in
+(5) can be solved more efficiently. The online learning strategy
+enables the dictionary to be properly scaled up to represent a
+dynamic set of samples while still keeping the efficiency.
+C. Three-Stage Learning-Based Classification
+After an accurate segmentation and dictionary learning of all
+the cells in NET, a three-stage learning-based scheme combining
+cellular features and regional structure information is designed
+to differentiate tumor from nontumor cells, and immunopositive
+from immunonegative tumor cells for accurate Ki-67 counting.
+The reasons why we use multiple stages to calculate Ki-67
+proliferation index are: 1) Speed: first, it is much easier and
+faster to compute cellular features in Stage I than the texture
+in Stage II. Second, many typical nontumor cells will achieve
+relatively low-category probabilities using the simple cellular
+feature-based classifier in Stage I and can then be removed to
+avoid further processing. The subsequent classifiers will only
+need to focus on difficult cases. This cascade pipeline structure
+can dramatically improve the speed. 2) Flexibility: the feature
+computation in Stages I and II are independent, and either one
+can be replaced with other methods without changing the whole
+framework. 3) Evaluability and clinical purpose: in this pipeline
+framework, all intermediate results can be easily exported and
+
+863
+
+presented to doctors for evaluation and clinical purpose. 4) Scalability: we have specifically designed these three-stage pipeline
+structure instead of an integrated module like classification tree
+considering future parallel implementation using grid and/or
+cloud.
+Stage I: As shown in Table I, we have extracted 112 features for each sample. In order to select the most discriminative
+features for cell classification, a sparse representation model is
+applied to the original feature space
+min
+b,b 0
+
+N
+1 
+T
+log(1 + e−a i (b φ i +b 0 ) ), s.t. b1 ≤ η, b  0 (6)
+N i=1
+
+where N = N + + N − represents the number of training samples containing N + tumor and N − nontumor cells, and φi ∈
+RW ×1 is the extracted feature with W = 112 denoting the original dimension. b0 is the intercept and η represents the spar+
+−
+sity parameter. The binary vector a ∈ R(N +N )×1 represents
+the labels of cells used for training: ai = +1 for tumor and
+ai = −1 for nontumor. Due to the l1 norm constraint, the solution b∗ ∈ RW ×1 to (6) is sparse with nonzero elements corresponding to the selected discriminative features. Based on b∗
+with L nonzero elements, we can project all the features onto
+a low-dimensional discriminative subspace. An SVM classifier
+is learned to predict the cell category in this transformed sparse
+feature space. We remove those cells with low probabilities that
+often correspond to typical nontumor cells before the cell classification, such that the second classifier would focus on a reduced
+dataset. Please note that Stage I will only utilize the training data
+selected in Section II-B.
+Stage II: In Stage I, only cellular features are considered, and
+some nontumor cells (like lymphocytes) can be classified as
+tumor cells by mistake. The lymphocytes usually exhibit certain
+structural pattern on the specimens, which can be described with
+local structural features. To improve the classification accuracy,
+texton [65] feature is utilized to model the different structural
+level features between nontumor and tumor regions. A multiple
+scale Schmid filter bank [66] is used for image filtering
+ πrτ 
+r2
+(7)
+e− 2 σ 2
+H(r, σ, τ ) = H0 (σ, τ ) + cos
+σ
+where τ is the number of cycles of the harmonic
+ function within
+the Gaussian envelop of the filter and r = x2 + y 2 . A texton
+library is constructed using K-means on 20 randomly selected
+NET specimens using the image filtering results with Schmid
+filter bank. Considering computational efficiency, an integral
+histogram [67] is utilized to calculate the multiscale windowed
+texton histogram. Finally, the logistic boost [68] is employed
+to calculate the probability map using the multiscale texton
+histograms as features.
+Using the texture classification-based probability map, each
+individual cell will obtain a score to evaluate its probability belonging to tumor or nontumor cells (see Table I). In addition,
+the ratio between the probability of one cell and the probability
+average for all its neighboring cells provides a measurement of
+cell category distribution. As one can expect, the lymphocyte regions will exhibit higher probability to be classified as nontumor
+patterns, which can be discarded before Stage II. In this way, the
+
+864
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+Fig. 4. Results of (a) cell detection, (b) segmentation, and (c) classification on several randomly selected image patches. Some small patches are zoomed in
+for better illustration in (d). Cells with yellow/red contours represent immunopositive/immunonegative tumor cells. Those with green and blue contours denote
+nontumor (including lymphocytes or nonlymphocytes) cells, which are recognized by the trained classifiers in Stage II and III, respectively. Some cells (e.g.,
+lymphocytes) without any markers denote that they are excluded in cell detection stage. Please note that we did not count the cells touching with image boundaries
+on purpose.
+
+classifier in Stage II will focus more on the challenging cases.
+This improves both computational efficiency and classification
+accuracy.
+In Stage II, the mean/standard deviations of pixel probabilities
+in each cell, and the percentage of probability summation of one
+
+cell over the probability average for all cells in its local region
+are calculated. These statistical features are concatenated with
+the previously predicted cellular probabilities in Stage I to train
+a second SVM classifier. The output will produce the labels to
+differentiate tumor from nontumor cells.
+
+XING et al.: AUTOMATIC Ki-67 COUNTING USING ROBUST CELL DETECTION AND ONLINE DICTIONARY LEARNING
+
+865
+
+Fig. 5. Cell detection (left), segmentation (middle), and classification (right) using the proposed method on one tissue microarray disc. Several patches are
+zoomed in for better illustration for the detection and classification. The cells with different colors in the leftmost and rightmost panels have the same meanings as
+those in Fig. 4.
+
+Stage III: Based on the classification in Stage II, the final
+step is to separate immunopositive from immunonegative tumor
+cells. This is achieved by training a final classifier for all the
+Ki-67 positive staining cells using the features listed in Stage I
+in Table I, and cellular intensity histogram (a 16-bin intensity
+histogram separately for each channel, as shown in Stage III in
+Table I) to differentiate the immuopositive and immunonegative
+tumor cells.
+III. EXPERIMENTAL RESULTS AND DISCUSSION
+The proposed algorithm is extensively tested on 46 NET cases
+with each case corresponding to two or three images, which are
+captured at 20× magnification. In total, we have 129 images.
+For each case, we guarantee at least 2000 mixed tumor and
+nontumor cells are included. All the data are collected from
+the Department of Pathology at University of Kentucky. Boardcertified pathologists have spent several weeks in annotating all
+the 129 images. We randomly select 20 image for training and
+the rest is used for testing. The cell detection and classification
+algorithms are implemented with C/C++. MATLAB is used
+for cell segmentation on a PC machine with 3.3-GHz Inteli3
+CPU and 16-GB memory. The parameters are: σ = 0.3, l = 2
+in (1), α = 0.05, β = 0, γ = 0.5, λ = 5, w = 0.7 in (2), (3), θ =
+0.0001 in (4), (5), and η = 80 in (6).
+A. Cell Detection
+Both qualitative and quantitative analyses are conducted for
+the proposed cell detection algorithm. In Fig. 4, thousands of
+cells are correctly detected and segmented on several randomly
+selected image patches, which contains both tumor and nontumor cells. We also test our method on one sample tissue
+microarray disc, as shown in Fig. 5. The computational time
+for a digitized 2310 × 2150 image is only 96.5 s without any
+specific optimization, which indicates the efficiency of our cell
+detection algorithm compared with 30-min manual counting by
+pathologists.
+The proposed method is compared with four recent
+state of the arts: LoG filters [33], IRV [28], SPV [29], and
+ITCN [34], and the results are shown in Fig. 6. As one can see,
+it is difficult for LoG and ITCN to handle inhomogeneous in-
+
+tensity and touching cells. LoG and ITCN falsely detect some
+seeds on cell boundaries and in the background, respectively,
+so they could have a relatively high false detection. IRV and
+SPV may fail on elongated cells due to the assumption of approximate circular objects. In addition, it is not easy for IRV
+and SPV to create a general rule for parameter selection on one
+single image containing cells with different sizes and shapes.
+However, the proposed algorithm is more robust with respect to
+the variations of cell scale and intensity. This can be attributed
+to the region-based hierarchical voting on the distance map.
+To quantitatively evaluate seed detection accuracy, we measure the Euclidean distances between manually located seeds
+and those created by automatic algorithms in Table II. It is clear
+that LoG is outperformed by the other three methods, and ours
+produces the best performance. The reason that IRV, SPV, and
+ours give approximately equal pixel-wise detection accuracy
+is because we did not consider the cases of under- (UR) and
+overdetection (OR).
+In order to evaluate the detection accuracy in a more effective manner, we have defined the following rigorous metrics
+to evaluate automatic cell detection accuracy: 1) UR, shown
+in Fig. 7(b): No seeds are detected inside a circular region
+with a radius r = 4 pixels centered at the ground-truth seed.
+2) OR, shown in Fig. 7(c) and (d): More than one seed are detected inside the central circular region. 3) Effective rate (ER):
+The ratio between the number of detected seeds and groundtruth seeds, which is used to measure the methods’ robustness
+to background clutter. ER = 1 indicates the strongest robustness. Table III shows the comparative performance the rates of
+UR/OR and the ER. LoG and IRV miss some cells, and ITCN
+is relatively sensitive to noises on the image background. The
+SPV can produce better results, but it is outperformed by the
+proposed method. We also quantitatively evaluate the proposed
+method using precision (P ), recall (R) and F1 score, which are
+TP
+TP
+∗R
+, R = TP+FN
+, and F1 = 2∗P
+defined as P = TP+FP
+P +R . True
+positive (TP) is defined as a detected seed that is inside the central circular region of the ground-truth seed, see Fig. 7(a). False
+positive (FP) is defined as the cases that at least one seed is detected outside this circular region but inside the local rectangle
+region (2-pixel extension from the cell contour in the vertical and horizontal directions), as shown in Fig. 7(d)–(h). False
+
+866
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+Fig. 6. Geometric centers of cells (seeds) detection on several randomly selected image patches. Row 1 is the original image patches. Rows 2, 3, 4, 5, and 6
+correspond to the automatic detection results produced by LoG [33], IRV [28], SPV [29], ITCN [34], and the proposed algorithm, respectively. The missing or
+false seeds are highlighted with black dashed rectangles.
+TABLE II
+PIXEL-WISE SEED DETECTION ACCURACY COMPARED
+WITH GROUND-TRUTH ANNOTATIONS BY PATHOLOGISTS
+
+LoG [33]
+IRV [28]
+SPV [29]
+ITCN [34]
+Proposed
+
+M ean
+2.72
+1.94
+1.82
+2.02
+1.72
+
+V ariance
+1.05
+1.14
+1.20
+1.39
+0.06
+
+M in
+0.12
+0.11
+0.07
+0.11
+0.01
+
+M ax
+4.95
+4.97
+4.98
+4.97
+4.84
+
+TABLE III
+COMPARATIVE SEED DETECTION RESULTS EVALUATED
+USING DIFFERENT METRICS
+
+LoG [33]
+IRV [28]
+SPV [29]
+ITCN [34]
+Proposed
+
+UR
+0.14
+0.14
+0.10
+0.05
+0.07
+
+OR
+0
+0.06
+0
+0.02
+0
+
+ER
+1.08
+1.11
+1.05
+1.26
+1.02
+
+P
+0.75
+0.85
+0.88
+0.78
+0.89
+
+R
+0.82
+0.83
+0.88
+0.93
+0.91
+
+F1
+0.78
+0.84
+0.88
+0.86
+0.90
+
+negatives (FN) are defined as the underdetections [see Fig. 7(b)].
+As shown in Table III, LoG and ITCN have relatively lower precision and IRV has higher FN, while SPV and ours produce the
+best performance.
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+B. Ki-67 Scoring
+
+(e)
+
+(f)
+
+(g)
+
+(h)
+
+Fig. 7. Definition of quantitative evaluation metrics. The red dot is the doctor’s
+annotation. The green circle represents the ground truth region. Any seed that
+locates inside the green circle will be treated as correct detection (TP). Red
+contours are cell boundaries. The yellow crosses denote the automatic detected
+results. TP (a), FN/underdetection (b), OR (c) (d), and FP (d)–(h) are presented
+in this Figure. Please note that the case (d) belongs to both OR and FP. Larger
+circular regions (r > 4) and local rectangle regions are used for illustrative
+purpose.
+
+In the experiments at Stage I, circularity ratio, axis ratio, color
+mean, standard deviation, kurtosis, contrast, correlation, and homogeneity are selected by the sparse representation model as the
+most discriminative features to separate tumor from nontumor
+cells. This indicates that for Ki-67 staining, tumor cells intend
+to exhibit more circular shapes than nontumor cells. Nontumors cells often have more inhomogeneous textures and lighter
+staining. The first SVM classifier uses a Gaussian kernel (the
+parameter σ = 0.3 and the penalty c = 1) with these selected
+discriminative features.
+Combined with the texton histogram-based probabilities, a
+second SVM classifier is trained to separate tumor and nontumor
+
+XING et al.: AUTOMATIC Ki-67 COUNTING USING ROBUST CELL DETECTION AND ONLINE DICTIONARY LEARNING
+
+867
+
+Fig. 8. Misclassification rates (row 1) and corresponding ROC curves (row 2) with respect to different parameters using different kernels to separate tumor and
+nontumor cells (left four-column panel), and immunopositive and immunonegative tumor cells (right four-column panel). From left to right, each panel represents
+linear, polynomial, Guassian, and sigmoid kernels, respectively. In row 1, Mis. Rate and Poly. Degree represent misclassification rate and polynomial degree,
+respectively. In row 2, TPR/FPR means TP/FP rate.
+
+Fig. 9.
+
+Manually calculated Ki-67 proliferation index compared with the automatic Ki-67 proliferation index generated by different methods for 46 patients.
+
+cells. Threefold cross validation is applied to evaluate the classifier with respect to parameters on four different kernels, shown in
+the left four columns of Fig. 8. For linear, polynomial, and Gaussian kernels, the misclassification rates will be relatively high
+with too small or large penalty C, which corresponds to the cases
+of underfitting or overfitting, respectively. We can also observe
+that the kernel parameters (polynomial order or precision γ for
+Gaussian kernel) interact with the model complexity. For the sigmoid kernel, we keep the penalty fixed (penalty = 8) and calculate the errors by tuning up the slope and the intercept. We found
+that the sigmoid with relatively large slopes can produce slightly
+better performance than linear kernel, but it is outperformed
+by the polynomial and Gaussian kernels. With the optimal parameters, we apply the selected models to the testing samples,
+and display the ROC curves with different kernels in the second row of Fig. 8. The accuracy, specificity, and sensitivity are
+90.2%, 88.8%, 91.6% and 90.2%, 89.6%, 90.8% for polynomial
+and Gaussian kernels, better than those using linear and sigmoid
+kernels, with 85.4%, 93.6%, 77.0% and 88.2%, 86.2%, 90.3%,
+respectively. The same procedure is applied to classify immunopositive and immunonegative tumor cells (shown in the
+right four columns of Fig. 8), and similar performance is
+achieved with respect to parameters with different kernels.
+Based on threefold cross validation, the accuracy, specificity,
+and sensitivity are 89.9%, 90.3%, 89.4%, 90.3%, 90.3%, 90.2%,
+and 90.1%, 90.0%, 90.2% for linear, polynomial, and Gaussian
+kernels, respectively, which are better than the sigmoid kernel with 83.8%, 86.2%, 81.2%. The results demonstrate that
+a Gaussian or polynomial kernel with proper parameters can
+
+achieve high accuracy and specificities without sacrificing the
+sensitivities.
+Fig. 9 displays the automatic calculated Ki-67 proliferation
+index based on the classification using a Gaussian kernel with
+parameters log2 C = 3 and log2 γ = 3, Aperio’s Ki-67 counting, and the Ki-67 calculation results using LoG, IRV, SPV, and
+ITCN as the cell detection algorithm. The comparison is also
+displayed on several randomly selected patches in Fig. 10. As
+we can see, the proposed algorithm outperforms all the other
+four methods due to precise cell detection and classification
+performance. Fig. 11 shows the absolute errors between the automatic and manual Ki-67 scores on the 46 cases. Our method
+not only produces best performance in terms of the mean values,
+but also gives smaller variance, which demonstrates the strong
+robustness of the proposed automatic Ki-67 counting algorithm.
+The reasons are: 1) our method can reliably separate touching
+cells, and 2) many lymphocytes are not discriminated from the
+true immunopositive tumor cells in existing methods, while in
+our algorithm these lymphocytes are correctly recognized based
+on accurate cellular level segmentation and classification.
+We also evaluate the performance of our system by comparing the sparse representation-based model with the data-driven
+feature selection method, support vector machine recursive feature elimination (SVM-RFE) [69]. Table IV shows the statistics of absolute errors of Ki-67 scoring between the different
+models and manual counting on the testing data, and the 80%
+column denotes the sorted 80% largest error of all the results,
+which is commonly used by doctors to evaluate the usability
+of the system. As we can see, our method produces similar
+
+868
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+TABLE V
+ASSESSMENT OF Ki-67 PROLIFERATION INDEX WITH RESPECT
+TO DICTIONARY SIZE
+
+1%
+5%
+10%
+15%
+20%
+
+Fig. 10. Effects of different cell detection methods in Ki-67 score computation
+on several randomly selected image patches. Row 1 is the original image patches.
+Rows 2, 3, 4, 5, and 6 correspond to LoG [33], IRV [28], SPV [29], ITCN
+[34], and the proposed algorithm, respectively. The false detection resulting in
+incorrect Ki-67 computation is highlighted with black dashed rectangles. The
+colors have the same meaning as those in Fig. 4.
+
+Fig. 11. Absolute errors between manually and automatically generated Ki-67
+proliferation index.
+TABLE IV
+ANALYSIS OF Ki-67 SCORING WITH DIFFERENT MODELS
+
+SVM-RFE [69]
+MCSVM
+OURS
+
+M ean
+0.37
+0.37
+0.34
+
+V arance
+0.16
+0.20
+0.17
+
+M in
+0
+0
+0
+
+M ax
+1.60
+1.96
+1.80
+
+80%
+0.64
+0.58
+0.52
+
+M ean
+0.36
+0.38
+0.39
+0.38
+0.34
+
+V arance
+0.14
+0.21
+0.22
+0.29
+0.17
+
+M in
+0
+0
+0
+0
+0
+
+M ax
+1.36
+2.24
+2.34
+3.19
+1.8
+
+variance as but lower average and 80% errors than SVM-RFE.
+The performance of multiclass SVM (MCSVM) with a Gaussian kernel is also presented in Table IV, and it is outperformed
+by SVM-RFE and ours as well. Although MCSVM gives similar mean error of Ki-67 score as SVM-RFE, it produces relatively larger numbers of both tumor and immunopositive tumor
+cells. In addition, the average running time of one image for
+MCSVM with C programming language is approximately two
+times higher than ours (about 0.2 s).
+In order to demonstrate the effect of dictionary size (the number of selected samples in the dictionary learning stage) on the
+assessment of Ki-67 proliferation index, we calculate the Ki-67
+score with different dictionary sizes on the annotated samples, as
+shown in Table V. The selected percentages are 1%, 5%, 10%,
+15%, and 20%. As one can tell, automatic Ki-67 scoring accuracy is not sensitive to the size of the dictionary. This is
+because a small number of selected samples based on the robust
+K-selection can already sufficiently represent the whole dataset.
+IV. CONCLUSION
+The significance of the accurate estimation of Ki-67 proliferation index is obvious. In current classification systems, namely
+the European Neuroendocrine Tumor Society (ENETS) and the
+World Health Organization, NETs were separated into three
+prognostically significant grades: low, intermediate, and high.
+Such stratification requires the documentation of mitotic counts
+and/or Ki-67 proliferation index. Low grade (grade 1) NETs
+have a mitotic count of less than two mitoses/ten high-powered
+fields (HPF) and/or a Ki-67 index of less than 3%. Intermediate
+(grade 2) NETs have a mitotic rate of 2–20 mitoses/ten HPF
+and/or a Ki-67 index of 3–20%. High-grade (grade 3) NETs are
+morphologically anaplastic, and often show mitotic rates greater
+than 20 mitoses/ten HPF and Ki-67 index well above 20%. As
+one can tell, these specific cutoffs (3% and 20%) need to be precisely determined in order to differentiate low, intermediate, and
+high grades of NETs. The precise tumor grading significantly
+impacts the diagnosis and prognosis accuracy of NETs.
+In this paper, we have introduced an automatic algorithm for
+Ki-67 scoring of digitized NET images. The novel cell detection algorithm can efficiently and accurately detect thousands
+of cells on a digitized NET image with Ki-67 staining. Furthermore, a three-stage learning-based approach is designed to
+differentiate tumor cells from nontumor cells and immunopositive and immunonegative tumor cells for an automatic, accurate,
+and robust quantification of Ki-67 proliferation index. We experimentally demonstrate the superior performance of the proposed
+
+XING et al.: AUTOMATIC Ki-67 COUNTING USING ROBUST CELL DETECTION AND ONLINE DICTIONARY LEARNING
+
+algorithm. The future work is to improve the efficiency of the
+cell segmentation algorithm. The repulsive deformable model
+can be speeded up by considering only the local repulsion for
+each evolving snake, repulsive forces from all the other snakes
+thus will be approximately modeled with those from a few local
+snakes. In addition, we plan to implement this model with C
+programming language to reduce its running time.
+REFERENCES
+[1] W. Jonat and N. Arnold, “Is the Ki-67 labelling index ready for clinical
+use?” Ann. Oncol., vol. 22, no. 3, pp. 500–502, 2011.
+[2] H. Z. Al-Lahham, R. S. Alomari, H. Hiary, and V. Chaudhary, “Automating proliferation rate estimation from Ki-67 histology images,” SPIE,
+vol. 8315, 2012.
+[3] Z. M. Mohammed, D. C. McMillan, B. Elsberger, J. J. Going, C. Orange,
+E. Mallon, J. C. Doughty, and J. Edwards, “Comparison of visual and
+automated assessment of Ki-67 proliferative activity and their impact on
+outcome in primary operable invasive ductal breast cancer,” Br. J. Cancer,
+vol. 106, no. 2, pp. 383–388, 2012.
+[4] J. Konsti, M. Lundin, H. Joensuu, T. Lehtimaki, H. Sihto, K. Holli,
+T. Turpeenniemi Hujanen, V. Kataja, L. Sailas, J. Isola, and J. Lundin,
+“Development and evaluation of a virtual microscopy application for automated assessment of Ki-67 expression in breast cancer,” BMC Clin.
+Pathol., vol. 11, no. 1, 2011.
+[5] P. S. Nielsen, R. Riber-Hansen, J. Raundahl, and T. Steiniche, “Automated
+quantification of mart1-verified Ki67 indices by digital image analysis in
+melanocytic lesions,” Arch. Pathol. Lab. Med., vol. 136, no. 6, pp. 627–
+634, 2012.
+[6] C. M. van der Loos, O. J. de Boer, C. Mackaaij, L. T. Hoekstra, T. M. van
+Gulik, and J. Verheij, “Accurate quantitation of Ki67-positive proliferating
+hepatocytes in rabbit liver by a multicolor immunohistochemical (IHC)
+approach analyzed with automated tissue and cell segmentation software,”
+J. Histochem. Cytochem., vol. 61, no. 1, pp. 11–18, 2013.
+[7] J. R. Mansfield, “Cellular context in epigenetics: Quantitative multicolor
+imaging and automated per-cell analysis of miRNAs and their putative
+targets,” Methods, vol. 52, pp. 271–280, 2010.
+[8] C. G. Loukas, G. D. Wilson, B. Vojnovic, and A. Linney, “An image
+analysis-based approach for automated counting of cancer cell nuclei in
+tissue sections,” Cytometry A, vol. 55, no. 1, pp. 30–42, 2003.
+[9] T. Markiewicz, C. Jochymski, R. Koktysz, and W. Kozlowski, “Automatic
+cell recognition in immunohistochemical gastritis stains using sequential
+thresholding and svm network,” in IEEE Int. Symp. Biomed. Imag. (ISBI),
+2008, pp. 971–974.
+[10] T. Markiewicz, P. Wisniewski, S. Osowski, J. Patera, W. Kozlowski, and
+R. Koktysz, “Comparative analysis of methods for accurate recognition
+of cells through nuclei staining of Ki-67 in neuroblastoma and estrogen/progesterone status staining in breast cancer,” Anal. Quant. Cytol.
+Histol., vol. 31, no. 1, pp. 49–62, 2009.
+[11] B. Grala, T. Markiewicz, W. Kozlowski, S. Osowski, J. Slodkowska, and
+W. Papierz, “New automated image analysis method for the assessment of
+Ki-67 labeling index in meningiomas,” BMC Clin. Pathol., vol. 47, no. 4,
+pp. 587–592, 2009.
+[12] J. Słodkowska, T. Markiewicz, B. Grala, W. Kozłowski, and W. Papierz,
+“Accuracy of a remote quantitative image analysis in the whole slide
+images,” Diagn. Pathol., vol. 6, no. Suppl. 1, 2011.
+[13] L. H. Tang, M. Gonen, C. Hedvat, I. M. Modlin, and D. S. Klimstra, “Objective quantification of the Ki67 proliferative index in neuroendocrine
+tumors of the gastroenteropancreatic system: a comparison of digital image analysis with manual methods,” Am. J. Surg. Pathol., vol. 36, no. 12,
+pp. 1761–1770, 2012.
+[14] S. Fasanella, E. Leonardi, C. Cantaloni, C. Eccher, I. Bazzanella,
+D. Aldovini, E. Bragantini, L. Morelli, L. V. Cuorvo, A. Ferro,
+F. Gasperetti, G. Berlanda, P. D. Palma, and M. Barbareschi, “Proliferative activity in human breast cancer: Ki-67 automated evaluation and the
+influence of different Ki-67 equivalent antibodies,” Diagn. Pathol., vol. 6,
+no. S1, 2011.
+[15] E. Bernardis and S. X. Yu, “Finding dots: segmentation as popping out
+regions from boundaries,” in IEEE Conf. Comput. Vis. Pattern Recognit.
+(CVPR), 2010, pp. 199–206.
+[16] G. Faustino, M. Gattass, S. Rehen, and C. de Lucena, “Automatic embryonic stem cells detection and counting method in fluorescence microscopy
+images,” in IEEE Int. Symp. Biomed. Imag. (ISBI), 2009, pp. 799–802.
+
+869
+
+[17] S. Kothari, Q. Chaudry, and M. D. Wang, “Automated cell counting and
+cluster segmentation using concavity detection and ellipse fitting techniques,” in IEEE Int. Symp. Biomed. Imag. (ISBI), 2009, pp. 795–798.
+[18] X. Lou, U. Koethe, J. Wittbrodt, and F. Hamprecht, “Learning to segment
+dense cell nuclei with shape prior,” in IEEE Conf. Comput. Vis. Pattern
+Recognit. (CVPR), 2012, pp. 1012–1018.
+[19] M. X. Lopez, O. Debeir, C. Maris, I. Roland, I. Salmon, and
+C. Decaestecker, “Ki-67 hot-spots detection on glioblastoma tissue sections,” in IEEE Int. Symp. Biomed. Imag. (ISBI), 2010, pp. 149–152.
+[20] S. Naik, S. Doyle, S. Agner, A. Madabhushi, M. Feldman, and
+J. Tomaszewski, “Automated gland and nuclei segmentation for grading
+of prostate and breast cancer histopathology,” in Proc. IEEE Int. Symp.
+Biomed. Imag. (ISBI), 2008, pp. 284–287.
+[21] X. Yang, H. Li, and X. Zhou, “Nuclei segmentation using markercontrolled watershed, tracking using mean-shift, and kalman filter in
+time-lapse microscopy,” IEEE Trans. Ciruits Syst. (TCS), vol. 53, no. 11,
+pp. 2405–2414, 2006.
+[22] K. Z. Mao, P. Zhao, and P. H. Tan, “Supervised learning-based cell image
+segmentation for p53 immunohistochemistry,” IEEE Trans. Biomed. Eng.
+(TBME), vol. 53, no. 6, pp. 1153–1163, 2006.
+[23] G. Lin, U. Adiga, K. Olson, J. F. Guzowski, C. A. Barnes, and B. Roysam,
+“A hybrid 3D watershed algorithm incorporating gradient cues and object
+models for automatic segmentation of nuclei in confocal image stacks,”
+Cytometry A, vol. 56, no. 1, pp. 23–36, 2003.
+[24] P. Yan, X. Zhou, M. Shah, and S. T. C. Wong, “Automatic segmentation
+of high-throughput RNAi fluorescent cellular images,” IEEE Trans. Inf.
+Technol. Biomed. (TITB), vol. 12, no. 1, pp. 109–117, 2008.
+[25] C. Jung and C. Kim, “Segmenting clustered nuclei using h-minima
+transform-based marker extraction and contour parameterization,” IEEE
+Trans. Biomed. Eng. (TBME), vol. 57, no. 10, pp. 2600–2604, 2010.
+[26] J. Cheng and J. C. Rajapakse, “Segmentation of clustered nuclei with
+shape markers and marking function,” IEEE Trans. Biomed. Eng. (TBME),
+vol. 56, no. 3, pp. 741–748, 2009.
+[27] H. C. Akakin, H. Kong, C. Elkins, J. Hemminger, B. Miller,
+J. Ming, E. Plocharczyk, R. Roth, M. Weinberg, R. Ziegler,
+G. Lozanski, and M. N. Gurcan, “Automated detection of cells from
+immunohistochemically-stained tissues: application to Ki-67 nuclei staining,” SPIE, vol. 8315, 2012.
+[28] B. Parvin, Q. Yang, J. Han, H. Chang, B. Rydberg, and M. H. BarcellosHoff, “Iterative voting for inference of structural saliency and characterization of subcellular events,” IEEE Trans. Image Process. (TIP), vol. 16,
+pp. 615–623, 2007.
+[29] X. Qi, F. Xing, D. J. Foran, and L. Yang, “Robust segmentation of overlapping cells in histopathology specimens using parallel seed detection and
+repulsive level set,” IEEE Trans. Biomed. Eng. (TBME), vol. 59, no. 3,
+pp. 754–765, 2012.
+[30] O. Schmitt and M. Hasse, “Radial symmetries based decomposition of
+cell clusters in binary and gray level images,” Pattern Recognit., vol. 41,
+no. 6, pp. 1905–1923, 2008.
+[31] A. Hafiane, F. Bunyak, and K. Palaniappan, “Fuzzy clustering and active
+contours for histopathology image segmentation and nuclei detection,” in
+Adv. Concepts Intell. Vis. Syst. (ACIVS), 2008, vol. 5259, pp. 903–914.
+[32] M. Veta, A. Huisman, M. Viergever, P. J. Van Diest, and J. P. W. Pluim,
+“Marker-controlled watershed segmentation of nuclei in H&E stained
+breast cancer biopsy images,” in Proc. IEEE Int. Symp. Biomed. Imag.
+(ISBI), 2011, pp. 618–621.
+[33] Y. Al-Kofahi, W. Lassoued, W. Lee, and B. Roysam, “Improved automatic
+detection and segmentation of cell nuclei in histopathology images,” IEEE
+Trans. Biomed. Eng. (TBME), vol. 57, no. 4, pp. 841–852, 2010.
+[34] J. Byun, M. R. Verardo, B. Sumengen, G. Lewis, B. S. Manjunath, and
+S. K. Fisher, “Automated tool for the detection of cell nuclei in digital
+microscopic images: application to retinal images,” Mol. Vis., vol. 12,
+pp. 949–960, 2006.
+[35] Z. Bao, J. I. Murray, T. Boyle, S. L. Ooi, M. J. Sandel, and R. H. Waterston,
+“Automated cell lineage tracing in caenorhabditis elegans,” Mol. Vis.,
+vol. 103, no. 8, pp. 2707–2712, 2006.
+[36] C. Arteta, V. Lempitsky, J. A. Noble, and A. Zisserman, “Learning to
+detect cells using non-overlapping extremal regions,” in Int. Conf. Med.
+Image Comput. Comput. Assist. Intervent. (MICCAI), 2012, vol. 7510,
+pp. 348–356.
+[37] A. Santella, Z. Du, S. Nowotschin, A. K. Hadjantonakis, and Z. Bao, “A
+hybrid blob-slice model for accurate and efficient detection of fluorescence
+labeled nuclei in 3D,” BMC Bioinformat., vol. 11, no. 1, 2010.
+[38] H. Kong, M. Gurcan, and K. Belkacem-Boussaid, “Partitioning
+histopathological images: an integrated framework for supervised
+
+870
+
+[39]
+[40]
+[41]
+
+[42]
+
+[43]
+[44]
+
+[45]
+[46]
+[47]
+
+[48]
+
+[49]
+
+[50]
+
+[51]
+[52]
+
+[53]
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+color-texture segmentation and cell splitting,” IEEE Trans. Med. Imag.
+(TMI), vol. 30, no. 9, pp. 1661–1677, 2011.
+A. Karsnas, A. L. Dahl, and R. Larsen, “Learning histopathological patterns,” J. Pathol. Inform. (JPI), vol. 2, no. 2, 2011.
+A. L. Dahl and R. Larsen, “Learning dictionaries of discriminative image
+patches,” in Brit. Mach. Vis. Conf. (BMVC), 2011, pp. 1–11.
+X. Liu, C. W. Harvey, H. Wang, M. S. Alber, and D. Z. Chen, “Detecting
+and tracking motion of myxococcus xanthus bacteria in swarms,” in Proc.
+Int. Conf. Med. Image Comput. Comput. Assist. Intervent. (MICCAI),
+2012, vol. 7510, pp. 373–380.
+J. Monaco, J. Hipp, D. Lucas, S. Smith, U. Balis, and A. Madabhushi,
+“Image segmentation with implicit color standardization using spatially
+constrained expectation maximization: detection of nuclei,” in Proc. Int.
+Conf. Med. Image Comput. Comput. Assist. Intervent. (MICCAI), 2012,
+vol. 7510, pp. 365–372.
+C. Park, J. Z. Huang, J. X. Ji, and Y. Ding, “Segmentation, inference and
+classification of partially overlapping nanoparticles,” IEEE Trans. Pattern
+Anal. Mach. Intell. (TPAMI), vol. 35, no. 3, pp. 669–681, 2013.
+N. Harder, F. Mora-Bermudez, W. J. Godinez, A. Wunsche, R. Eils,
+J. Ellenberg, and K. Rohr, “Automatic analysis of dividing cells in live
+cell movies to detect mitotic delays and correlate phenotypes in time,”
+Genome Res., vol. 19, no. 11, pp. 2113–2124, 2009.
+F. Long, H. Peng, X. Liu, S. K. Kim, and E. Myers, “A 3D digital atlas
+of C. elegans and its application to single-cell analyses,” Nat. Methods,
+vol. 6, no. 9, pp. 667–672, 2009.
+G. Li, T. Liu, A Tarokh, J. Nie, L. Guo, A. Mara, S. Holley, and
+S. T. C. Wong, “3D cell nuclei segmentation based on gradient flow tracking,” BMC Cell Biol., vol. 8, no. 1, 2007.
+Y. Chen, E. Ladi, P. Herzmark, E. Robey, and B. Roysam, “Automated 5-D
+analysis of cell migration and interaction in the thymic cortex from timelapse sequences of 3-D multi-channel multi-photon images,” J. Immunol.
+Methods, vol. 340, no. 1, pp. 65–80, 2009.
+F. F. Berendsena, U. A. van der Heideb, T. R. Langeraka,
+A. N. T. J. Kotteb, and J. P. W. Pluima, “Free-form image registration regularized by a statistical shape model: application to organ
+segmentation in cervical MR,” Comput. Vis. Image Understand. (CVIU),
+vol. 117, no. 9, pp. 1119–1127, 2013.
+P. K. Saha, G. Liang, J. M. Elkins, A. Coimbra, L. T. Duong,
+D. S. Williams, and M. Sonka, “A new osteophyte segmentation algorithm using the partial shape model and its applications to rabbit femur
+anterior cruciate ligament transection via micro-CT imaging,” IEEE Trans.
+Biomed. Eng. (TBME), vol. 58, no. 8, pp. 2212–2227, 2011.
+S. S. Chandra, J. A. Dowling, K. K. Shen, P. Raniga, J. P. W. Pluim,
+P. B. Greer, O. Salvado, and J. Fripp, “Patient specific prostate segmentation in 3-D magnetic resonance images,” IEEE Trans. Med. Imag. (TMI),
+vol. 31, no. 10, pp. 1955–1964, 2012.
+P. K. Saha, B. Das, and F. W. Wehrli, “An object class-uncertainty induced adaptive force and its application to a new hybrid snake,” Pattern
+Recognit., vol. 40, no. 10, pp. 2656–2671, 2007.
+C. Lu, S. Chelikani, X. Papademetris, J. P. Knisely, M. F. Milosevic,
+Z. Chen, D. A. Jaffray, L. H. Staib, and J. S. Duncana, “An integrated
+approach to segmentation and nonrigid registration for application in
+image-guided pelvic radiotherapy,” Med. Image Anal. (MIA), vol. 15,
+no. 5, pp. 772–785, 2011.
+C. Lu, S. Chelikani, D. Jaffray, M. Milosevic, L. Staib, and J. Duncan,
+“Simultaneous nonrigid registration, segmentation, and tumor detection in
+MRI guided cervical cancer radiation therapy,” IEEE Trans. Med. Imaging
+(TMI), vol. 31, no. 6, pp. 1213–1227, 2012.
+
+[54] S. Ali, R. Veltri, J. I. Epstein, C. Christudass, and A. Madabhushi, “Adaptive energy selective active contour with shape priors for nuclear segmentation and gleason grading of prostate cancer,” in Proc. Int. Conf. Med.
+Image Comput. Comput. Assist. Intervent. (MICCAI), 2011, vol. 6891,
+pp. 661–669.
+[55] S. Ali and A. Madabhushi, “An integrated region-, boundary-, shapebased active contour for multiple object overlap resolution in histological
+imagery,” IEEE Trans. Med. Imag. (TMI), vol. 31, no. 7, pp. 1448–1460,
+2012.
+[56] D. Comaniciu and P. Meer, “Mean shift: A robust approach toward feature
+space analysis,” IEEE Trans. Pattern Anal. Mach. Intell. (TPAMI), vol. 24,
+no. 5, pp. 603–619, 2002.
+[57] L. D. Cohen, “On active contour models and balloons,” CVGIP: Image
+Understand., vol. 53, no. 2, pp. 211–218, 1991.
+[58] C. Zimmer and J.-C. Olivo-Marin, “Coupled parametric active contours,”
+IEEE Trans. Pattern Anal. Mach. Intell. (TPAMI), vol. 27, no. 11, pp. 1838–
+1842, 2005.
+[59] J. Yang, L. Staib, and J. Duncan, “Neighbor-constrained segmentation
+with level set based 3-D deformable models,” IEEE Trans. Med. Imag.
+(TMI), vol. 23, no. 8, pp. 940–948, 2004.
+[60] K. Mosaliganti, A. Gelas, A. Gouaillard, R. Noche, N. Obholzer, and
+S. Megason, “Detection of spatially correlated objects in 3D images using
+appearance models and coupled active contours,” in Proc. Int. Conf. Med.
+Image Comput. Comput. Assist. Intervent. (MICCAI), 2009, vol. 5762,
+pp. 641–648.
+[61] O. Dzyubachyk, W. A. van Cappellen, J. Essers, W. J. Niessen, and
+E. Meijering, “Advanced level-set-based cell tracking in time-lapse fluorescence microscopy,” IEEE Trans. Med. Imag. (TMI), vol. 29, no. 3,
+pp. 852–867, 2010.
+[62] F. Kuhl and C. Giardina, “Elliptic fourier features of a closed contour,”
+Comp. Graph. Image Process, vol. 18, no. 3, pp. 236–258, 1982.
+[63] B. Liu, J. Huang, C. Kulikowski, and L. Yang, “Robust visual tracking
+using local sparse appearance model and k-selection,” IEEE Trans. Pattern
+Anal. Mach. Intell. (TPAMI), vol. PP, no. 99, pp. 1–1, 2012.
+[64] M. Aharon, M. Elad, and A. Bruckstein, “K-SVD: an algorithm for designing overcomplete dictionaries for sparse representation,” IEEE Trans.
+Image Process. (TIP), vol. 54, no. 11, pp. 4311–4322, 2006.
+[65] B. Julesz, “Texton, the elements of texture preception, and their interaction,” Nature, vol. 290, no. 5802, pp. 91–97, 1981.
+[66] C. Schmid, “Constructing models for content-based image retrieval,” in
+Proc. IEEE Conf. Comput. Vis. Pattern Recognit. (CVPR), 2001, pp. 39–
+45.
+[67] F. M. Porikli, “Integral histogram: A fast way to extract histograms in
+cartesian spaces,” in Proc. IEEE Conf. Comput. Vis. Pattern Recognit.
+(CVPR), 2005, pp. 829–836.
+[68] J. Friedman, T. Hastie, and R. Tibshirani, “Additive logistic regression:
+A statistical view of boosting,” Ann. Statist., vol. 28, no. 2, pp. 337–407,
+2000.
+[69] T. Guyon, J. Weston, S. Barnhill, and V. Vapnik, “Gene selection for cancer classification using support vector machines,” Mach. Learn., vol. 46,
+pp. 389–422, 2002.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

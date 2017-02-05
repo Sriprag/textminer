@@ -1,0 +1,1181 @@
+392
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+A Filtering Approach for Image-Guided Surgery
+With a Highly Articulated Surgical Snake Robot
+Stephen Tully∗ and Howie Choset
+
+Abstract—Goal: The objective of this paper is to introduce a
+probabilistic filtering approach to estimate the pose and internal
+shape of a highly flexible surgical snake robot during minimally
+invasive surgery. Methods: Our approach renders a depiction of
+the robot that is registered to preoperatively reconstructed organ
+models to produce a 3-D visualization that can be used for surgical feedback. Our filtering method estimates the robot shape using
+an extended Kalman filter that fuses magnetic tracker data with
+kinematic models that define the motion of the robot. Using Lie
+derivative analysis, we show that this estimation problem is observable, and thus, the shape and configuration of the robot can
+be successfully recovered with a sufficient number of magnetic
+tracker measurements. Results: We validate this study with benchtop and in-vivo image-guidance experiments in which the surgical
+robot was driven along the epicardial surface of a porcine heart.
+Conclusion: This paper introduces a filtering approach for shape
+estimation that can be used for image guidance during minimally
+invasive surgery. Significance: The methods being introduced in
+this paper enable informative image guidance for highly articulated surgical robots, which benefits the advancement of robotic
+surgery.
+Index Terms—Image-guided surgery, Kalman filters, medical
+robotics, state estimation.
+
+I. INTRODUCTION
+INIMALLY invasive surgery (MIS), when compared to
+open surgery, has the potential to reduce patient trauma
+and recovery time [1]. Unfortunately, when adopting MIS for a
+procedure, a physician loses the direct view of the operation that
+is common with open surgery, thereby sacrificing direct visual
+and tactile feedback of the surgical tool’s position. To compensate for this loss of feedback, physicians often use existing
+medical imaging modalities to guide tools or robotic devices.
+Unfortunately, these imaging techniques are often noisy and
+result in undesirable radiation exposure [2].
+One technique to overcome the loss of direct visual feedback
+during MIS is to display a 3-D rendered visualization of the operation on a computer screen in the operating room (OR). This
+form of visual feedback during surgery is typically referred to as
+3-D image guidance. The 3-D visualization is most commonly
+computed by tracking a surgical tool and registering its position
+to preoperative surface models. With 3-D image guidance, the
+
+M
+
+Manuscript received February 22, 2013; revised January 7, 2015 and May 25,
+2015; accepted July 9, 2015. Date of publication July 28, 2015; date of current
+version January 16, 2016. This work was supported in part by Army Research
+Office Grant #W911NF1010343. Asterisk indicates corresponding author.
+∗ S. Tully is formerly of the Robotics Institute at Carnegie Mellon University,
+Pittsburgh, PA 15213, USA (e-mail: stephen.tully@gmail.com).
+H. Choset is with the Robotics Institute, Carnegie Mellon University.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2461531
+
+surgeon can observe an operation from different viewpoints by
+rotating, panning, and zooming the 3-D rendering on a computer screen. Also, a surgeon can display historical points to
+mark where a tracked tool has been. Three-dimensional imageguidance solutions can potentially serve as a higher level user
+interface for surgeons to plan and guide tools during intricate
+surgeries.
+Recently, surgical snake robots have been introduced to allow
+for deeper anatomical reach with fewer incisions. The advantage of a snake robot is that it can steer along tortuous paths
+around impeding structures. Simaan et al., have developed a
+multibackbone continuum snake robot [3], [4] that is comprised
+of three independently actuated segments, each of which is actuated by the shortening and lengthening of circumferentially
+located NiTi backbones. Our group has likewise developed a
+surgical snake robot for single-incision MIS [5]. The robot,
+which we call the highly articulated robotic probe (HARP), is
+comprised of many links strung together by cables actuated by
+conventional motors [5], [6].
+For a 3-D rendered image-guidance technique to be truly beneficial for surgical guidance, it must accurately portray the true
+state of an MIS procedure. We believe that this requires estimating the full configuration of the surgical device in order to
+display its position and orientation relative to anatomical structures. The clinical benefit of estimating the entire configuration
+is that the physician can perceptually track the entire robot mechanism including any interaction the proximal regions might have
+with surrounding patient tissue. Even with “follow-the-leader”
+mechanisms such as the HARP robot, it would be beneficial
+to observe the full configuration to determine the path that the
+robot took to navigate to its current configuration. This helps to
+provide historical feedback to determine which areas have been
+treated or examined.
+For the HARP snake robot, full configuration tracking equates
+to performing shape estimation to determine the 3-D curve in
+which the device is configured at any given time step. In this
+paper, we will present a nonlinear filtering scheme that uses an
+extended Kalman filter (EKF) to estimate the pose and internal
+shape of the HARP snake robot during MIS. Our filtering approach uses kinematic models and a 5-degree-of-freedom (DOF)
+pose measurement at the distal tip of the robot from an electromagnetic (EM) tracking sensor to estimate the robot shape. An
+example of the guidance system that results from this study is
+shown in Fig. 1.
+The contributions of the work presented in this paper are: 1)
+the novel use of an EKF to estimate the shape of a surgical snake
+robot with a 5-DOF pose measurement at the distal tip; 2) the
+introduction of process models specific to a follow-the-leader
+surgical snake robot for use in the prediction step of the Kalman
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+TULLY AND CHOSET: FILTERING APPROACH FOR IMAGE-GUIDED SURGERY WITH A HIGHLY ARTICULATED SURGICAL SNAKE ROBOT
+
+393
+
+Fig. 2. HARP robot is shown advancing and steering around a benchtop heart
+phantom.
+
+Fig. 1. This is a result from an experiment in which we tested our imageguidance system with shape estimation on a porcine model.
+
+filter; 3) an investigation of the observability of our shape estimation approach using nonlinear Lie derivative analysis; and
+4) a validation of the resulting image-guidance solution demonstrated via experiments involving the HARP robot navigating
+within benchtop phantoms and on the epicardial surface of a
+porcine heart.
+An earlier version of this paper appeared in the proceedings
+of the 2011 IEEE/RSJ International Conference on Intelligent
+Robots and Systems, as “Shape Estimation for Image-Guided
+Surgery with a Highly Articulated Snake Robot” [7]. This journal article extends the previous paper in two ways: 1) filter
+observability analysis is extended to use Lie derivatives for true
+nonlinear analysis; and 2) derivations are provided to relate
+robot steering to the actuation of a 3-DOF platform.
+II. BACKGROUND
+A. Surgical Guidance
+Physicians often rely on conventional medical imaging to
+guide surgical devices. Fluoroscopy is one such imaging modality, which has been widely used to guide surgical devices [8].
+Unfortunately, fluoroscopy only offers a 2-D projective view
+of the operation and can only be used in short bursts of time
+due to concerns about the added radiation [2]. Another imaging modality is ultrasound [9], which can be used to perform
+live imaging of subcutaneous structures. Ultrasound guidance
+is known to be noisy and can be difficult to segment [10], [11].
+CT and MRI [12], [13] are high-resolution imaging modalities
+that have recently been extended to intraoperative use [12], [14],
+[15]. Unfortunately, CT and MRI systems are costly and can be
+slow and cumbersome [16].
+An alternative approach is to rely on image guidance, which
+combines tool tracking with preoperative models to visually
+depict the location of a tool relative to the anatomy. Conventionally, MRI or CT imaging is used to reconstruct volumetric
+or surface models representing patient-specific organs and a tool
+
+is registered to the models, as in [17] and [18]. For tracking, it
+is common to use an EM tracking device that is integrated with
+a surgical tool [17], [18]. An example of an image-guidance
+system that combines medical imaging with tool tracking for
+brain surgery was introduced in [19]. Recently, a software package has been created to aid in the design and implementation
+of image-guidance solutions that integrate preoperative imaging
+with tool tracking [20].
+Ensite NavX (St Jude Medical, St Paul, MN, USA) and Carto
+XP/Merge (Bio-Sense Webster, Diamond Bar, CA, USA) are
+commercial examples of image-guidance systems that are used
+for electrophysiology applications. For these guidance systems,
+a mapping catheter is swept along the inside surface of the heart
+and at each point an activation timing is stored. The resulting
+map dictates to the physician the regions of the heart that require
+ablation to help resolve cardiac arrythmias. Example applications of these commercial guidance products are to diagnose
+atrial flutter [21] and to treat ventricular tachycardia [22].
+Filtering approaches to surgical guidance have also been developed, including a method that uses contact detection data
+to localize a surgical continuum robot within a flexible environment [23]. The approach applies an equality constraint on
+a Kalman filter when contact is sensed, which repeatedly constrains the state estimate for the shape and pose of the robot
+until convergence is achieved. Additionally, an alternate work
+has explored the use of deflection based force sensing with continuum robots to estimate the force applied at the tip of a robot
+with an EKF [24]. This work introduces theory that allows for
+the estimation of environment contact for surgical guidance.
+B. Medical Snake Robots
+Snake robots allow for access into the body that is not restricted to line of site paths, thus enabling a deeper anatomical
+reach. Recently, there has been a variety of snake robot systems
+that have been introduced for surgical applications, most notably the multibackbone continuum robots developed by Simaan
+et al. [3], [4]. A snake robot targeted for MRI compatibility using
+SMA actuation has been developed [25]. Additionally, building
+on the idea of accessing hard to reach places, researchers have
+introduced concentric tube robots with actuated precurved segments [26], [27].
+The robot that we have adopted for our experimental evaluation is the HARP surgical snake robot [5], [6], which stands for
+the HARP. The HARP is shown in Figs. 2 and 3. The main advantage of the HARP is that it has the stability of a rigid device
+
+394
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+sensitive. And although much of this temperature dependence
+can be compensated for, when using FBG-based shape sensing
+to estimate the position of a device, it is expected that the endeffector would likely be the point along the estimated shape of
+the tool that would incur the most positioning error, which is
+undesirable for surgical applications. This is due to the fact the
+shape would be measured relative to the most proximal portion
+of the FBG, and any angular error along the length of the sensor
+would accumulate toward the distal end of the robot. Finally,
+although FBG sensors may have success for shape estimation in
+robotic surgery in the future, they are currently costly to adopt
+for OR use.
+Fig. 3. HARP robot is shown entering through a subxiphoid incision during
+an image-guidance experiment.
+
+as well as the maneuverability of a flexible tool. The HARP
+robot utilizes a 30-cm length probe that has a 12-mm diameter.
+The HARP robot can theoretically navigate any curve (up to
+a curvature limit) in a 3-D space with only six actuators (see
+Fig. 2) [5]. This is possible because of its unique mechanical
+design, which consists of a feeding mechanism (that utilizes
+two conventional motors for advancing) and a probe made from
+a series of links (that is actuated by cables connected to four
+additional motors). The probe is constrained to actuate in a
+follow-the-leader manner because it is comprised of an inner
+and outer mechanism, each of which can either be rigidified or
+made limp depending on the tension of the actuation cables [5].
+More specifically, the inner mechanism can be held in a rigid
+form under tension to allow the outer mechanism to advance,
+while its proximal portion maintains its prior shape. Likewise,
+the outer mechanism can be held in a rigid form under tension to
+allow the inner mechanism to advance or retract, while its shape
+is maintained by the lumen created by the outer mechanism.
+One of the target applications for the HARP robot is epicardial ablation, which was experimentally evaluated in [28]. It
+was shown that the robot can enter the intrapericardial space
+through a subxiphoid incision and navigate to remote locations
+on the epicardial surface without adversely affecting hemodynamics [28]. The goal is to treat cardiac arrhythmias that cannot
+be treated via an endocardial approach and to possibly extend
+the treatment of arrhythmias to patients that do not qualify for
+the more common catheter ablation procedure.
+C. Shape Estimation
+One method for estimating the shape of a flexible surgical tool
+is to use fiber Bragg grating (FBG) sensors that sense a change
+in the shape of an embedded optical fiber by observing a wavelength shift due to mechanical strain. For example, researchers
+have introduced methods to measure the real-time shape of a
+colonoscope with FBG sensing [29], [30]. Additionally, in [31],
+the authors use optical FBG strain sensors to measure the shape
+of a needle in the field of an MRI. Unfortunately, the use of FBG
+sensing for determining the shape of a flexible tool is limited
+due to the fact that the measurements are highly temperature
+
+III. SNAKE ROBOT SHAPE ESTIMATION
+For this paper, we are investigating the task of guiding the
+HARP snake robot during MIS. The HARP is a multilink robot
+that maintains its shape in 3-D space and when commanded,
+advances one link-length at a time. To overlay, in real time,
+the positioning of the snake robot, our image-guidance system
+requires a method for estimating the shape and configuration
+of the HARP robot given proprioceptive and exteroceptive information. In our case, the measurements that we obtain are
+steering cable length measurements from encoder readings and
+EM pose measurements at the distal tip of the robot.
+In this section, we will introduce a custom EKF implementation, with multiple process models, that we have developed
+to perform shape estimation. There are several reasons that we
+are using a probabilistic filtering approach for shape estimation.
+The first is that the motion and measurements of the system are
+subject to noise and uncertain disturbances, thus requiring probabilistic inference to recover stochastic information. The second
+reason is that we are attempting to estimate high-dimensional
+information (the full configuration of a highly articulated robot)
+from low-dimensional measurements (pose observations at the
+tip of the snake robot), for which filtering algorithms are well
+suited. The third reason is that we desire to properly fuse motion
+information that describes the actuation of the snake robot with
+sensor observations. For our approach, we rely on the Kalman
+filter which is an efficient estimation algorithm for real-time
+processing, although we are making an approximation that the
+noise is Gaussian.
+A. State Vector Definition
+When defining the parameters that encode the shape of the
+snake robot, we are only concerned with the links that extend
+past the distal end of the robot’s feeding mechanism. For this
+purpose, the links that are retracted within the feeding mechanism do not have any influence on the shape and configuration
+of the HARP. This means that not all of the links that make up
+the snake robot are tracked by the filter at any given point in
+time, as seen in Fig. 4. To encode the shape of the robot, we
+define the Kalman filter state as follows:
+T
+
+−1
+, θkN −1 .
+xk = x0k , yk0 , zk0 , αk0 , βk0 , γk0 , φ1k , θk1 , . . . φN
+k
+(1)
+
+TULLY AND CHOSET: FILTERING APPROACH FOR IMAGE-GUIDED SURGERY WITH A HIGHLY ARTICULATED SURGICAL SNAKE ROBOT
+
+395
+
+Fig. 4. Conceptual drawing of the state vector parameterization for the configuration of the HARP snake robot.
+Fig. 5. Depiction of the offset angles φ ik and θki , which define the steered
+angle of link i relative to the preceding link.
+
+The parameters (x0k , yk0 , zk0 ) specifically define the 3-D position
+of the first (most proximally located) estimated link of the robot.
+Also, (αk0 , βk0 , γk0 ) are the yaw, pitch, and roll, respectively, of
+that first tracked link. Together, these six parameters define the
+6-DOF pose of the first link. In Fig. 4, this link is labeled T0k . The
+terms φik and θki for each subsequent link i are angle offsets that,
+along with the pose of the initial link, sufficiently encode the full
+shape and pose of the robot. We will discuss the mathematical
+definitions for φik and θki shortly.
+The following three rotation matrices are useful when discussing the mapping of shape parameters to transformation matrices that represent the pose of each of the links:
+⎡
+⎡
+⎤
+⎤
+cα −sα 0
+cβ
+0 sβ
+⎢
+⎢
+⎥
+⎥
+⎢
+cα
+0⎥
+1 0 ⎥
+Rz (α) = ⎢
+⎣ sα
+⎦,
+⎦ , Ry (β) = ⎣ 0
+0
+0
+1
+−sβ 0 cβ
+⎡
+⎤
+1 0
+0
+⎢
+⎥
+⎥
+Rx (γ) = ⎢
+⎣ 0 cγ −sγ ⎦
+0 sγ
+cγ
+where matrix Rz (α) is a rotation matrix that rotates a 3-D vector
+about the z-axis, Ry (β) rotates a vector about the y-axis, and
+Rx (γ) rotates a vector about the x-axis. For this formulation,
+the trigonometric notation has been simplified for convenience
+(i.e., cα = cos(α), sγ = sin(γ)). With these rotation matrices,
+we can define the pose of the most proximally referenced link as
+a function of the Kalman state with the following transformation
+matrix:
+
+
+
+Rz (αk0 )Ry (βk0 )Rx (γk0 ) p0k
+0
+Tk (xk ) =
+(2)
+01×3
+1
+where p0k represents the (x0k , yk0 , zk0 ) position of the first link.
+The configuration of the remainder of the links are defined
+by the Kalman filter state vector as well by the angles φik and θki
+in (8). These angles are specifically offset angles corresponding
+to each link i that define link i’s orientation relative to the link
+preceding it: θki is the angle at which link i is oriented away from
+its nominal orientation and φik is the magnitude of this steering
+change. A conceptual interpretation of φik and θki is presented
+in Fig. 5.
+
+The transformation matrix Tik (xk ) that corresponds to the
+pose of link i, for i = 1 to N − 1, can be defined as follows:
+
+
+
+i
+i
+i
+(θ
+)R
+(φ
+)R
+(−θ
+)
+0
+R
+x
+y
+x
+3×1
+k
+k
+k
+Tiang (xk ) =
+01×3
+1
+⎤
+⎡
+1 0 0 L
+⎥
+⎢
+⎢0 1 0 0 ⎥
+⎥
+⎢
+Tadv = ⎢
+⎥
+⎢0 0 1 0 ⎥
+⎦
+⎣
+0
+
+0
+
+0
+
+1
+
+i
+Tik (xk ) = Ti−1
+k (xk )Tang (xk )Tadv
+
+where L is the length of a link and Tadv is a transformation
+matrix that translates a point by a distance L along the x-axis.
+As seen in Fig. 4, we have associated a transformation matrix
+with each link i that can be computed with this recursive process
+given the transformation matrix of the preceding link and the
+angle offsets φik and θki . Given this kinematic chain definition,
+the state vector from (8) sufficiently defines the pose of all link
+and the configuration of the robot.
+B. Advancing Process Model
+When the HARP robot advances, each link theoretically
+moves into the corresponding pose of the link in front of it.
+In this case, a link behind the most proximally referenced link
+will move into its place and assume the role of the first link of
+the Kalman filter state vector with transformation matrix T0k .
+The way that the robot advances can be seen in Fig. 6. When
+all of the links advance one step ahead, the state space grows by
+two parameters to account for their being one extra link added
+to the state, as seen in Fig. 6. While it is not physically the
+case, it is mathematically equivalent to view the advancing of
+the robot as an addition of a new link at the distal tip of the robot
+that assumes the same nominal orientation as the link preceding
+it. The motion model for this advancing step can, therefore, be
+defined by
+
+T
+fa (xk ) = xTk , 0, 0 .
+
+(3)
+
+396
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Fig. 8. In (a), a 3-DOF robotic platform is analogous, in terms of steering,
+with the links of the HARP robot, shown in (b).
+Fig. 6. HARP robot advances by moving each link into the pose of the one in
+front of it. For modeling, it is equivalent to assume an extra link is added to the
+distal tip of the robot.
+
+Fig. 7. HARP robot retracts in a follow-the-leader manner, which results in
+one less link in the Kalman filter state vector.
+
+For this model, the additional parameters are set to zero because
+the link is advanced without steering; thus, the offset angles for
+its orientation are zero.
+C. Retracting Process Model
+As it is with advancing, the HARP will maintain its shape
+when retracting. First, the inner mechanism is loosened and retracted one link length, while the outer mechanism is rigidified,
+and then, the outer mechanism retracts while the inner mechanism is rigidified. During this retraction process, the most proximally referenced link moves back into the feeding mechanism
+into a pose that is no longer tracked by the Kalman state vector.
+Additionally, the link in front of the most proximally referenced
+link moves back and assumes the role of the first link in the
+Kalman state with an associated transformation matrix T0k . The
+distal link retracts backward and assumes the pose of the link
+preceding it, which effectively decreases the number of links in
+the state by one. Assuming M is the length of the state vector
+xk at time step k, the retracting motion model is
+
+
+fr (xk ) = I(M −2)×(M −2) 0(M −2)×2 xk .
+The length of the state is reduced by two due to the fact that the
+number of links tracked by the Kalman state vector is reduced
+by one, as shown in Fig. 7.
+D. Steering Process Model
+When in steering mode, the shape of the HARP is restricted
+from moving due to the fact that the inner mechanism is
+
+rigidified. As the outer mechanism is configured to extend beyond the inner mechanism by one link length, the distal link is
+able to steer independently of the rest of the snake robot. Three
+actuation cables that run through the outer mechanism control
+just the orientation of the distal link. In other words, by tensioning the cables by different amounts with the actuation motors,
+the pose of the distal link will change.
+The following is a steering model that determines the steering
+angle of the distal link of the robot:
+√
+
+3(2Δc2 + Δc1 )
+N −1
+= arctan
+(4)
+θk
+3Δc1
+
+
+
+
+
+−Δc1
+−1
+arcsin
+
+(5)
+φN
+=
+k
+
+CR cos(θN −1 ) 
+where N is the total number of links that are tracked within the
+Kalman filter. For this model, CR is a radius term that depends
+on the separation of the cables which ultimately depends on
+the radius of the links of the robot. The terms (Δc1 , Δc2 ) are
+the measured differential lengths of each of two cables running
+down the robot, relative to the positions that the cables were
+in immediately after advancing. In other words, if the robot is
+advanced without steering, Δc1 and Δc2 are equal to zero. As
+one cable is pulled and the robot steers, the difference in the first
+cable’s length when compared to its length when the link is not
+steered, is captured by Δc1 . The value Δc3 associated with the
+third steering cable in the robot does not appear in this model
+because it is geometrically a function of Δc1 and Δc2 and is,
+therefore, redundant information.
+This model comes from the approximation that the interaction
+of two links of the HARP robot for steering behaves similarly to
+a 3-DOF robotic platform (see the depiction in Fig. 8). For the
+HARP, as one cable is lengthened and one cable is shortened,
+the link will be oriented at an angle that follows the geometric
+model given by the 3-DOF platform.
+Encoders are used to measure the cable lengths which, using
+−1
+(4) and (5), can be used to infer the steering angle offsets φN
+k
+N −1
+and θk
+of the distal link of the robot. These updated values,
+after receiving the measured cable lengths, are differenced from
+the corresponding values from the previous time step, resulting
+in Δφ and Δθ. The final motion model that we use for steering
+the HARP is as follows:
+
+T
+(6)
+fs (xk ) = xk + 0T(M −2)×1 , Δφ, Δθ
+where M is the length of the state vector xk .
+
+TULLY AND CHOSET: FILTERING APPROACH FOR IMAGE-GUIDED SURGERY WITH A HIGHLY ARTICULATED SURGICAL SNAKE ROBOT
+
+Fig. 9. Our initialization process assumes the robot is completely retracted
+within the feeding mechanism. In (a), one link of the robot is initialized. Then,
+in (b), a second link is advanced to allow for steering.
+
+E. Sensor Measurement Model
+The measurement that we obtain to correct our shape estimation is from an EM tracking sensor placed at the distal tip of
+the snake robot. The commercial tracking device that we are using is the trakSTAR (Ascension Technologies, Burlington, VT,
+USA), which can measure the 6-DOF pose of a sensing coil in
+3-D space.
+While the EM tracker we are using is designed for 6-DOF
+pose measurements, only 5 DOFs are informative to our filtering
+problem. This is due to the fact that the tracker is inserted into a
+tool port of the HARP in such a way that it is free to “roll” within
+the tool channel. The reason for not fixing the sensor within the
+distal link of the robot is that we require the ability to exchange
+tools during a procedure. The measurement, therefore, directly
+observes five elements of the pose of the distal link of the robot,
+and we can formulate the measurement model as follows:
+T
+
+−1 T
+, αkN −1 , βkN −1
+(7)
+h(xk ) = pN
+k
+−1
+where pN
+is the position of the distal link which is indexed
+k
+by N − 1, as in (2), and (αkN −1 , βkN −1 ) are the yaw and pitch of
+the distal link, respectively. These parameters can be extracted
+−1
+(xk ).
+from the matrix TN
+k
+
+F. Kalman Filter Initialization
+The first step of snake robot filtering approach is to initialize an EKF estimate of the system state vector. An experiment
+begins with the snake robot retracted such that one link of the
+robot extends beyond the robot feeding mechanism. A depiction
+of the state of the system is shown in Fig. 9(a). A measurement
+from the magnetic tracker directly observes five of the six parameters that define the pose of that first link in the Kalman state
+vector. The mean and covariance of our EKF implementation
+are initialized as follows:
+
+
+ 
+
+
+R
+05×1
+z0
+, P0|0 =
+x̂0|0 =
+01×5
+σγ2
+0
+where z0 is the EM tracker measurement which has the measurement model defined in (7). As discussed before, the roll
+parameter of the estimate is not directly observed by the sensor,
+and thus the roll parameter is initialized to zero in the state mean
+due to the fact that we do not yet have enough information to
+set a value for this element. The covariance matrix R represents the uncertainty of the EM tracker measurement (which is a
+5 × 5 matrix) and σγ2 is a variance value chosen by the user that
+
+397
+
+Algorithm 1. Snake Shape Estimation Algorithm
+1: (x̂0|0 , P0|0 ) ← initializeStateEstimate(z0 )
+2: (x̂1|0 , P1|0 ) ← advancePredictionStep(x̂0|0 , P0|0 )
+3: (x̂1|1 , P1|1 ) ← measurementCorrectionStep(x̂1|0 , P1|0 ,
+z1 )
+4: for k ← 2 to ∞ do
+5:
+if mode == steer then
+6:
+(x̂k |k −1 ,Pk |k −1 ) ← steer(x̂k −1|k −1 , Pk −1|k −1 , θk ,
+φk )
+7:
+else if mode == advance then
+8:
+(x̂k |k −1 ,Pk |k −1 ) ← advancePredict(x̂k −1|k −1 ,
+Pk −1|k −1 )
+9:
+else
+10:
+(x̂k |k −1 ,Pk |k −1 ) ← retractPredict(x̂k −1|k −1 ,
+Pk −1|k −1 )
+11:
+end if
+12:
+(x̂k |k , Pk |k ) ← measurementCorrect(x̂k |k −1 , Pk |k −1 ,
+zk )
+13: end for
+
+models the very large initial uncertainty in the roll parameter of
+the state.
+After the first measurement acquired at the distal tip, the robot
+is advanced one step. This evolves the mean of the Kalman
+filter based on the motion model presented in (3). Additionally,
+the covariance of the Kalman filter estimate is inflated by the
+addition of a small amount of noise due to possible disturbances
+caused by the imperfect actuation of the steering cables. The
+state of the robot after advancing is shown in Fig. 9(b). The new
+filter estimate becomes (x̂1|0 , P1|0 ). The reason for advancing
+the robot such that there are two links is that the formulation
+of our steering model, described by (4) and (5), depends on
+having at least two initialized links. After the robot advances,
+another measurement is acquired from the magnetic tracking
+sensor and the standard Kalman measurement update is applied
+using the measurement model in (7). The new estimate then
+becomes (x̂1|1 , P1|1 ).
+G. Kalman Filter Formulation
+After the robot state is initialized, with two links represented
+in the Kalman filter state vector, we can subsequently rely on
+the motion and measurement models defined in this section to
+perform the prediction and measurement update steps of the
+EKF. As is typical for an EKF, we add prediction noise after
+each steering command to account for slippage due to friction.
+It is worth noting that the prediction step of the Kalman filter, for
+our implementation, is dependent upon the mode (i.e., steering,
+advancing, or retracting). The overall algorithm for our filter
+approach is summarized in Algorithm 1.
+IV. OBSERVABILITY ANALYSIS
+Observability is a measure of whether the state of a system can
+be inferred from the system’s outputs (the sensor measurements)
+[32]. For this analysis, we will investigate the nonlinear
+
+398
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+observability of the proposed Kalman filtering algorithm using Lie derivative analysis [33]. This analysis has been used for
+vehicle modeling for automobile slippage [34] and for visionaided inertial navigation systems [35].
+To perform shape estimation, we are estimating the joint angles of a high DOF snake robot with only a magnetic tracker that
+measures the pose at the distal tip of the robot. To support our
+claim that this methodology is sufficient for shape estimation,
+we will introduce here an analysis of the observability of the
+filtering problem defined in Section III.
+
+⎛
+
+(L1f h1 )(xk , uk )
+
+⎞
+
+⎜ 1
+⎟
+⎜ (Lf h2 )(xk , uk ) ⎟
+⎜
+⎟
+⎜ 1
+⎟
+⎜ (Lf h3 )(xk , uk ) ⎟
+⎜
+⎟
+⎜ 1
+⎟
+1
+⎜
+(L
+h
+)(x
+,
+u
+)
+o (xk , uk ) = ⎜ f 4 k k ⎟
+⎟.
+⎜ 1
+⎟
+⎜ (Lf h5 )(xk , uk ) ⎟
+⎜
+⎟
+⎜ 1
+⎟
+⎜ (Lf h6 )(xk , uk ) ⎟
+⎝
+⎠
+(L1f h7 )(xk , uk )
+The zeroth Lie derivative of a function is the function itself
+
+A. Observability of Two-Link Snake
+
+(L0f hj )(xk , uk ) = hj (xk )
+
+As discussed in Section III, after initialization, the Kalman
+state estimate contains parameters defining the pose of just
+two links of the robot, with the remainder of the links being
+completely retracted within the HARP feeder. The state vector that we would like to show is observable can be written as
+follows:
+T
+
+xk = x0k , yk0 , zk0 , αk0 , βk0 , γk0 , φ1k , θk1 .
+
+(8)
+
+With the magnetic tracker positioned at the tip of the robot,
+after initialization, we will receive a 5-DOF pose measurement
+associated with the second, more distal link, indexed as i = 1
+(with the first, more proximal link indexed as i = 0). In addition to receiving the 5-DOF measurement, we also assume
+that we receive a measurement of the angles, φ1k and θk1 , observed via cable lengths. Thus, the measurement function is as
+follows:
+T
+
+T
+h(xk ) = p1k , αk1 , βk1 , φ1k , θk1
+
+(9)
+
+This measurement model is similar to that presented in (7) except, for this analysis, we add the steering angle terms to the
+function because the cable length measurements can be alternatively viewed as an injection of information.
+For this analysis, we will use the term hj (xk ) to represent the
+jth element of the measurement function, as follows:
+h(xk ) = [h1 (xk )h2 (xk ) . . . h7 (xk )]T .
+Now, using Lie derivatives, we can write two different observability functions as follows:
+⎛
+
+(L0f h1 )(xk , uk )
+
+⎞
+
+⎜ 0
+⎟
+⎜ (Lf h2 )(xk , uk ) ⎟
+⎜
+⎟
+⎜ 0
+⎟
+⎜ (Lf h3 )(xk , uk ) ⎟
+⎜
+⎟
+⎜ 0
+⎟
+0
+⎜
+o (xk , uk ) = ⎜ (Lf h4 )(xk , uk ) ⎟
+⎟,
+⎜ 0
+⎟
+⎜ (Lf h5 )(xk , uk ) ⎟
+⎜
+⎟
+⎜ 0
+⎟
+⎜ (Lf h6 )(xk , uk ) ⎟
+⎝
+⎠
+(L0f h7 )(xk , uk )
+
+and the first Lie derivative of a function is as follows:
+∂hj (xk )
+(L1f hj )(xk , uk ) =
+f (xk , uk ).
+∂xk
+
+(10)
+
+(11)
+
+Substituting (10) and (11) into the functions o0 (xk , uk ) and
+o1 (xk , uk ), we can write a combined observability function
+
+ 0
+ 
+
+
+o (xk , uk )
+h(xk )
+o(xk , uk ) =
+=
+o1 (xk , uk )
+Hk f (xk , uk )
+where the function f (xk , uk ), in this case, is the steering model
+fs (xk ) as described in (6). We can then compute the observability matrix by differentiating the observability function with
+respect to the Kalman state vector, as follows:
+O(xk , uk ) =
+
+∂
+o(xk , uk ).
+∂xk
+
+To test whether the system is observable, we must determine if
+the observability matrix is invertible. This can be determined by
+looking at the rank of the matrix in two scenarios. For the first
+scenario, assume Δφ is equal to a nonzero value
+rank(O(xk , uk )) = 8.
+We obtained this value through the use of symbolic analysis on
+commercially available software. The resulting rank of 8 means
+that all eight parameters in the Kalman state are observable if the
+second link is steered away from its nominal orientation. When
+Δφ is equal to zero, meaning that the link of the HARP robot is
+held in the straight position (no steering), the observability rank
+is
+rank(O(xk , uk )) = 7.
+The parameter that cannot be estimated by the filtering algorithm
+is the roll parameter γk . This is due to the fact that the orientation
+cannot be known until the tip of the robot is observed to be
+steering in a certain direction.
+B. Observability of Full Snake Robot Configuration
+Thus far, we have shown that two links are observable given
+the measurements from the magnetic tracker and the kinematic
+models of the robot motion. Next, we will discuss the observability of the full snake robot configuration assuming that the
+robot starts an experiment from an initialized state in which
+only the two links are included in the Kalman state vector. The
+
+TULLY AND CHOSET: FILTERING APPROACH FOR IMAGE-GUIDED SURGERY WITH A HIGHLY ARTICULATED SURGICAL SNAKE ROBOT
+
+following state vector represents the unknown variables of the
+filtering problem, which are the steered angles associated with
+the advanced link, after the robot advances one step via the
+process models provided:
+T
+
+xk = φik , θki .
+With the magnetic tracker positioned at the tip of the robot,
+after initialization, we will receive a 5-DOF pose measurement
+associated with the advanced link
+T
+
+T
+(12)
+h(xk ) = pik , αki , βki , φik , θki .
+Next, we can write the observability function for the advanced
+link as follows:
+
+
+
+h(xk )
+o(xk , uk ) =
+Hk f (xk , uk )
+where the function f (xk , uk ), in this case, is again the steering
+model fs (xk ) as described in (6). We can then compute the
+observability matrix as follows:
+O(xk , uk ) =
+
+∂
+o(xk , uk )
+∂xk
+
+and to test whether the system is observable, we can once again
+look at the rank of the matrix which equals 2 as evident from the
+symbolic analysis; thus, the system is observable after subsequent advancements of the snake robot into any arbitrary shape.
+In summary, we have shown that the robot is observable
+when initialized with two links. We also showed that it is fully
+observable when the prior configuration is observable at time
+step i − 1 and the robot is advanced one link. Thus, the full
+robot shape is observable through recursion from the initial
+configuration.
+The observability analysis we have presented is a significant
+result that, in our opinion, supports the use of the Kalman filtering algorithm for performing shape estimation. Unfortunately,
+the analysis has assumed perfect models in which the robot is
+a true follow-the-leader device that maintains its shape during
+actuation. In real-world experiments, on the other hand, the configuration of the robot may be affected by its compliance and
+noise due to external interaction with the environment. In the
+next section, we will evaluate the real-world performance of our
+filtering scheme for state estimation.
+V. IMAGE-GUIDANCE EXPERIMENTS
+A. Benchtop Experiments
+The first set of experiments that we performed for testing
+our filtering-based image-guidance system involved benchtop
+tests where we drove the HARP robot into several paths around
+anatomical phantoms. For these experiments, we inserted a magnetic tracking sensor (TrakSTAR from Ascension Technologies,
+Burlington, VT, USA) into a tool port of the robot such that it
+was situated at the tip of the robot during the trial. The pose readings at the tip during the experiment served as an input to the
+measurement update algorithm that we presented in Section III.
+
+399
+
+TABLE I
+ERROR BETWEEN THE ESTIMATED BACKBONE USING SHAPE ESTIMATION AND
+THE TRUE BACKBONE AS MEASURED BY THE MAGNETIC TRACKER FOR THREE
+ESTIMATION TRIALS (1. HEART PHANTOM, 2. HEART PHANTOM, 3.
+TRANSORAL PHANTOM)
+
+Avg Error, Trial 1
+Avg Error, Trial 2
+Avg Error, Trial 3
+
+Shape Estimation
+
+Prediction
+
+Correction
+
+5.99 mm
+7.53 mm
+10.53 mm
+
+22.977 mm
+23.18 mm
+25.02 mm
+
+17.96 mm
+18.12 mm
+14.22 mm
+
+After each trial, we locked the snake robot by tightening the
+tensioning cables in the robot and then pulled the magnetic
+tracker through the tool port of the robot while recording the
+positions of the tracking coil. This allowed us to record a trail of
+points along the length of the robot that could be postprocessed
+to obtain the ground truth shape of the snake robot. We then
+computed the error between the estimated shape and the true
+configuration.
+The error between the estimated shape and the true configuration was computed as follows: for each link in the estimated
+robot shape, and for each of ten evenly spaced points along the
+backbone of each link, an error value is determined by computing the distance between the point and the nearest neighbor
+point in the collected sensor trail corresponding to the true configuration. These error values are averaged across all points
+comprising the backbone to determine the overall average error
+for the filtered estimate.
+In Table I, we show the results of three trials in which we
+tested the shape estimation aspect of our image-guidance approach. During the first and second trials, the robot was driven
+along the epicardial surface of a rubber heart phantom. The
+third trial involved driving the robot within the oral cavity of a
+transoral training dummy. The results of the fully implemented
+proposed filtering algorithm are shown in the “Shape Estimation” column of Table I. These results are directly compared
+against two alternative algorithms in order to demonstrate the
+benefit of the proposed filtering approach: 1) a prediction-only
+algorithm that performs the kinematics of the robot without the
+measurement correction step of the filter; and 2) a correctiononly approach that ignores the prediction step of the filter and
+applies only the measurement correction step based on the magnetic tracker.
+We believe that the resulting errors shown in Table I represent
+manageable shape estimation error for driving the robot with 3D image guidance. Some of the error can be attributed to a
+discrepancy in that the filtering algorithm produces an estimate
+of the robot backbone while the ground-truth points collected
+via drawing the sensor through the tool channel are offset laterally from the backbone by approximately 3 mm. It is noted,
+though, that while the final filtered shape estimate is generated
+via measurements obtained with the 3-mm offset already factored in (the tip measurements were obtained by the Ascension
+tracking sensor that is offset in the distal link of the robot), the
+prediction model of the robot does not factor in such an offset.
+Overall, it is difficult to determine the effect of the measurement
+
+400
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Fig. 10. In (a), we show a translucent snapshot of the image-guidance result during the navigation of the HARP robot within a transoral training dummy. In (b),
+we show the same experiment with a solid rendered model of the transoral dummy.
+
+Fig. 11. Rendered depiction of the HARP robot represents the estimated configuration of the robot during multiple benchtop trials. The underlying curve
+(partially hidden) represents the ground truth shape of the snake robot.
+
+offset, but it is likely that this offset is contributing partially to
+the reported errors in Table I.
+Other factors that may contribute to the observed errors are
+unmodeled nonlinear factors, including the possible nonlinearity of cable length measurements despite the use of Gaussian
+modeling with a Kalman filter. Unmodeled link slippage during
+steering is an additional factor that adds to the estimation error
+during the execution of the proposed filtering approach. These
+unmodeled factors, e.g., cable slippage, stretching, and friction,
+add to the need to sense the tip position and perform filtering
+as presented in this paper to better correct for noise in the robot
+process model.
+The result of our image-guidance system that shows the
+entire shape and configuration of the snake robot during a
+guided-intervention on a transoral phantom is shown in Fig. 10.
+For this experiment, the reference surface for this transoral
+dummy was obtained via a CT scan of the model and via the use
+of open-source 3-D image segmentation software that produced
+a triangle mesh surface model from the CT scan slices. The estimated shape and configuration of the robot during the guidance
+experiment driving on the epicardial surface of a rubber heart
+phantom is shown in Fig. 11.
+B. Animal Experiment
+Another experiment we performed involved a live animal experiment in which we tested our image-guidance software while
+
+navigating the HARP along the epicardial surface of a porcine
+heart. The surface models for the anatomical structures shown
+in Fig. 1 were obtained by performing image segmentation on
+a series of CT images obtained preoperatively. The coordinate
+frame of the robot was registered to the coordinate frame of the
+preoperative CT images through the use of fiducial markers. By
+touching the nine fiducial markers with the magnetic tracking
+coil, we were able to acquire 3-D points in the coordinate frame
+of the robot that could be associated with known points in the CT
+scans. These point correspondences were sufficient to compute
+the transformation for registration.
+Unfortunately, we do not have the ground truth configuration
+of the robot to compare against our estimated result, nor do
+we have an estimated ground truth measurement obtained in the
+same manner as the prior trials involving the phantoms, in which
+the Ascension tracker sensor was drawn through the robot tool
+port to measure the backbone shape. Instead, we can evaluate
+the success of the animal trial via an alternative approach: if
+the shape estimation algorithm were successful, the final estimated configuration of the HARP would align with the exterior
+shape of the heart due to the fact that the robot was inherently
+constrained to the epicardial surface of the heart (within the
+pericardial sac). Thus, to compute an estimate of the error, we
+computed the distance between the snake backbone and the rendered surface model to which the robot was initially registered
+using the nine fiducial markers. Ideally, if the robot were exactly conforming to the surface, this distance would be 6.0 mm,
+
+TULLY AND CHOSET: FILTERING APPROACH FOR IMAGE-GUIDED SURGERY WITH A HIGHLY ARTICULATED SURGICAL SNAKE ROBOT
+
+401
+
+Fig. 12. In (a), we show a snapshot of the image-guidance result that we used to analyze the performance of the estimation algorithm. In (b), we show a plot of
+the distance between the snake backbone and the heart surface.
+
+Fig. 13. This is a result from our shape estimation and image-guidance approach implemented on the HARP robot. In this experiment, we semi-autonomously
+drove the robot along the epicardial surface of a porcine heart.
+
+which is equal to the radius of a link. The measured distance
+along the backbone is plotted in Fig. 12(b). The snapshot of the
+experiment that we used to compute this error metric is shown
+in Fig. 12(a). For region R2 in Fig. 12(b), the system accuracy
+estimated the shape of the robot. But for the region labeled R1,
+there is noticeable error. This is expected, though, due to the
+fact that the proximal section of the robot is not in a constrained
+space that would require the shape to conform to the surface.
+A unique aspect of this experiment was that we navigated the
+robot semiautonomously. The path that the robot intended to take
+was defined by the user before the experiment through a graphical user interface. Then, the robot steered itself autonomously
+along the path while the advancement of the robot was still under user control. We use the phrase semiautonomous because,
+while the robot steering input was under autonomous control,
+the path was defined by the user. At the end of the experiment,
+the robot did not follow the path perfectly, due to unmodeled
+interaction with the tissue. But the significant result was that
+the robot reached the final goal location with minimal error.
+This demonstrated that using the shape estimation algorithm
+for feedback control can drive the robot to desired anatomical
+targets. A screenshot of our image-guidance system during this
+experiment is shown in Fig. 13.
+
+the robot with measurements obtained from a magnetic tracker.
+In this paper, we provided kinematic models for the robot (including advancing, retracting, and steering) and a measurement
+model based on representing the configuration of the robot as a
+kinematic chain. Also, in this paper, we derived the necessary
+conditions, using Lie derivative analysis, in which this filtering
+problem is fully observable.
+Experimentally, we were able to show promising results involving the robot navigating on the epicardial surface of a
+porcine heart using the filter estimate as feedback to follow
+a semiautonomous path. This is an impactful result due to the
+fact that it successfully demonstrates the capabilities of the robot
+as well as the ability of our filter approach to correctly estimate
+the configuration of the robot in real time.
+We believe that the ideas we have presented in this paper
+can have a significant impact on the future of MIS. For image
+guidance, specifically, we strongly believe that the appropriate
+paradigm for tool estimation is a stochastic filtering method. The
+reasoning is that filtering will attempt to produce the most likely
+state of a surgical system while correctly accounting for possible
+sources of noise that could be present in medical imaging or the
+motion of a tool. In future work, we hope to generalize our
+filtering approach to other systems.
+
+VI. CONCLUSION
+
+ACKNOWLEDGMENT
+
+The contribution of this study is a novel approach for image
+guidance with the HARP snake robot. We propose the use of
+Kalman filtering to estimate, in real time, the shape and pose of
+
+The authors would like to thank A. S. Rangaprasad for assisting in the development of test scripts and the generation of test
+results.
+
+402
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+REFERENCES
+[1] K. Fuchs, “Minimally invasive surgery,” Endoscopy, vol. 34, pp. 154–159,
+2002.
+[2] T. B. Shope, “Radiation-induced skin injuries from fluoroscopy,” Radiographics, vol. 16, no. 5, pp. 1195–1199, 1996.
+[3] A. Bajo et al., “Configuration and joint feedback for enhanced performance of multi-segment continuum robots,” in Proc. IEEE Int. Conf.
+Robot. Autom., May 2011, pp. 2905–2912.
+[4] A. Bajo and N. Simaan, “Finding lost wrenches: Using continuum robots
+for contact detection and estimation of contact location,” in Proc. IEEE
+Int. Conf. Robot. Autom., May 2010, pp. 3666–3673.
+[5] A. Degani et al., “Highly articulated robotic probe for minimally invasive surgery,” in Proc. IEEE Int. Conf. Robot. Autom., May 2006,
+pp. 4167–4172.
+[6] A. Degani et al., “Percutaneous intrapericardial interventions using a
+highly articulated robotic probe,” in Proc. 1st IEEE/RAS-EMBS Int. Conf.
+Biomed. Robot. Biomechatron., Feb. 2006, pp. 7–12.
+[7] S. Tully et al., “Shape estimation for image-guided surgery with a highly
+articulated snake robot,” in Proc. IEEE/RSJ Int. Conf. Intell. Robots Syst.,
+Sep. 2011, pp. 1353–1358.
+[8] L. Joskowicz et al., “Fluoroscopy-based navigation in computer-aided orthopaedic surgery,” presented at the IFAC Conf. Mechatron. Syst., Darmstadt, Germany, 2000.
+[9] A. B. Koolwal et al., “An ultrasound-based localization algorithm for
+catheter ablation guidance in the left atrium,” Int. J. Robot. Res., vol. 29,
+no. 6, pp. 643–665, May 2010.
+[10] J. W. Cannon et al., “Real time 3-Dimensional ultrasound for guiding
+surgical tasks,” Comput. Aided Surgery, vol. 8, no. 2, pp. 82–90, 2003.
+[11] M. G. Linguraru et al., “Statistical segmentation of surgical instruments in 3D ultrasound images,” Ultrasound Med. Biol., vol. 33, no. 9,
+pp. 1428–1437, 2007.
+[12] R. A. Omary et al., “Real-time magnetic resonance imaging-guided
+coronary catheterization in swine,” Circulation, vol. 107, no. 21,
+pp. 2656–2659, 2003.
+[13] R. Manzke et al., “Intra-operative volume imaging of the left atrium and
+pulmonary veins with rotational x-ray angiography,” in Proc. Med. Image
+Comput. Comput.-Assisted Intervention, 2006, pp. 604–611.
+[14] K. A. Horvath et al., “Real-time magnetic resonance imaging guidance for cardiovascular procedures,” Sems. Thor. Cardiovascular Surgery,
+vol. 19, no. 4, pp. 330–335, 2007.
+[15] S. Nazarian et al., “Feasibility of real-time magnetic resonance imaging
+for catheter guidance in electrophysiology studies,” Circulation, vol. 118,
+no. 3, pp. 223–229, 2008.
+[16] R. D. Ernst et al., “Near real-time CT fluoroscopy using computer automated scan technology in nonvascular interventional procedures,” Am. J.
+Roentgenol., vol. 174, no. 2, pp. 319–321, 2000.
+[17] W. Wein et al., “Simulation and fully automatic multimodal registration of medical ultrasound,” in Med. Image Comput. Comput.-Assisted
+Intervention, 2007, pp. 136–143.
+[18] K. Cleary et al., “Electromagnetic tracking for image-guided abdominal
+procedures: Overall system and technical issues,” in Proc. Int. Conf. Eng.
+Med. Biol. Soc., 2005, pp. 6748–6753.
+
+[19] T. Peters et al., “Three-dimensional multimodal image-guidance for neurosurgery,” IEEE Trans. Med. Imag., vol. 15, no. 2, pp. 121–128, Apr.
+1996.
+[20] K. Gary et al., “IGSTK: an open source software toolkit for image-guided
+surgery,” Computer, vol. 39, no. 4, pp. 46–53, Apr. 2006.
+[21] H. Nakagawa and W. M. Jackman, “Use of a three-dimensional, nonfluoroscopic mapping system for catheter ablation of typical atrial flutter,”
+Pacing Clin. Electrophysiol., vol. 21, no. 6, pp. 1279–1286, 1998.
+[22] W. Stevenson et al., “Identification and ablation of macroreentrant ventricular tachycardia with the CARTO electroanatomical mapping system,”
+Pacing Clin. Electrophysiol., vol. 21, no. 7, pp. 1448–1456, 1998.
+[23] S. Tully et al., “Constrained filtering with contact detection data for the localization and registration of continuum robots in flexible environments,”
+in Proc. IEEE Int. Conf. Robot. Autom., 2012, pp. 3388–3394.
+[24] D. Rucker and R. Webster III, “Deflection based force sensing for continuum robots: A probabilistic approach,” in Proc. IEEE/RSJ Int. Conf.
+Intell. Robots Syst., 2011, pp. 3764–3769.
+[25] M. Ho et al., “Toward a meso-scale SMA-actuated MRI-compatible
+neurosurgical robot,” IEEE Trans. Robot., vol. 28, no. 1, pp. 213–222,
+Feb. 2012.
+[26] P. E. Dupont et al., “Design and control of concentric-tube robots,” IEEE
+Trans. Robot., vol. 26, no. 2, pp. 209–225, Apr. 2010.
+[27] R. Webster et al., “Mechanics of precurved-tube continuum robots,” IEEE
+Trans. Robot., vol. 25, no. 1, pp. 67–78, Feb. 2009.
+[28] T. Ota et al., “A novel highly articulated robotic surgical system for
+epicardial ablation,” in Proc. IEEE Conf. Eng. Med. Biol. Soc., Aug.
+2008, pp. 250–253.
+[29] X. Yi et al., “An innovative 3D colonoscope shape sensing sensor based
+on FBG sensor array,” in Proc. Int. Conf. Inform. Acquisition, Jul. 2007,
+pp. 227–232.
+[30] L. Zhang et al., “On SDM/WDM FBG sensor net for shape detection of
+endoscope,” in Proc. IEEE Int. Conf. Mechatron. Autom., 2005, vol. 4,
+pp. 1986–1991.
+[31] Y.-L. Park et al., “MRI-compatible haptics: Feasibility of using optical
+fiber Bragg grating strain-sensors to detect deflection of needles in an MRI
+environment,” presented at the Int. Soc. Magn. Reson. Med., Toronto, ON,
+Canada, 2008.
+[32] R. Kalman, “On the general theory of control systems,” presented at the
+1st Int. Cong. IFAC, Moscow, USSR, 1960.
+[33] R. Hermann and A. Krener, “Nonlinear controllability and observability,”
+IEEE Trans. Autom. Control, vol. 22, no. 5, pp. 728–740, Oct. 1977.
+[34] J. Stephant and A. Charara, “Observability matrix and parameter identification: application to vehicle tire cornering stiffness,” in Proc. 44th IEEE
+Conf. Decision Control, Dec. 2005, pp. 6734–6739.
+[35] F. Mirzaei and S. Roumeliotis, “A Kalman filter-based algorithm for IMUcamera calibration: Observability analysis and performance evaluation,”
+IEEE Trans. Robot., vol. 24, no. 5, pp. 1143–1156, Oct. 2008.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

@@ -1,0 +1,783 @@
+16
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+Local Shape Similarity and Mean-Shift Curvature
+for Deformable Surface Mapping of
+Anatomical Structures
+Pietro Cerveri∗ , Alfonso Manzotti, Angelo Vanzulli, and Guido Baroni
+
+Abstract—This paper reports a novel method for deformable
+registration of digital anatomical surfaces. The method capitalizes upon the iterative local affine iterative closest point (ICP) approach that applies an affine transformation per surface vertex
+along with a regularization constraint to force neighboring surface
+vertices to undergo similar transformations. More robust vertex
+correspondence with respect to simple closest point was obtained
+by exploiting local shape similarity metrics, which includes vertex
+distance, surface normal, and local curvature. The local curvature
+was mean shifted at run-time, during the iterative optimization, to
+make the point correspondence process less dependent upon the
+surface noise and resolution. The experimental validation was performed on three surface datasets (femur, hemi-pelvic bone, and
+liver). The registration results showed that the proposed method
+outperforms, across all the three surface datasets (rmse: 0.19 mm,
+0.30 mm, 0.61 mm), global affine ICP (rmse: 2.89 mm, 3.95 mm, and
+8.30 mm), local affine ICP (rmse: 0.31 mm, 1.61 mm, and 1.63 mm)
+and coherent point drift (rmse: 1.99 mm, 2.39 mm, and 4.78 mm)
+methods. As a whole, the mean-shifted curvature increased the
+registration accuracy by about 20%.
+Index Terms—Biomedical surface mapping, deformable registration, mean-shift curvature, point correspondence.
+
+I. INTRODUCTION
+HE solution of 3-D point correspondence between anatomical surfaces is a key issue for many noteworthy 3-D shapebased methods, such as the construction of probabilistic models or atlases used in biomedical image segmentation [1], [2],
+the shape analysis and comparison for anthropometrical studies
+[3], [4], the deformable registration for nonrigid surface motion
+tracking in radio-therapy [5], and image-guided surgery [6], [7].
+While the surface shape provides the basis for mapping, point
+correspondence definition becomes critical, when surfaces are
+
+T
+
+Manuscript received February 22, 2013; revised June 18, 2013; accepted July
+22, 2013. Date of publication July 30, 2013; date of current version December
+16, 2013. Asterisk indicates corresponding author.
+∗ P. Cerveri is with the Department Electronics, Information and Bioengineering, Politecnico di Milano University, Milan 20133, Italy (e-mail:
+pietro.cerveri@polimi.it).
+A. Manzotti is with the C.T.O. Hospital, Istituti Clinici di Perfezionamento,
+Milano 20099, Italy (e-mail: alf.manzotti@libero.it).
+A. Vanzulli is with the Department of Radiology, Niguarda Ca’ Granda Hospital, Milano 20162, Italy (e-mail: angelo.vanzulli@ospedaleniguarda.it).
+G. Baroni is with the Department Electronics, Information and Bioengineering, Politecnico di Milano University, Milan 20133, Italy (e-mail:
+guido.baroni@polimi.it).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2274672
+
+complex (femur and pelvic bone), variable in shape (e.g., liver
+and brain) and undergoing large deformations (e.g., bladder
+and prostate). The lack of ground truth for correspondence is
+an additional aspect that complicates mapping and reduces the
+chances of a reliable correspondence quality evaluation.
+Early methods, such as the iterative closest point algorithm
+(ICP) [8], [9], based on the determination of global rigid or
+global affine transforms, were acknowledged to be not sufficiently flexible to cope with shape complexity and deformations
+typical of the anatomical surfaces [10], [11]. Alternative methods, taking advantage of local transforms between corresponding subregions, were demonstrated to potentially overcome the
+drawbacks of the traditional ICP method [12], [13], [14]. However, it was remarked that local transforms, computed by exploiting shape affinity criteria, easily introduce discontinuity in the
+global deformation, thus requiring some kind of boundary regularization [12]. Chui and Rangarajan proposed an optimizationbased approach, in which two unknown variables (transformation and correspondence) are combined into a unique objective
+function. The soft assignment technique and deterministic annealing algorithm were implemented to search for an optimal
+solution [13]. Allen et al. [14] proposed to determine one affine
+transformation per surface vertex using the closest point approach for correspondence. As point-to-point correspondence
+does not uniquely determine an affine transformation, a specific constraint was introduced, namely a stiffness term forcing
+neighboring vertices to undergo similar (smooth) transformations. It was demonstrated that such a transform smoothness
+constraint can be implemented to make this surface mapping
+method a well-posed problem [15].
+At the same time, point correspondence was evolved from the
+simple closest point approach to more sophisticated similarity
+metrics such as statistical correspondence, intrinsic surface landmarks, bidirectional closest distance, geodesic point distance,
+and invariant differential-geometric parameters [16]–[23]. In
+[16], nonrigid alignment of corresponding point sets was solved
+using the Gaussian mixture models (GMM). In this approach,
+called “coherent point drift”, one point set represents the GMM
+centroids, and the other represents the data points. At the optimum, the two point sets become aligned and correspondence
+is obtained using the maximum of the GMM posterior probability for a given data point. Surface landmarks, automatically
+computed from the differential geometry of the surface, were
+successfully used to align 3-D brain surfaces [17]. Bidirectional
+distance criterion was proposed to increase the robustness of the
+affine ICP, also in case of natural complex shapes [18]. Geodesic
+
+0018-9294 © 2013 IEEE
+
+CERVERI et al.: LOCAL SHAPE SIMILARITY AND MEAN-SHIFT CURVATURE FOR DEFORMABLE SURFACE MAPPING
+
+registration methods were demonstrated to be effective in case
+of large deformations in brain surface registration [19], [20].
+Assuming small nonrigid deformation, surface normal and curvature features were proposed to determine point correspondence and compute local transforms for a variety of pair surfaces, including anatomical shapes [21], [22], [23]. However,
+one of the issues related to the use of the surface curvature to
+establish correspondence on surface meshes was the high sensitivity of the local curvatures to the segmentation uncertainty,
+surface resolution, and smoothness [23], [24], [25].
+In this paper, we capitalized upon the regularization method
+of the local transforms of vertices as proposed in [14] and [15].
+We extended the overall mapping approach by including a novel
+procedure to determine point correspondence using a composite
+local shape similarity metrics, which opportunely merges vertex
+distance, surface normal and local curvatures. In order to reduce
+the dependence of point correspondence upon the surface noise
+and resolution, we applied a mean-shift method [25], which
+is commonly used for data clustering. In our approach, mean
+shift was applied to smooth the local curvatures [26] at run-time
+during the iterative optimization. The experimental validation
+was performed on three surface datasets (femur, pelvic bone, and
+liver) and the results were compared with both the global affine
+ICP [8] and local affine ICP ( [5], [15]) methods. Tests on noisy
+data were explicitly performed. For further benchmarking, we
+evaluated the proposed method against the coherent point drift
+(CPD) method described in [16].
+II. DEFORMABLE SURFACE REGISTRATION
+A. Affine Vertex-Transform
+The standard ICP algorithm consists of an iterative optimization of a global transformation: 1) at each step, any vertex vi of
+the source surface S is matched to the closest vertex ui on the
+target surface T ; 2) the overall vertex displacements are used
+to estimate one global rigid or one affine transformation, using a linear least-squares approach. In order to cope with local
+deformations, the method was reframed by allowing one affine
+transformation Xi (3 × 4 matrix) for each vertex in S [5], [15].
+The minimization of the distance between the deformed source
+point Xi vi and the corresponding target surface point ui leads
+to consider the following cost function:
+Ed (X) =
+
+
+
+wi  (ui − Xi vi ) 2
+
+(1)
+
+v i ∈V
+
+where V is the set of vertices in S and wi is the weight, assigned to the vertex vi . The weights are determined according
+to the point correspondence metrics defined in the following (see
+Section II-B). As earlier stated, assigning one affine transform to
+each vertex makes the cost function under-constrained and the
+optimization problem ill-posed. In order to overcome this drawback, an additional regularization term must be introduced by
+adding up restrictions to the free variables in the Xi transform.
+Given a weighting matrix G = diag (1, 1, 1, γ), this constraint
+represents the transition smoothness across adjacent transforms,
+
+17
+
+Fig. 1. Schema of the registration algorithm. In the outer loop the stiffness
+factor α is gradually decreased. In the inner loop the affine transform X is
+refined. The outer loop stops when the Hausdorff distance between the target
+and the deformed source surface is below a predefined threshold δ (0.5 mm)
+or when the minimum stiffness value α is achieved. The computation of the
+point correspondence is highlighted. In this step, the curvature s [cfr. (7)] of the
+deformed source surface is mean shifted [cfr. (14)].
+
+which can be modeled as
+Es (X) =
+
+
+
+ (Xi − Xj ) G 2F
+
+(2)
+
+{i,j }∈ε
+
+where ε is the set of edges of S and γ is used to weight differences in the rotational and skew part of the deformation against
+the translational part of the deformation. In our implementation,
+γ was automatically set equal to the inverse of the maximum
+size (in mm) of the target surface along the three directions in
+space. The overall cost function, derived by summing up (1) and
+(2), can be rearranged in
+E (X) = Ed (X) + αEs (X) = (AX − B) 2F
+
+(3)
+
+and is solved using a linear least-squares approach. The parameter α represents the stiffness, which penalizes differences
+between the transformation matrices assigned to neighboring
+vertices and modulates the capabilities of the surface to deform.
+In order to obtain an efficient solution for the resulting linear
+system, the matrix A is factorized using the Cholesky decomposition [5], [15].
+The overall algorithm (see Fig. 1) rests on an initial transform
+of the source surface through an affine global ICP, followed by
+a local affine ICP. This latter is implemented on two iteration
+loops. In the outer loop, point correspondence is established
+and the stiffness value α is gradually decreased. This allows us
+to combine deformation smoothness in wide regions (higher α
+values) with more and more localized deformations associated to
+lower α values. In our implementation, the factor α ranged from
+100 to 1.0, across consecutive steps by a factor 2. The outer loop
+stops when the direct Hausdorff distance between the target and
+the deformed source surface is below a predefined threshold δ
+(0.5 mm) or when the minimum stiffness value α is achieved. For
+a given value of α and a fixed point correspondence, the affine
+
+18
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+transform X is iteratively refined in the inner loop. The inner
+loop stops when the relative difference between two consecutive
+transforms X is lower than a predefined threshold σ (0.1%).
+B. Point Correspondence Strategy
+In order to determine point correspondence, we implemented
+an objective function exploiting local geometric features. For
+each vertex pi on the target surface, the objective function e,
+to be minimized within a region for vertex pj on the deformed
+surface, is
+eij = dij nij cij
+
+(4)
+
+where dij , nij , and cij are a Euclidean distance measure, a surface normal measure and a feature (curvedness) match measure,
+respectively. The Euclidean distance measure is defined as
+dij = 1+  pi − pj 
+
+(5)
+
+with 1 ≤ dij ≤ dw ,where dw (50 mm) is the radius of the search
+window with center point pi . The surface normal match measure
+is defined as
+nij = |2 − ni nj |
+
+(6)
+
+where n is the unit normal vector for each surface point. The
+curvedness factor cij in (4) is computed by considering the local
+shapes of the two surfaces. For this aim, the shape index factor S,
+used to discriminate between pit and ridge regions, is computed
+as
+
+
+k1 + k2
+2.0
+atan
+s=
+(7)
+π
+k1 − k2
+where k1 and k2 are the minimum and maximum curvatures
+and s is ranging from −1 to +1. The s value can be then used
+to discriminate the typology of the surface locality through a
+factor t as
+⎧
+ridge,
+if s > cr
+⎪
+⎨
+if s < cp
+t = pit,
+(8)
+⎪
+⎩ nofeature, otherwise
+where the threshold values cr and cp were chosen to obtain
+three about equally disjointed curvature classes (cr = 0.35, cp
+= −0.35). Then, the curvedness similarity cij is obtained as
+⎧
+⎧
+(ridge, ridge)
+⎪
+⎪
+⎨
+⎪
+⎪
+⎪
+⎪
+1 if (ti , tj ) = (pit, pit)
+⎪
+⎪
+⎪
+⎪
+⎩ (no feature, no feature)
+⎪
+⎨
+cij =
+(9)
+	
+⎪
+(ridge, no feature)
+⎪
+⎪
+⎪
+2 if (ti , tj ) =
+⎪
+⎪
+(pit, no feature)
+⎪
+⎪
+⎪
+⎩
+3 if (ti , tj ) = (ridge, pit) .
+The point on the deformed surface that minimizes (4) within a
+distance dw is selected as the corresponding point on the target.
+Once the {eij } distribution is obtained for all the deformed
+surface points, each eij value is inverted and the new distribution
+is normalized between 0 and 1 {ēij }. The weight wi [cfr. (4)] is
+
+thus computed directly as
+wi = ēij .
+
+(10)
+
+This weighting mechanism allows us to ponder contributes
+of heterogeneous correspondence less than homogenous correspondences.
+C. Curvature Mean Shift
+Surface noise and resolution can affect the computation quality of the k1 and k2 curvatures [24] and, in turn through the
+curvature factor s, the point correspondence. The direct runtime surface smoothing is impracticable as it would disrupt the
+role of vertex transformations. In addition, the computational
+load and topology preservation are significant issues. In order
+to control at run-time the smoothness of the curvature factor s,
+a curvature processing, based on the mean-shift paradigm, was
+implemented. It was previously shown that a generalized bivariate mean-shift density function [25] can be specialized [26] to
+smooth the curvature factor s (v) at a mesh vertex v as a function
+of the set {s (vj )} of the curvatures at its neighborhood vertices
+N (v). The density function d (s (v)) can be expressed as
+
+
+
+s (v) − s (vj )
+1
+d (s (v)) =
+F
+(11)
+4rb
+b
+v j ∈N (v )
+
+where F is a radial symmetric kernel function, b is a constant
+bandwidth parameter, and r is the number of mesh vertices
+in the neighborhood N (v). Considering a t-ring neighborhood
+of each vertex, the simplest curvature smoothing is attained
+by considering the one-ring vertices (adjacent vertices). The
+gradient of the curvature density can be computed as
+
+
+ 
+ s (v) − s (vj ) 2
+m (s (v)) 
+
+gb 
+∇d (s (v)) = p
+
+
+2rb3
+b
+v j ∈N (v )
+
+(12)
+where gb (x) = −F  b (x).
+The mean-shifted curvature m (s (v)) at the vertex v can be
+therefore expressed as
+
+ 
+
+ s(v )−s(v j ) 2
+s
+(v
+)
+g
+
+j
+b 
+v j ∈N (v )
+b
+
+ .
+m (s (v)) = −s (v) +
+
+
+ s(v )−s(v j ) 2
+
+v j ∈N (v ) gb 
+b
+(13)
+The curvature s (v) is refined throughout n iterations as
+sn +1 (v) = sn (v) + m (sn (v))
+
+(14)
+
+until |sn +1 (v) − sn (v)| is less than a user specified threshold
+ε, which corresponds to a lower bound of the magnitude of the
+mean-shift vector. According to the results of [26] and without
+loss of generality, the parameter ε was setup to 10−5 .
+Technically, the regions of low-density values (flat regions)
+are of no interest for the feature space analysis and, in these
+regions, the mean-shift steps are large. Similarly, near local
+maxima (pit or ridge) the steps are small and the analysis is refined. The mean-shifted curvature algorithm is thus an adaptive
+
+CERVERI et al.: LOCAL SHAPE SIMILARITY AND MEAN-SHIFT CURVATURE FOR DEFORMABLE SURFACE MAPPING
+
+TABLE I
+IMAGE ACQUISITION FEATURES AND SURFACE DATASETS
+
+19
+
+axial slices (512×512 pixels, pixel size: 0.95 mm) were taken
+at 3 mm scan intervals. The management, the anonymization,
+and the processing of the liver datasets were approved by the
+Human Subject Committee of the Niguarda Ca’ Granda hospital (Milano, Italy). For the liver, the original mean number of
+triangles was 96032 (std: 12621).
+B. Test Protocol
+
+Fig. 2. Sample surfaces. Left femurs (upper panel), left hemi-pelvic bones
+(middle panel), and livers (lower panel).
+
+gradient ascent method able to increase the curvature difference between convex and concave regions without modifying
+the surface topology.
+III. EXPERIMENTS AND VALIDATION
+
+For femur and hemi-pelvic bone surfaces, we separated the
+datasets into left and right subsets. For each subset, a reference
+surface (target surface) was selected and all the remaining surfaces were deformed to that one. The proposed method herewith
+called local affine similarity (LA-SIM) was evaluated against the
+traditional global affine ICP (GA-ICP), local affine ICP (LAICP) [15] and the coherent point drift (CPD) [16] methods.
+The number of vertices of all the three surface datasets was
+decimated to 5000. The corresponding average distance error
+with respect to the original reconstructed surfaces was less than
+0.5 mm for all the three surface typologies. The registration
+quality between target and deformed surfaces was measured
+in terms of root mean squared (RMS) and maximum (MAX)
+bidirectional distance errors. A statistical comparison (nonparametric Kruskall-Wallis with a significance level p equal to 0.05)
+was applied to compare the four (GA-ICP, LA-ICP, LA-SIM,
+and CPD) methods performance in all surface datasets (femur,
+hemi-pelvic bone, and liver). As an additional registration quality index, anatomical landmarks (lateral and medial epicondyles,
+apex of the lesser trochanter) were manually detected on the
+femur surfaces, before registration. After registration, displacements with respect to corresponding landmarks were quantified
+in terms of root mean squared error.
+The role of the mean-shift curvature was tested by simulating
+different surface reconstruction qualities using 2000, 2500, and
+5000 surface points and applying the registration method with
+(LA-SIM) and without mean-shift (LA-SIMw). With no loss
+of generality, this test was carried out on the hemi-pelvic bone
+dataset.
+
+A. Surface Data
+The validation of the method was performed using three different datasets (see Table I): 1) femur dataset (10 left and 10 right
+femur surfaces) collected from elderly cadavers; 2) hemi-pelvic
+bone dataset (10 left and 10 right hemi-pelvic bone surfaces)
+from the same elderly cadaver study; 3) liver dataset (20 liver
+surfaces) from patients (retrospectively) (see Fig. 2).
+The bony contours were manually drawn by radiological
+experts from CT image acquisitions and the bony surface reconstructed using Amira software package [Visualization Science Group, FEI Company)]. About 650 contiguous axial slices
+(512×512 pixels, pixel size: 0.74 mm) were taken at 1 mm scan
+intervals from upper pelvis to proximal tibia. For the femur and
+hemi-pelvic bone datasets, the original average number of triangles was 74337 and 81563 (std: 13241 and 12776), respectively.
+Twenty portal-venous contrast-enhanced CT thoracic studies, coming from Niguarda Ca’ Granda hospital (Milan, Italy),
+were manually segmented by one radiological expert and reconstructed using Amira software package. About 100 contiguous
+
+C. Results
+A visual example of the registration results for the femur and
+hemi-pelvic bone is depicted in Figs. 3 and 4. As expected, the
+global affine ICP was not able to cope with large nonisotropic
+local deformations. The CPD method also leaded to unsatisfactory results.
+As far as the femur is concerned (see Fig. 3), LA-ICP leaded to
+poor results in the lesser trochanteric region. There, due to large
+initial distance between corresponding regions, the closest point
+approach failed in determining correspondences. Conversely,
+LA-SIM provided more satisfactory overlapping including the
+lesser trochanter. For the hemi-pelvic bone (see Fig. 4), LA-ICP
+could not match surfaces in the region of the iliac crest, where the
+bone thickness is small and the front and back surfaces are very
+close one another. The smoothness of adjacent transformations
+did not prevent face collapsing.
+In addition, LA-ICP did not cope with large deformations, especially needed in high curvature regions as bony protuberances
+
+20
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+Fig. 5. Registration results of the liver (subjects 8) with global affine ICP (upper left), CPD (upper right), local affine ICP (lower left), and local affine similarity (lower right). The target surface (subject 1) was displayed in transparence.
+Fig. 3. Registration results of the right femur (proximal part) (specimen 2)
+with global affine ICP (upper left), CPD (upper right) local affine ICP (lower
+left), and local affine similarity (lower right). The target surface (specimen 1)
+was displayed in transparence. Greater differences can be appreciated in the
+region of the lesser trochanter.
+
+Fig. 6. Registration results of the liver (subjects 11) with global affine ICP
+(upper left), CPD (upper right), local affine ICP (lower left), and local affine Similarity (lower right). The target surface (subject 1) was displayed in transparence.
+
+Fig. 4. Registration results of the right hemi-pelvic bone (specimen 4) with
+global affine ICP (upper left), CPD (upper right) local affine ICP (lower left),
+and local affine similarity (lower right). The target surface (specimen 1) was
+displayed in transparence. Greater differences can be appreciated in the region
+of the anterior superior iliac spine.
+
+(anterior superior iliac spines). On the contrary, LA-SIM solved
+correctly the point correspondence across all the surface regions and better coped with large deformations. CPD scored
+higher than LA-ICP but could not outperform LA-SIM, with
+poorer correspondences found in the iliac crest and acetabulum
+regions. The visual inspection of the liver registration results
+confirmed previous remarks (see Figs. 5 and 6). Again, GA-ICP
+provided poor results, whereas both LA-ICP and LA-SIM were
+able to recover most part of the deformation. Qualitatively, LASIM performed better than LA-ICP especially in the left lobe.
+CPD provided better results than GA-ICP but left lobe correspondences were lost.
+
+CERVERI et al.: LOCAL SHAPE SIMILARITY AND MEAN-SHIFT CURVATURE FOR DEFORMABLE SURFACE MAPPING
+
+TABLE II
+MEDIAN VALUES (MM) OF THE RMS AND MAXIMUM ERROR DISTRIBUTIONS
+
+21
+
+TABLE III
+RMS ERROR VALUES (MM) OF THE ANATOMICAL LANDMARK DISTRIBUTION
+AFTER LA-SIM REGISTRATION
+
+Fig. 8. Curvature plots of the hemi-pelvic bone (specimen 4). The curvature s
+(left) and mean-shift curvature (right). Negative and positive values correspond
+to pit and ridge regions, respectively.
+TABLE IV
+MEDIAN VALUES (MM) OF THE RMS AND MAXIMUM ERROR DISTRIBUTIONS
+FOR THE HEMI-PELVIC BONE DATASET: ROLE OF MEAN-SHIFT CURVATURE
+
+Fig. 7. Box plots of the RMS and maximum bidirectional-distance error distributions for femur, hemi-pelvic bone, and liver datasets. Crosses indicate outlier
+values.
+
+In general, larger registration errors were found in liver than
+in femur and pelvic bone (see Table II and Fig. 7). Quantitative
+assesssment of the LA-SIM performance (RMS: 0.19, 0.30, and
+0.61 mm for femur, pelvic bone, and liver) confirmed the former claim. When LA-SIM was compared with LA-ICP, striking
+reduction of registration error was found (1.6, 5, and 2.6,
+times for femur, hemi-pelvic bone and liver, respectively). CPD
+showed smaller variability of RMS values with respect to LAICP.
+As far as the femur dataset is concerned, the RMS and MAX
+surface distance error distributions (see Fig. 7) of LA-SIM were
+significantly lower than the corresponding distributions asso-
+
+ciated with GA-ICP, CPD, and LA-ICP (p < 10−5 ). Similar
+results were obtained for the hemi-pelvic bone (p < 10−6 )
+dataset, with a remarkable lack of statistically significant differences of maximum error distributions among GA-ICP, LA-ICP,
+and CPD (cfr. Fig. 7. left-middle panel). For the liver case,
+stastistical analysis confirmed statistical difference (p < 10−5 )
+between LA-SIM and LA-ICP.
+The maximum RMS error of LA-SIM registration, computed
+on corresponding landmarks located on the femur, was lower
+than 1.6 mm (see Table III). This value lies in the same range of
+the interoperator variability in manual detection, as traditionally
+reported in the literature [27].
+An example of the effect of the curvature mean-shift for a
+hemi-pelvic bone surface is depicted in Fig. 8. Visual inspection can easily lead to appreciate both the curvature smoothing
+in flat regions and curvature enhancement close to concave and
+convex regions. Quantitative results on the overall hemi-pelvic
+bone dataset showed that mean-shift elicited registration improvements at all surface resolutions (see Table IV and Fig. 9).
+Corresponding RMS and maximum errors reductions were 21%
+and 26% (5000), 14% and 12% (2500), 14% and 11% (2000).
+
+22
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+Fig. 9. Box plots (median, lower and upper quartiles) of the RMS
+bidirectional-distance error distributions for hemi-pelvic bone dataset. Crosses
+indicate outlier values. Light and dark boxes refer to LA-SIM and LA-SIM
+without mean-shift curvature, respectively. Tests were carried out using 2000,
+2500, and 5000 surface points.
+
+Fig. 11. Noisy data and r registration accuracy with LA-SIM for three different
+noise levels (uniform distribution: ±1 mm, ±2 mm, and ±5 mm) overlaid to
+the femur surface.
+
+noise levels (uniform distribution: ±1 mm, ±2 mm, and
+±5 mm) overlaid to the original reconstructed shapes. In Figs.
+10 and 11, noisy data and registration results were depicted for
+one hemi-pelvic bone and one femur, respectively. In Fig. 12,
+the overall registration results were summarized. Considering
+the femur, the reference residual error for no noise case was
+0.23 mm (RMS) and 2.79 mm (MAX). In the worst noise
+condition, the median values for RMS and MAX distribution
+errors were lower than 0.5 and 6.5 mm. Considering the
+hemi-pelvic bone, the reference residual error for no noise
+case was 0.33 mm (RMS) and 5.16 (MAX). In the worst noise
+condition, the median values for RMS and MAX distribution
+errors were lower than 0.9 and 9 mm.
+IV. DISCUSSION
+A. Validation
+
+Fig. 10. Noisy data and r registration accuracy with LA-SIM for three different
+noise levels (uniform distribution: ±1 mm, ±2 mm, and ±5 mm) overlaid to
+the hemi-pelvic bone surface.
+
+The role of mean shift, across surface quality, was less relevant
+at lower number of surface points. The statistical comparison,
+between LA-SIM and LA-SIM without mean-shift curvature,
+showed that there was a significant difference in the RMS error
+distributions, with a p values less than 10−4 , 10−3 , and 5∗10−3 ,
+for 5000, 2500, and 2000 surface points, respectively.
+The explicit effect of noise on data was tested upon femur
+and hemi-pelvic bone datasets by simulating three different
+
+The proposed method for point correspondence determination and surfaces registration exploited the regularization of the
+vertex transforms to obtain locally smooth affine deformations.
+It was based on the local affine ICP method [14], [15], [5],
+featuring two specific methodological extensions: 1) pointcorrespondence was optimized by minimizing a shape similarity criterion, as a function of point distance, vertex normal
+directions and local curvatures [see (4)]; 2) local curvature was
+mean shifted at run-time to reduce the sensitivity to the accuracy
+of estimation of local curvature from the data. Experiments on
+different anatomical surfaces confirmed that large deformations
+are better recovered using local shape similarity than the simple
+closest point method [see Figs. 3–6). For example, the closest
+point method was insufficient when computing correspondences
+
+CERVERI et al.: LOCAL SHAPE SIMILARITY AND MEAN-SHIFT CURVATURE FOR DEFORMABLE SURFACE MAPPING
+
+23
+
+trunk surface registration [5]. This choice allowed converging
+to a feasible solution in all the performed surface registrations.
+In most cases, the iterative optimization did not reach α = 1
+and was terminated by checking the threshold δ (0.5 mm) on the
+direct Hausdorff distance between target and deformed source
+surface. Regarding the threshold σ, which affects the iterations
+in the inner loop (see Fig. 1), the selected value (0.1%, relative difference between two consecutive transforms X) was
+sufficient to obtain less than ten iterations for all the performed
+registrations. Concerning ε, we already reported [26] that an
+absolute threshold of 10−5 on the s curvature variation is a good
+tradeoff between accuracy and computational load. The setup
+of the curvedness similarity [see (9)] was done on a heuristic
+base. By penalizing the correspondence between concave and
+convex regions three times more than coherent correspondences
+(concavity–concavity, convexity–convexity), undue correspondences were satisfactorily rejected.
+C. Concerns Regarding Implementation
+
+Fig. 12. Box plots (median, lower, and upper quartiles) of the RMS
+bidirectional-distance error distributions for femur and hemi-pelvic bone
+datasets in correspondence of three noise levels. Crosses indicate outlier values.
+
+between very thick surface regions, as in the pelvic bone (see
+Fig. 4). More specifically, results (see Table II) provided strong
+evidence that local shape similarity overcomes the performance
+of the classical global affine ICP method [8] and of the local
+affine ICP method [14]. LA-SIM also scores better than methods based on the Gaussian curvatures, which were proved to
+work only under the assumption of small deformations [23]. In
+the frame of the explicit comparison with the CPD method [16],
+evidence was found showing that CPD may not cope satisfactorily with the complex anatomical shapes, that were tested in
+our analysis (cfr. Table II). As far as mean shift curvature is
+concerned, we verified that curvature smoothing leads to an
+increase of registration accuracy (see Fig. 9). With respect to
+previous studies, the obtained registration accuracy turned out
+to be generally superior or at the limit similar to what was reported in [1], with average RMS error on bone surfaces of about
+3.5 mm, as well as in [6] and [7], with average RMS error on
+liver surface in the range 4.0 and 3.0 mm range, respectively.
+From tests on noisy data, we can also assert that the method is
+sufficiently robust against noise (see Fig. 12).
+B. Algorithm Parameters Selection and Convergence
+The overall registration algorithm was mainly dependent on
+four parameters, namely α, δ, σ, and ε. The α parameter [see (3)]
+was used to control the transition smoothness across adjacent
+transforms. The convergence thresholds δ, σ, and ε, were used to
+terminate the execution of the outer loop, of the inner loop and
+of the iterative mean-shift algorithm, respectively. As far as α is
+concerned, the selection of the range (100. .1) was made based
+on our former experiences about the use of method on human
+
+As far as the implementation is concerned, the registration
+method was compiled in C programming language. The tests
+were performed on an Intel Core I7 2.40 GHz processor. From
+the computational perspective, LA-SIM was more intensive than
+LA-ICP with average time required for one registration of about
+80 and 30 s, respectively. The reason resides in the minimization
+of (4), which requires to check all the target points in the proximity of the source point, which was not specifically optimized.
+Conversely, the mean-shift curvature increased the overall computational time by just about 5%. Further on-going developments aims at speeding up the process of point correspondence
+using optimized search trees.
+D. Issue About the Used Metrics for Validation
+While the RMS residual between two surfaces is not the most
+objective measure of registration accuracy, it is however highly
+unlikely that registrations resulting in large RMS residuals correspond with reasonable alignments. In order to empower the
+method performance evaluation, we used the bidirectional distance error and we measured also the maximum registration
+error. The visual inspection of the registrations and the agreement between RMS and maximum registration errors confirmed
+the former synthesis. Future improvements will look into bidirectional local coherence in the optimization.
+V. CONCLUSION
+The proposed LA-SIM method can be used to register
+anatomical shapes, within the morphological variability, with
+higher quality with respect to other competitive approaches
+based on ICP. The registration process is not fully automatic, as
+it requires the initialization of the source close to the target, and
+does not guarantee the diffeomorphism. In this paper, we used
+anatomical surfaces that can be aligned automatically using the
+principal axes computed through principal component analysis.
+With respect to prior art [15], the main methodological innovation consists of the integration of the local shape similarity
+
+24
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+metrics and the mean-shift curvature smoothing into the affine
+ICP approach. In detail, the main contributions are delivered as
+follows; 1) the registration does not require delineation of 3-D
+landmarks; 2) the proposed metrics for point correspondence
+allows recovering larger deformations with respect to conventional closest point metrics; 3) the registration produces one
+affine transformation per vertex thus providing direct point correspondence; this latter is a fundamental requirement for the
+shape alignment in the construction of statistical shape models,
+4) the transform regularization prevents affine registration problem to be ill-posed; the obtained registrations were all consistent
+and method robustness was supported by the reported experimental results; 5) in principle, the proposed method can deal
+with any surface featuring consistent geometry, thus lending itself as a valuable computational tool for deformable registration
+in biomedical applications.
+ACKNOWLEDGMENT
+The authors would like to thank Niguarda Ca’ Granda hospital
+(Milano, Italy) for providing clinical liver data.
+REFERENCES
+[1] D. C. Barratt, C. S. Chan, P. J. Edwards, G. P. Penney, M. Slomczykowski,
+and T. J. Carter, “Instantiation and registration of statistical shape models
+of the femur and pelvis using 3D ultrasound imaging,” Med Image Anal.,
+vol. 12, pp. 358–74, 2008.
+[2] R. Bryan, P. B. Nair, and M. Taylor, “Use of a statistical model of the
+whole femur in a large scale, multi-model study of femoral neck fracture
+risk,” J. Biomech, vol. 42, pp. 2171–2176, 2009.
+[3] N. Jianwei, L. Zhizhong, and S. Gavriel, “Mathematical methods for shape
+analysis and form comparison in 3D anthropometry: A literature review,”
+Digital Human Modeling, HCII 2007, V. G. Duffy, Ed., pp. 161–170,
+2007, (LNCS 4561).
+[4] P. Cerveri, M. Marchente, W. Bartels, K. Corten, J.P. Simon, and
+A. Manzotti, “Automated method for computing the morphological and
+clinical parameters of the proximal femur using heuristic modeling techniques,” Ann Biomed. Eng., vol. 38, no. 5, pp. 1752–1766, 2010.
+[5] J. Schaerer, A. Fassi, M. Riboldi, P. Cerveri, G. Baroni, and D. Sarrut,
+“Multi-dimensional respiratory motion tracking from markerless optical
+surface imaging based on deformable mesh registration,” Phys Med. Biol,
+vol. 57, no. 2, pp. 357–73, 2012.
+[6] L. W. Clements, W. C. Chapman, B. M. Dawant, R. L. Jr Galloway, and
+M. I. Miga, “Robust surface registration using salient anatomical features
+for image-guided liver surgery: Algorithm and validation,” Med. Phys.,
+vol. 35, no. 6, pp. 2528–2540, 2008.
+[7] A. J. Herline, J. L. Herring, J. D. Stefansic, W. C. Chapman, R. L. Jr Galloway, and B. M. Dawant, “Surface registration for use in interactive,
+image-guided liver surgery,” Comput. Aided. Surg., vol. 5, no. 1, pp. 11–
+17, 2000.
+[8] P. J. Besl and N. D. McKay, “A method for registration of 3-D shapes,”
+IEEE Trans. Pattern Anal. Much. Intell., vol. 14, no. 2, pp. 239–256, Feb.
+1992.
+[9] S. Du, N. Zheng, G. Meng, and Z. Yuan, “Affine registration of point sets
+using ICP and ICA,” Signal Proc. Lett., IEEE, vol. 15, pp. 689–692, 2008.
+
+[10] J. Minguez, L. Montesano, and F. Lamiraux, “Metric-based iterative closest point scan matching for sensor displacement estimation,” IEEE Trans.
+Robot., vol. 22, no. 5, pp. 1047–1054, Oct. 2006.
+[11] A. Almhdie, C. Leger, M. Deriche, and R. Ledee, “3D registration using
+a new implementation of the ICP algorithm based on a comprehensive
+lookup matrix: Application to medical imaging,” Pattern Recog. Lett.,
+vol. 28, no. 12, pp. 1523–1533, 2007.
+[12] J. Feldmar and N. Ayache, “Rigid, affine and locally affine registration of
+free-form surfaces,” Int. J. Comput. Vis., vol. 18, no. 2, pp. 99–119, 1996.
+[13] H. Chui and A. Rangarajan, “A new point matching algorithm for non-rigid
+registration,” Comput. Vis. Image. Understanding, vol. 89, pp. 114–141,
+2003.
+[14] B. Allen, B. Curless, and Z. Popovi´c, “The space of human body shapes:
+Reconstruction and parameterization from range scans,” ACM Trans.
+Graphics, vol. 22, no. 3, pp. 587–594, 2003.
+[15] B. Amberg, S. Romdhani, and T. Vetter, “Optimal step nonrigid ICP
+algorithms for surface registration,” in Proc. IEEE Conf. Comp. Vis. Patt.
+Recog.,, Minneapolis, MN, USA, 2007, pp. 1–8.
+[16] A. Myronenko and X. Song, “Point-set registration: Coherent point drift,”
+IEEE Trans. Pattern Anal. Mach. Intell., vol. 32, no. 12, pp. 2262–2275,
+Dec. 2010.
+[17] F. S. Cohen and C. Pintavirooj, “Invariant surface alignment in the presence of affine and some nonlinear transformations,” Med Image Anal.,
+vol. 8, no. 2, pp. 151–164, 2004.
+[18] J. Zhu, S. Du, Z. Yuan, Y. Liu, and L. Ma, “Robust affine iterative closest
+point algorithm with bidirectional distance,” IET Comput. Vis., vol. 25,
+no. 10, pp. 252–261, 2012.
+[19] Y. Wang, B. S. Peterson, and L. H. Staib, “3D brain surface matching based
+on geodesics and local geometry,” Comput. Vis. Image Understanding,
+vol. 89, pp. 252–271, 2003.
+[20] J. Hamm, D. H. Ye, R. Verma, and C. Davatzikos, “GRAM: A framework
+for geodesic registration on anatomical manifolds,” Med Image Anal.,
+vol. 14, no. 5, pp. 633–642, 2010.
+[21] C. Kambhamettu, D. B. Goldgof, M. He, and P. Laskov, “3D nonrigid
+motion analysis under small deformations,” Image Vis. Comput. J., vol. 21,
+no. 3, pp. 229–245, 2003.
+[22] B. Fischer and J. Modersitzki, “Curvature based image registration,” J.
+Math. Imag. Vis., vol. 18, no. 1, pp. 81–85, 2003.
+[23] P. Laskov and C. Kambhamettu, “Curvature-based algorithms for nonrigid
+motion and correspondence estimation,” IEEE Trans. Pattern Anal. Mach.
+Intell., vol. 25, no. 10, pp. 1349–1354, Oct. 2003.
+[24] J. J. Koenderink and A. J. Van Doorn, “Surface shape and curvature scales.
+Image and Vision Computing,” Image Vis. Comput., vol. 10, no. 8, pp. 557–
+565, 1992.
+[25] D. Comaniciu and P. Meer, “Mean shift: A robust approach towards feature
+space analysis,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 24, pp. 603–
+619, May 2002.
+[26] P. Cerveri, A. Manzotti, M. Marchente, N. Confalonieri, and G. Baroni,
+“Mean-shifted surface curvature algorithm for automatic bone shape segmentation in orthopedic surgery planning: A sensitivity analysis,” Comput.
+Aided Surg., vol. 17, no. 3, pp. 128–141, 2012.
+[27] P. Cerveri, M. Marchente, C. Chemello, A. Manzotti, N. Confalonieri,
+and G. Baroni, “Advanced computational framework for the automatic
+analysis of the acetabular morphology from the pelvic bone surface for hip
+arthroplasty applications,” Ann. Biomed. Eng., vol. 39, no. 11, pp. 2791–
+806, 2011.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

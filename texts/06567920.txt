@@ -1,0 +1,642 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+21
+
+Data Mining in Bone Marrow Transplant Records
+to Identify Patients With High Odds of Survival
+Babak Taati, Jasper Snoek, Dionne Aleman, and Ardeshir Ghavamzadeh
+
+Abstract—Patients undergoing a bone marrow stem cell transplant (BMT) face various risk factors. Analyzing data from past
+transplants could enhance the understanding of the factors influencing success. Records up to 120 measurements per transplant
+procedure from 1751 patients undergoing BMT were collected
+(Shariati Hospital). Collaborative filtering techniques allowed the
+processing of highly sparse records with 22.3% missing values.
+Ten-fold cross-validation was used to evaluate the performance of
+various classification algorithms trained on predicting the survival
+status. Modest accuracy levels were obtained in predicting the survival status (AUC = 0.69). More importantly, however, operations
+that had the highest chances of success were shown to be identifiable with high accuracy, e.g., 92% or 97% when identifying 74 or
+31 recipients, respectively. Identifying the patients with the highest
+chances of survival has direct application in the prioritization of resources and in donor matching. For patients where high-confidence
+prediction is not achieved, assigning a probability to their survival
+odds has potential applications in probabilistic decision support
+systems and in combination with other sources of information.
+Index Terms—Bone marrow transplant, collaborative filtering,
+data mining, donor matching, health records, matrix factorization,
+principal component analysis, recommender systems, survival.
+
+I. INTRODUCTION
+A. Bone Marrow Transplant
+ONE marrow stem cell transplant (BMT) is a procedure
+that is common in the treatment of certain types of cancer, e.g., leukemia and lymphoma, and other diseases such as
+thalassemia. The procedure replaces the destroyed or damaged
+bone marrow with healthy stem cells. BMT is not always a successful treatment and involves risk factors and complications
+such as infection, relapse of the disease, or graft-versus-host
+disease, each of which could cause death.
+
+B
+
+Manuscript received September 5, 2012; revised January 21, 2013, May 14,
+2013, and June 13, 2013; accepted July 17, 2013. Date of publication July 24,
+2013; date of current version December 31, 2013.
+B. Taati is with the Toronto Rehabilitation Institute – University Health Network, Toronto, ON M5G 2A2, Canada, and also with the Department of Computer Science, University of Toronto, Toronto, ON M5S 1A1, Canada (e-mail:
+taati@cs.utoronto.ca).
+J. Snoek is with the Intelligent Assistive Technology and Systems Lab and
+the Department of Computer Science, University of Toronto, Toronto, ON M5S
+1A1, Canada (e-mail: jasper@cs.toronto.edu).
+D. Aleman is with the Department of Mechanical and Industrial Engineering, University of Toronto, Toronto, ON M5S 1A1, Canada (e-mail:
+aleman@mie.utoronto.ca).
+A. Ghavamzadeh is with the Hematology–Oncology and Stem Cell Transplantation Research Center (HORSCT), Shariati Hospital, Tehran, Iran, and
+also with the Tehran University of Medical Sciences, Tehran, Iran (e-mail:
+horcbmt@sina.tums.ac.ir).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2274733
+
+B. Motivation
+Globally, over 50 000 first hematopoietic stem cell transplants are performed each year [1]. Analyzing data from the
+past transplants and their outcomes could shed light on some
+of the underlying causes of success versus failure. At the same
+time, machine-learning techniques have matured to the point
+that they can reliably operate on challenging datasets that might
+have previously been considered too complex to analyze. These
+include data mining in very sparse or in extremely large-scale
+datasets. Such analysis can reveal a useful statistical structure
+with potential implications in evidence-based prioritization of
+resources and in informing the best practice guidelines.
+
+C. Dataset
+Records from 1750 transplants performed in the largest BMT
+centre in the world (Shariati Hospital, Tehran University of
+Medical Sciences) have been collected for analysis. The data
+was collected over the course of 19 years and contains over
+120 pre and postmeasurements per patient. There are a total
+of 90 pretransplant attributes, 33 posttransplant attributes, as
+well as the survival status of each patient. The ethics review
+board approval for the study was obtained via Shariati Hospital
+(Tehran, Iran).
+The records include 1010 male and 740 female patients of
+ages ranging from 2 to 68 years old at the time of the transplant. The underlying diseases leading to the transplant include
+thalassemia and various forms of leukemia, categorized into five
+classes of acute lymphoblastic leukemia (ALL), acute myelogenous leukemia (AML), chronic myelogenous leukemia (CML),
+plasma cell leukemia (PCL), or others.
+The pretransplant attributes consist of categorical variables,
+ordinal variables, and calendar dates. The named categorical
+variables are derived from records and measurements and include the patient’s gender and blood type. The ordinal values
+include, for example, the level of various antigens, such as the
+Human Leukocyte Antigens, in the patient, the donor, and the
+patient’s parents. The date of birth and that of the diagnosis and
+the transplant are also included.
+To prepare the data for analysis, a few basic preprocessing
+steps were performed. The numerical attributes were each normalized to lie within the [0,1] range. This was to prevent the
+attributes with large absolute values to dominate the analysis.
+For supervised learning, when the data is divided into separate training and test portions, the same normalization scales
+from the training set were applied to the attributes in the test
+set. The date attributes were first converted to reflect the age
+of the patient (e.g., “date of transplant” to “age at transplant”)
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+22
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+and were then treated similar to other numerical values. The
+nominal attributes were represented as binary vectors, or “onehot-codings”, where each binary variable indicates which categorical value applies. Applying these preprocessing steps to the
+pretransplant attributes resulted in a total of 192 numerical or
+binary values, or features, per patient.
+The processing of a dataset collected from real hospital
+records involves some practical difficulties. The primary challenge is that the data is not complete. The average number of
+features known for each of the 1750 patients is 42.8, while the
+average number of patients for which a particular feature is
+available is 390.3. In total, there are a 74,938 (or 22.3%) missing values among the 1750 × 192 = 336,000 elements of the
+patient-feature matrix. The posttransplant attributes contain an
+even larger portion of missing values and some of the attributes
+are only available for a handful of patients.
+There are also occasional discrepancies as the dataset is generated by gathering and merging multiple sources of information
+that are subject to data entry errors. In two cases, for instance,
+the date of diagnosis is noted as prior to the date of birth. In such
+cases where the discrepancy is apparent, the preprocessing step
+discards both conflicting sources of information and treats their
+respective values as missing information. It is also reasonable to
+assume that numerical values such as test results indicating the
+level of various antigens carry the typical measurement noise on
+top of possible record keeping errors. Any algorithms applied
+to this dataset, therefore, must be robust to a large degree of
+missing information and noisy and erroneous values.
+In spite of these challenges, an encouraging fact is that any
+successful analytical techniques identified will be transferable
+to the processing of similar data in other hospital and health
+records beyond the BMT procedures.
+D. Contributions
+The analysis presented here applies state-of-the-art machinelearning techniques to tackle typical challenges that arise in the
+processing of real-life hospital records, including handling of
+the sparse and incomplete data, potential errors, or contradictory information in the records, etc. Specifically, the technical
+contributions of this study include the application of collaborative filtering (CF) techniques to the processing of incomplete
+and occasionally unreliable BMT records and the application
+of a Bayesian parameter selection algorithm to ease the burden
+of manual adjustments. The CF methods employed here [2]–[5]
+are well established algorithms. The novelty herein lies in their
+application to BMT records, which can also be transferred to
+the processing of other hospital records. Parameter tuning via
+Bayesian optimization is a novel development in the field of
+machine learning, the details of which are elaborated in [6].
+The contribution here lies again within the application of the
+technique to health informatics. The clinical contributions of
+this study, beyond the collection of the data, are the experimental analysis of the predictability of posttransplant patient survival based on the pretransplant attributes. Preliminary results
+from this work have been previously presented in an abstract
+form [7], [8].
+
+E. Related Work
+There has been very little published in the medical literature
+exploring the use of data mining methods in the BMT donor
+selection, and all of it has focused on the prediction of graftversus-host disease (GvHD). GvHD, which occurs when the
+donor cells reject the recipient, is a painful and frequently fatal
+disease that is a common outcome of an unsuccessful BMT.
+GvHD comes in two forms: acute GvHD (aGvHD), which has
+grades I, II, III, and IV, and chronic GvHD (cGvHD).
+In one study [9], linear discriminant analysis was used to
+identify “stronger alloresponders”, that is, donors who are more
+likely to elicit GvHD. The study aimed to predict any GvHD in
+the patient posttransplant, and was able to identify stronger alloresponders with up to 80% accuracy comparing 17 genes and
+four gene pairs. The same topic of identifying donors whose
+cell transplantation could result in GvHD was also investigated
+in [10] using logistic regression to associate haplotype mismatches with grades III–IV aGvHD. The authors examined three
+traits from the recipients and five traits from the donors, and
+found that the haplotype mismatches statistically corresponded
+to increased risk of severe aGvHD.
+This research topic seeks to build upon the initial successes
+of [9] by decreasing the human involvement required and by
+examining more data mining methods. One drawback of the
+approach presented in [9] is that gene profile expressions are
+currently not approved for use in treating patients. Even if gene
+expression profiling becomes a permissible clinical tool, processing gene profiles requires extensive manual analysis and
+potential costs, which could be prohibitive to clinical applications. This research, therefore, seeks to classify the success
+of potential patient–donor BMT pairings using readily-available
+patient and donor data such as age, HLA levels, cytomegalovirus
+exposure, etc. A far larger number of pretransplant features than
+either previous study are also used here.
+F. Organization
+The remainder of this paper is organized as follows. The
+methodology and the algorithms employed in the analysis are
+described in Section II. Experimental results are presented in
+Section III and include numerical results and discussion points
+on matrix completion (Section III-A), setting of model parameters (Section III-B), and the prediction of survival states
+(Section III-C). The concluding remarks and future work appear in Section IV.
+II. METHODS
+A. Objectives
+The availability of the obtained dataset encourages various
+research projects aimed both at targeted data mining and at exploratory analysis in search of useful patterns. Current and future
+efforts include exploring the effectiveness of various supervised
+and unsupervised machine-learning techniques and feature selection mechanisms in the processing of the dataset. The study
+and results presented here are focused specifically at answering a crucial research question, specifically: Is it possible to
+
+TAATI et al.: DATA MINING IN BONE MARROW TRANSPLANT RECORDS TO IDENTIFY PATIENTS WITH HIGH ODDS OF SURVIVAL
+
+predict the survival of each patient based on their preoperative
+measurements?
+The ability to predict the most important outcome of the
+surgical procedure, i.e., the survival status, has the highest significance. It will not only help with gaining an understanding
+of the underlying causes and factors influencing success, but
+also has consequences in donor matching and in prioritizing the
+recipients when donors and other resources are scarce. Even if it
+is concluded that an outright prediction method with high confidence is not achievable given the available data, a predictive
+method that assigns a quantitative confidence level, e.g., in the
+form of a probability value, to the survival chance for various
+potential recipients can inform probabilistic decision support
+systems (DCSs).
+The approach used in trying to answer the research question
+has been to apply supervised machine-learning techniques to
+train a binary classifier to predict the survival status based on
+the pretransplant attributes. The level of accuracy obtained in
+this prediction provides a quantitative answer to the research
+question.
+B. Handling of Missing Information
+The literature on data mining and the handling of missing
+data is vast (e.g., [11]–[14]). The methodology employed here
+relies on matrix completion strategies.
+The patients and their features can be represented in the form
+of a p × f matrix (M ), where p = 1750 and f = 192 are the
+number of patients and features, respectively. A simplistic approach in dealing with the missing elements within this matrix
+is to ignore all the patients for which there are any missing
+features. The collected dataset, however, would not contain any
+remaining patients after this elimination. In other words, all p
+rows in the M matrix contained at least one missing feature
+value. The minimum number of missing features was in fact 21.
+A similar approach is to select a subset of features which
+contain no missing values among all the patients (i.e., the complete columns of M ), or, more generally, to select the largest
+subsets of the features and the patients for which complete
+data are available. In the dataset at hand, the subset which resulted in the least amount of discarded elements was in fact
+equivalent to keeping all the patients as well as 68 of the features which had valid values for those patients. This amounted
+to retaining 1750 × 68 = 119 000 data points, equivalent to
+∼ 45.6% of all the data, i.e., p × f − no. of missing elements =
+1750 × 192–74 938. In other words, this strategy results in discarding more than half of the available data.
+This approach not only discards large portions of available
+data, but it also restricts the applicability of any analytics to only
+future cases with complete data. An alternative approach is to
+attempt to infer the missing data conditioned on the available
+observations. Under the assumption that the intrinsic dimensionality of the data is lower than the number of features and that
+the set of features is not independent, this should be possible.
+A popular strategy for inferring features from incomplete
+observations is through CF [15]. CF approaches are often used
+in online recommendation systems which infer (i.e., filter) the
+
+23
+
+potential interest of a user for a movie or a music piece based on
+their previous selections and that of many other users (i.e., via
+collaboration) [16]. A common technique in CF is to assume
+that each observation arises from the linear combination of a
+small number of latent factors. The observation matrix, with
+missing elements, can thus be factorized as the product of two
+lower rank matrices.
+Formally, if M is an p × f matrix with some missing values, the goal is to generate a factorized version as M ≈ M̂ =
+P F T , by finding the p × d matrix P and the f × d matrix F
+such that some error metric is minimized, and when the dimensionality of the latent space (i.e., d) is small (d  m and
+d  f ). A simple metric, and one that is prone to being most
+affected by outliers, is the sum (or mean) of squared errors between the known (i.e., not missing) elements in M and their
+corresponding values in M̂ , i.e., e = (Mij − M̂ij )2 = (Mij −
+d
+2
+k =1 Pik Fj k ) , for all i = 1 : p, j = 1 : f, Mij = NA, where
+NA indicates the missing elements. More advanced methods
+employ a variety of techniques to improve the robustness of
+the decomposition, for instance with respect to outliers, noise,
+the amount of missing data, etc. These techniques include employing other distance metrics (e.g., the 1 norm instead of the
+Euclidean distance) to reduce the sensitivity of the method to
+outliers or regularization (e.g., by augmenting the error measure
+with the magnitude of the P and F matrices) to avoid overfitting,
+etc. [16].
+Three matrix factorization methods were used in this study.
+These are probabilistic principal component analysis with missing values (PPCA-MV) [3], [4], probabilistic matrix factorization (PMF) [17], and robust PCA with 1 norm minimization [5].
+A brief overview of these methods is provided for reference.
+1) Probabilistic Matrix Factorization: PMF [2] assumes
+that each entry Mij in the observed matrix is the product of
+two feature vectors corrupted with additive isotropic Gaussian
+noise with variance σ 2 . Assuming the observed entries are conditionally independent given the latent features, the following
+probabilistic formulation is obtained:
+p(M |P, F, σ 2 ) =
+
+f
+p 
+
+
+
+N (Mij |Pi FjT , σ 2 )
+i=1 i=1
+
+where N (x|μ, σ ) indicates the Gaussian distribution with mean
+μ and variance σ 2 . It is further assumed that the latent vectors
+are also normally distributed with zero mean and variances of
+σP2 and σF2 , respectively. The latent vectors representing each of
+the patients and the features are learned by maximizing the likelihood of the observed entries under the previous formulation.
+Then unobserved entries are inferred as the mean of the distribution which is simply the product of the corresponding latent
+vectors.
+2) Probabilistic PCA With Missing Values: PPCA-MV [3]
+is a formulation of principal components analysis that defines a
+proper density model over the data. Similar to PMF, it is assumed
+that the data are the result of a noisy linear projection from a
+lower dimensional latent space. Placing zero-mean Gaussian
+priors over the latent factors P and F and an isotropic zeromean Gaussian distribution over the observations M leads to a
+2
+
+24
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+generative model over the observations where the factors span
+the first principal components of the data. This formulation
+leads to a principled methodology for inferring missing data
+and generating new observations [3], [4].
+3) Robust PCA With 1 Norm Minimization: This robust
+PCA (RPCA) technique [5] applies compressed sensing [18]
+principles to matrix factorization and employs fast convex optimization algorithms [19] for efficient computation.
+The factorization decomposes a given matrix M into a sum
+of a low-rank matrix L and a sparse (i.e., mostly zeros) matrix
+S. Since solving for L and S in M = L + S is highly underconstrained, two conditions on the rank of L and the sparsity
+of S form the constraints under which the problem could be
+formulated. Specifically, the rank of L as well as the number
+of nonzero elements in S should be minimized. It has been
+shown that under a wide range of conditions [20], the following
+equality constraint results in the exact recovery of L:
+minS,L L∗ + λS 1 such that L + S = M.
+Here, L∗ is the nuclear norm 
+of L (as a proxy for its rank)
+and S 1 is the 1 norm of S, i.e., i,j Sij , as a proxy for the
+number of nonzero entries. The algorithm is not overly sensitive
+to the choice of parameter λ which is typically set empirically
+by the trial and error.
+In the case of the BMT data, if RPCA succeeds, the lowrank component (L) of the decomposition should fully recover
+a completed version of M and the sparse component (S) would
+represent the missing and erroneous values.
+C. Supervised Learning
+Once CF is applied to the incomplete matrix of features, its
+outcome, along with the survival states of each patient, provides
+a set of observations and labels per patient. (The survival status
+is known for all patients without any missing values.) These
+values were then used to train (and validate) a binary classifier
+to predict the survival status of each patient.
+If PMF or PPMA-MV is used, there is no need to fully reconstruct the matrix of features (M̂ ) because P , i.e., the latent
+space representation of the patients, encapsulates all the available information for each patient and provides d observations
+per patient. In the case of RPCA, the low-rank matrix L can also
+be expressed as L = P F T without a loss. The outcome of the
+procedure is coded as a binary value, s, indicating survival with
+1 and death with 0. The goal of the binary classifier is to predict
+s, given the vector of d observations per patient.
+To this end, various supervised learning algorithms were tried
+and evaluated via ten-fold cross-validation. These included a
+logistic regression linear classifier (LR), random forests (RF)
+[21], and supper vector machine (SVM) classifiers with linear,
+polynomial, and radial basis function (RBF) kernels [22].
+Rather than separating binary classification from matrix factorization, it is also possible to embed the survival states as an
+additional column in the matrix of observations and allow for
+the factorization algorithm to fill in the simulated gaps. This
+method, however, would enforce a linear relationship between
+the matrix of observations and the survival states as the factor-
+
+ization methods used here provide a linear subspace projection.
+Separating the two phases allows for the application of statistically robust classification algorithms (e.g., RF or a regularized
+classifier such as a linear SVM) or those capable of generating
+more complex separation boundaries, via nonlinear modeling
+(e.g., RBF or polynomial SVM).
+D. Bayesian Optimization
+Bayesian optimization [23] is a methodology for finding the
+extremum of noisy black-box functions. Given some small number of observed inputs and corresponding outputs of a function of interest, Bayesian optimization iteratively suggests the
+next input to explore such that the optimum of the function is
+reached in as few function evaluations as possible. Provided
+that the function of interest is continuous and follows some
+loose assumptions on smoothness, Bayesian optimization has
+been shown to converge to the optimum efficiently [24]. Recently, Bayesian optimization has been shown to be effective
+for optimizing the hyperparameters of machine-learning algorithms [6], [25]. In this study, the Gaussian process expected
+improvement formulation of [6] is used.
+E. Parameter Tuning
+The Bayesian optimization technique reviewed in
+Section II-D was applied to find the optimal parameter
+setting in a two-dimensional space. The two parameters
+included the dimensionality of the latent space (d) and a
+parameter that sets a limit on the sparsity of features (m).
+In PMF and PPCA-MV, the most important parameter to be
+tuned is the dimensionality of the latent space, d, as it directly
+affects the quality of the factorization and also determines the
+length of the feature vector for the subsequent supervised learning phase. The parameter m sets a threshold on the sparsity
+of each feature in matrix M . The distribution of missing values
+across the feature matrix is not uniform. Consequently, the value
+of some features is known for most or all patients, while other
+features have known values only for a handful of patients. For
+instance, there are 68 features, i.e., 68 columns in M , which
+are complete, whereas there are also 20 features with known
+values for fewer than 40 patients, including one patient with
+only two known values. It is reasonable to assume that in some
+situations, extremely sparse features might not only not add additional helpful information, but could also negatively affect the
+matrix completion process, e.g., by exceeding the sparsity limits under which the algorithms operate properly. The parameter
+m was therefore considered to discard features for which the
+number of unknown values was too
+ large; i.e., each column j
+of the features matrix for which ( pi=1 Mij == N A) > m is
+removed from the matrix.
+PPCA-MV was used during the parameter tuning phase. Each
+of the three factorization algorithms has a series of parameters
+that could potentially be tuned for optimal performance. In this
+aspect, PPCA-MV holds an advantage over the other two factorization algorithms as it only has a single threshold parameter to
+set, whereas PMF and RPCA have four and three adjustable parameters, respectively. The PPCA-MV threshold value sets the
+
+TAATI et al.: DATA MINING IN BONE MARROW TRANSPLANT RECORDS TO IDENTIFY PATIENTS WITH HIGH ODDS OF SURVIVAL
+
+stoppage criteria as a minimum relative improvement in its objective function at each iteration for the processing to continue.
+The only tradeoff in reducing this threshold value is added computational time. Consequently, this value did not require tuning
+and was empirically set to a very low value (1 × 10−4 ). Since
+the run time of the algorithm is fast, this only had a small effect
+on overall processing times. With the given threshold value,
+PPCA-MV factorization typically converged within approximately 200 iterations in less than 2 s.
+III. RESULTS AND DISCUSSION
+A. Matrix Completion
+Among the three CF methods described in Section II-B,
+PPCA-MV and PMF provided matrix factorizations that resulted in better overall prediction accuracies of the survival
+status than RPCA. The visual inspection of matrix completion
+results revealed that in the L + S (low rank + sparse) decomposition of the M matrix delivered by RPCA, the low-rank matrix
+L incorporated the distribution of the missing data rather than
+representing the information from the available data points. A
+likely explanation for this phenomenon is that the patterns and
+the amount of missing values in matrix M exceeded the robustness limits of the algorithm with respect to sparsity [20], but
+this requires further analysis.
+PPCA-MV and PMF provided similar results in terms of the
+overall prediction accuracy of the survival status, but PPCA-MV
+was chosen as the preferred method for two reasons. First, with
+the available MATLAB implementations, the running time of
+PPCA-MV was considerably faster than that of PMF (≈ 2 s
+versus ≈ 81 s, when applied to the full size 1750 × 192 matrix
+of M and with 100 PMF iterations, a minimum number of
+iterations after which the reconstruction RMS error plateaued).
+Second, the RMS error of the reconstructed matrix M̂ generated
+via PPCA-MV was virtually zero (1 × 10−15 ), whereas that of
+the PMF reconstruction had a numerical value of ≈ 60 across the
+260 206 valid data points. For brevity, only PPCA-MV results
+are reported throughout the remainder of this paper.
+To further evaluate the matrix completion process via
+PPCA-MV, a random subsample of the known elements from
+the M matrix were held out one at a time and their estimated
+values were compared against the true values. The sampling
+rate was set to 5%, resulting in over 13 200 held out values. The
+mean estimation error was 2.4 × 10−4 , indicating a zeromean,
+i.e., unbiased estimate. A one-sample t-test also failed to reject the zero-mean hypothesis at the 0.05 and 0.10 significance
+levels. At 0.19, the root-mean-square prediction error was also
+found to be low.
+It is worth noting that the majority (166) of the 192 features hold binary values due to the fact that many of them are
+generated from the dissection of categorical values into binary
+features. None of the matrix factorization algorithms employed
+here exploits this knowledge about the feature set. Consequently,
+the reconstructed matrices M̂ via these methods include numerical values, occasionally even outside the [0, 1] range, as
+estimated for the unknown binary elements in M . Such out-ofrange estimates were treated as valid elements in the current
+
+(a)
+
+25
+
+(b)
+
+Fig. 1. ROC curves in predicting the survival states with three classification
+algorithms.
+
+experiments. Explicit modeling of the binary features into a CF
+scheme remains the topic of the future research.
+B. Parameter Settings
+The optimization algorithm was set to run over 300 iterations
+to search for the best pair of integer values within the ranges
+of d ∈ [2, 35] and m ∈ [1, 1750]. At each iteration, following
+PPCA-MV matrix factorization, an RF classifier with 11 random subtrees was then used to train a binary classifier based on a
+portion of the rows in the P matrix and tested on the remainder.
+Through a ten-fold cross-validation procedure, a prediction was
+obtained for the survival status of each patient and the optimization process aimed at improving the quality of the classification
+by adjusting the d and m values.
+Experiments were performed with the classification accuracy
+(a), the F1 score, or the area under the receiver operating characteristic (ROC) curve (AUC) as possible choices for the objective
+function. Maximizing each of these values resulted in similar
+overall classification results. For brevity, only the results from
+maximizing the F1 score are reported here.
+The overall process took about 20 h to run (on an i7-960
+processor) and converged on the values of d = 21 and m =
+1556. The selected value of m resulted in discarding the 22
+most sparse features and keeping the remaining 170 features.
+C. Estimating the Survival Status
+The RF, LR, and SVM binary classifiers produced similar results in terms of prediction accuracy and other metrics. Fig. 1(a)
+illustrates the ROC curves obtained via each classifier, as well
+as the curve for a random guess for each state, plotted in a dotted
+green line. The AUC values, when ten-fold cross-validation was
+used to obtain a prediction for each patient, were in the 0.63–0.65
+range for the three classifiers. The RF classifier was used with 55
+random subtrees and the parameters of the RBF-SVM classifier
+(γ and the slack variable) were set empirically.
+As GvHD is one of the major factors that the transplant patients seek to avoid, a similar analysis was performed to estimated GvHD-free survival based on the pretransplant features.
+Fig. 1(b) illustrates the resulting ROC curves. The AUC values
+for this prediction were slightly higher and were in the 0.68–0.69
+range.
+The collected dataset is stored as sorted by the date of transplant. The order of patients was shuffled at random prior to the
+ten-fold cross-validation phase so that the evaluation process
+
+26
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+TABLE 1
+ESTIMATING THE SURVIVAL STATES FOR A SUBSET OF PATIENTS BY ADJUSTING
+THRESHOLD LEVELS (ct ) ON THE PREDICTION CONFIDENCE VALUE
+
+was not influenced by age (of the patient or the donor). The
+same approach was also taken during the parameter optimization phase. The BMT recovery process might be influenced by
+age, and the shuffling procedure ensured that, at each fold, both
+the training and the test data contained a random selection of
+patients and donors at various age groups.
+Incidentally, however, the correlation coefficients between
+various age-related attributes (“age at diagnosis”, age at transplant”, and “donor’s age”) and the binary survival states (and
+also the GvHD-free survival states) were in fact very low, in
+the 0.05–0.08 range. Not surprisingly, therefore, at AUC = 0.53
+(using either LR, SVM, or RF), a prediction algorithm trained
+solely on these three age-related features performed only slightly
+better than a random guess.
+By observing the ROC curves in Fig. 1 and comparing the
+AUC values with that of a random guess (0.5), it is apparent
+that the classification process, using either classifier, benefits
+from considering the pretransplant attributes when estimating
+the survival states. The results, however, also indicate that the
+process is not perfect and the estimated states could not be 100%
+relied upon.
+Modest prediction accuracies might at first appear inapplicable to the prioritization of resources. A closer look however
+reveals their potential application, in combination with the other
+sources of information, to inform probabilistic DCS. RF, LR,
+and several other binary classification algorithms not only assign a prediction to each test case, but also provide a confidence
+level (c, 0 ≤ c ≤ 1) for each estimate. A subsequent DCS capable of decision making under uncertainty could process these
+estimates and their confidence levels, along with other considerations provided by the expert clinician staff, and provide optimal
+decisions as to the prioritization of surgical procedures and the
+allocation of other resources to save the highest number of lives
+possible.
+In LR, the distance of each test case from the separation
+boundary in the feature space determines c, e.g., via a logistic
+function. In RF, the percentage of random subtrees voting for
+a decision is interpreted as c. For each test case, the closer
+the final tally of random subtrees is to a unanimous vote, the
+higher the confidence of the estimated survival state would be. A
+threshold on c highlights a subset of patients for whom confident
+prediction is available.
+The most consequential outcome of this analysis is in the identification of patients who have the highest chance of survival,
+based on their pretransplant attributes and those of a prospective
+donor. Table I presents the number of patients for which a high-
+
+confidence prediction is available at various threshold levels on
+c based on RF classification. The table also presents the obtained
+accuracy, precision, recall, and F1 score values in each scenario.
+It is clear that higher thresholds lead to more accurate results,
+but for a lower number of patients. The RF classifier displayed
+a significant advantage over the other two classification algorithms used in the experiments in this aspect. It is interesting to
+note that nearly all high-confident filters (except when threshold
+value ct = 70%) retrieved only patients who survived the procedure (Recall = 100%); that is, the confidence filtering process
+identified the patients who had the highest chance of survival
+given their preoperative profile and that of their donor. This is
+exactly the desired input for a DCS aimed at the prioritization
+of resources and the matching of donors with patients.
+The obtained results, not only inform donor matching and the
+prioritization of resources in the short term, but also encourage
+further research in collecting and analyzing the further records
+and trying to identify the underlying causes and determining
+factors affecting the success of a transplant.
+IV. CONCLUSION AND FUTURE WORK
+Records and measurements from the past BMT procedures
+were analyzed to investigate the possibility of predicting the
+survival status of each patient based on their preoperative information and test results. Experimental results showed modest
+accuracies in predicting the survival states, but confirmed the
+feasibility of identifying the individuals with very high chances
+of survival with high accuracy, with significant implications for
+donor matching and the prioritization of resources.
+Future work includes the explicit modeling of the binary properties of dissected features into matrix factorization, incorporating a generative model on the distribution of missing values
+into the prediction process, and also the collection of further
+records (more patients and more attributes) to enrich the dataset
+for further analysis.
+ACKNOWLEDGMENT
+The authors would like to thank MITACS (mitacs.ca) and the
+Toronto Rehabilitation Institute.
+REFERENCES
+[1] A. Gratwohl, H. Baldomero, M. Aljurf, M. C. Pasquini, L. F. Bouzas,
+A. Yoshimi, J. Szer, J. Lipton, A. Schwendener, M. Gratwohl, K. Frauendorfer, D. Niederwieser, M. Horowitz, and Y. Kodera, “Hematopoietic
+stem cell transplantation: A global perspective,” J. Amer. Med. Assoc.,
+vol. 303, no. 16, pp. 1617–1624, 2010.
+[2] R. Salakhutdinov and A. Mnih, “Probabilistic matrix factorization,” in
+Proc. Adv. Neural Inf. Process. Syst., 2007, pp. 1–8.
+[3] S. Roweis, “EM algorithms for PCA and SPCA,” in Proc. Adv. Neural Inf.
+Process. Syst., 1996.
+[4] J. Verbeek. Notes on probabilistic PCA with missing values. (2009). [Online]. Available: http://lear.inrialpes.fr/∼verbeek/code/ppca_mv.tgz
+[5] S. Becker, E. J. Candes, and M. Grant, “Templates for convex cone problems with applications to sparse signal recovery,” Math. Program. Comput., vol. 3, no. 3, pp. 165–218, 2011.
+[6] J. Snoek, H. Larochelle, and R. P. Adams, “Practical Bayesian optimization of machine learning algorithms,” in Neural Information Processing
+Systems, 2012.
+[7] B. Taati, J. Snoek, D. Aleman, A. Mihailidis, and A. Ghavamzadeh, “Machine learning techniques for data mining in bone marrow transplant
+records,” in Proc. Annu. Conf. Can. Oper. Res. Soc., 2012, p. 50.
+
+TAATI et al.: DATA MINING IN BONE MARROW TRANSPLANT RECORDS TO IDENTIFY PATIENTS WITH HIGH ODDS OF SURVIVAL
+
+[8] B. Taati, J. Snoek, D. M. Aleman, A. Mihailidis, and A. Ghavamzadeh,
+“Applying collaborative filtering techniques to data mining in bone marrow
+transplant records,” in Proc. 7th INFORMS Workshop Data Mining Health
+Informat., Phoenix, AZ, USA, Oct. 2012.
+[9] C. Baron, R. Somogyi, L. D. Greller, V. Rineau, P. Wilkinson et al., “Prediction of graft-versus-host disease in humans by donor gene-expression
+profiling,” PLoS Med., vol. 4, no. 3, pp. 69–83, 2007.
+[10] E. W. Petersdorf, M. Malkki, T. A. Gooley, P. J. Martin, and Z. Guo,“MHC
+haplotype matching for unrelated hematopoietic cell transplantation,”
+PLoS Med., vol. 4, no. 3, pp. 59–68, 2007.
+[11] L. A. Shalabi, M. Najjar, and A. A. Kayed, “A framework to deal with
+missing data in data sets,” J. Comput. Sci., vol. 2, no. 9, pp. 740–745,
+2006.
+[12] N. Poolsawad, L. Moore, C. Kambhampati, and J. Cleland, “Handling
+missing values in data mining—A case study of heart failure dataset,” in
+Proc. Int. Conf. Fuzzy Syst. Knowl. Discov., 2012, pp. 2934–2938.
+[13] E. Keogh, S. Lonardi, and C. A. Ratanamahatana, “Towards parameterfree data mining,” in Proc. 10th ACM SIGKDD Int. Conf. Knowl. Discov.
+Data Mining, 2004, pp. 206–215.
+[14] K. Gibert, M. Sanchez-Marre, and V. Codina, “Choosing the right data
+mining technique: classification of methods and intelligent recommendation,” presented at the Biennial Meet. Int. Environmental Modelling
+Software Society, Int. Congr. Environmental Modelling Software, Ottawa,
+ON, Canada, 2010.
+[15] X. Su and T. M. Khoshgoftaar, “A survey of collaborative filtering techniques,” Adv. Artif. Intell., vol. 2009, 2009. Available:
+http://www.hindawi.com/journals/aai/2009/421425/
+[16] G. Takacs, I. Pilaszy, B. Nemeth, and D. Tikk, “Matrix factorization and
+neighbor based algorithms for the Netflix prize problem,” in Proc. ACM
+Conf. Recommend. Syst., 2008, pp. 267–274.
+
+27
+
+[17] R. Salakhutdinov and A. Mnih, “Probabilistic matrix factorization,” presented at the Advances in Neural Information Processing Systems, Vancouver, BC, Canada, 2007.
+[18] E. J. Candes, J. Romberg, and T. Tao, “Stable signal recovery from incomplete and inaccurate measurements,” Commun. Pure Appl. Math., vol. 59,
+pp. 1207–1223, 2006.
+[19] A. Ganesh, Z. Lin, J. Wright, L. Wu, M. Chen, and Y. Ma, “Fast convex optimization algorithms for exact recovery of a corrupted low-rank matrix,”
+in Proc. Int. Workshop Comput. Adv. Multi-Sensor Adaptive Process., Dec.
+2009.
+[20] E. J. Candes, X. Li, Y. Ma, and J. Wright, “Robust principal component
+analysis?” J. ACM, vol. 58, no. 1, pp. 1–37, 2009.
+[21] L. Breiman, “Random forests,” Mach. Learn., vol. 45, pp. 15–32, 2001.
+[22] T. Joachims, “Advances in kernel methods,” Making Large-Scale Support
+Vector Machine Learning Practical, B. Schölkopf, C. J. C. Burges, and A.
+J. Smola, eds. Cmabridge, MA, USA: MIT Press, 1999, pp. 169–184.
+[23] J. Mockus, V. Tiesis, and A. Zilinskas, “The application of Bayesian methods for seeking the extremum,” Towards Global Optim., vol. 2, pp. 117–
+129, 1978.
+[24] A. D. Bull, “Convergence rates of efficient global optimization algorithms,” J. Mach. Learn. Res., vol. 12, no. 3–4, pp. 2879–2904, 2011.
+[25] J. S. Bergstra, R. Bardenet, Y. Bengio, and B. Kgl, “Algorithms for hyperparameter optimization,” in Proc. Adv. Neural Inf. Process. Sys., 2011.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

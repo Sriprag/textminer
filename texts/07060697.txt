@@ -1,0 +1,706 @@
+1264
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+Optimal Drug Prediction From Personal
+Genomics Profiles
+Jianting Sheng, Fuhai Li, and Stephen T. C. Wong
+
+Abstract—Cancer patients often show heterogeneous drug responses such that only a small subset of patients is sensitive to a
+given anticancer drug. With the availability of large-scale genomic
+profiling via next-generation sequencing, it is now economically
+feasible to profile the whole transcriptome and genome of individual patients in order to identify their unique genetic mutations and
+differentially expressed genes, which are believed to be responsible
+for heterogeneous drug responses. Although subtyping analysis has
+identified patient subgroups sharing common biomarkers, there is
+no effective method to predict the drug response of individual patients precisely and reliably. Herein, we propose a novel computational algorithm to predict the drug response of individual patients
+based on personal genomic profiles, as well as pharmacogenomic
+and drug sensitivity data. Specifically, more than 600 cancer cell
+lines (viewed as individual patients) across over 50 types of cancers
+and their responses to 75 drugs were obtained from the genomics
+of drug sensitivity in cancer database. The drug-specific sensitivity
+signatures were determined from the changes in genomic profiles
+of individual cell lines in response to a specific drug. The optimal
+drugs for individual cell lines were predicted by integrating the
+votes from other cell lines. The experimental results show that the
+proposed drug prediction algorithm can be used to improve greatly
+the reliability of finding optimal drugs for individual patients and
+will, thus, form a key component in the precision medicine infrastructure for oncology care.
+Index Terms—Drug response prediction, drug sensitivity, personal genomics, personalized medicine.
+
+I. INTRODUCTION
+RADITIONALLY, cancer types have been defined by their
+anatomical origin. Molecular analysis now shows that cancers of different organs may share similar features, while can-
+
+T
+
+Manuscript received October 17, 2014; revised January 5, 2015 and February
+22, 2015; accepted March 5, 2015. Date of publication March 13, 2015; date
+of current version July 23, 2015. This work was supported by CPRIT under
+Grant RP110532, Grant NIH U54 CA149196, Grant RP140113, John S Dunn
+Research Foundation, and Ting Tsung and Wei Fong Chao Foundation. Authors
+Jianting Sheng and Fuhai Li contributed equally to this work.
+J. Sheng is with the NCI Center for Modeling Cancer Development, Department of Systems Medicine and Bioengineering, Houston Methodist Research
+Institute, Weill Cornell Medical College, Houston, TX 77030 USA (e-mail:
+jsheng@houstonmethodist.org).
+F. Li is with the NCI Center for Modeling Cancer Development, Department of Systems Medicine and Bioengineering, Houston Methodist Research Institute and Houston Methodist Cancer Center, Houston Methodist
+Hospital, Weill Cornell Medical College, Houston, TX 77030 USA (e-mail:
+fli@houstonmethodist.org).
+S. T. C. Wong is with the NCI Center for Modeling Cancer Development,
+Department of Systems Medicine and Bioengineering, Houston Methodist Research Institute and Houston Methodist Cancer Center, Houston Methodist
+Hospital, Weill Cornell Medical College, Houston, TX 77030 USA (e-mail:
+stwong@houstonmethodist.org).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2015.2412522
+
+cers from the same organ are often quite distinct, as evidenced
+by the observation that cancer patients with the same cancer
+type often show heterogeneous responses to the same therapy.
+It is believed that complex and distinct genomic instability is
+responsible for the diversity in drug response [1], [2]. For example, one nonsmall cell lung cancer patient was found to be
+responsive to Dasatinib dramatically and remained cancer-free
+for four years later [3]. In the consequent genomic analysis, an
+inactivating BRAF mutation (Y472C) was found in the patient’s
+tumor, while no inactivating BRAF mutations were found in the
+nonresponding tumors [3]. The Pan-Cancer project [4], which
+aims to analyze the molecular aberrations in cancer cells across
+a range of tumor types, combines all of the data from different
+tumor types and enables researchers and scientists to find new
+patterns of genomic aberrations.
+To support studies on uncovering the relationship between the
+genomic aberrations and diverse drug responses, many valuable large-scale genomic datasets funded by federal agencies
+have been generated for public access. For example, Cancer
+Cell Line Encyclopedia (CCLE) [5] and Genomics of Drug
+Sensitivity in Cancer (GDSC) [6] are two projects that generate
+such databases and aim to systemically study the causal correlations between drug sensitivity and genomic biomarkers in
+hundreds of cancer cell lines. Moreover, the connectivity map
+generated gene expression signature data of different cell lines
+under various perturbations by more than 1000 small molecules
+[7]. These data have been scaled since over 1000 times and is
+publicly available at the library of integrated-network-based cellular signatures (http://www.lincscloud.org/). These large-scale
+datasets have been used to enable drug repositioning [8], [9],
+predict drug combinations [10], [11], and delineate mechanisms
+of action [12], and are becoming an important component in drug
+discovery [13], [14]. Meanwhile, gene expression omnibus [15],
+a public database repository, also archives millions of microarray datasets of various types of cancer under different treatments
+and perturbations.
+Many approaches have been developed to reposition or repurpose known drugs to new indications [16], [17], based on the
+assumption that drugs sharing similar chemical structures would
+have same targets. With the advance of large-scale genomic profiling techniques, it is economically feasible to profile the whole
+transcriptome and genome (e.g., microarray, RNAseq, DNAseq,
+and somatic copy number alterations) [18]–[20] of individual
+patients and identify their unique genetic mutations and differentially expressed genes, which in turn can be used as biomarkers to predict drug sensitivity for those patients. For example, the
+cancer genome atlas [21], [22] database repository has collected
+comprehensive genomics profiles of over 10 000 patient samples
+
+2168-2194 © 2015 IEEE. Translations and content mining are permitted for academic research only. Personal use is also permitted, but republication/redistribution
+requires IEEE permission. See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+SHENG et al.: OPTIMAL DRUG PREDICTION FROM PERSONAL GENOMICS PROFILES
+
+Fig. 1.
+
+1265
+
+Overview of the drug prediction algorithm.
+
+covering more than 30 types of cancer. Also, the International
+Cancer Genome Consortium [23] was formed to coordinate the
+generation and management of large-scale genomic datasets
+from over 50 cancer types or subtypes collected from all over
+the world. These large-scale and comprehensive genomic profiling datasets are invaluable in identifying predictive biomarkers
+of an individual’s drug response, these unique biomarkers can
+be used for personalized medicine [15], [24]–[26].
+Though subtyping analysis of cancer patients has identified
+patient subgroups sharing common biomarkers, the genomic instability patterns among the subtypes of a cancer are complex
+and not easily distinguishable [18], [22], [27]–[29]. Thus, these
+genomic patterns derived from the subtyping analysis often fail
+to offer insight into drug sensitivity and identify reliable predictive biomarkers of individual subtypes. Herein, we propose a
+novel computational algorithm to predict the optimal drugs for
+individual patients based on personal genomic profiles, as well
+as available pharmacogenomics and drug sensitivity information
+across cancer types. Specifically, 624 cancer cell lines (viewed
+as individual patients) and their responses to 75 drugs were
+obtained from GDSC. The drug-specific sensitivity signatures
+were obtained with the genomics profile changes of individual
+cell lines. Then, the optimal drug treatments for individual cell
+lines were predicted by integrating the drug response information from the other cell lines. To test the accuracy of our drug
+prediction algorithm, we performed twofold cross validation on
+GDSC dataset and further downloaded 480 cell lines and their
+responses to 11 drugs from CCLE for validation. The results
+show that our prediction algorithm can significantly improve
+the chance of finding sensitive drugs for individual patients.
+
+II. DATA AND METHODOLOGY
+A. Data
+The simplified molecular-input line-entry system (SMILES)
+data that describe the structure of compounds using short ASCII
+strings were downloaded from PubChem (version 2.0.1, 17
+October, 2011) [30]. Gene expression data of cell lines and
+the IC50 data of drugs on the cell lines were downloaded from
+GDSC (release 4, March 2013) and CCLE (version 2.17, August
+2014). Only drugs that have both SMILES and IC50 information, and cell lines that have both IC50 and gene expression
+profile data were used in our analysis. In summary, IC50 data
+of 75 drugs on 624 cell lines in GDSC and 24 drugs on 504 cell
+lines in CCLE were obtained.
+B. Algorithm Overview
+Fig. 1 shows an overview of the proposed drug prediction algorithm. Let D be the set of known drugs in GDSC, C be the cell
+line set, and G be the drug-related gene signature consisting of
+differentially expressed genes between the drug-specific resistant and sensitive cell lines, where nd = |D| , nc = |C| , ng =
+|G| denoting the number of drugs, cell lines, and genes, respectively. Let A = (aij ) be the cell line expression matrix, where
+aij is the expression value of gene gi ∈ G in cell line cj ∈ C.
+Let B = (bj k ) be the IC50 value matrix, where bj k is the normalized IC50 value of cell line cj ∈ C treated by drug dk ∈ D.
+For each drug-cell line pair, we first calculate similarity scores
+for pairwise drugs based on their chemical structures and then
+select most similar drugs to the given one. A gene signature is
+
+1266
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+calculated based on the IC50 values of the selected drugs and
+gene expression profiles of the cell lines. A flexible similarity
+score between cell lines was calculated based on the gene signature, and finally, we assign a drug-cell line effect score by
+combining drug-similarity scores and cell line similarity scores.
+Using this method, we predicted the top candidate drugs that
+have the best sensitivity for the given cell line.
+C. IC50 Value Normalization
+As suggested by GDSC, cell lines with IC50 values greater
+than the maximum concentration of a drug are likely to be
+resistant to that drug, while those with IC50 values smaller than
+maximum concentration are likely to be sensitive. So we divide
+the raw IC50 value by the maximum concentration of dk ∈ D
+and then log2-transform it as normalized IC50 value. For drugcell line pairs that lack IC50 values from GDSC, we set their
+normalized IC50 to 0. Cell lines with a normalized IC50 value
+greater than 0 are considered to be resistant cell lines to the
+drug, while others with normalized IC50 value smaller than 0
+were considered to be sensitive. As the range of IC50 values of
+sensitive cell lines differs from the range of resistant cells, we
+further scaled the normalized IC50 value to the range of [−1,1]
+for the following analysis.
+D. Drug–Drug Similarity
+Given two drugs dk 1 ∈ D and dk 2 ∈ D, the “rcdk” R package
+[31] is used to retrieve their fingerprint information f pk 1 and
+f pk 2 from the SMILES data. The similarity between the two
+drugs,S (dk 1 , dk 2 ) , is calculated using Tanimoto coefficient
+c
+S (dk 1 , dk 2 ) =
+a+b+c
+where c is the number of fingerprints that appear in both f pk 1
+(fingerprints of dk 1 by using the “fingerprint” R package) and
+f pk 2 (fingerprints of dk 2 ), a is the number of fingerprints that
+only appear in f pk 1 , and b is the number of fingerprints that
+only appear in f pk 2 .
+E. Patient–Patient Genomics Similarity
+Even if two cell lines (or patient cells) share similar overall
+gene expression signatures, they might still have different drugtreatment response due to the variability in gene expressions
+of the drug-resistance-related genes. Here, we propose a new
+method of calculating the cell line similarity scores based on
+drug-specific-related genes, i.e., different similarity scores are
+given to each pair of cell lines for different drugs as follows.
+For a given drug dgiven ∈ D, to calculate cell line similarity, we first calculate the drug–drug similarities, Sk =
+S(dgiven , dk ), between dgiven and all other drugs dk ∈ D. Then,
+we rank dk in descending order Sk . Top rd drugs, which show
+the most similarity to the given drug, are selected as Dd g i v e n .
+The next step is to find a gene signature for Dd g i v e n and calculate
+cell line similarity score based on this signature.
+For each drug dt ∈ Dd g i v e n , we separate cell lines into two
+groups according to their normalized IC50 values. If bj t ,
+which is the IC50 value of cell lines cj treated by drug dt ,
+
+is greater than 0, cj is assigned to group 1 (the resistant
+group); whereas, the others with bj t < 0 are assigned to group
+2 (the sensitive group). For each gene gi , we calculate its fold
+change between the mean expression levels of the two groups,
+m ean{a |b > 0, j =1,...,n }
+Fold(gi ) = m ean{a ii jj |b jj tt < 0, j =1,...,n cc } . The top 1 % genes with
+the largest or smallest fold change are selected as the gene signature of dt , denoted by Gd t . Then, signatures of all drugs in
+Dd g i v e n are combined together as the signature of Dd g i v e n , denoted by G(dgiven ) = ∪ ∈ Gd t .
+d t ∈D d g i v e n
+
+Using the k signature genes in G(dgiven ) as the features,
+we define the similarity values S (cj 1 , cj 2 ) between two cell
+lines cj 1 , cj 2 ∈ C under drug dgiven as the Pearson correlation coefficient between < ai1j 1 , ai2j 1 , . . . , aik j 1 >(aij 1 ) and
+< ai1j 2 , ai2j 2 , . . . , aik j 2 > aij 2 , where gi ∈ G(dgiven ). To be
+consistent to the drug–drug similarity score, we scale S (cj 1 , cj 2 )
+to [0, 1]. Given a cell line cgiven , the top rc cell lines that are
+most similar to it are selected as Cc g i v e n .
+F. Drug-Patient Similarity
+Given the gene expression profile of a patient, we rank the
+effects of all drugs in GDSC on this patient by defining the
+drug-patient effect score S(dgiven , cgiven ). We first find Dd g i v e n
+to include top rd drugs that are most similar to dgiven and Cc g i v e n
+to include top rc cell lines that are most similar to cgiven . Then,
+the drug-patient effect score is defined by
+1
+rd rc
+
+bj k S(dgiven , dk ) × S(cgiven , cj ).
+
+S (dgiven , cgiven ) =
+×
+
+
+d k ∈D d g i v e n
+c j ∈C c g i v e n
+
+III. RESULTS
+The raw IC50 values for 75 drugs on 624 cell lines from
+GDSC and their cell line expression profiles were collected,
+and normalized as described in Section II. Fig. 2 shows the
+heatmap of the normalized IC50 values (column scaled). The
+normalized IC50 values were further scaled to [−1, 1] (−1
+means the most sensitive, and 1 means the most resistant) for
+the subsequent analysis. We selected the top 1% genes (about
+300 genes) with the largest or smallest fold change between
+the resistant group and sensitive group as the gene expression
+signature of individual drugs. Fig. 3 shows the distinct gene
+expression signatures of AICAR and Dasatinib. To predict the
+effectiveness between a given cell line and a given drug, the top
+rd most similar drugs and rc cell lines were tested. Finally, we
+assigned a similarity score for each drug-cell line (patient) pair.
+Given a new cell line, the top ranked drugs were considered to
+be the best candidates.
+We have conducted two new validation strategies to reduce
+the bias in validation and for selecting optimal values for rd and
+rc . The first one is to use twofold cross validation for modeling
+GDSC dataset, and the second one is to use GDSC dataset as
+the training set and CCLE dataset as the independent testing set.
+
+SHENG et al.: OPTIMAL DRUG PREDICTION FROM PERSONAL GENOMICS PROFILES
+
+Fig. 2.
+
+1267
+
+Heatmap for normalized IC50 values of 75 drugs (columns) on 624 cell lines (rows). Green means the most sensitive, red means the most resistant.
+
+First, we apply twofold cross validation on GDSC dataset, i.e.,
+randomly divide the cell lines into two subgroups, with equal
+size and each time use one as training set and the other as testing
+set. The testing results are then averaged for each rd and rc . The
+drug responses on the testing set were estimated using drug
+treated IC50 values on the training set. Top ten prioritized drugs
+for each testing cell line were selected. All the drugs were ranked
+in increasing order based on their normalized IC50 values on the
+given cell line. We then calculated the enrichment score of the
+ten drugs in the ordered drug list using the gene set enrichment
+analysis (GSEA) [32], denoted as EScl . The enrichment score,
+EScl , which ranges from −1 to 1, and would be close to 1 if the
+selected drugs were found at the top of the ranked drug list and
+vice versa. To test whether our selected drugs for the given cell
+line ranked higher than random selection, we randomly selected
+ten drugs for each cell line for 5000 times and recalculated
+the enrichment score, denoted by ESi , i = 1, . . . , 5000. The p
+
+5000
+
+value was calculated as
+
+i= 1
+
+5000
+
+
+fi
+
+, where fi =
+
+1,
+0,
+
+ES i ≥ ES c l
+ES i < ES c l
+
+.
+
+Small p value (here we set the threshold as p < 0.05) means that
+the prediction can discover the more sensitive drugs to the given
+cell line, compared with the random selection. The percentage of
+cell lines with corresponding p value <0.05 were then averaged
+(twofold cross validation) to for each rd = [1, . . . , 4] and rc =
+[1, . . . , 10]. The results were shown in Fig. 4. As can be seen,
+the prediction power of single drug (rd = 1) decreases when
+more similar cell lines being added (noise sensitive), whereas,
+the prediction power with multiple similar drugs increases with
+more similar cell lines (noise robust). Especially, the parameter
+setting rd = 3 and rc = 9 generates the best prediction power.
+Moreover, the CCLE datasets were also collected for the validation. There are 11 drugs in both GDSC and CCLE database.
+We use GDSC data as the training set, and download drug
+treated IC50 values for 480 cell lines of the 11 drugs from
+
+1268
+
+Fig. 3.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+Heatmap for mRNA expression of gene signatures (rows) of two drugs (AICAR and Dasatinib) on 624 cell lines (columns).
+
+TABLE I
+PREDICTION RESULTS USING CCLE AS TESTING SET
+rd
+
+p_value
+
+rc
+
+Fig. 4.
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+
+1
+
+2
+
+3
+
+4
+
+0.013
+0.006
+0.0006
+0.0024
+0.0008
+0.0008
+0.0028
+<4e-04
+<4e-04
+<4e-04
+
+0.2652
+0.0226
+0.0054
+0.0006
+0.043
+0.0698
+0.0494
+0.0068
+0.0068
+0.0116
+
+0.098
+0.1114
+<4e-4
+<4e-4
+0.0008
+<4e-4
+<4e-4
+<4e-4
+<4e-4
+0.1858
+
+0.0054
+0.0932
+0.8668
+0.8668
+0.8668
+0.0384
+0.005
+0.0384
+0.0384
+0.0384
+
+Twofold cross validation results for different rd and rc values.
+
+CCLE database as the testing dataset. We then predict the drug
+responses on 480 cell lines in CCLE for 11 drugs. Since there
+are only 11 drugs available, it is hard to find sensitive drugs for
+each cell line. We, thus, select top 10 drug-cell line pairs predicted using our model and compare their IC50 values in CCLE
+with all other drug-cell line IC50 values. Then, p values were
+calculated for each rd and rc using GSEA as described above.
+The results were shown in Table I. As we can see, the p values
+are smaller than 0.05 in almost all the cases, which means the
+top 10 drug-cell line pairs predicted by our model have a much
+lower IC50 value compared with random selection, and thus, the
+cell lines are more sensitive to these drugs. Note that the p value
+
+for rd = 3 and rc = 9 was smaller than 4e–4. By considering
+both validation methods, we suggest to use rd = 3 and rc = 9
+in our model.
+In summary, the proposed prediction algorithm can improve
+the effective drug selection significantly, and the evaluation
+results indicate the possibility of selecting the optimal drugs
+among all anticancer drugs based on their genomic profiles to
+achieve better therapeutic outcomes.
+IV. DISCUSSION
+It is difficult to determine “sensitive” responses to drugs. We
+use normalized IC50 score to measure the cell line sensitivity
+
+SHENG et al.: OPTIMAL DRUG PREDICTION FROM PERSONAL GENOMICS PROFILES
+
+based on the documents of GDSC, which suggest that cell lines
+with acute drug response, IC50 < max drug concentration, and
+small confidence intervals are supposed to be sensitive to drugs.
+In the latest release of GDSC (release 5, June 2014), a Z-score is
+calculated for each cell line to define “sensitive” and “resistance”
+to drugs. Both measurements should be fine and people can also
+use other drug response data to replace the normalized IC50
+values in our algorithm.
+There also exist other algorithms to find differentially expressed genes between sensitive groups and resistant groups.
+We first tested if t-test could be used to find drug signatures. We
+did Shapiro–Wilk test on the expression values of genes across
+cell lines and found that the expression value of most of the genes
+(over 10 000) did not form normal distribution. Thus, t-test and
+other similar methods such as SAMR were not suitable here.
+Then, we tested Wilcoxon rank sum test which was a nonparametric statistic test followed by the Benjamini and Hochberg
+method (Journal of the Royal Statistical Society Series B, 57,
+289–300, 1995) to control false discovery rate. Genes with adjusted p value <0.05 were selected as drug signature. However,
+the number of differentially expressed genes varies significantly
+from tens to thousands; furthermore, the drug prediction result
+is worse than using the top 1% fold change genes. One possible
+reason is that the sample size of sensitive cell lines for each drug
+is usually too small (less than 10) to provide sufficient power
+for statistic testing.
+V. CONCLUSION
+Patients with the same type of cancer often respond differently to the same drug treatment, and only a small subset of patients has profound sensitivity to the given drugs. The complex
+and distinct genomic instability of individual cancer patients is
+believed to be responsible for that diversity in drug response.
+Due to recent advances made in the next-generation sequencing,
+large-scale pharmacogenomic databases are now publicly available, while genomic profiling of individual patients is becoming
+economically affordable. It is timely to leverage such information to predict the drug sensitivity for each patient in order to
+achieve the optimal personalized treatment. However, computational analysis is the bottleneck in associating the complex
+genomic profiles reliably with heterogeneous drug responses.
+Motivated by the public availability of informative data resources, this study contributed a computational algorithm for
+predicting the best drugs for individual cell lines (representing
+individual patients) based on their genomic profiles and drug
+response data. Our cross validation showed that the best drug
+prediction results on over 40% cell lines are improved significantly compared to random selection. Moreover, the results
+from CCLE validation showed that the top ten most sensitive drug-cell line pairs predicted by our model using GDSC
+database have significant lower IC50 values than others. Our research finding suggests the potential of selecting optimal drugs
+among anticancer drugs for individual patients based on their
+genomic profiles, which will impact the cancer clinical regimen
+profoundly. Our ongoing work of integrating the drug prediction algorithm into the precision medicine framework being
+
+1269
+
+developed at Houston Methodist Cancer Center to investigate
+personal genomic profiles from patients, evaluate the prediction results on patient-derived xenograft models, and track the
+predictive performance on selected patients under treatment at
+Houston Methodist Hospital.
+ACKNOWLEDGMENT
+The authors would like to thank the members of Systems
+Biomedicine lab and Data Science lab of Department of Systems Medicine and Bioengineering at Houston Methodist Research Institute, Weill Cornell Medical College for their valuable
+discussions.
+REFERENCES
+[1] A. R. Zlotta, “Words of wisdom: Re: Genome sequencing identifies a basis
+for everolimus sensitivity,” Eur. Urol., vol. 64, no. 3, pages 516, 2013.
+[2] G. Iyer, A. J. Hanrahan, M. I. Milowsky, H. Al-Ahmadie, S. N. Scott, M.
+Janakiraman, M. Pirun, C. Sander, N. D. Socci, I. Ostrovnaya, A. Viale,
+A. Heguy, L. Peng, T. A. Chan, B. Bochner, D. F. Bajorin, M. F. Berger,
+B. S. Taylor, and D. B. Solit, “Genome sequencing identifies a basis for
+everolimus sensitivity,” Science, vol. 338, no. 6104, p. 221, 2012.
+[3] B. Sen, S. Peng, X. Tang, H. S. Erickson, H. Galindo, T. Mazumdar,
+D. J. Stewart, I. Wistuba, and F. M. Johnson, “Kinase-impaired BRAF
+mutations in lung cancer confer sensitivity to dasatinib,” Sci. Transl. Med.,
+vol. 4, no. 136, p. 136ra70, 2012.
+[4] J. N. Weinstein, E. A. Collisson, G. B. Mills, K. R. Shaw, B. A. Ozenberger,
+K. Ellrott, I. Shmulevich, C. Sander, and J. M. Stuart, “The cancer genome
+atlas pan-cancer analysis project,” Nature Genetics, vol. 45, no. 10, pp.
+1113–1120, 2013.
+[5] J. Barretina, G. Caponigro, N. Stransky, K. Venkatesan, A. A. Margolin, S.
+Kim, C. J. Wilson, J. Lehár, G. V. Kryukov, D. Sonkin, A. Reddy, M. Liu,
+L. Murray, M. F. Berger, J. E. Monahan, P. Morais, J. Meltzer, A. Korejwa,
+J. Jané-Valbuena, F. A. Mapa, J. Thibault, E. Bric-Furlong, P. Raman, A.
+Shipway, I. H. Engels, J. Cheng, G. K. Yu, J. Yu, P. Aspesi Jr, M. de Silva,
+K. Jagtap, M. D. Jones, L. Wang, C. Hatton, E. Palescandolo, S. Gupta, S.
+Mahan, C. Sougnez, R. C. Onofrio, T. Liefeld, L. MacConaill, W. Winckler, M. Reich, N. Li, J. P. Mesirov, S. B. Gabriel, G. Getz, K. Ardlie, V.
+Chan, V. E. Myer, B. L. Weber, J. Porter, M. Warmuth, P. Finan, J. L. Harris, M. Meyerson, T. R. Golub, M. P. Morrissey, W. R. Sellers, R. Schlegel,
+and L. A. Garraway, “The cancer cell line encyclopedia enables predictive modelling of anticancer drug sensitivity,” Nature, vol. 483, no. 7391,
+pp. 603–607, 2012.
+[6] M. J. Garnett, E. J. Edelman, S. J. Heidorn, C. D. Greenman, A. Dastur, K.
+W. Lau, P. Greninger, I. R. Thompson, X. Luo, J. Soares, Q. Liu, F. Iorio,
+D. Surdez, L. Chen, R. J. Milano, G. R. Bignell, A. T. Tam, H. Davies, J. A.
+Stevenson, S. Barthorpe, S. R. Lutz, F. Kogera, K. Lawrence, A. McLarenDouglas, X. Mitropoulos, T. Mironenko H. Thi, L. Richardson, W. Zhou,
+F. Jewitt, T. Zhang, P. O’Brien, J. L. Boisvert, S. Price, W. Hur, W. Yang,
+X. Deng, A. Butler, H. G. Choi, J. W. Chang, J. Baselga, I. Stamenkovic,
+J. A. Engelman, S. V. Sharma, O. Delattre, J. Saez-Rodriguez, N. S. Gray,
+J. Settleman, P. A. Futreal, D. A. Haber, M. R. Stratton, S. Ramaswamy,
+U. McDermott, and C. H. Benes, “Systematic identification of genomic
+markers of drug sensitivity in cancer cells,” Nature, vol. 483, no. 7391,
+pp. 570–575, 2012.
+[7] J. Lamb, E. D. Crawford, D. Peck, J. W. Modell, I. C. Blat, M. J. Wrobel, J. Lerner, J. P. Brunet, A. Subramanian, K. N. Ross, M. Reich, H.
+Hieronymus, G. Wei, S. A. Armstrong, S. J. Haggarty, P. A. Clemons, R.
+Wei, S. A. Carr, E. S. Lander, and T. R. Golub, “The connectivity map:
+Using gene-expression signatures to connect small molecules, genes, and
+disease,” Science, vol. 313, no. 5795, pp. 1929–1935, 2006.
+[8] J. T. Dudley, M. Sirota, M. Shenoy, R. K. Pai, S. Roedder, A. P. Chiang, A.
+A. Morgan, M. M. Sarwal, P. J. Pasricha, and A. J. Butte, “Computational
+repositioning of the anticonvulsant topiramate for inflammatory bowel
+disease,” Sci. Transl. Med., vol. 3, no. 96, p. 96ra76, 2011.
+[9] M. Sirota, J. T. Dudley, J. Kim, A. P. Chiang, A. A. Morgan, A. SweetCordero, J. Sage, and A. J. Butte, “Discovery and preclinical validation
+of drug indications using compendia of public gene expression data,” Sci.
+Transl. Med., vol. 3, no. 96, p. 96ra76, 2011.
+
+1270
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+[10] L. Huang, F. Li, J. Sheng, X. Xia, J. Ma, M. Zhan, S. T. Wong, “DrugComboRanker: Drug combination discovery based on target network analysis,”
+Bioinformatics, vol. 30, no. 12, pp. i228–i236, 2014.
+[11] J.-H. Lee, D. G. Kim, T. J. Bae, K. Rho, J. T. Kim, J. J. Lee, Y. Jang, B. C.
+Kim, K. M. Park, and S. Kim, “CDA: Combinatorial drug discovery using
+transcriptional response modules,” PLoS ONE, vol. 7, no. 8, p. e42573,
+2012.
+[12] F. Iorio, R. Bosotti, E. Scacheri, V. Belcastro, P. Mithbaokar, R. Ferriero, L. Murino, R. Tagliaferri, N. Brunetti-Pierri, A. Isacchi, and D.
+di Bernardo, “Discovery of drug mode of action and drug repositioning from transcriptional responses,” Proc. Nat. Acad. Sci. USA, vol. 107,
+no. 33, pp. 14621–14626, 2010.
+[13] V. V. van Noort, S. Schölch, M. Iskar, G. Zeller, K. Ostertag, C. Schweitzer,
+K. Werner, J. Weitz, M. Koch, and P. Bork, “Novel drug candidates for
+the treatment of metastatic colorectal cancer through global inverse gene
+expression profiling,” Cancer Res., vol. 74, no. 20, pp. 5690–5699, 2014.
+[14] N. S. Jahchan, T. J. Dudley, P. K. Mazur, N. Flores, D. Yang, A. Palmerton,
+A. F. Zmoos, D. Vaka, K. Q. Tran, M. Zhou, K. Krasinska, J. W. Riess, J. W.
+Neal, P. Khatri, K. S. Park, A. J. Butte, and J. Sage, “A drug repositioning
+approach identifies tricyclic antidepressants as inhibitors of small cell lung
+cancer and other neuroendocrine tumors,” Cancer Discovery, vol. 3, pp.
+1364–1377, 2013.
+[15] R. Edgar, M. Domrachev, and A. E. Lash, “Gene expression omnibus:
+NCBI gene expression and hybridization array data repository,” Nucleic
+Acids Res, vol. 30, no. 1, pp. 207–210, 2002.
+[16] M. Campillos, M. Kuhn, A. C. Gavin, L. J. Jensen, and P. Bork, “Drug
+target identification using side-effect similarity,” Science, vol. 321, no.
+5886, pp. 263–266, 2008.
+[17] S. L. Kinnings, N. Liu, N. Buchmeier, P. J. Tonge, L. Xie, and P.
+E. Bourne, “Drug discovery using chemical systems biology: Repositioning the safe medicine comtan to treat multi-drug and extensively drug resistant tuberculosis,” PLoS Comput. Biol., vol. 5, no. 7,
+p. e1000423, 2009.
+[18] Cancer Genome Atlas Research Network, “Comprehensive genomic characterization of squamous cell lung cancers,” Nature, vol. 489, no. 7417,
+pp. 519–525, 2012.
+[19] M. D. Wilkerson, X. Yin, K. A. Hoadley, Y. Liu, M. C. Hayward, C. R.
+Cabanski, K. Muldrew, C. R. Miller, S. H. Randell, M. A. Socinski, A.
+M. Parsons, W. K. Funkhouser, C. B. Lee, P. J. Roberts, L. Thorne, P. S.
+Bernard, C. M. Perou, and D. N. Hayes, “Lung squamous cell carcinoma
+mRNA expression subtypes are reproducible, clinically important, and
+correspond to normal cell types,” Clin. Cancer Res., vol. 16, no. 19, pp.
+4864–4875, 2010.
+[20] F. Li, X. Zhou, W. Huang, C. C. Chang, S. T. Wong, “Conditional random
+pattern model for copy number aberration detection,” BMC Bioinformat.,
+vol. 11, p. 200, 2010.
+[21] TCGA-web. (2015). [Online]. Available: https://tcga-data.nci.nih.gov/
+tcga/tcgaHome2.jsp
+[22] L. Wang, F. Li, J. Sheng, S. T. Wong, BMC Genomics, “A computational
+method for clinically relevant cancer stratification and driver mutation
+module discovery using personal genomics profiles,” BMC Genomics,
+2015, submitted for publication.
+[23] International Cancer Genome Consortium, T. J. Hudson, W. Anderson, A.
+Artez, A. D. Barker, C. Bell, R. R. Bernabé, M. K. Bhan, F. Calvo, I. Eerola,
+D. S. Gerhard, A. Guttmacher, M. Guyer, F. M. Hemsley, J. L. Jennings,
+D. Kerr, P. Klatt, P. Kolar, J. Kusada, D. P. Lane, F. Laplace, L. Youyong,
+G. Nettekoven, B. Ozenberger, J. Peterson, T. S. Rao, J. Remacle, A. J.
+Schafer, T. Shibata, M. R. Stratton, J. G. Vockley, K. Watanabe, H. Yang,
+M. M. Yuen, B. M. Knoppers, M. Bobrow, A. Cambon-Thomsen, L. G.
+Dressler, S. O. Dyke, Y. Joly, K. Kato, K. L. Kennedy, P. Nicolás, M. J.
+Parker, E. Rial-Sebbag, C. M. Romeo-Casabona, K. M. Shaw, S. Wallace,
+G. L. Wiesner, N. Zeps, P. Lichter, A. V. Biankin, C. Chabannon, L. Chin,
+B. Clément, E. de Alava, F. Degos, M. L. Ferguson, P. Geary, D. N. Hayes,
+T. J. Hudson, A. L. Johns, A. Kasprzyk, H. Nakagawa, R. Penny, M. A.
+Piris, R. Sarin, A. Scarpa, T. Shibata, M. van de Vijver, P. A. Futreal, H.
+Aburatani, M. Bayés, D. D. Botwell, P. J. Campbell, X. Estivill, D. S.
+Gerhard, S. M. Grimmond, I. Gut, M. Hirst, C. López-Otı́n, P. Majumder,
+M. Marra, J. D. McPherson, H. Nakagawa, Z. Ning, X. S. Puente, Y.
+Ruan, T. Shibata, M. R. Stratton, H. G. Stunnenberg, H. Swerdlow, V.
+E. Velculescu, R. K. Wilson, H. H. Xue, L. Yang, P. T. Spellman, G. D.
+Bader, P. C. Boutros, P. J. Campbell, P. Flicek, G. Getz, R. Guigó, G.
+Guo, D. Haussler, S. Heath, T. J. Hubbard, T. Jiang, S. M. Jones, Q. Li,
+N. López-Bigas, R. Luo, L. Muthuswamy, B. F. Ouellette, J. V. Pearson,
+X. S. Puente, V. Quesada, B. J. Raphael, C. Sander, T. Shibata, T. P.
+Speed, L. D. Stein, J. M. Stuart, J. W. Teague, Y. Totoki, T. Tsunoda,
+
+[24]
+[25]
+
+[26]
+[27]
+[28]
+
+[29]
+
+[30]
+[31]
+[32]
+
+A. Valencia, D. A. Wheeler, H. Wu, S. Zhao, G. Zhou, L. D. Stein, R.
+Guigé, T. J. Hubbard, Y. Joly, S. M. Jones, A. Kasprzyk, M. Lathrop, N.
+López-Bigas, B. F. Ouellette, P. T. Spellman, J. W. Teague, G. Thomas, A.
+Valencia, T. Yoshida, K. L. Kennedy, M. Axton, S. O. Dyke, P. A. Futreal,
+D. S. Gerhard, C. Gunter, M. Guyer, T. J. Hudson, J. D. McPherson, L. J.
+Miller, B. Ozenberger, K. M. Shaw, A. Kasprzyk, L. D. Stein, J. Zhang,
+S. A. Haider, J. Wang, C. K. Yung, A. Cros, Y. Liang, S. Gnaneshan, J.
+Guberman, J. Hsu, M. Bobrow, D. R. Chalmers, K. W. Hasel, Y. Joly, T.
+S. Kaan, K. L. Kennedy, B. M. Knoppers, W. W. Lowrance, T. Masui,
+P. Nicolás, E. Rial-Sebbag, L. L. Rodriguez, C. Vergely, T. Yoshida, S.
+M. Grimmond, A. V. Biankin, D. D. Bowtell, N. Cloonan, A. deFazio,
+J. R. Eshleman, D. Etemadmoghadam, B. B. Gardiner, J. G. Kench, A.
+Scarpa, R. L. Sutherland, M. A. Tempero, N. J. Waddell, P. J. Wilson,
+J. D. McPherson, S. Gallinger, M. S. Tsao, P. A. Shaw, G. M. Petersen,
+D. Mukhopadhyay, L. Chin, R. A. DePinho, S. Thayer, L. Muthuswamy,
+K. Shazand, T. Beck, M. Sam, L. Timms, V. Ballin, Y. Lu, J. Ji, X.
+Zhang, F. Chen, X. Hu, G. Zhou, Q. Yang, G. Tian, L. Zhang, X. Xing,
+X. Li, Z. Zhu, Y. Yu, J. Yu, H. Yang, M. Lathrop, J. Tost, P. Brennan, I.
+Holcatova, D. Zaridze, A. Brazma, L. Egevard, E. Prokhortchouk, R. E.
+Banks, F. S. Collins, C. C. Compton, M. L. Ferguson, D. S. Gerhard, G.
+Getz, C. Gunter, A. Guttmacher, M. Guyer, D. N. Hayes, E. S. Lander, B.
+Ozenberger, R. Penny, J. Peterson, C. Sander, K. M. Shaw, T. P. Speed, P.
+T. Spellman, J. G. Vockley, D. A. Wheeler, R. K. Wilson, T. J. Hudson, L.
+Chin, B. M. Knoppers, E. S. Lander, P. Lichter, L. D. Stein, M. R. Stratton,
+W. Anderson, A. D. Barker, C. Bell, M. Bobrow, W. Burke, F. S. Collins,
+C. C. Compton, R. A. DePinho, D. F. Easton, P. A. Futreal, D. S. Gerhard,
+A. R. Green, M. Guye, S. R. Hamilton, T. J. Hubbard, O. P. Kallioniemi,
+K. L. Kennedy, T. J. Ley, E. T. Liu, Y. Lu, P. Majumder, M. Marra, B.
+Ozenberger, J. Peterson, A. J. Schafer, P. T. Spellman, H. G. Stunnenberg,
+B. J. Wainwright, R. K. Wilson, and H. Yang, “International network of
+cancer genome projects,” Nature, vol. 464, no. 7291, pp. 993–998, 2010.
+M. Meyerson, S. Gabriel, and G. Getz, “Advances in understanding cancer
+genomes through second-generation sequencing,” Nature Rev. Genetics,
+vol. 11, no. 10, pp. 685–696, 2010.
+M. S. Lawrence, P. Stojanov, P. Polak, G. V. Kryukov, K. Cibulskis, A.
+Sivachenko, S. L. Carter, C. Stewart, C. H. Mermel, S. A. Roberts, A.
+Kiezun, P. S. Hammerman, A. McKenna, Y. Drier, L. Zou, A. H. Ramos,
+T. J. Pugh, N. Stransky, E. Helman, J. Kim, C. Sougnez, L. Ambrogio,
+E. Nickerson, E. Shefler, M. L. Corts, D. Auclair, G. Saksena, D. Voet,
+M. Noble, D. DiCara, P. Lin, L. Lichtenstein, D. I. Heiman, T. Fennell,
+M. Imielinski, B. Hernandez, E. Hodis, S. Baca, A. M. Dulak, J. Lohr,
+D. A. Landau, C. J. Wu, J. Melendez-Zajgla, A. Hidalgo-Miranda, A.
+Koren, S. A. McCarroll, J. Mora, R. S. Lee, B. Crompton, R. Onofrio, M.
+Parkin, W. Winckler, K. Ardlie, S. B. Gabriel, C. W. Roberts, J. A. Biegel,
+K. Stegmaier, A. J. Bass, L. A. Garraway, M. Meyerson, T. R. Golub,
+D. A. Gordenin, S. Sunyaev, E. S. Lander, and G. Getz, “Mutational
+heterogeneity in cancer and the search for new cancer-associated genes,”
+Nature, vol. 499, no. 7457, pp. 214–218, 2013.
+Y. Y. Li and S. J. Jones, “Drug repositioning for personalized medicine,”
+Genome Med., vol. 4, no. 3, p. 27, Mar. 30, 2012.
+Cancer Genome Atlas Network, “Comprehensive molecular portraits of
+human breast tumours,” Nature, vol. 490, no. 7418, pp. 61–70, 2012.
+Cancer Genome Atlas Research Network, C. Kandoth, N. Schultz, A. D.
+Cherniack, R. Akbani, Y. Liu, H. Shen, A. G. Robertson, I. Pashtan, R.
+Shen, C. C. Benz, C. Yau, P. W. Laird, L. Ding, W. Zhang, G. B. Mills,
+R. Kucherlapati, E. R. Mardis, and D. A. Levine, “Integrated genomic
+characterization of endometrial carcinoma,” Nature, vol. 497, no. 7447,
+pp. 67–73, 2013.
+L. Wang, F. Li, J. Sheng, and S. T. Wong, “A computational method
+for clinically relevant cancer stratification and driver mutation module
+discovery using personal genomics profiles,” presented at the Int. Conf.
+Intell. Biol. Med., San Antonio, TX, USA, Dec. 4–6, 2014.
+G. Rajarshi, “Fingerprint: Functions to operate on binary fingerprint data,”
+R package, version 3.5.2, 2013.
+R. Guha, “Chemical informatics functionality in R., J. Statist. Softw.,
+vol. 18, no. 5, Jan. 2007.
+A. Subramanian, P. Tamayo, V. K. Mootha, S. Mukherjee, B. L. Ebert, M.
+A. Gillette, A. Paulovich, S. L. Pomeroy, T. R. Golub, E. S. Lander, and J.
+P. Mesirov, “Gene set enrichment analysis: A knowledge-based approach
+for interpreting genome-wide expression profiles,” Proc. Nat. Acad. Sci.
+USA, vol. 102, no. 43, pp. 15545–15550, 2005.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

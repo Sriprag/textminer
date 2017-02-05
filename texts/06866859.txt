@@ -1,0 +1,666 @@
+1718
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 5, SEPTEMBER 2015
+
+Designing Robust and Reliable Timestamps
+for Remote Patient Monitoring
+Malcolm Clarke, Senior Member, IEEE, Paul Schluter, Member, IEEE, Barry Reinhold, Member, IEEE,
+and Brian Reinhold, Member, IEEE
+
+Abstract—Having timestamps that are robust and reliable is essential for remote patient monitoring in order for patient data to
+have context and to be correlated with other data. However, unlike
+hospital systems for which guidelines on timestamps are currently
+provided by HL7 and IHE, remote patient monitoring platforms
+are: operated in environments where it can be difficult to synchronize with reliable time sources; include devices with simple or
+no clock; and may store data spanning significant periods before
+able to upload. Existing guidelines prove inadequate. This paper
+analyzes the requirements and the operating scenarios of remote
+patient monitoring platforms and defines a framework to convey
+information on the conditions under which observations were made
+by the device and forwarded by the gateway in order for data to
+be managed appropriately and to include both reference to local
+time and an underlying continuous reference timeline. We define
+the timestamp formats of HL7 to denote the different conditions
+of operation and describe extensions to the existing definition of
+the HL7 timestamp to differentiate between time local to GMT
+(+0000) and universal coordinated time or network time protocol time where no geographic time zone is implied (−0000). We
+further describe how timestamps from devices having only simple
+or no clocks might be managed reliably by a gateway to provide
+timestamps that are referenced to local time and an underlying continuous reference timeline. We extend the HL7 message to include
+information to permit a subsequent receiver of the data to understand the quality of the timestamp and how it has been translated.
+We present evaluation from deploying a platform for 12 months.
+Index Terms—Remote patient monitoring, telehealth, timestamps, time standards.
+
+I. INTRODUCTION
+EMOTE patient monitoring platforms are typically widely
+deployed to patients to collect and forward observations
+over significant periods of time. Platforms will include a wide
+variety of devices to monitor physiological (e.g., blood pressure, weight, glucose, SpO2 ) and environmental (e.g., motion,
+temperature) parameters. Typically end devices are simple, low
+cost and battery operated and they connect to the gateway using
+low-power, short-range wireless communications. Such devices
+may have no internal clock, or the internal clock is not or cannot
+be synchronized to an external time source. Gateways typically
+
+R
+
+Manuscript received March 27, 2014; revised June 18, 2014; accepted July
+22, 2014. Date of publication July 28, 2014; date of current version September
+1, 2015.
+M. Clarke is with the Computer Science Department, Brunel University,
+Uxbridge, UB8 3PH, U.K. (e-mail: malcolm.clarke@brunel.ac.uk).
+P. Schluter is with GE Healthcare, Life Care Solutions, Milwaukee, WI 53223
+USA (e-mail: paul.schluter@med.ge.com).
+B. B. Reinhold and B. Reinhold are with Lamprey Networks, Inc.,
+Durham, NH 03824 USA (e-mail: bbr@lampreynetworks.com; brianreinhold@
+lampreynetworks.com).
+Digital Object Identifier 10.1109/JBHI.2014.2343632
+
+will use wide area communication technology such as GPRS to
+transmit data and synchronize their internal clock to an external
+source, such as the time provided by the mobile (cell) phone
+network or network time protocol (NTP) [1].
+There is an expectation that the gateway will translate the
+timestamps from each device to the local time of the patient
+to provide context and ensure that observations from multiple
+devices can be compared and combined. This includes having
+the correct local time to allow interpretation of blood glucose
+measurements with separately recorded carbohydrate intake and
+exercise for the diabetic patient, or comparison of physiological data with environmental information to correlate health and
+behavioral changes as in [2]. It ideally should also provide a
+reference to an underlying continuous time base to support correlation between data from multiple sources that may have been
+recorded at different locations, such as Holter ECG recordings
+that are correlated with drug data in FDA trials. Each of these
+applications will have its own consideration of the accuracy of
+timestamps. Although remote patient monitoring applications
+may tolerate an error in synchronization of minutes, other applications such as hospital procedures may require a greater
+accuracy in synchronization. As tolerance on synchronization
+cannot be defined uniquely, the error will need to be specified
+in the message.
+Platforms can be used to monitor patients for significant periods, so aspects of Time Zone (TZ) and Daylight Saving Time
+(DST) must be taken into account when translating to qualified
+time that includes both the local time and TZ offset relative
+to the underlying continuous time base. Management of time
+stamps may be further complicated if devices store observations
+that span time changes, and whether the device changes its time
+or not. For example, a simple weighing scale may have readings
+stored due to loss of communication with the gateway and will
+not change its clock due to DST, whereas a blood glucose meter
+will have its clock changed. Each of these scenarios needs to be
+considered in order for all observations to be handled correctly.
+HL7 [3] and IHE [4] have produced guidelines for management of timestamps. However these were developed with the
+expectation that devices are typically located within the health
+care enterprise, where networks and devices are managed by
+professional staff, including central management of TZ and
+DST information.
+In a practical remote patient monitoring platform, the ideal
+conditions of the health care enterprise do not apply. The limitations must be identified and a protocol developed to support working in such environments and this protocol must indicate the conditions under which the platform is operating.
+
+This work is licensed under a Creative Commons Attribution 3.0 License. For more information, see http://creativecommons.org/licenses/by/3.0/
+
+CLARKE et al.: DESIGNING ROBUST AND RELIABLE TIMESTAMPS FOR REMOTE PATIENT MONITORING
+
+Furthermore, the protocol must allow devices to continue to
+operate in any adverse conditions that may prevail. Such conditions will include the gateway being unable to acquire accurate
+time as not all mobile (cell) phone networks provide network
+time on registration to the network, and the NTP server may not
+be accessible. In some circumstances, it may be more important
+to send the data than have the correct timestamp. In such cases,
+the data will be sent, but we ensure that the reliability of the
+timestamp is indicated in the message.
+There are currently no guidelines for timestamp management
+in remote patient monitoring platforms that cover all conditions
+of working. This paper analyzes the requirements and the operating scenarios of a remote patient monitoring platform and
+defines a framework to convey information on the conditions under which observations were made by the device and forwarded
+by the gateway. This information will include reference to the
+internal time of the device and to local time and an underlying
+continuous reference timeline of the gateway in order for data
+to be managed appropriately. Furthermore, because the current
+definition of the HL7 timestamp does not differentiate between
+time local to GMT (+0000) or universal coordinated time (UTC)
+or NTP time where no geographic TZ is implied (−0000), we
+propose an extension to handle these separate cases.1
+An important requirement of the platform must be support
+for very simple devices that have only a simple or no clock. In
+these cases, the timestamp of any observation must be translated
+by the gateway from the internal time of the device to provide
+a timestamp that is referenced to a single consistent and accurate time base. UTC is the preferred choice to facilitate accurate
+correlation and processing. Ideally, the timestamps should also
+include the local time (as an offset from UTC) of the location
+where the observations were made to facilitate correlation with
+records maintained by the patient and caregivers. There is the
+further requirement that the observation should include information to convey the quality of the timestamp and how it was
+translated by the gateway. These requirements are satisfied by
+including information on clock status and a coincident timestamp to provide the correlation between the respective clocks of
+the device and gateway. The proposals of this paper are being
+incorporated into the draft guidelines of the Personal Connected
+Health Alliance (formerly the Continua Health Alliance) [5].
+II. GATEWAY OPERATING CONDITIONS AND TIMESTAMPS
+The operating conditions that affect the clock and timestamps
+of the gateway are: synchronization with an external time source
+such as NTP; knowledge of local time (TZ); and knowledge of
+local DST rules [6]. Table I summarizes the six distinct modes of
+operation that arise from valid combinations of these conditions
+and must be supported and conveyed through the timestamp
+format and further information in the message.
+
+1719
+
+TABLE I
+GATEWAY OPERATING CONDITIONS
+Mode
+
+A
+B
+C
+D
+E
+F
+∗
+∗
+
+Gateway clock operating condition
+UTC/NTP
+
+Local
+
+DST
+
+Yes
+Yes
+Yes
+No
+No
+No
+Yes
+No
+
+Yes
+Yes
+No
+Yes
+Yes
+No
+No
+No
+
+Yes
+No
+No
+No
+Yes
+No
+Yes
+Yes
+
+Whenever local time and its offset to UTC is known (whether
+synchronized to UTC/NTP or not), all timestamps for a gateway
+operating in one of these modes (A, B, D, and E) will include the
+time offset in the form ±ZZZZ, where ±ZZZZ denotes the offset
+from UTC. If the gateway is only synchronized to UTC/NTP (by
+an external time source such as NTP) and the local time offset
+is unknown (mode C), then the gateway will include the time
+offset in the form −0000 to denote the timestamp is UTC. If the
+gateway is not synchronized to UTC and the local time offset
+is also unknown (mode F), then no TZ offset (TZ) is included.
+We refer to these forms of timestamp with and without the TZ
+as “qualified time” and “unqualified time,” respectively.
+We assume that if DST rules are known, local time must also
+be known, so that the final two modes are deemed invalid and
+map to the corresponding mode with local time known.
+A. Qualified Time
+A “qualified time” expresses a unique time point along the
+UTC timescale, which is the primary time standard by which
+the world regulates clocks and time.
+Qualified time is expressed as an HL7 V2 “DTM” data type
+and must include the TZ offset, expressed either as ±ZZZZ
+(HHMM) if the civil TZ offset is known or −0000 if UTC time
+(e.g., derived from NTP) is known but the actual civil TZ offset
+is not. The full form of the HL7 timestamp is as follows:
+YYYYMMDDHHMMSS[.S[S[S[S]]]]±ZZZZ
+if civil time zone offset ±ZZZZ is known.
+YYYYMMDDHHMMSS[.S[S[S[S]]]]−0000
+if UTC time is known but civil time zone is not.
+B. Unqualified Local Time
+In unqualified local time, the TZ offset is omitted: the civil
+TZ offset and UTC time are both unknown:
+YYYYMMDDHHMMSS[.S[S[S[S]]]]
+The use of these timestamp formats for each operating mode
+is summarized in Table II.
+III. DEVICE OPERATING CONDITIONS AND TIMESTAMPS
+
+1 UTC
+
+is the primary time standard by which the world regulates clocks and
+time. It is one of several closely related successors to Greenwich Mean Time
+(GMT). The NTP is used on the public Internet and local area networks to
+synchronize participating computers to within a few milliseconds of UTC after
+an adjustment for leap seconds is made.
+
+Devices used in remote patient monitoring platforms have a
+variety of forms and capabilities of internal clock. These capabilities include: time of day clock that is not synchronized;
+simple time of day clock (local time) that is synchronized; time
+
+1720
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 5, SEPTEMBER 2015
+
+TABLE II
+GATEWAY TIMESTAMP FOR OPERATING CONDITIONS
+Mode
+
+A
+B
+C
+D
+E
+F
+
+Gateway timestamp
+TZ
+±ZZZZ
+±ZZZZ
+−0000
+±ZZZZ
+±ZZZZ
+none
+
+of day clock (UTC and local time) that is synchronized; relative
+time clock (monotonic count); and no clock.
+A. Clock Types
+For the purposes of this paper, we have adopted the definition of clock types from IEEE 11073-20601 [7]. This standard
+defines four types of clock:
+1) Absolute Time: Conveys only local time information of
+the device, that is, it is the equivalent of unqualified local time
+and carries no information about the civil TZ offset or relationship with UTC. Although it is termed “absolute time,” there is
+no requirement that it is synchronized with the local time of
+the user.
+2) Base-Offset Time: This time representation is defined to
+have an underlying monotonic increasing count component that
+is the base time that may be aligned with UTC/NTP, together
+with an offset component that provides an indication of the local
+time of the device with respect to the base time. Base-offset time
+is the equivalent of qualified time.
+3) Relative Time: This time representation is defined as an
+underlying monotonic increasing count that is of limited period
+and so will exhibit frequent rollover, typically in the period of
+days. Its count value is not relative to any external time source.
+4) High-Resolution Relative Time: This time representation
+is defined as an underlying monotonic increasing count but has
+an extended period and so will not normally rollover. Typical
+period is over 100 years. It provides greater resolution than
+relative time. Its count value is not relative to any external time
+source.
+B. Store and Forward
+Although primarily designed to support translation of timestamps of data transmitted in real time, the framework supports
+translation of timestamps of data that have been stored in a
+device for later transmission (“store and forward”). Generally,
+there is no distinction; however, clock changes occurring in
+the device and/or gateway require specific handling when data
+occurring before the clock change is sent.
+1) Device Changes Time: The IEEE 11073-20601 protocol
+provides for notification that the clock in a device has been
+changed and the effect that this change has on the data stored
+before the clock change. This information may be used by the
+gateway to perform the correct translation of timestamps and to
+
+Fig. 1.
+
+Typical gateway clock status in HL7 OBX.
+
+construct the appropriate coincident timestamp for each set of
+observations, before and after the time change.
+2) Gateway Changes Time: If the gateway changes time for
+DST but the device does not, then it is necessary for the gateway
+to determine and apply the correct translation that applies. This
+task is accomplished by inspecting each timestamp to determine
+if it is before or after the DST change. This inspection is only
+possible if the gateway has the rules for DST. If a gateway does
+not have DST rules (mode B), then the same translation will be
+applied to all timestamps irrespective of the DST change.
+Note that the coincident timestamp provides the information
+on the translation that has been applied to all timestamps in
+that OBR, and so the original device timestamp can always
+be reconstructed.
+C. Clock Status
+Information on the status of the device and gateway clocks is
+essential to provide assurance on the reliability of the devices.
+We propose that this information may be provided through the
+HL7 OBX with a CWE data type. The OBX can report the value
+of the respective time attribute for time status (synchronized or
+not), synchronization protocol, and the NM data type for the
+accuracy (defined as cumulative clock drift) of the device clock.
+The reporting of this information is shown in the example of
+Fig. 1.
+In the example of Fig. 1, the gateway is synchronized to NTP
+and has acquired information so that it can implement correct
+DST rules. It is operating in mode A. A full list of nomenclature
+codes is available in [7].
+D. Coincident Timestamp
+In order to perform the timestamp translation, the gateway
+must determine the notion of internal time from the device and
+reference this notion of time against its own notion of time for a
+coincident time instant. The difference between these two time
+instants is applied to each observation timestamp to perform
+the translation of the timestamp from the device timeline to
+the gateway timeline. We refer to these two time instants as the
+coincident timestamp, and it is sent in every HL7 message when
+translation has been applied for reference and audit purposes. A
+
+CLARKE et al.: DESIGNING ROBUST AND RELIABLE TIMESTAMPS FOR REMOTE PATIENT MONITORING
+
+1721
+
+TABLE III
+COINCIDENT TIMESTAMP FORM AND TIME STATUS
+Case
+
+1
+2
+3
+
+Fig. 2.
+
+Typical coincident timestamp in HL7 OBX.
+
+receiver of any HL7 message is able to reconstruct the original
+timestamp of the device by subtraction. We propose a form
+of HL7 OBX that conveys this information where we use a
+“DTM observation” that includes the type of time format used
+by the device (using IEEE 11073 nomenclature [7]), placing
+the device notion of time as a timestamp in OBX-5, and the
+coincident gateway notion of time in OBX-14. Each is provided
+as a qualified time where possible, otherwise as unqualified
+time. Fig. 2 provides an example of a coincident timestamp
+for a device with absolute time correct for local time (and thus
+unqualified) and with the gateway synchronized to GMT (and
+thus qualified).
+IV. TIMESTAMP TRANSLATION
+Consideration of the operating condition and form of clock
+of the device leads to three cases of timestamp translation that
+must be supported by the gateway.
+A. Case 1: Gateway Translates Device Timestamps
+1) Internal Clock Not Synchronized: If a device has any type
+of internal clock that is not synchronized to an external time reference, then the gateway must translate all incoming timestamps
+to its notion of time and provide a coincident timestamp pair
+and gateway time status.
+2) Absolute Time: Translation will be required for all timestamps that use absolute time irrespective of synchronization as,
+in addition to a time translation due to any difference in notions of time, an absolute timestamp will require translation to
+qualified time (local and UTC).
+3) Relative Time: If a device provides timestamps having
+relative or high-resolution relative time, the gateway must translate incoming timestamps to its notion of time and provide a
+coincident timestamp pair and gateway time status.
+
+AHD Action
+
+Translate device timestamps
+Do not translate device timestamps
+Provide timestamp on behalf of device
+
+Status
+AHD
+
+Device
+
+M
+O
+M
+
+O
+M
+O
+
+OBX-5
+
+OBX-14
+
+∗
+
+T(∗)
+X
+X
+
+X
+X
+
+O—Optional.
+M—Mandatory.
+X—Not present.
+∗
+—In original form of the device.
+T(∗) —Translated form for coincident time in the gateway.
+
+C. Case 3: Gateway Provides Timestamp on Behalf of Device
+If a device does not supply a timestamp with an observation,
+then the gateway must provide a timestamp on behalf of the
+device. The form of the timestamp will depend on the current
+operating conditions of the gateway. No coincident timestamp
+is given; however, gateway time status is given.
+D. Coincident Timestamp Format
+The coincident timestamp, with an example shown in Fig. 2,
+is in the form of a HL7 OBX with the type of the time attribute
+in OBX-3 as one of IEEE 11073 nomenclature codes to denote
+the timestamp format as one of MDC_ATTR_TIME_{ABS,
+BO, REL, REL_HI_RES}[7]. The observed value in OBX-5 is
+the notion of time of the device and the coincident time of the
+gateway is in OBX-14.
+The form of the coincident timestamp will depend on the
+translation and on the current operating conditions of the device
+and gateway. A summary of the form and requirement for status
+depending on case is given in Table III.
+In OBX-5, the ∗ refers to the original timestamp format of the
+device and T(∗) in OBX-14 refers to its coincident time in the
+gateway in qualified time format. When relative time is being
+used, OBX-18 may specify the unique identity of the time base
+being used to synchronize devices and gateway such as might
+be provided by BlueTooth.
+E. Device Timestamp Format
+The format of device timestamps will depend on the device time type, the operating condition of the device, and the
+operating condition of the gateway. The format of the translated timestamp is summarized in Table IV, where ∗ refers
+to the original form of the device and T(∗) refers to the
+translated timestamp.
+
+B. Case 2: Gateway Does Not Translate Device Timestamps
+If a device has an internal clock that is synchronized to an
+external reference and the device provides qualified time (baseoffset), then the gateway will have no need to translate the
+timestamp on behalf of the device. The form of the timestamp for
+the observation will depend on the current operating conditions
+of the device. No coincident timestamp is given and gateway
+time status is not required. Device time status is required.
+
+V. TIME SYNCHRONIZATION EXAMPLE
+In this example (see Fig. 3), a blood pressure observation
+(systolic, diastolic, and mean arterial pressure) for a patient in
+Los Angeles taken at 09:10:05 on 8 Jan. 2010 is sent from a
+PAN device which had an internal time of 18:08:26 1 Jan. 1900
+at 14:03:45 on 4 Jan. 2010 (shown by the coincident timestamp
+in line 9). The gateway supports DST rules (denoted by the
+
+1722
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 5, SEPTEMBER 2015
+
+TABLE IV
+DEVICE TIMESTAMP FORMAT
+Case
+
+Device timestamps
+Absolute (no TZ)
+
+A
+B
+C
+D
+E
+F
+
+Fig. 3.
+
+Base-Offset (±TZ)
+
+T(∗) ±ZZZZ else ∗ ±ZZZZ
+∗
+T( ) ±ZZZZ else ∗ ±ZZZZ
+∗
+T( ) −0000 else ∗ −0000
+∗
+T( ) ±ZZZZ else ∗ ±ZZZZ
+∗
+T( ) ±ZZZZ else ∗ ±ZZZZ
+∗
+
+∗
+
+∗
+T( ) ±ZZZZ
+(∗ )
+
+±ZZZZ or
+±ZZZZ or T ±ZZZZ
+∗
+∗
+±ZZZZ or T( ) −0000
+∗
+∗
+±ZZZZ or T( ) ±ZZZZ
+∗
+∗
+±ZZZZ or T( ) ±ZZZZ
+∗
+±ZZZZ
+∗
+
+Hi-res/Relative
+∗
+
+T( ) ±ZZZZ
+∗
+T( ) ±ZZZZ
+∗
+T( ) −0000
+∗
+T( ) ±ZZZZ
+∗
+T( ) ±ZZZZ
+∗
+T( )
+
+Example time synchronization.
+
+time capability information in line 4) and is synchronized by
+NTP (denoted by the synchronization protocol in line 5) and
+so is operating as mode A. The time of transmission from the
+gateway is given in line 1. The BP observation and its timestamp
+are given in line 8, and the difference between the components
+of the coincident timestamp has been added to the original. The
+components of the BP are given in lines 10–12. As the device
+is not synchronized to an external time reference, the gateway
+translates the timestamp for a device with absolute time (case 1).
+As the gateway is operating in mode A, a qualified timestamp
+is given in line 8.
+VI. RESULTS
+The framework has been developed, deployed, and evaluated
+in two remote patient monitoring projects (inCasa and Reaction)
+
+over a period of two years. Purpose-designed gateways based on
+the ZigBee Health Care Profile [8] for in home communication
+and embedded GPRS modules for WAN communication have
+been developed to implement all the features discussed in this
+paper. All devices implement the IEEE 11073-20601 protocol
+[7] and the gateway uses IHE-PCD01 [4] for the WAN interface
+and follows the Continua Alliance Design Guidelines [5].
+In the early deployment, we observed that the UK GSM networks provided network time updates on every registration to
+the network and these updates were sufficient to provide reliable
+time to the gateway. GSM network time (NITZ) provides full
+information on local time, UTC and whether DST is in effect
+[9]. It also provided regular updates so that the gateway would
+change in a timely manner with DST. However, we then noticed
+that gateways were not sending correct timestamps for significant periods after initial power on and it was traced to UK GSM
+networks no longer providing network time update on registration. Investigation shows that this gap in timestamp provision
+is also the case for European GSM networks. In response, we
+implemented NTP on our gateways and use the mobile country
+code to determine the TZ and DST rules that must be applied.
+This approach works well for all countries that have a single TZ
+and has become our preferred method of setting the operating
+conditions as this approach allows us to operate as mode A.
+In countries with more than one TZ, we have to rely on GSM
+network time updates, unless information is made available for
+correct TZ and DST to be set. Information can include position
+from GPS or GSM cell location, but mapping location data to
+TZ and DST rules is complex in countries such as USA. Alternatively, the gateway may be preregistered with the information,
+but this solution precludes relocation and simple deployment.
+However, GSM network time updates do not provide information on DST rules, and the gateway must operate as mode B.
+We have tested our gateway throughout the world to evaluate the approach. Our evaluation from testing in six European countries (UK, Germany, Slovenia, Sweden, Denmark, and
+Belgium) confirms that European GSM networks do not provide
+GSM network time updates on registration and is an unreliable
+approach for time synchronization. Using NTP and the country
+code has proven reliable. However, our evaluation of operating
+with GSM networks in the US and in Asia (Taiwan and Hong
+Kong) confirms that network time updates are provided on every
+registration.
+Gateways using forms of communication other than GSM
+will need other sources of information to determine TZ and
+DST rules. Information might include IP address, position information from GPS, local radio or preregistration.
+We encountered frequent problems when there were DST
+changes for devices having absolute time and that did not change
+their clock. Initially, the source of this problem was traced to the
+fact that GSM was not providing timely network time updates
+and there would be a limited period when we would observe
+incorrectly translated timestamps. We therefore implemented
+DST rules on the gateway to change its clock at the appropriate
+time and correct all incoming timestamps. However, this approach left us with a problem with devices that could store
+observations and later send them if observations spanned a
+
+CLARKE et al.: DESIGNING ROBUST AND RELIABLE TIMESTAMPS FOR REMOTE PATIENT MONITORING
+
+DST change. In our simplistic implementation, the current DST
+setting was applied to all incoming timestamps, including those
+before the DST change. These were then incorrect. In response,
+we added inspection of all incoming timestamps to determine
+their DST period and apply the appropriate translation.
+We remain left with the problem of devices on which the user
+can set the time and has stored data. Although we can determine
+the current notion of time of the device and translate for incorrect
+setting of the time of the device, we cannot determine if the user
+should have changed the time for some measurements, such as
+when they have traveled to other TZs.
+VII. CONCLUSION
+We have developed a framework to provide robust and reliable management of timestamps in remote patient monitoring
+platforms. The framework provides high reliability of accurate
+timestamps when operating conditions allow, but supports ability to report the confidence of timestamps under other operating
+conditions. The platform supports the typical devices with simple clocks used in such monitoring platforms and can provide
+accurate qualified timestamps to the electronic patient record.
+Evaluation of the platform has demonstrated validity of the
+framework under the many non ideal operating conditions when
+deployed with real patients.
+
+1723
+
+REFERENCES
+[1] RFC 3339. (2014, Feb. 19). Date and Time on the Internet: Timestamps.
+[2] M. Clarke, “The need for an integrated approach to remote monitoring of
+physiological data and activity data,” J. Telemed. Telecare, vol. 20, no. 3,
+pp. 159–160, Apr. 2014.
+[3] HL7 Messaging Standard Version 2.6. (2014, Feb. 19). [Online]. Available:
+http://www.hl7.org/implement/standards/product_brief.cfm?product_id =
+145
+[4] Integrating the Healthcare Enterprise IHE Patient Care Device (PCD),
+Technical Framework Volume 2. (2014, Feb. 19). [Online]. Available: http://www.ihe.net/uploadedFiles/Documents/PCD/IHE_PCD_TF_
+Vol2.pdf
+[5] Continua Health Alliance Design Guidelines. (2014, Feb. 2).
+[Online]. Available: http://www.continuaalliance.org/ products/designguidelines
+[6] “IANA—Time Zone Database.” (2014, Jun. 18). [Online]. Available:
+http://www.iana.org/time-zones
+[7] “Health informatics—Personal health device communication—Application
+profile—Optimized exchange protocol,” ISO/IEEE 11073-20601:2010,
+2013.
+[8] ZigBee Health Care Profile. (2014, Jun. 18). [Online]. Available:
+http://zigbee.org/Standards/ ZigBeeHealthCare/Over-view.aspx
+[9] Digital cellular telecommunications system (Phase 2+); Universal Mobile Telecommunications System (UMTS); LTE; AT command set
+for User Equipment (UE) (3GPP TS 27.007 version 11.8.0 Release
+11). (2014, Jun. 6). [Online]. Available: http://www.etsi.org/deliver/
+etsi_ts/127000_127099/127007/11.08.00_60/ts_127007v110800p.pdf
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

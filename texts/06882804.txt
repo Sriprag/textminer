@@ -1,0 +1,1206 @@
+314
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+Multitask Gaussian Processes for Multivariate
+Physiological Time-Series Analysis
+Robert Dürichen∗ , Marco A. F. Pimentel, Lei Clifton, Achim Schweikard, and David A. Clifton
+
+Abstract—Gaussian process (GP) models are a flexible means
+of performing nonparametric Bayesian regression. However, GP
+models in healthcare are often only used to model a single univariate output time series, denoted as single-task GPs (STGP). Due to
+an increasing prevalence of sensors in healthcare settings, there is
+an urgent need for robust multivariate time-series tools. Here, we
+propose a method using multitask GPs (MTGPs) which can model
+multiple correlated multivariate physiological time series simultaneously. The flexible MTGP framework can learn the correlation
+between multiple signals even though they might be sampled at
+different frequencies and have training sets available for different
+intervals. Furthermore, prior knowledge of any relationship between the time series such as delays and temporal behavior can
+be easily integrated. A novel normalization is proposed to allow
+interpretation of the various hyperparameters used in the MTGP.
+We investigate MTGPs for physiological monitoring with synthetic
+data sets and two real-world problems from the field of patient
+monitoring and radiotherapy. The results are compared with standard Gaussian processes and other existing methods in the respective biomedical application areas. In both cases, we show that
+our framework learned the correlation between physiological time
+series efficiently, outperforming the existing state of the art.
+Index Terms—Correlation analysis, Gaussian processes, multivariate data analysis.
+
+I. INTRODUCTION
+AUSSIAN processes are a Bayesian modeling technique
+that have been widely used for various machine learning
+tasks, such as dimensionality reduction [1], nonlinear classification, and regression [2], [3]. The GP is a nonparametric method,
+informally suggesting that the number of parameters in the GP
+
+G
+
+Manuscript received May 11, 2014; revised July 23, 2014; accepted August
+17, 2014. Date of publication August 28, 2014; date of current version December
+18, 2014. The work of R. Dürichen was supported by the Graduate School for
+Computing in Medicine and Life Sciences, German Excellence Initiative [DFG
+GSC 235/1]. The work of M. A. F. Pimentel was supported by the RCUK
+Digital Economy Program under Grant EP/G036861/1 and FCT, Portugal. The
+work of D. A. Clifton was supported by a Royal Academy of Engineering
+Research Fellowship; Balliol College, Oxford; and the Centre of Excellence
+in Personalized Healthcare funded by the Wellcome Trust and EPSRC under
+Grant WT 088877/Z/09/Z. The work of L. Clifton was supported by the NIHR
+Biomedical Research Centre Program, Oxford. Asterisk indicates corresponding
+author.
+∗ R. Dürichen is with the Institute for Robotics and Cognitive Systems, Lübeck
+23538, Germany (e-mail: duerichen@rob.uni-luebeck.de).
+M. A. F. Pimentel, L. Clifton, and D. A. Clifton are with the Institute of Biomedical Engineering, University of Oxford, Oxford OX1
+2JD, U.K. (e-mail: marco.pimentel@stx.ox.ac.uk; lei.clifton@csm.ox.ac.uk;
+davidc@robots.ox.ac.uk).
+A. Schweikard is with the Institute for Robotics and Cognitive Systems,
+University of Lübeck, Lübeck 23538, Germany (e-mail: schweikard@rob.
+uni-luebeck.de).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2351376
+
+can grow with the number of observed data. Compared to other
+related techniques, such as, for example, support vector regression (SVR), GP models have the advantage that prior knowledge of the functional behavior (e.g., periodicity or smoothness)
+may be easily expressed. The Bayesian nature of its formulation also means that inference is performed in a probabilistic
+framework, allowing us to reason in the presence of noise, incompleteness, and artefacts, as are typical in realistic healthcare
+settings.
+In the field of biomedical engineering, GPs have been mainly
+used for modeling physiological time series. Clifton et al. used
+GPs to design a vital-sign “early warning system” [4]. Stegle
+et al. [5] used GPs for a robust regression of noisy heart rate data
+and Dürichen et al. [6] showed that relevance vector machines
+can be used efficiently to compensation respiratory motion in
+robotic radiotherapy. In [7], physiologically relevant parameters
+such as the respiratory rate have been estimated directly from the
+posterior values of the hyperparameters of a GP model that was
+constructed using mobile sensor data. Recently, GP regression
+has also been used for the ranking of gene expressions [8].
+Most commonly, GPs are used to predict a single output
+(“task”) based on one or more input time series. We refer to this
+model as a single-task GP. Within this paper, we explore the potential of an approach using multitask GP models for physiological time-series analysis. In contrast to most other multivariate
+models, the aim of a MTGP is to learn the correlation between
+and within the tasks concurrently. Assuming multiple time series are given, the intention is to improve the overall modeling
+accuracy by using a single MTGP model instead of multiple
+STGPs. MTGPs have been investigated for applications such as
+the analysis of compiler performance [9], robotic inverse dynamics [10], financial time series [11], environmental sensor
+networks [12], and the classification of ECG signals [13]. Earlier work has been published within geostatistics in [14]–[16].
+We note that in passing a multitask GP is sometimes called a
+“multioutput” GP in the literature.
+One appealing advantage of this framework is that MTGPs
+can incorporate unevenly sampled time series in a single model;
+no further downsampling or interpolation is required. Additionally, prior knowledge between the time series can be easily
+included such as time shifts or assumptions about similar temporal. This makes the method useful for various applications
+in healthcare settings, such as coping with missing data, estimation of time shifts between signals, correlation analysis, and
+prediction, which will be investigated here using synthetic and
+real-world data sets. Furthermore, we present a new means of
+transforming the MTGP correlation hyperparameters between
+time series. This increases the interpretability of the coefficients
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+DÜRICHEN et al.: MULTITASK GAUSSIAN PROCESSES FOR MULTIVARIATE PHYSIOLOGICAL TIME-SERIES ANALYSIS
+
+and enables a comparison to other metrics such as Pearson’s correlation coefficient, as is typically required for clinical benchmarking.
+After introducing the STGP in Section II-A, we derive the
+MTGP model in Section II-B. The following sections focus on
+the transformation of the MTGP correlation hyperparameters
+and on extension of the model (see Sections II-C and II-E). We
+subsequently evaluate our approach using several synthetic and
+real data sets of physiological time series (see Section III). In
+Section IV, we discuss further applications of MTGPs within
+physiological data analysis, such as template matching. To stimulate further research in biomedical applications, we have implemented an open-source MTGP toolbox, which is available
+online.1
+II. METHODS
+We assume the existence of training data T = {x, y}, where
+x = {xi | i = 1, . . . , n} is the index set (e.g., the times at which
+training data are observed) and where y = {yi | i = 1, . . . , n}
+are the corresponding values of the observed training data with
+xi , yi ∈ R, if not stated otherwise. The aim is to learn a regression model y = f (x) + , where f (x) represents a latent
+function and where  ∼ N (0, σ 2 ) is a noise term. If test indices
+are given x∗ = {x∗i | i = 1, . . . , p} (e.g., times at which we wish
+to estimate the value of our dependent variable, y), predictions
+for unknown test observations y∗ = {yi∗ | i = 1, . . . , p} can be
+made. Throughout this paper, we evaluate the accuracy of predictions with respect to a number of metrics. We will use the
+root-mean-square error (RMSE), defined as being
+
+ p
+
+1 
+(ŷi∗ − yi∗ )2 =
+MSE(ŷ∗ , y∗ ).
+RMSE(ŷ∗ , y∗ ) = 
+p i=1
+(1)
+As the RMSE is sensitive to the scaling of the observations, we
+evaluate also the normalized-mean-square error (NMSE)
+p
+(ŷ ∗ − y ∗ )2
+∗
+∗
+(2)
+NMSE(ŷ , y ) = i=1 i ∗ i
+p · var(ŷ )
+where the mean-squared error MSE(ŷ∗ , y∗ ) is normalized by
+the variance of ŷ∗ . As is common with Bayesian regression
+models, a predicted observation may be taken as being the mean
+of the posterior probability distribution. Similar to [3], we define
+the mean standardized log loss (MSLL) as
+p 
+
+
+	
+1
+− log p ŷi∗ |f, x∗i
+MSLL(ŷ∗ , y∗ ) =
+p i=1
+
+
+ ∗
+∗
++ log p ŷi |m(y), var(y), xi
+(3)
+where the first term represents the log likelihood of ŷi∗ given
+our latent function f and the test index x∗i . This likelihood
+is normalized by the second term, which is the log likelihood
+of ŷi∗ under a trivial model which predicts using a Gaussian
+with the mean m(y) and variance var(y) of the training labels.
+1 http://www.robots.ox.ac.uk/∼davidc.
+
+315
+
+Consequently, the MSLL will be negative for complex models
+and close to zero for simple methods.
+A. Single-Task Gaussian Process Models
+This section provides a brief introduction to STGP models;
+a more detailed description can be found in [3]. GP models
+assume that the function f (x) can be interpreted as being a
+probability distribution over functions
+	
+
+
+y = f (x) ∼ GP m(x), k(x, x )
+(4)
+where m(x) is the mean function of the process and k(x, x )
+is a covariance function which describes the coupling between
+the y values, determined according to the distance of the x
+values. By modifying the covariance function, we can encode
+our prior knowledge concerning the functional behavior we wish
+to model. As shown in [3], there exists a large class of covariance
+functions that could be used. Two frequently used examples are
+the squared-exponential (SE) and periodic (PER) covariance
+functions
+
+
+r2
+2
+(5)
+kSE (r) = θA exp − 2
+2θL
+
+
+sin2 [(2π/θP )r]
+kPER (r) = θA2 exp −
+(6)
+2
+where θA , θL , and θP are hyperparameters modeling the yscaling, x-scaling (or time scale if the data are time series), and
+period of the covariance functions, respectively, and where r = 
+x − x 2 denotes the Euclidean distance between two indexes.
+The covariance for a vector x ∈ Rn results in a covariance
+matrix K(x, x) of size n × n, where the covariance function
+k(xi , xj ) gives element Kij . In general, covariance functions
+have to fulfill Mercer’s theorem, meaning that K(x, x) has to
+be symmetric and positive semidefinite and therefore that k(·, ·)
+is a kernel. Complex covariance functions can be constructed
+by affine transformations of basic covariance functions. One
+frequently-used example is the quasi-periodic (QP) covariance
+function, which is a product of (5) and (6)
+
+
+
+
+r2
+sin2 [(2π/θP )r]
+. (7)
+kQP (r) = θA2 exp − 2 × exp −
+2θL
+2
+Given a training set T , predictions can be made at the
+test indices x∗ by computing the conditional distribution
+p(y∗ |x∗ , x, y) which will be a Gaussian distribution
+	
+
+
+p(y∗ |x∗ , x, y) ∼ N m(y∗ ), var(y∗ )
+(8)
+with a mean m(y∗ ) and variance var(y∗ ). Without loss of generality, the mean function m(x) is commonly assumed to be
+zero. Under this assumption, m(y∗ ) and var(y∗ ) are given by
+m(y∗ ) = K(x, x∗ ) K(x, x)−1 y
+∗
+
+∗
+
+∗
+
+∗ 
+
+(9)
+−1
+
+∗
+
+var(y ) = K(x , x ) − K(x, x ) K(x, x) K(x, x ). (10)
+The values of the hyperparameters θ may be optimized by,
+for example, minimizing the negative log marginal likelihood
+
+316
+
+Fig. 1.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+(a) Box diagram of multiple single-task GP and (b) a multitask GP.
+
+(NLML) which is defined as
+NLML = −log p(y|x, θ)
+=
+
+1
+n
+1
+log|K| + y K−1 y + log(2π).
+2
+2
+2
+
+(11)
+
+Interpreting the NLML as a cost function reveals that the first
+term penalizes model complexity and the second term penalizes low data likelihood. Bias-variance tradeoff is therefore performed by minimizing the NLML, which may be achieved using
+gradient descent.
+B. Multitask Gaussian Process Models
+The extension to MTGP models is motivated by the problem
+of modeling m tasks simultaneously (e.g., multiple physiological time series), where each model uses the same index set
+x (e.g., time). A naı̈ve approach is to train an STGP model
+independently for each task, as illustrated in Fig. 1(a).
+We assume that X = {xji | j = 1, . . . , m, i = 1, . . . , nj } and
+Y = {yij | j = 1, . . . , m, i = 1, . . . , nj ,} are the training indices and observations for the m tasks, where task j has nj
+number of training data. To specify the association of index xji
+and observation yij to task j, a label lj has to be added as an
+additional input to the model with lj = j, as shown in Fig. 1(b).
+Two independent covariance functions may be assumed
+kM TGP (x, x , l, l ) = kc (l, l ) × kt (x, x )
+
+C. Correlation Matrix and Normalization
+The remaining challenge is to construct a covariance function
+Kc which fulfills Mercer’s theorem (i.e., one that is a kernel
+function). The diagonal elements of Kc describe the correlation of the tasks with themselves and the nondiagonal elements
+correspond to the correlation between tasks. For example, element Kc [a, b] represents the correlation between task a and b to
+which we refer as τM T . If Kc is the identity matrix, the tasks
+would be modeled independently and share the same values
+of the hyperparameters θ t . Parameterizations of Kc based on
+a spherical or hyperspherical decomposition were presented in
+[12] and [13]. These parameterizations allow a direct interpretation of the correlation. However, they assume either equally
+scaled observations for each task, or require additional scaling
+hyperparameters.
+A more general solution is the so-called “free-form” parameterization [9]. It is based on the Cholesky decomposition and
+parameterizes the elements of the lower triangular matrix L
+⎡
+
+(12)
+
+where kc and kt represent the correlation between tasks and
+temporal covariance functions within a task, respectively. Note
+that kc depends only on the labels l, and kt depends only on the
+indices x. Assuming that nj = n for j = 1, . . . , m, the covariance matrix KM TGP for all m tasks can be written as
+KM TGP (X, l, θ c , θ t ) = Kc (l, θ c ) ⊗ Kt (X, θ t )
+
+This method has several useful properties:
+1) we may have task-specific training indices nj (i.e., training data may be observed at task-specific times);
+2) automatic learning of the correlation within tasks occurs
+by fitting the covariance function in (13); and
+3) the framework assumes that the tasks have similar temporal characteristics and hyperparameters θ t .
+We note that a limitation of the MTGP is that the computational cost for evaluating MTGPs is O(m3 n3 ) compared with
+m × O(n3 ) for STGPs. Additionally, the number of hyperparameters can increase rapidly for an increasing number of tasks
+which can lead to a multimodal parameter space with no overall
+optimum.
+
+(13)
+
+where ⊗ is the Kronecker product, l = {j | j = 1, . . . , m}, and
+θ c and θ t are vectors containing hyperparameters for Kc and
+Kt , respectively. This leads to a matrix of size mn × mn for
+KM TGP , as Kc has a size of m × m, and Kt of n × n. We
+refer to Kc as the correlation matrix. Within geostatistics, this
+approach is also known as the intrinsic correlation model [16].
+Note that the simplifying assumption nj = n for j = 1, . . . , m
+may be relaxed so that the model can be easily extended to use
+task-specific numbers of training data.
+As with STGPs, the hyperparameters for a MTGP may be
+optimized by minimizing the NLML, and predictions for test
+indixes {x∗ , l∗ } can be made by computing the conditional probability p(y∗ |x∗ , l∗ , x, l, y).
+
+Kc = LL ,
+
+⎢
+⎢
+L=⎢
+⎣
+
+θc,1
+θc,2
+..
+.
+
+θc,3
+
+θc,k −m +1
+
+θc,k −m +2
+
+0
+
+···
+..
+
+.
+···
+
+0
+0
+..
+.
+
+⎤
+⎥
+⎥
+⎥
+⎦
+
+θc,k
+(14)
+
+where k = m(m + 1)/2 is the number of correlation hyperparameters. One advantage of this approach is that the diagonal
+elements of Kc are not forced to take a value of 1, which leads to
+an individual y-scaling hyperparameter θA for each task. However, the direct interpretation of Kc will become challenging as
+its elements no longer take values between −1 and 1.
+To increase the interpretability of Kc , a transformation may
+be performed. We refer to the transformed correlation matrix
+as Kc which is computed based on the normalized correlation
+hyperparameters θ c . The proposed transformation is based on
+two constraints. First, the diagonal elements of Kc are assumed
+to be 1 to eliminate the influence of label-specific scaling. Second, the nondiagonal elements of Kc are computed based on the
+assumption that the contribution of θ c to the diagonal elements
+of Kc is equivalent as of θ c to Kc . This leads to the following
+
+DÜRICHEN et al.: MULTITASK GAUSSIAN PROCESSES FOR MULTIVARIATE PHYSIOLOGICAL TIME-SERIES ANALYSIS
+
+normalized hyperparameters θ c :
+
+θ c [l] = sgn(θ c [l])
+
+δ 2
+
+θ c [l]2
+
+k =δ 1 +1
+
+θ c [k]2
+
+317
+
+(15)
+
+with δ1 = j(j − 1)/2, δ2 = j(j + 1)/2, δ1 < l ≤ δ2 and j ∈
+{1, . . . , m}. Here, θ c [l] indicates the lth element of the vector
+
+θ c . The normalized MTGP correlation coefficients τM
+T can be
+computed according to (14).
+D. Time Shift Estimation
+The predictions provided by MTGPs depend strongly on the
+correlation between the modeled tasks. In extreme cases, if
+the tasks are not correlated, the prediction results of MTGPs
+are comparable to STGPs (however the tasks would still share
+the same temporal hyperparameter θ t ). As a consequence, the
+MTGP model is influenced if correlated signals are temporally
+shifted to each other.
+This effect can be compensated by an additional hyperparameter θs for each task which represents a time shift
+x = x + θs .
+
+(16)
+
+Assuming that all tasks will be modeled by an individual
+shift hyperparameter, m − 1 additional hyperparameters are required. If prior knowledge of the tasks is available, these hyperparameters can be easily further constrained such as that
+multiple tasks share a common hyperparameter θs or that two
+tasks have a time shift within a specific range. The hyperparameters can be automatically learned by optimizing the NLML. This
+enables the possibility to use the MTGP framework for further
+applications, such as investigations of time shifts between tasks,
+while simultaneously modelling within- and between-task dynamics.
+E. Convolution of Kernels
+Up to this point, we have assumed that all tasks can be modeled with the same hyperparameters θ t . This limitation is mainly
+motivated a desire to reduce the number of hyperparameters and
+can be inappropriate for some applications. If we need to model
+task-specific temporal behavior, individual temporal covariance
+functions ktj for j = 1, . . . , m can be introduced. Doing so, it
+has to be guaranteed that the resulting matrix Kt still fulfills
+Mercer’s theorem.
+In [17], the notion of convolving two covariance functions has
+been presented, which has been further discussed in [18] for the
+case of MTGPs. As the convolution of two covariance functions
+is again a valid covariance function, a covariance function consisting of, for example, two different SE covariance functions
+with different hyperparameters θL can be computed as [18]
+
+2θL (l)θL (l )
+
+kSE×SE (r, l, l ) =
+θL (l)2 + θL (l )2
+
+
+r2
+× exp −
+(17)
+θL (l)2 + θL (l )2
+
+Fig. 2. (a) Signals of three optical markers OM1-3 and one respiration belt
+(RB) (b)–(e) Prediction position of ŷ ∗ for OM1 of scenario S1 to S4, respectively.
+
+TABLE I
+TIME INTERVAL D j ENCLOSING THE TRAINING DATA FOR THE jth TASK,
+SAMPLING FREQUENCY fs , AND PEARSON’S CORRELATION COEFFICIENT τ
+WITH RESPECT TO OM1
+
+j
+
+D [s]
+f s [Hz]
+τ
+
+OM1
+
+OM2
+
+OM3
+
+RB
+
+(0, 20)
+2.6
+1
+
+(10, 30)
+2.6
+−0.96
+
+(25, 40)
+2.6
+−0.9
+
+(0, 60)
+0.52
+0.89
+
+where θL (l) is the x-scaling hyperparameter of task l. In the
+case of l = l , we note that (17) is equivalent to (5). This enables
+us to preserve the temporal characteristics of each task, while
+modeling them simultaneously within the MTGP framework.
+III. RESULTS AND DISCUSSION
+In the following sections, we initially illustrate the aforementioned properties with synthetic data sets. Later, two realworld biomedical problems are addressed and the performance
+of MTGPs is compared with that of STGPs and existing domainspecific approaches.
+A. Synthetic Data Sets
+1) Prediction of Multiple Unevenly Sampled Tasks: We first
+investigate the ability of MTGPs to learn the correlation between
+multiple tasks (m = 4) and this leads to improved prediction
+results. We use multivariate data presented in [19], which comprise time series from three optical markers (OM), which are
+placed along the median line of one subject, at the chest (OM1),
+at the lower end of the sternum (OM2), and next to the navel
+(OM3). The 3-D position of each sensor was reduced to its first
+principle component. Additionally, the fourth task corresponds
+to a respiration belt (RB) that was placed around the torso next
+to OM2. Signals are shown in Fig. 2(a). Table I lists acquisition
+parameters for each task. We note that the sampling frequency
+of OM1-3 is five times higher than that of RB and that task j
+
+318
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+TABLE II
+RMSE, NMSE, AND MSLL OF ŷ p∗ FOR PREDICTION SCENARIOS S1–S4
+
+RM SE
+NM SE
+M SLL
+
+S1
+
+S2
+
+S3
+
+S4
+
+2.244
+0.973
+0.002
+
+2.005
+0.776
+−0.278
+
+1.805
+0.629
+−0.527
+
+1.474
+0.42
+−0.669
+
+has nj number of training data as different training intervals Dj
+are assumed.
+The objective is to predict ŷ∗ for OM1 within a range of
+∗
+x ∈ (20 , 70] s. We investigate four evaluation scenarios (S1–
+S4). In the first scenario (S1), only the time series from OM1
+is considered, which would be equivalent to using a STGP. In
+scenarios S2–S4, the time series for OM2, OM3, and RB are
+integrated successively into the MTGP model. Consequently,
+scenario S4 will consider all four tasks. As we know that the
+physiology being modeled is respiratory motion, we can incorporate this prior knowledge by using a quasi-periodic covariance function (7). However, as the y-scaling of each task
+can be expressed by the correlation covariance matrix, the hyperparameter θA is omitted. The covariance matrix Kc is initialized assuming independent tasks, by setting it to be the
+identity matrix. Table I also shows that Pearson’s correlation coefficient τ for all tasks with respect to OM1 indicates
+a highly positive or negative correlation. The MTGP model
+has to learn the correlation during training by optimizing the
+NLML.
+Fig. 2(b)–(e) shows the prediction results for the scenarios
+and the 95 % confidence interval of each prediction. The plot
+for S1 reveals that the model closely fits the training data. However, soon after the last training observation, the predictions ŷ∗
+tend toward the mean function (of zero). The practical interpretation of this results is that if  xOM 1 − x∗ 2 is large, the
+correlation decreases and therefore the model predicts the prior
+distribution. Considering more tasks simultaneously, it may be
+seen that the prediction accuracy of ŷ∗ improves. As Table II
+shows, the RMSE decreases from 2.244 for S1 to 1.474 for
+S4. Interestingly, the RMSE decreases also from S2 to S3, even
+though OM1 and OM3 do not have training data occurring at a
+shared interval: OM1, as shown in Table I, has training data in
+the interval (0, 20) s, while OM3 has training data in the interval
+(25, 40) s. It can be assumed that the MTGP is able to learn the
+correlation between OM1 and OM3 via the common intervals
+of training data for OM1–OM2 and OM2–OM3. Additionally,
+the correlation between OM1 and RB, which is the signal with
+the lowest sampling frequency, can be learned accurately, and
+which leads to a further decrease of the RMSE from 1.805 in
+S3 to 1.474 in S4. As more tasks are incorporated from S1 to
+S4, the complexity of the MTGP model increases which is also
+visible in the decreasing MSLL values.
+2) Correlation Analysis Between Tasks: As discussed in
+Section II-C, the correlation coefficients of the MTGP models are influenced by the scaling of the individual tasks due
+to the selected “free-form” parameterization. Consequently, it
+
+Fig. 3. (a) Correlation matrix K c ; (b) Normalized correlation matrix K c ;
+(c) Pearson’s correlation matrix.
+
+might by difficult to evaluate the resulting correlation coefficients and compare them. Considering the previous experiment, Fig. 3(a) shows the resulting matrix Kc for S4. The
+MTGP correlation coefficients τM T varies between −2.15
+and 3.78.
+The transformed matrix Kc can be computed according to our
+proposal in (15). The results are shown in Fig. 3(b). The nor
+malized MTGP correlation coefficients τM
+T show that OM1 is
+highly negatively correlated with OM2 and OM3, and positively
+correlated with RB. However, comparing these results with the
+Pearson’s correlation coefficients in Fig. 3(c) reveals differences
+of up to 0.07. These differences were expected, because Pearson’s correlation coefficient is computed based on the values of
+the complete signals. In contrast, the MTGP correlation coefficients are based on the available training data and represent the
+correlation of the output function given by the MTGP model,
+which is influenced by many factors. (e.g., the temporal covariance functions, hyperparameters θ t , and the initialization of
+the NLML optimization). However, nonlinear correlation can
+be expressed by MTGPs by using different temporal covariance
+functions, which could be useful for certain applications. It has
+
+to be further investigated how τM
+T is related to other correlation
+metrics.
+3) Time-Shift Estimation: To evaluate the influence of time
+shifts between tasks (see Section II-D), a new synthetic data
+set is considered. Assume two sinusoidal signals are given
+with a frequency of 1 Hz and additive noise with distribution
+N (0, 0.01). Let xn ∈ [0, 2] s for task one and xn ∈ [0, 7.5] s
+for task two be the known training data. A squared-exponential
+covariance function (5) is used as the temporal covariance function. The objective is to predict y∗ of task one for the test
+region x∗ ∈ (2, 7.5] s depending on different phase shifts φ of
+task two. The mean prediction results of ŷp∗ (red dashed lines)
+are shown in Fig. 4(a)–(d), for φ = [0, π/4, π/2, π]. As the
+phase shift increases from φ = 0 [see Fig. 4(a)] to φ = π/2
+[see Fig. 4(c)], the normalized MTGP correlation decreases
+
+
+from τM
+T = 1 to τM T = 0.05 (Table III—the Pearson’s correlation coefficients are shown for comparison). This leads to
+an increased RMSE from 0.114 to 0.709. If the phase shift is
+further increased (φ > π/2), the correlation becomes negative,
+the absolute correlation increases, and the RMSE decreases. The
+minimum RMSE is reached for φ = π/2 with 0.124 and a corre
+
+lation of τM
+T = −1 [see Fig. 4(d)]. Additionally, if |τM T | < 1,
+the phase shift of task two is projected into the prediction of
+y1 , as can be observed in Fig. 4(b)–(c). The effect becomes
+predominant as the distance between a test feature x1i to the last
+training feature x1 increases.
+
+DÜRICHEN et al.: MULTITASK GAUSSIAN PROCESSES FOR MULTIVARIATE PHYSIOLOGICAL TIME-SERIES ANALYSIS
+
+Fig. 4. Predicted mean of task one y p1 re d with MTGP and MTGPs depending
+on task 2 which is phase shifted by 0, π/2, π/4, and π in (a)–(d), respectively.
+
+TABLE III
+ESTIMATED PEARSON CORRELATION COEFFICIENT τ , NORMALIZED MTGP
+
+CORRELATION COEFFICIENT τ M
+T , RMSE AND MSLL FOR A MTGP MODEL
+WITHOUT AND WITH ADDITIONAL SHIFT HYPERPARAMETER θs
+
+Fig. 5. Predicted mean and confidence interval of all three tasks for a standard
+MTGP (a)–(c) and a MTGP with convoluted kernels (d)–(f).
+TABLE IV
+HYPERPARAMETER θL , RMSE, NMSE, AND MSLL OF THE THREE MODELED
+TASK RESPECTIVELY FOR A MTGP MODEL WITH ONE AND THREE SE
+COVARIANCE FUNCTIONS
+Task
+
+φ
+τ
+MTGP without θ s
+
+τM
+T
+RM SE
+NM SE
+M SLL
+MTGP with θ s
+
+τM
+T
+RM SE
+NM SE
+M SLL
+θ s [s]
+
+0
+
+π /4
+
+π /2
+
+π
+
+0.98
+
+0.684
+
+0.001
+
+−0.983
+
+0.999
+0.114
+0.025
+−1.231
+
+0.7
+0.504
+0.515
+0.082
+
+0.054
+0.709
+0.951
+1.048
+
+−1
+0.124
+0.03
+−1.186
+
+1
+0.129
+0.032
+−1.186
+0.004
+
+0.999
+0.116
+0.027
+−1.149
+0.123
+
+−1
+0.187
+0.068
+−1.109
+−0.247
+
+−1
+0.128
+0.032
+−1.208
+−0.001
+
+The phase shift can be compensated by an additional hyperparameter θs . The θs was implemented to shift the time index
+of task 2. The mean prediction results of a MTGP model with
+a shift hyperparameter (MTGPs ) are shown as green dotteddashed line in Fig. 4. It may be observed that ŷp∗ seems to be
+independent of the phase shift and that the green line is close to
+the blue line. This is confirmed by the RMSE of MTGPs shown
+in Table III, which varies only slightly for different φ. Further
+more, τM
+T and θs are shown Table III. The estimated shifts
+are 0.123 and −0.247 s for a phase shift of φ = π/4 and π/2
+which correlates to the true shifts of 0.125 and 0.25 s. However,
+it might be also observed that in cases where no θS is required
+(φ = {0, π}), the NMSE error is slightly increased compared
+to a MTGP model without θS , as an additional hyperparameter
+has to be trained.
+4) Convoluted Kernels: Fig. 5(a)–(c) illustrates a synthetic
+example of three tasks with different temporal characteristics.
+The three tasks were generated to have the same increasing
+long-term trend. However, the signals differ in their short-term
+characteristics and noise components. A sinusoidal component
+with Gaussian noise was added to the second and third tasks. We
+retrained two MTGP models, once using a common SE covariance function for all tasks and once with separate SE covariance
+functions for each task. To avoid optimization succumbing to local minima in NLML, the hyperparameters of each model were
+
+319
+
+MTGP with one SE cov. func.
+θ L [s]
+RM SE
+NM SE
+M SLL
+MTGP with three SE cov. func.
+θ L [s]
+RM SE
+NM SE
+M SLL
+
+1
+
+2
+
+3
+
+0.048
+0.029
+−0.421
+
+3.38
+0.068
+0.181
+0.175
+
+0.098
+0.18
+0.2
+
+1.182
+0.017
+0.004
+−1.083
+
+0.715
+0.023
+0.021
+−0.496
+
+0.125
+0.068
+0.021
+−0.414
+
+randomly initialized for 30 experiments and the model with the
+lowest NLML was selected. The tasks had sampling frequencies
+of fs1 = 5 Hz, fs2 = 10 Hz, and fs3 = 12.5 Hz. The test indexes
+are the remaining points in x∗ ∈ (0, 2] s.
+When modeled by a MTGP model with a single SE covariance function, the resulting x-scaling hyperparameter will be
+θL = 3.38 s (5). The mean prediction is a compromise for all
+tasks which covers the increasing long-term trend [see Fig. 5(a)–
+(c)]. As a consequence, the variance for each prediction will be
+high, which is illustrated by the 95 % confidence interval. The
+accuracy measure, shown in Table IV, confirms that tasks two
+and three have a high NMSE compared to task one. Furthermore,
+the positive MSLL indicates that the single SE covariance function might not be adequate.
+The short-term behavior of each task can be modeled by
+individual temporal covariance functions ktj for each task
+j ∈ {1, 2, 3}. According to Section II-E, a correlation matrix
+Kc can be constructed by convolution of the individual kernel
+functions. The results of the convoluted MTGP model with three
+individual SE covariance functions are shown in Fig. 5(d)–(f).
+The individual hyperparameters θL are shown in Table IV and
+decrease from 1.18 s for task one down to 0.13 s for task 3. This
+means that the correlation is lower between two labels y and y 
+with a time difference Δx for task three than for task one. Consequently, the short-term characteristics of task two and three
+can be better modeled resulting in an decreased RMSE, NMSE,
+and MSLL.
+
+320
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+Fig. 6. (Left) Application of standard STGP to respiration rate (top), systolic
+blood pressure (middle), and heart rate (bottom). (Right) Application of MTGP
+to the same training data. Heart rate data from days 5 and 6 were not used for
+training the GP in both cases.
+
+B. Real-World Data Sets
+1) Vital-Sign Analysis: Conventional procedures for hospital patient monitoring involve frequent measurements of vital
+signs by nursing staff, such as respiration rate, systolic blood
+pressure, and heart rate. One of the limiting factors of existing methods for patient monitoring is deemed to be how they
+cope with these typically noisy, sparse, and unevenly sampled
+vital-sign data [4]. Also, some channels may be missing for
+long periods of time, which makes it difficult to model this type
+of data set. We investigated the correlation between heart rate,
+respiration rate, and systolic blood pressure observations from a
+cohort of patients recovering from cancer surgery in the Oxford
+University Hospitals NHS Trust. We applied the standard univariate STGP to each physiological time series, which assumes
+independence of the variables, and compared the results with
+those obtained by using the MTGP method. In the latter, we used
+the convoluted kernels approach in order to allow for each channel (vital sign) to be modeled with different hyperparameters.
+The same optimization algorithm was used in both approaches.
+Fig. 6 shows the results obtained for one example patient.
+We can see in Fig. 6 that the MTGP provides a significant
+improvement in the estimated values for the three channels,
+because the correlation between the vital signs is taken into
+account. As expected, we found a high correlation between respiration rate and heart rate. Particularly, in periods of incomplete
+data (days 5 and 6 in Fig. 6), the predictions are more accurate
+for the MTGP, and can therefore be used to estimate the true
+value of the data and the distribution over the estimated values.
+We also note that by using the convoluted-kernel approach, each
+vital sign is modeled with independent hyperparameters, which
+may offer useful insights on the recovery of these patients from
+surgery.
+2) Motion Compensation in Radiotherapy: In robotic radiotherapy, a challenging task is to perform active motion compensation to precisely radiate tumors in the liver or lung, which
+are constantly moving due to respiration. The internal tumor
+position is determined by fiducial markers, which can be tracked
+
+Fig. 7. (a) Nonlinear correlation between internal and external motion.
+(b–d) Predicted internal fiducial position y pint
+re d for a squared-exponential (SE),
+periodic (PER), and quasi-periodic (QP) covariance function in the MTGP
+model (n int = 15), respectively.
+
+in X-ray images. As constant X-ray imaging is not possible
+throughout the treatment, the fiducial positions have to be predicted by a correlation model based on the position of external
+optical markers [20].
+The correlation between internal and external motion is nonlinear, due to different trajectories for inhalation and exhalation,
+as shown in Fig. 7(a). Clinical practice is to approximate the correlation using a single or dual second-order polynomial model
+(SP or DP). An alternative approach was presented in [21] using
+SVR which is based on the position and velocity of the external
+marker.
+One drawback of both methods is that the majority of external data is discarded as only those training data can be used for
+which internal and external information are known at the same
+time. MTGPs can overcome this problem, which we investigate
+using data2 from a porcine study [21]. Multiple external and
+internal markers were constantly measured at fs = 2.96 Hz.
+The subject was manually ventilated. The investigated internal
+signal fragment (150 data points) is shown in Fig. 7(b)–(d). The
+objective is to predict internal tumor position y∗ depending on
+the number of internal training points nint for SP, DP, the SVR
+approach, and the MTGP with different kt [(5)–(7)] which we
+refer to as MTGPSE , MTGPPER , and MTGPQP , respectively.
+In general, a lower value of nint is preferred, as it decreases
+the number of X-ray images that must be used, and thus the
+patients are exposed to less radiation. The goal is to map a time
+series of spatial marker locations (next = 150) onto internal
+fiducial measurements. For nint = {100, 75, 50}, the training
+data were randomly selected. To ensure that a complete breathing cycle is represented, the training data were selected manually for nint = {20, 15, 10}. A prior on θP was specified, as it
+represents the breathing period. The residual hyperparameters
+were randomly initialized and the “optimal” hyperparameter set
+was selected based on the NLML. As discussed in Section II-D,
+a shift hyperparameter θS was added to the MTGP models to
+estimate explicitly the delay between internal and external markers that we know exists.
+2 http://signals.rob.uni-luebeck.de.
+
+DÜRICHEN et al.: MULTITASK GAUSSIAN PROCESSES FOR MULTIVARIATE PHYSIOLOGICAL TIME-SERIES ANALYSIS
+
+TABLE V
+RMSE AND MSLL IN PARENTHESES OF SINGLE AND DUAL POLYNOMIAL
+MODELS, SVR AND MTGP DEPENDING ON THE NUMBER OF TRAINING POINTS
+n int (BEST RESULTS PER n int HIGHLIGHTED BOLD)
+MTGP
+n
+
+int
+
+100
+75
+50
+20
+15
+10
+
+SP
+
+DP
+
+SVR
+
+SE
+
+PER
+
+QP
+
+0.845
+0.854
+0.851
+0.870
+0.881
+0.949
+-
+
+0.226
+0.233
+0.227
+0.988
+0.542
+0.542
+-
+
+0.361
+0.370
+0.361
+0.410
+0.421
+0.406
+-
+
+0.228
+(−2.501)
+0.199
+(−2.602)
+0.321
+(−2.063)
+0.476
+(−1.325)
+0.26
+(−2.343)
+0.396
+(−1.779)
+
+1.906
+(−0.342)
+1.883
+(−0.304)
+1.67
+(−0.434)
+1.91
+(−0.091)
+1.962
+(0.074)
+1.834
+(−0.107)
+
+0.148
+(−2.853)
+0.179
+(−2.749)
+0.220
+(−2.26)
+0.304
+(−1.493)
+0.220
+(−2.433)
+0.315
+(−1.429)
+
+Table V shows the RMSE for all investigated models and
+the MLSS in parentheses for the MTGP models. Comparing the
+performance of the MTGP models reveals that MTGPQP has the
+lowest RMSE and MSLL across all values of nint . This confirms
+the assumption of respiratory motion as being a quasi-periodic
+motion. In contrast, the RMSE and MSLL of MTGPPER are
+very high, indicating that a periodic model is not suitable here.
+This also leads to broader confidence intervals compared to
+the MTGPSE and MTGPQP , as is shown in Fig. 7(b)–(d) for
+nint = 15. In this case, only 15 internal training labels are
+known. The predicted internal motion is a result of the learned
+correlation to the external signal. Overall, MTGPQP outperforms all investigated approaches. We note also that, in addition
+to superior regression performance using the MTGP, it offers advantages over the SVR methods by providing explicit quantification of uncertainty in the prediction and robustness to missing or
+incomplete data. Further improvements of the MTGP approach
+can be expected by considering multiple external signals.
+
+IV. DISCUSSION
+The synthetic and real-world examples shown above illustrate
+that MTGPs are a flexible approach that can be used for various
+biomedical applications. Even though this approach has several
+advantages compared to other methods, the correct design of
+the MTGP model and its covariance functions is essential for
+accurate prediction results. In general, greater flexibility of the
+model (e.g., as allowed using convoluted kernels) comes with
+an increased number of hyperparameters. Consequently, the optimization of these hyperparameters becomes more challenging
+as the hyperparameter space may be multimodal. Therefore, if
+prior knowledge of the function behavior (e.g., quasi-periodic
+motion) or of the correlation between task is known it should
+be used to adapt the model to the specific application. Furthermore, to avoid local optima, priors on the hyperparameters could
+be included (e.g., the respiration rate in Section III-B.2). For
+unknown hyperparameters, the training phase can be repeated
+
+321
+
+multiple times with randomly initialized hyperparameters. The
+best hyperparameter set can be selected based on the NLML.
+Similarly, the “free-form” parameterization of Kc allows high
+flexibility in the model. However, this is only practical for a small
+number of tasks, as the number of hyperparameters increases
+by m(m + 1)/2. If, for example, a large sensor network has to
+be modeled, a different parameterization with additional constraints on the correlation between sensors would be required.
+One limitation of this approach is high computational costs
+O(m3 n3 ), which is a general concern for the use of GP models.
+An overview of sparse GP methods to overcome this problem is
+presented in [3] and [22], which aim to find a set of pseudoinputs ñ, with ñ 
+ n, to reduce computational complexity. In [9],
+[23], some of these techniques have been used to investigate
+sparse MTGPs which reduce the complexity to O(m n ñ2 ). A
+further decrease of the computational costs is possible by exploiting the Kronecker product [24], limiting the training data
+to the same time instances for each dimension [25], or by using recursive algorithms for online settings [26]. Applications
+that require close-to-real-time retraining, such as our application
+in respiratory motion compensation, would benefit from these
+techniques, while methods that operate over longer time scales
+(such as analysis of vital-sign observations taken every hour)
+would be less sensitive to computational costs of this kind.
+The focus of the examples presented here was the modeling of
+multivariate physiological data sets with univariate inputs, representing time series. We note that the model can be extended
+to arbitrary input dimensions, which could be useful for other
+biomedical applications, such as template matching or registration problems in imaging. A bivariate input space x representing
+the spatial coordinates of an image segment with the intensity
+as observations y could be used with an MTGP, to estimate the
+optimal offset which maximizes the correlation between two
+image segments. An advantage of this approach would be that
+each task could have a task-specific number of training inputs
+(e.g., two MRI images with different resolution). Further applications are possible, regarding the analysis of the correlation
+between noisy signals. If, for example, the measurement noise is
+known, this information could be included in a MTGP model to
+compute a “noise-free” correlation coefficient between signals.
+REFERENCES
+[1] N. D. Lawrence, “Probabilistic non-linear principal component analysis with Gaussian process latent variable models,” J. Mach. Learn. Res.,
+vol. 6, pp. 1783–1816, 2005.
+[2] M. Kuss, “Gaussian process models for robust regression, classification and reinforcement learning,” Ph.D. dissertation, TU Darmstadt,
+Darmstadt, Germany, 2006.
+[3] C. E. Rasmussen and C. K. I. Williams, Gaussian Processes for Machine
+Learning. Cambridge, MA, USA: MIT Press, 2006.
+[4] L. Clifton, D. Clifton, M. Pimentel, P. Watkinson, and L. Tarassenko,
+“Gaussian process regression in vital-sign early warning systems,” in
+Proc. IEEE Eng. Med. Biol. Soc., San Diego, CA, USA, 2012, pp. 6161–
+6164.
+[5] O. Stegle, S. Fallert, D. J. C. MacKay, and S. Brage, “Gaussian process
+robust regression for noisy heart rate data,” IEEE Trans. Biomed. Eng.,
+vol. 55, no. 9, pp. 2143–2151, Sep. 2008.
+[6] R. Dürichen, T. Wissel, F. Ernst, and A. Schweikard, “Respiratory motion compensation with relevance vector machines,” in Proc. Med. Image
+Comput. Comput.-Assisted Intervention, Nagoya, Japan, 2013, no. 8150,
+pp. 108–115.
+
+322
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 1, JANUARY 2015
+
+[7] M. Pimentel, D. Clifton, L. Clifton, and L. Tarassenko, “Probabilistic
+estimation of respiratory rate using Gaussian processes,” in Proc. IEEE
+Eng. Med. Biol. Conf., Osaka, Japan, 2013, pp. 2902–2905.
+[8] A. A. Kalaitzis and N. D. Lawrence, “A simple approach to ranking
+differentially expressed gene expression time courses through Gaussian
+process regression,” BMC Bioinformat., vol. 12, no. 1, p. 180, 2011.
+[9] E. V. Bonilla, K. M. A. Chai, and C. K. I. Williams, “Multi-task Gaussian
+process prediction.” in Proc. Adv. Neural Informat. Process. Syst., 2008,
+pp. 153–160.
+[10] C. K. I. Williams, S. Klanke, S. Vijayakumar, and K. M. Chai, “Multitask Gaussian process learning of robot inverse dynamics,” in Proc. Adv.
+Neural Inf. Process. Syst., 2009, pp. 265–272.
+[11] M. A. Álvarez, D. Luengo-Garcia, M. Titsias, and N. D. Lawrence, “Efficient multioutput Gaussian processes through variational inducing kernels,” in Proc. Artif. Intell. Statist., Sardinia, Italy, 2010, pp. 25–32.
+[12] M. A. Osborne, S. J. Roberts, A. Rogers, and N. R. Jennings, “Realtime information processing of environmental sensor network data using
+Bayesian Gaussian processes,” ACM Trans. Sens. Netw., vol. 9, no. 1,
+p. 1:11:32, 2012.
+[13] G. Skolidis and G. Sanguinetti, “Bayesian multitask classification with
+Gaussian process priors,” IEEE Trans. Neural Netw., vol. 22, no. 12,
+pp. 2011–2021, Dec. 2011.
+[14] A. G. Journel and C. J. Huijbregts, Mining Geostatistics. New York, NY,
+USA: Academic Press, 1978.
+[15] I. Clark, Practical Geostatistics. London, U.K.: Applied Science Publishers, 1979, vol. 3.
+[16] H. Wackernagel, Multivariate Geostatistics.New York, NY, USA:
+Springer, 2003.
+[17] D. Higdon, “Space and space-time modeling using process convolutions,”
+in Quantitative Methods for Current Environmental Issues. New York,
+NY, USA: Springer, 2002, pp. 37–56.
+[18] A. Melkumyan and F. Ramos, “Multi-kernel Gaussian processes,” in Proc.
+Int. Joint Conf. Artif. Intell., Barcelona, Spain, 2011, pp. 1408–1413.
+[19] R. Dürichen, L. Davenport, R. Bruder, T. Wissel, A. Schweikard, and F.
+Ernst, “Evaluation of the potential of multi-modal sensors for respiratory
+motion prediction and correlation,” presented at the IEEE Eng. Med. Biol.
+Conf., Osaka, Japan, 2013.
+[20] A. Schweikard, G. Glosser, M. Bodduluri, M. J. Murphy, and J. R. Adler,
+“Robotic motion compensation for respiratory movement during radiosurgery,” Comput. Aided Surg., no. 5, pp. 263–277, 2000.
+[21] F. Ernst, V. Martens, S. Schlichting, A. Beširević, M. Kleemann, C.
+Koch, D. Petersen, and A. Schweikard, “Correlating chest surface motion to motion of the liver using -SVRdel—A porcine study,” in Proc.
+Med. Image Comput. Comput.-Assisted Intervention, London, U.K., 2009,
+no. 5762, pp. 356–364.
+[22] J. Quiñonero Candela and C. E. Rasmussen, “A unifying view of sparse
+approximate Gaussian process regression,” J. Mach. Learn. Res., vol. 6,
+pp. 1939–1959, 2005.
+[23] M. A. Álvarez and N. D. Lawrence, “Computationally efficient convolved multiple output Gaussian processes,” J. Mach. Learn. Res., vol. 12,
+pp. 1459–1500, 2011.
+[24] O. Stegle, C. Lippert, J. M. Mooij, N. D. Lawrence, and K. M. Borgwardt,
+“Efficient inference in matrix-variate Gaussian models with IID observation noise,” in Proc. Adv. Neural Inf. Process. Syst., 2011, pp. 630–638.
+[25] T. Evgeniou, C. A. Micchelli, and M. Pontil, “Learning multiple tasks
+with kernel methods,” J. Mach. Learn. Res., vol. 6, pp. 615–637, 2005.
+[26] G. Pillonetto, F. Dinuzzo, and G. De Nicolao, “Bayesian online multitask
+learning of Gaussian processes,” IEEE Trans. Pattern Anal. Mach. Intell.,
+vol. 32, no. 2, pp. 193–205, Feb. 2010.
+
+Robert Dürichen received the Dipl.-Ing. degree
+(equivalent to M.Sc.) in mechatronics from Technical University Dresden, Dresden, Germany, in 2009.
+Since 2010, he has been working toward the Ph.D.
+degree at the Institute of Robotics and Cognitive Systems, University of Lübeck, Lübeck, Germany.
+His research interests include signal processing
+and machine learning applied to multivariate biomedical and robotic applications.
+
+Marco A. F. Pimentel received the B.Sc. and M.Sc.
+degrees in biomedical engineering from Universidade
+Nova de Lisboa, Lisbon, Portugal, in 2009. He received a scholarship from the RCUK in 2010 and
+joined the Institute of Biomedical Engineering, University of Oxford, Oxford, U.K., where he is currently
+working toward the D.Phil. degree in engineering science and healthcare innovation.
+His research interests include signal and image
+processing, and machine learning applied to the monitoring of complex systems and e-health.
+
+Lei Clifton received the B.Sc. and M.Sc. degrees
+in electrical engineering from Beijing Institute of
+Technology, Beijing, China, and the Ph.D. degree in
+electrical engineering from Manchester University,
+Manchester, U.K.
+After six years of postdoctoral research at the University of Oxford, she was appointed as a Medical
+Statistician at the Centre for Statistics in Medicine,
+University of Oxford. Her research interests include
+statistical signal processing, and machine learning for
+intelligent health monitoring systems.
+
+Achim Schweikard received the Ph.D. degree in
+robotics from Technical University of Berlin, Berlin,
+Germany, in 1989.
+After the Ph.D. degree, he worked as a Research
+Associate at Stanford University Medical Center and
+as an Associate Professor for robotics and image processing at Technical University of Munich, Germany.
+In this position, he laid the mathematical foundations
+for Cyberknife inverse planning. To date more than
+200 000 cancer patients world wide have been treated
+with this technique for respiratory tracking. In 2002,
+he joined Lübeck University as a Full Professor to transfer technical and mathematical innovation to the clinic. His research interests include robotics, machine learning, geometric reasoning, and clinical applications of robotics and
+navigation.
+
+David A. Clifton received the D.Phil. degree from
+the Department of Engineering Science, University
+of Oxford, Oxford, U.K.
+He is a tenure-track member of faculty in the
+Department of Engineering Science, University of
+Oxford, and a Governing Body fellow of Balliol
+College, Oxford. He is a Research Fellow of the
+Royal Academy of Engineering. He trained in information engineering and established the Computational Health Informatics (CHI) lab when we was
+appointed to the Oxford faculty in 2013. His research
+interests include “big data” and mobile health projects, with a focus on machine
+learning.
+
+

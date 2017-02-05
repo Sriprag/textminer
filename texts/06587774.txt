@@ -1,0 +1,888 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 12, DECEMBER 2013
+
+3399
+
+On the Detection of Myocadial Scar Based
+on ECG/VCG Analysis
+Sofia-Maria Dima, Christos Panagiotou, Evangelos B. Mazomenos∗ , James A. Rosengarten, Koushik Maharatna,
+John V. Gialelis, Nick Curzen, and John Morgan
+
+Abstract—In this paper, we address the problem of detecting
+the presence of a myocardial scar from the standard electrocardiogram (ECG)/vectorcardiogram (VCG) recordings, giving effort
+to develop a screening system for the early detection of the scar
+in the point-of-care. Based on the pathophysiological implications
+of scarred myocardium, which results in disordered electrical conduction, we have implemented four distinct ECG signal processing
+methodologies in order to obtain a set of features that can capture
+the presence of the myocardial scar. Two of these methodologies
+are: 1) the use of a template ECG heartbeat, from records with scar
+absence coupled with wavelet coherence analysis and 2) the utilization of the VCG are novel approaches for detecting scar presence.
+Following, the pool of extracted features is utilized to formulate
+a support vector machine classification model through supervised
+learning. Feature selection is also employed to remove redundant
+features and maximize the classifier’s performance. The classification experiments using 260 records from three different databases
+reveal that the proposed system achieves 89.22% accuracy when
+applying tenfold cross validation, and 82.07% success rate when
+testing it on databases with different inherent characteristics with
+similar levels of sensitivity (76%) and specificity (87.5%).
+Index Terms—Electrocardiogram (ECG) median beat, feature
+selection, myocardial scar detection, support vector machine
+(SVM), vector cardiogram (VCG).
+
+I. INTRODUCTION
+NUMBER of recent reports are indicative of the prevalence of ischemic heart disease (IHD) as the leading cause
+of death, both in developed and developing countries [1]. IHD
+
+A
+
+Manuscript received February 15, 2013; revised August 16, 2013; accepted
+August 17, 2013. Date of publication August 29, 2013; date of current version
+November 18, 2013. This work was supported by E.U. ARTEMIS Joint Undertaking under the Cyclic and person-centric Health management: Integrated
+approach for home, mobile and clinical environments—(CHIRON) Project,
+Grant Agreement # 2009-1-100228. Asterisk indicates corresponding author.
+S.-M. Dima, C. Panagiotou, and J. V. Gialelis are with the Industrial Systems
+Institute, ATHENA RC, Patras, 265 04 Greece and also with the Department
+of Electrical and Computer Engineering, University of Patras, Patras 26500,
+Greece (e-mail: sdima@isi.gr; panagiotou@isi.gr; gialelis@isi.gr).
+∗ E. B. Mazomenos is with the School of Electronics and Computer Science, University of Southampton, Southampton, SO17 1BJ, U.K. (e-mail:
+ebm@ecs.soton.ac.uk).
+J. A. Rosengarten, N. Curzen, and J. Morgan are with the University Hospitals
+Southampton NHS Trust, SO17 1BJ, U.K. (e-mail: james@rosengarten.co.uk;
+nick.curzen@suht.swest.nhs.uk; jmm@hrclinic.org).
+K. Maharatna is with the School of Electronics and Computer Science, University of Southampton, Southampton, SO17 1BJ, U.K. (e-mail:
+km3@ecs.soton.ac.uk).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2279998
+
+can lead to the sudden interruption of the normal blood supply
+of the heart, clinically referred to as myocardial infarction (MI)
+or typically known as a heart attack. If proper blood flow is not
+restored, in a timely fashion, the heart cells (myocardiocytes)
+near the area of the infarct die (necrosis) and result in scar tissues
+(fibrosis). These scar tissues have different electrical conduction
+properties than the normal heart tissues, resulting in a disordered
+electrical conduction in the heart. Such disordered conduction
+may potentially lead to fatal arrhythmias like ventricular tachycardia (VT) or ventricular fibrillation (VF) which are known to
+be the cause of sudden cardiac death (SCD). The risk of VF/VT
+occurrence is primarily defined by detecting the presence of scar
+tissue and estimating its size [2], [3]. Obtaining this information
+allows identification of the cases where the implantation of an
+implantable cardioverter-defibrillator device would be beneficial. The imaging techniques such as contrast-enhanced cardiac
+magnetic resonance imaging (CMR) can provide detailed information on the presence, location, and extent of myocardial
+scar [4], [5]. However, in addition to its suitability only as a
+bedside test, CMR is a resource-demanding process, both in the
+terms of cost and specialized personnel required for its operation. Additionally, other approaches for an accurate detection of
+scar are characterized as high interventional methods [6].
+On the other hand, 12/15 lead electrocardiogram (ECG) is
+widely available and can also be used in clinical as well as remote
+settings owing to its availability in the form of portable devices
+[7]. Since the ECG reflects the electrical conduction through
+the heart, it is expected that possible conduction anomalies,
+attributed to the presence of scar, would be directly imprinted
+on the ECG trace.
+Therefore, an automated ECG-based solution for myocardial
+scar detection deployable in fast and cost effective manner both
+in the primary-care and nomadic point-of-care may provide an
+effective tool for the initial screening of myocardial scar en
+masse. The high risk patients could then be subjected to a detailed CMR analysis and thereby optimizing the overall cost
+and resources. From this perspective, in this paper, we explore
+the problem of effectively detecting the presence/absence of
+myocardial scar from standard ECG recordings.
+The underlying idea is to investigate a set of ECG features—
+obtained either directly from measurements or indirectly using
+signal processing techniques—which may be indicative to the
+anomalous conduction effect typical of myocardial scar and
+develop a supervised learning model capable of detecting its
+presence/absence. It is worth mentioning that the goal is neither
+to replace the existing scar detection modalities, nor to claim
+that the proposed method would be more accurate compared to
+
+0018-9294 © 2013 IEEE
+
+3400
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 12, DECEMBER 2013
+
+the high-resolution imaging modalities, but to provide a tool that
+may differentiate the patients who need further rigorous clinical
+characterization so that the cost associated with diagnostic processes could be reduced and resource utilization could be done
+in an optimal way.
+In our investigation, the feature set is constructed by including
+different ECG parameters already known to be associated with
+myocardial scar and then extending it with a number of new
+features that are also expected to be correlated with myocardial
+scar but have not been investigated before for scar detection.
+Four distinct strategies are followed for generating the feature
+set as follows.
+1) We introduce the concept of the “template-median ECG
+heart beat”, produced from the signal averaging of ECG
+heartbeats with confirmed absence of scar, on a per-lead
+basis. This median beat template is compared with the
+ECG signals that are under test based on a specific set of
+morphological features.
+2) A set of statistical features is computed from the ECG
+time series.
+3) A set of time-domain features of the ECG signals with
+known association to myocardial scar, e.g., (durations,
+area under the ECG curve, presence of fractionated QRS,
+etc.) are added in the feature pool.
+4) A set of spatial and vectorial features are estimated from
+the vectorcardiogram (VCG.
+In total, 344 features are extracted, which are then subjected
+in a feature ranking process and the 25 most discriminating
+features are selected. From our exhaustive experiments, support vector machine (SVM) provides the optimal solution for
+our classification system, which is tested in terms of accuracy
+(sensitivity and specificity) with 260 ECG signals from three
+different databases for which the presence/absence of scar and
+its size is recorded using CMR. The proposed classification system achieves a total accuracy of 89.22% (sensitivity 87.25%
+and 91.18% specificity). The promising performance results indicate the potential of the proposed classification system as a
+noninvasive mechanism for the initial screening of the presence/absence of myocardial scar. Furthermore, given that the
+proposed system requires only standard 12/15-lead ECG, it can
+be effectively used as a risk-stratification scheme in situations
+where an immediate decision on the presence/absence of scar is
+needed but there is no availability of imaging modalities. The
+rest of this paper is structured as follows. Section II provides a
+background on the conduction effects caused by the presence of
+the myocardial scar. The process of feature-space construction
+is described in Section III, while the derivation of the optimal
+features and the classifier formulation are covered in Section IV.
+The performance results from various classification experiments are discussed in Section IV and conclusions are drawn in
+Section V.
+II. BACKGROUND
+Scars are typically formed following an MI episode and the
+subsequent death of healthy heart cells. In the area where the
+heart cells die, a reactive process called fibrosis replaces them
+with a collagen connective tissue which forms the scar [8].
+
+The myocardial scars create patches of delayed conduction regions separated by regions of normal heart tissues with normal
+conductive properties. Thus, the probability of electrical desynchronization occurring during the cardiac cycle, leads to an
+increased possibility of fatal arrhythmias. In situations where
+the scar is located in the ventricles, a typical scenario after
+an MI episode, scar-related VT/VF can spontaneously occur,
+leading to hemodynamic collapse and SCD. It has been long
+established that these conduction abnormalities cause characteristic alterations on the ECG trace, such as prolonged Rwaves, change of the value of the QRS-angle, fractionations
+(notches, slurs) in the QRS-complex, and elevation/depression
+of the ST-segment [9]–[11]. In addition, there have been studies
+suggesting that the morphology of the T-wave (T-wave alternans) is affected by the presence of scar since it represents the
+repolarization of the ventricles [12]. Drawing inspiration for the
+potential of the ECG as a modality capable of detecting the
+presence of myocardial scar, we have developed a novel system, based on supervised learning, presented in detail in the
+following sections.
+III. METHODOLOGY
+In our approach, following the standard clinical practice, a
+single representative heartbeat per lead from standard 12/15lead ECG recordings is selected for analysis from each signal.
+The clinical philosophy behind this approach is that the presence of myocardial scar, and hence the disordered conduction
+effect resulting from, is in general uniformly present in each
+heartbeat of the ECG/VCG tracings with very little variability.
+This is due to the fact that the myocardial scar is a permanent
+damage of the myocardium which will consistently affect the
+propagation of the electrical signal during the operation of the
+heart regardless of the heart rate. A small variability (different
+QT, RR intervals, R-peak amplitude) may exist between different heartbeats in the same ECG trace because of the presence
+of noise, or breathing artefacts. However, these variations from
+beat to beat are not significant except for the cases of performing different physical activities or developing rapid pathological
+conditions such as arrhythmic episodes. Since in the standard
+clinical practice, 12/15-lead ECG is recorded with patients in
+standard positions, such variability is also minimal. Therefore,
+selecting one beat from such a recording is expected to represent the actual clinical condition of the subject adequately. For
+each ECG recording used in this paper, the representative heartbeats are selected by three cardiologists, first blindly, and then
+reaching to a consensus.
+In order to construct the feature space for our classification
+investigation, we have followed four distinct signal processing strategies. Two of these are based on pure morphological
+analysis of ECG and VCG signals, one based on the statistical
+properties of ECG signal and the last one is based on formulating a median-ECG beat as a template with which the similarity
+of the incoming ECG beat to be classified is analyzed. The overall approach of the features generation is depicted in Fig. 1 and
+each of the approaches are discussed in detail in the following
+sections.
+
+DIMA et al.: ON THE DETECTION OF MYOCADIAL SCAR BASED ON ECG/VCG ANALYSIS
+
+Fig. 1.
+
+Flowchart of the proposed methodology.
+
+3401
+
+Fig. 2.
+
+Centralization and alignment of incoming beats.
+
+Fig. 3.
+
+Extraction of the median beat.
+
+Before applying the feature extraction process in the preprocessing step, the ECG isoelectric line is removed using a series
+of three median filters as in a similar way as described in [13]
+and [14], and all signals are resolved to the same resolution. We
+also used the TDMG algorithm [15] for detecting the ECG wave
+boundaries and peak that are used for feature extraction.
+A. Median-ECG Beat Analysis
+The concept of the median-ECG beat is introduced here as a
+novel approach for the detection of the myocardial scar. The basic philosophy is to create a “template” ECG heartbeat vector—
+one beat per lead—for 12 ECG leads, that is free of any disordered conduction effect and thus considered representing the
+condition of no-scar. Since disordered conduction is a signature
+that is present in the ECG of a scar patient (although the individual ECG lead capturing this effect could be different from
+person to person depending on the position and extent of scar),
+a per-lead-based comparison of such heartbeats with the template should be able to capture the disordered conduction effect
+either through morphological dissimilarity or a phase difference
+between these two sets. In order to construct the median-ECG
+template vector, we selected ECGs with verified absence of scar
+(i.e., scar size 0% in CMR) and additionally with absence of
+a set of confounders which may alter the ECG morphology
+in such a way resembling the scar. Three cardiologists evaluated the ECG signals from one database (DB-I, see Section IV)
+blindly to each other and finally made a consensus on 38 12-lead
+ECG signals which could be considered to be “no-scar” ECG
+signals in clinical sense. Please note that although these ECGs
+represent no-scar or no confounding conditions, they may still
+have nonscar-related QRS, ST, or T wave changes compared to
+a normal ECG and therefore not necessarily are normal ECG
+beats. First, from each of these 38 records for each lead, one
+single heartbeat was isolated (again as per the consensus of the
+cardiologists). The ectopic beats are excluded in this process
+of formulation of the median beats. Then, these selected beats
+from all the records are averaged on per-lead basis to construct
+the median beat vector. Mathematically, this process can be
+described as
+Mi = avgj (Bi,j )
+
+(1)
+
+where Mi is the median beat for lead i and Bi,j is the isolated
+beat for lead i, and record j, i ∈ 1, 2, . . . , 12 and j ∈ 1, 2, . . . , 38
+and avgj () is the averaging operation over the whole set of j.
+This operation creates the desired template median-ECG beat
+vector [M 1, M 2, . . . , M 12] which is used for final comparison
+on per-lead basis with each incoming 12-lead beat that requires
+classification. However, the duration of a heartbeat in a specific
+lead may vary from person to person. To overcome this issue,
+we first selected the isolated beat of maximum duration for a
+particular lead i—say, the reference beat—over all the records
+and detected its maximum deflection point (typically the R- or
+S-peak depending upon the specific lead under consideration
+i—say, the reference point). The maximum deflection point of
+an isolated beat Bi,j from the record j for the same lead i is
+first aligned to the maximum deflection point of this reference
+beat, and then, the whole beat Bi,j is interpolated accordingly to
+make it of the same length as the reference beat. For example, if
+we have two signals for lead i, of 400 and 440 samples, and the
+R-peak is located in the 170th and 194th sample, respectively,
+then the R-peak of the first signal has to be shifted 24 samples
+(by interpolating the first part from the beginning of the signal to
+the R-peak) and the remaining 16 samples have to be uniformly
+added to the second part of the signal (from the R-peak to the
+end of the beat) as shown in Fig. 2. This process is repeated for
+all the records to make all Bi , of equal duration for facilitating
+the averaging process as depicted in Fig. 3. Once the set of
+
+3402
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 12, DECEMBER 2013
+
+WC =
+
+
+
+
+
+C x (a , b )∗C y (a , b )
+
+, C is the Wavelet transform, a, b: scales, location parameter. (a) (No-)scar beats versus median beat. (b) Wavelet
+2
+|C y (a , b ) |
+magnitude coherence (left: scar versus median, right: no-scar versus median). (c) Wavelet phase coherence (left: scar versus median, right: no-scar versus median).
+Fig. 4.
+
+|C x (a , b )|2 ∗
+
+median beats is derived, they are compared on per-lead basis
+with the incoming ECG beats.
+The comparative analysis between the median-ECG beat and
+the ECG beat under test takes place both in time and time–
+frequency domain. In the time domain, the cross-covariance of
+these two time-series is calculated since it is a measure of similarity between the two signals and is commonly used to find
+features of an unknown signal by comparing it to a known one.
+It is a function of the relative time between the two signals.
+Additionally, the cross correlation which in essence is the normalized covariance is computed for determining time-delays in
+the propagation of electrical activity.
+For the time–frequency-domain analysis, we have opted to
+investigate the wavelet coherence (WC) between the medianECG and the testing ECG, using the complex Morlet Wavelet
+(cmor1-0.5) as the basis function. It combines the concept of
+wavelet transform with the coherence analysis, quantifies the
+coherence and the phase synchrony between these two time
+series as a function of both time and frequency (scale), and is
+used to identify time and frequency intervals in which they have
+a strong correlation. The WC in our case is a complex product,
+where the level of coherence is shown by the magnitude of the
+WC, while the phase lag between the two signals is represented
+by the phase of the WC. The magnitude and the phase coherence
+is averaged over time and over the resolution scales.
+As an example of the morphological alterations caused due
+to delayed conduction from the presence of scar, Fig. 4(a) depicts the ECG trace of a record with scar and a record free of
+scar, alongside the constructed median-ECG beat for this particular lead. The fractionation in the QRS-complex as well as the
+prolonged QRS width are obvious in the scarred signal. Furthermore, to illustrate the effect on the coherence levels, both signals
+are compared to the median-ECG beat in terms of modulus WC
+and phase WC. It is evident from Fig. 4(b) and (c) that there
+exist noticeably different levels of both magnitude and phase
+coherence for the two signals.
+B. Statistical Parameters of the ECG Timeseries
+Apart from the aforementioned morphological parameters,
+a set of statistical features [16] on a per-lead basis have been
+computed which underpins the statistical property of an ECG
+signal. This set of statistical parameters is listed in Table I which
+also provides a brief description of possible significance of each
+
+TABLE I
+PHYSICAL MEANING OF STATISTICAL PARAMETERS
+
+feature in ECG analysis. In principle, they provide effective
+means for analyzing the level of complexity and the type of
+distribution that a time-series exhibits. In the presence of scar
+tissues both the complexity and the distribution of the ECG
+trace will be affected, due to the alterations caused in the ECG
+morphology. Subsequently, it is expected that these parameters
+will capture these intricate changes which can then be used as
+an indication of scar presence.
+Apart from these parameters since ECG’s fluctuations could
+be nonrandom and, in essence, a reflection of the dynamics of
+the cardiovascular systems [19], measuring fluctuations in the
+frequency and time domain may reveal significant information
+on the dynamic characteristics, which are lost with routine averaging or linear spectral methods. According to this observation,
+the detrended fluctuation analysis is used to quantify the fractal scaling properties and to determine the self-affinity of the
+heartbeat.
+
+DIMA et al.: ON THE DETECTION OF MYOCADIAL SCAR BASED ON ECG/VCG ANALYSIS
+
+3403
+
+C. Time-Domain ECG Parameters
+Various studies have described possible changes in QRScomplex and T-wave morphology in an ECG trace due to the
+presence of myocardial scar. Drawing from our experience in
+cardiology primary care in consultation with the available literatures, the ECG morphological features showing the effect of
+disordered conduction more prominently, are the QRS duration,
+the T-duration, and the T-peak to T-offset duration. We first derive these features on per-lead basis and also calculate the RMS
+and dispersion (maximum-minimum) values of these, using all
+12 leads. In addition, in order to capture potential morphological
+changes in these waves more accurately, we calculate the area
+under the curve (AUC) of the QRS-complex and the T-wave,
+using trapezoid integration with the isoelectric line as the reference. It has also been shown in the literature that the presence of
+fractionations (notches, slurs) in the QRS complex is a potential
+manifestation of disordered conduction effect. Therefore, we include the total number of fractionations present in the QRS and a
+binary value indicating the presence/absence of fractionation in
+the terminal QRS deflection as two separate features. We follow
+the definitions provided in [14] for identifying the fractionations
+present in the QRS complex. Finally, a binary parameter that indicates whether or not, the QRS-offset (j-point) is elevated by
+more than 0.1 mV is also calculated. The final type of feature
+we computed is the spectral energy of the QRS-complex and
+the T-wave using discrete wavelet transform.
+
+Fig. 5.
+
+leads can also be reconstructed from 12-lead ECG recordings.
+Among all the approaches of reconstructing the ECG from VCG
+and vice versa, Dower’s approach [22] is the most clinically accepted method and is adopted for constructing the VCG from
+a 12-lead ECG. Dower’s matrix consists of lead specific coefficients that are used to calculate the eight independent leads
+(V1–V6, I and II) as a linear combination of the VCG. Subsequently, the inverse process produces the VCG leads from the
+12-lead ECG. The 3 × 8 inverse Dower matrix (iD) is given as
+(2) shown at the bottom of the page.
+In our work, we employed the recorded VCG, if available,
+and used the inverse Dower transform where recorded VCGs
+were not available. As it is already mentioned, the conduction
+delays and disordered heart activity, caused by myocardial scar,
+are reflected on the ECG as fractionated QRS-complex and/or
+prolonged R-wave and/or alterations on T-wave’s morphology.
+Since the VCG is a linear combination of the ECG leads, we
+expect that these morphological alterations will also be reflected
+on the VCG’s spatial characteristics as shown in Fig. 5. The
+QRS-complex and T-waves boundaries, extracted using TDMG
+[15], allowed the localization of these waves in the VCG loop.
+Also, the temporal position of the R- and T-peak allowed the
+construction of the R- and T-peak vectors. Additionally, we
+constructed the vectors that represent the maximum width of
+the QRS- and T-loop, respectively. For these four vectors, we
+calculated the magnitudes and angles for each of the three 2-D
+projections (X–Y, X–Z, Y–Z) of the 3-D VCG. The areas for
+each of the 2-D projections were extracted by calculating the
+number of pixels that each of the two
+ waves enclose. Finally, the
+xg (x)dx
+centroid point—defined as C =  g (x)dx —is calculated and
+the respective vector of the VCG loop was constructed, since it
+is expected to be affected by the VCG morphological alterations.
+The feature dataset was further fed with the magnitude and angle
+
+D. VCG-Based Features
+The electrical impulse that is propagated along the heart regions can be described from the magnitude and the direction
+of the electrical forces that the heart generates. The magnitude
+and direction of these forces form a resultant vector that evolves
+in time on the 3-D space around the origin [20]. The continuous recording of the electrical potentials (resultant’s vector’s
+end points), presented in the 3-D space, generates curved lines
+(loops) along two or three perpendicular axes and it is known
+as the VCG (see Fig. 5). In contrast, the ECG represents the
+electrical potential only on a single axis.
+The predominant method for the recording of the VCG is
+attributed to Frank [21]. Frank’s XYZ leads consist of three
+leads derived from seven electrodes and represent the right–left
+axis (X), head-to-feet axis (Y), and front-back (anteroposterior)
+axis (Z) which constitute the three components of the resultant
+vector. In clinical practice, there is poor utilization of the VCG;
+thus, the recordings from Frank’s orthogonal leads are quite
+rare. In principle, each lead of the standard 12-lead ECG can be
+reconstructed from Frank’s XYZ lead. Therefore, Frank’s XYZ
+⎡
+
+−0.172
+iD = ⎣ 0.057
+−0.229
+L = [V 1
+
+V2
+
+V CG = L × iD.
+
+−0.074
+−0.019
+−0.310
+
+0.122
+−0.106
+−0.246
+
+0.231
+−0.022
+−0.063
+
+V3 V4 V5 V6 I
+
+Illustration of the VCG feature set (FS-III).
+
+0.239
+0.041
+0.055
+
+II ]T ,
+
+0.194
+0.048
+0.108
+
+0.156
+−0.227
+0.022
+
+V CG = [ V CGx
+
+⎤
+−0.010
+0.887 ⎦
+0.102
+V CGy
+
+V CGz ]T
+(2)
+
+3404
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 12, DECEMBER 2013
+
+TABLE III
+CHARACTERISTICS OF THE DATABASES
+
+Fig. 6.
+
+R- and T-peak angle in No-Scar(left) and Scar(right) VCG.
+TABLE II
+COMPLETE FEATURE SET
+
+of the centroids’ vectors. An indicative example of how the scar
+presence is reflected to the VCG’s spatial features is depicted in
+Fig. 6, where the R- and T-peak angles are significantly different
+for scar and no-scar records.
+Table II summarizes all the features considered in this paper.
+Given the inherent variability in ECG signals among patients,
+each of these feature spaces offers information that can possibly
+be used to distinguish between the presence and absence of scar.
+It is to be noted that while constructing the feature space, we
+did not consider the location of scar. The main reason behind this
+is, due to the surface recording nature of ECG, the signature of
+scar on a lead is manifested as a complex interaction between its
+location and extent. Therefore, any attempt in trying to localize
+scar from ECG only, is not encouraged in clinical practice as it
+may not give a clinically acceptable result. On the other hand,
+since each ECG lead captures a different spatial view of the
+heart, it is expected that depending on the location and extent
+of the scar, its overall effect will be manifested in one or more
+leads. Therefore, with our adopted strategy of analysis in a perlead basis, it should be possible to capture the overall effect of
+the presence of scar irrespective of its location.
+IV. CLASSIFICATION STRATEGY AND VALIDATION
+A. Databases
+The above mentioned parameters are then used to formulate a robust classification model, able to discriminate the presence/absence of myocardial scar, following a supervised learning approach. In our classification investigation, we utilized
+
+ECG records from three databases, two of them (DB-I and II)
+constructed during clinical evaluation of patients at the Cardiology Department of the University Hospital Southampton NHS
+Trust. These constitute of patients which had 12-lead ECGs
+and CMR measurements performed within the same period.
+Standard 12-lead ECG recording was done by a trained cardiographer with the patients in a supine position. The CMR result
+also provides the size (in terms of %) of the scarred tissue. For
+our classification purposes, any scar size >0% is considered as
+presence of scar. It is worth noting that the CMR resolution is
+also limited, and therefore, some of the smaller scar sizes could
+be considered as 0% scar in its analysis. However, CMR is a
+standard procedure that is clinically accepted and employed in
+clinical practice on a daily basis and appropriate clinical action is taken based on its outcome. Therefore, CMR analysis
+is widely used as a clinical standard for assessing the extent of
+scar in real life. Given this fact, we have used CMR outcome as
+the ground truth for assessing the extent of scar.
+In order to balance our dataset as much as possible, we have
+included a third database (DB-III) containing ECGs with no
+scar presence. This was obtained from the 52 healthy control
+records of the PTB Diagnostic ECG Database (DB-III), publicly available in Physionet [23]. Although DB-III offers no
+CMR measurements, the annotation of these records as healthy
+controls, allowed us to imply that no scarred tissue is present.
+The frequency and the resolution are the same as (DB-II). DBIII includes measurements of Frank’s XYZ orthogonal leads, so
+the VCG was directly obtained without the need for reconstruction through iD. From all the available records, we isolated a
+single heart-beat and used it in our analysis. Expert cardiologists ensured that from the records that had scar no ectopic beat
+was selected. In total, 260 records were considered with 158
+records having CMR verified scarred tissue. The fundamental
+characteristics of the databases are summarized in Table III.
+Although it is conceivable that DB-III is mainly taken from
+the public available database and thus may be debatable in terms
+of its utility regarding the actual clinical conditions of the myocardial scar, DB-I and II contain data that are prospectively
+collected by expert clinicians and these two databases are in
+true sense representative of clinical patients since they are collected from those under investigation of myocardial scar at the
+Cardiology Department of the Southampton University Hospital NHS Trust. One important issue here is that, as mentioned
+earlier, the presence of certain types of confounders may be
+manifested in ECG in the same way as the scar. It is for this
+reason that we did not exclude patients with these confounding ECG changes, and that accurate classification despite these
+ECG confounders was an important aim of this paper.
+
+DIMA et al.: ON THE DETECTION OF MYOCADIAL SCAR BASED ON ECG/VCG ANALYSIS
+
+B. Classification Model
+The classification algorithm that has been utilized in this
+paper is the SVM [24]. The analysis was facilitated by employing the Weka machine learning software, which implements
+the sequential minimal optimization algorithm for solving the
+quadratic programming optimization problem that arises when
+determining the maximum margin hyperplane of the SVM classifier. Several experiments with Gaussian and polynomial SVM,
+and with different configuration parameters were conducted,
+until an optimal setup was found. The performance evaluation
+metrics we present in our experiments are the classification accuracy, the specificity and the sensitivity as follows: sens =
+TP
+TN
+T P +T N
+T P +F N , spec = T N +F P , acc = F N +F P +T P +T N where true
+positive (TP)/false negative(FN) are the records that have
+scar and are correctly/incorrectly identified, while false positive(FP)/true negative (TN) are the records that do not have scar
+and are incorrectly/correctly classified.
+For building the classification model, two particular issues
+were considered as fundamental requirements: minimization
+of possible overfitting and consistency of the three evaluation metrics—sensitivity, specificity, and accuracy—between
+sequential experiments. The overfitting problem is common in
+classification schemes and is typically apparent when the classification model trained on a dataset fails to give satisfactory
+result for another arbitrarily chosen dataset. It may occur due to
+1) presence of noise or redundant features in the feature vector
+and 2) existence of irrelevant patterns resulting from inherently
+error prone data entry and acquisition process. Subsequently,
+the irrelevant input features should be excluded from the feature
+vector in order to produce a desired learning result and avoid the
+learning algorithm to overfit to the noise. Owing to the relatively
+small size of the database and the high dimensionality of the produced feature set in our case, to identify the most informative
+feature set capable of identifying presence or absence of scar,
+we ran extensive feature selection experiments using the algorithms like, Information Gain, Relief, SVM Attribute Evaluation
+(SVMAttributeEval), and based on their performance SVMAttributeEval was chosen. SVMAttributeEval is implemented with
+the Ranker search method which evaluates the importance of a
+feature by using an SVM classifier. The features are ranked
+according to the square of the weight assigned to them by the
+SVM. After excluding the redundant features, the model is iteratively trained with the reduced feature set. This process is
+expected to reduce the possible overfitting as in principle the
+redundant features are eliminated from the original feature set.
+In order to evaluate the efficiency of the system and to identify
+the degree of overfitting, we employed the traditional approach
+of tenfold cross validation (CV) ten times. The generated model
+was evaluated in terms of accuracy, sensitivity, and specificity
+over a number of carefully constructed experiments to check the
+consistency of the three above mentioned performance parameters. In addition, the generated model trained with one database
+is applied on the other databases with inherently different characteristics to ascertain the effect of possible overfitting. Furthermore, we employed the Leave One Out (LOO) CV, which is a
+K-fold CV strategy, K being equal to the number of instances
+
+3405
+
+in the original dataset, to evaluate the efficiency of our model.
+In summary, our experimental strategy uses the ten times of
+tenfold CV as the basic experiment, which gives a good estimation of the classification performance of the generated model.
+In case, the model does not satisfy the predictability (i.e., low
+accuracy), there is no reason to continue with the other testing
+experiments, as the basic classification capability of the system
+does not exist in this case. Otherwise, it is tested with other
+databases so as to investigate the capability of the model to classify unknown instances correctly and to estimate the possibility
+that the model has been fitted with features that are irrelevant to
+the myocardial scar. The consistency of the evaluation metrics
+and their comprehensive analysis establishes the predictability,
+robustness, and reliability of the classification model.
+C. Analysis of Results and Model Performance Evaluation
+The overall results of our experiments are shown in Table IV.
+As presented in Table II, we have four subsets of features. Initially, we merge the first two subsets into one feature space FS-I,
+while the two remaining subsets consist of feature spaces II and
+III (FS-II and FS-III), respectively. The total number of parameters is 192125 and 27 for FS-I, II, and III, respectively. At
+first (Exp.-I in Table IV), a balanced dataset from DB-I is constructed, using 46 records without scar tissues and 46 records
+with the highest scar size. On this database, ten runs of tenfold
+CV were performed using the features from FS-I, II, and III independently without invoking any feature selection algorithm. As
+it is shown, the performance results are not sufficient enough to
+achieve an acceptable classification rate. This leads us to believe
+that there exist significant redundancies in all the three feature
+spaces. Therefore, a feature selection step is carried out for each
+of the feature spaces using the SVMAttributeEval algorithm iteratively and observing the classification performance at each
+iteration step. Specifically, the output of each iteration of the feature selection algorithm (different number of selected features
+for each iteration) was the input used to train our model. At the
+end of this exhaustive simulation procedure, 25 features from
+each of FS-I and FS-II, and nine features from FS-III achieved
+maximum performance. These optimal feature sets corresponding to FS-I/II/III are designated as RFS-I/II/III, respectively, and
+are listed in the first three columns of Table V. Using the same
+dataset (DB-I) as before, ten runs of the tenfold CV results in
+classification accuracy of 84.78%, 81.52%, and 71.45% in RFSI, II and III, respectively (Exp-II in Table IV). In particular, the
+sensitivity and specificity in RFS-I are also high (86.96% and
+82.61%, respectively) showing its capability for simultaneously
+identifying ECGs with and without scar accurately. Therefore,
+the models generated during the training phase of Exp-II have
+been applied to DB-II and III (Exp-III) to check the robustness of
+the model and existence of possible overfitting. It was found that
+the performance of the model is poorer in terms of all the three
+metrics in RFS-I and II (except specificity in RFS-II), whereas
+it showed good performance in RFS-III. However, the conflict
+between the performance results in RFS-III in Exp. II and III
+imposed further investigation into the feature space. In the last
+experiment, where the three feature spaces were investigated
+
+3406
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 12, DECEMBER 2013
+
+TABLE IV
+EVALUATION RESULTS OF THE PROPOSED METHODOLOGY
+
+TABLE V
+SELECTED PARAMETERS BASED ON THE SVMATTRIBUTEEVAL
+
+separately, we merged the records from all the three DBs and
+constructed a balanced dataset with equal number of scar and
+no scar records (Exp-IV). As the available number of no-scar
+records is 102 (the remaining 158 records have scar tissue), we
+construct a dataset of 204 instances, and applied ten runs of tenfold CV on this dataset for each RFS. In this case, all the RFS
+showed comparable results although the specificity in RFS-III
+is slightly lower than the other two.
+The inconsistency between the results of the aforementioned
+experiments carried out on separate feature spaces prompted us
+to believe that either the feature sets are not enough descriptive
+
+or a degree of overfitting exists. Therefore, we merged the parameters from the three feature spaces into one pool of features
+(All Features Space-AFS) and applied ten runs of tenfold CV
+(Exp-V) without feature selection step. The poor results indicate
+toward existence of significant redundancies.
+Following the same strategy as before, we perform feature
+selection in the AFS feature space, producing the reduced all
+features space (RAFS) consisting of 25 features as shown in the
+fourth column of Table V. Within these 25, six features came
+from the comparison of the testing ECG with the median beat,
+two of them are spatial characteristics from the VCG domain,
+
+DIMA et al.: ON THE DETECTION OF MYOCADIAL SCAR BASED ON ECG/VCG ANALYSIS
+
+Fig. 7.
+
+CV results using different cutoff sizes.
+
+Fig. 9.
+
+Fig. 8.
+
+3407
+
+Scatter plot of T-area (Lead I) and magnitude WC V4.
+
+eight of them are from the time-domain analysis and the remaining parameters are features from the time-series analysis. The
+importance of these parameters is shown in a 2-D scatter plot between the T-area (lead I) and wavelet modulus coherence (lead
+V4)—the top two parameters in the feature ranking—in Fig. 8,
+where one may see the formulation of two clusters (scar/noscar records). It is important to observe that the consistency of
+the features is demonstrated by the fact that the majority of the
+dominant features of the RAFS feature space, although maybe
+generated from a different lead (which is typical in standard clinical practice and may be attributable to the spatial location and
+extent of the scar since different ECG leads are expected to capture effects from different regions of heart), are also present in
+the list of the dominant features of the individual feature spaces.
+This fact verifies the significance of these particular features
+regardless of the feature space to provide discriminative properties for the detection of the presence/absence of myocardial
+scar. These dominant features are highlighted in Table V.
+Utilizing the feature vector of RAFS, we ran repeated tenfold
+CV in Exp-VI. The results show that high classification rate of
+91.3% is achieved. In addition, the model achieved significant
+level of sensitivity and specificity indicating that the model is
+able to discriminate the presence/absence of significant myocardial scar. However, as the training set used only instances from
+
+Percentage of Misclassified Scar Records versus Scar Size.
+
+the DB-I, we tested the model on instances that came from different sources as in the presence of possible overfitting, in this
+case, the classification behavior of the model is expected to be
+markedly different. Exp-VII is carried out from this point of
+view where we used DB-II and III as the testing sets which are
+inherently different from the characteristics of DB-I. The overall accuracy achieved is 82.07%, while the specificity is in the
+same high levels (Exp-VII). Moreover, it is established in [25]
+that a model is robust enough if its behavior does not change
+significantly when it is fed with new data. This is why we applied Exp. VIII, where we merge all the available instances from
+the three databases and we construct a balanced dataset of 204
+instances (all no-scar records and 102 scar records), using all
+the features from the RAFS. The repeated tenfold CV results in
+this experiment also shows consistency with Exp. VI and VII
+indicating that the model provides classification performance
+(89.22% with similar high level of specificity and sensitivity
+values) with high degree of confidence. Since the LOO process
+is considered as a good indicator of a system’s robustness [26],
+we applied that strategy on the setup of Exp. VI and VIII and
+executed two additional experiments Exp. X and XI, which once
+again show consistent performance with high level of accuracy,
+sensitivity, and specificity. Summarizing the results of all the
+experiments in addition to the adopted standard processes of
+reducing overfitting in the model building phase, it is apparent
+that although there is possibility of existence of overfitting, it is
+minimal.
+We further carried out an extension of Exp-VII in Exp-IX
+by adding the remaining records from DB-I as testing records.
+As the results show, the accuracy and sensitivity are decreased
+(69.05%), while the specificity remains at the same levels. Further investigation revealed that the drop of classification rate
+in this experiment may be attributable to the misclassification
+of the lower scar size records. As it is illustrated in Fig. 9, the
+number of FNs decreases as the scar size increases. More specifically, we observed that when the scar size exceeds the threshold
+of 9.8%, our model’s sensitivity reaches to 81.4%. To explore
+this further, we created the ROC curve, where the Exp-IX is
+
+3408
+
+Fig. 10.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 12, DECEMBER 2013
+
+CV results using different cutoff sizes.
+
+repeated by keeping the training model the same but refining
+the class label only for the testing set, according to a tuning cutoff scar size as shown below (see Fig. 7). It is evident that as the
+labeling of the scar size cutoff increases to >10%, both the sensitivity and consequently the classification accuracy increases
+appreciably, while the specificity remains at the same levels
+whereas for lower scar cut-offs the sensitivity ranges between
+60–75%. This fact leads to the conclusion that the model can
+faithfully distinguish between significant scarring and no-scar
+whereas it is comparatively less accurate for lower scar size.
+The evaluation results presented so far are based on the >0%
+scar size as the definition of presence of scar. We further investigated the system’s performance by changing this threshold
+and then retraining and reapplying the entire system in order to
+accommodate possible resolution issues of CMR measurement.
+The performance of the system is explored considering different cutoff values (0–10%). This analysis is conducted using the
+setup of Exp. VIII, where a balanced dataset is constructed between the two classes and the tenfold CV process is applied
+for estimating the performance. The resulting ROC curves are
+depicted in Fig. 10. From the ROCs comparison, we observe
+that the 0% threshold demonstrated the best performance as it
+is located near the left upper edge and the AUC is the maximum
+among all the other cases. The obtained performance resulting
+from the experiments in the RAFS space confirms that the signal
+processing techniques that we have followed can indeed provide
+a set of features able to discriminate the presence of myocardial
+scar from ECG recordings, particularly when the scar size is
+significant—a condition where immediate clinical attention is
+needed.
+However, the model proposed here should be considered as a
+promising first-step result for classifying myocardial scar from
+ECG and not as a completely ready method for clinical translation. This is due to the retrospective nature of the experiments
+conducted. The accuracy, sensitivity, specificity, and the possible extent of existing overfitting need to be evaluated under
+a prospective trial which is planned in the future but currently
+beyond the scope of this paper.
+V. CONCLUSION
+In this paper, we have presented the development of a classification scheme, for the detection of myocardial scar from
+
+ECG and VCG recordings. Four different strategies have been
+explored so as to obtain a set of features that will enable the discrimination between scar presence and absence. The application
+of dimensionality reduction along with the use of the SVM classifier, formulated a classification strategy that achieves 89.22%
+classification accuracy, as evaluated in CV experiments. The robustness of our proposed model is also justified in experiments
+where the training and testing sets are from different databases,
+in which the proposed system maintains the high performance,
+achieving an 82.07% overall accuracy with similar levels of
+sensitivity (76%) and specificity (87.5%). The obtained performance results reveal the potential of the proposed classification
+methodology to provide an efficient tool for the early screening
+in the point-of-care of myocardial scar in the point-of-care using
+cost-effective, ubiquitous ECG/VCG recordings.
+
+REFERENCES
+[1] Writing Group Members, V. L. Roger, A. S. Go, D. M. Lloyd-Jones, E. J.
+Benjamin, J. D. Berry, W. B. Borden, D. M. Bravata, S. Dai, E. S. Ford,
+C. S. Fox, H. J. Fullerton, C. Gillespie, S. M. Hailpern, J. A. Heit, V. J.
+Howard, B. M. Kissela, S. J. Kittner, D. T. Lackland, J. H. Lichtman, L.
+D. Lisabeth, D. M. Makuc, G. M. Marcus, A. Marelli, D. B. Matchar,
+C. S. Moy, D. Mozaffarian, M. E. Mussolino, G. Nichol, N. P. Paynter,
+E. Z. Soliman, P. D. Sorlie, N. Sotoodehnia, T. N. Turan, S. S. Virani,
+N. D. Wong, D. Woo, and M. B. Turner, “Executive summary: Heart
+disease and stroke statistics-2012 update: A report from the American
+heart association,” Circulation, vol. 125, no. 1, pp. 188–197, 2012.
+[2] D. Bello et al., “Infarct morphology identifies patients with substrate for
+sustained ventricular tachycardia,” J. Amer. Coll. Cardiol., vol. 45, no. 7,
+pp. 1104–1108, 2005.
+[3] A. T. Yan et al., “Characterization of the peri-infarct zone by contrastenhanced cardiac magnetic resonance imaging is a powerful predictor of
+post-myocardial infarction mortality,” Circulation, vol. 114, no. 1, pp. 32–
+39, 2006.
+[4] M. Ranji et al., “Quantifying acute myocardial injury using ratiometric
+fluorometry,” IEEE Trans. Biomed. Eng, vol. 56, no. 5, pp. 1556–1563,
+May 2009.
+[5] P. Scott et al., “Left ventricular scar burden specifies the potential for ventricular arrhythmogenesis: An LGE-CMR study,” J. Cardiovasc. Electr.,
+vol. 24, no. 4, pp. 430–436, Oct. 2012.
+[6] A. Porras et al., “Interventional endocardial motion estimation from
+electro-anatomical mapping data: Application to scar characterization,”
+IEEE Trans. Biomed. Eng, vol. 60, no. 5, pp. 1217–1224, May 2013.
+[7] C. Ghule et al., “Design of portable arm processor based ECG module for
+12 lead ECG data acquisition and analysis,” in Proc. Int. Conf. Biomed.
+Pharmaceutical Eng., Dec. 2009, pp. 1–8.
+[8] P. Uusimaa et al., “Collagen scar formation after acute myocardial infarction: Relationships to infarct size, left ventricular function, and coronary
+artery patency,” Circulation, vol. 96, no. 8, pp. 2565–2572, 1997.
+[9] R. H. Selvester et al., “A digital computer model of the vectorcardiogram
+with distance and boundary effects: Simulated myocardial infarction,”
+Amer. Heart J., vol. 74, no. 6, pp. 792–808, 1967.
+[10] D. Romero et al., “Depolarization changes during acute myocardial ischemia by evaluation of QRS slopes: Standard lead and vectorial approach,” IEEE Trans. Biomed. Eng, vol. 58, no. 1, pp. 110–120, Jan.
+2011.
+[11] J. Rosengarten et al., “Can QRS scoring predict left ventricular scar and
+clinical outcomes?” Europace, vol. 15, no. 7, pp. 1034–1041, Jul. 2013.
+[12] S. M. Narayan et al., “Relation of t-wave alternans to regional left ventricular dysfunction and eccentric hypertrophy secondary to coronary heart
+disease,” Amer. J. Cardiol., vol. 97, no. 6, pp. 775–780, 2006.
+[13] P. de Chazal et al., “Automatic classification of heartbeats using ECG
+morphology and heartbeat interval features,” IEEE Trans. Biomed. Eng.,
+vol. 51, no. 7, pp. 1196–1206, Jul. 2004.
+[14] V. Bono et al., “Development of an Automated Updated Selvester QRS
+Scoring System using SWT-based QRS fractionation detection and classification,” IEEE J. Biomed. Health Informat, vol. PP, no. 99, p. 1, 2013.
+
+DIMA et al.: ON THE DETECTION OF MYOCADIAL SCAR BASED ON ECG/VCG ANALYSIS
+
+[15] E. Mazomenos et al., “A time-domain morphology and gradient based
+algorithm for ECG feature extraction,” in Proc. IEEE Int. Conf. Ind.
+Technol., Mar. 2012, pp. 117–122.
+[16] D. Kugiumtzis et al., “Measures of analysis of time series (MATS): A
+MATLAB toolkit for computation of multiple measures on time series
+data bases,” J. Statist. Softw., vol. 33, no. 5, pp. 1–30, 2010.
+[17] K. Saiveena et al., “Characterization of ECG signals using multiscale
+approach,” in Proc. Int. Conf. Signal Process. Commun., 2012, pp. 1–5.
+[18] A. Noviyanto et al., “Selecting features of single lead ECG signal for
+automatic sleep stages classification using correlation-based feature subset
+selection,” Int. J. Comput. Sci. Issues, vol. 8, no. 5, p. 139, 2011.
+[19] T. Penzel et al., “Comparison of detrended fluctuation analysis and spectral
+analysis for heart rate variability in sleep and sleep apnea,” IEEE Trans.
+Biomed. Eng, vol. 50, no. 10, pp. 1143–1151, Oct. 2003.
+[20] M. Singh, Introduction to Biomedical Instrumentation. Delhi, India:
+Prentice-Hall, 2010.
+[21] E. Frank, “An accurate, clinically practical system for spatial vectorcardiography,” Circulation, vol. 13, no. 5, pp. 737–749, 1956.
+
+3409
+
+[22] G. Dower et al., “On deriving the electrocardiogram from vectoradiographic leads,” Clin. Cardiol., vol. 3, no. 2, pp. 87–95, Apr. 1980, review.
+[23] A. L. Goldberger et al., “PhysioBank, PhysioToolkit, and PhysioNet:
+Components of a new research resource for complex physiologic signals,”
+Circulation, vol. 101, no. 23, pp. 215–220, 2000.
+[24] A. Christmann et al., Support Vector Machine (ser. Information Science
+and Statistics). New York, NY, USA: Springer-Verlag, 2008.
+[25] L. Rokach et al., Data Mining With Decision Trees: Theory and Applications. Hackensack, NJ, USA: World Scientific, 2008.
+[26] A. Elisseeff et al., “Leave-one-out error and stability of learning algorithms with applications,” in Learning Theory and Practic (ser. NATO
+ASI Series). Washington, DC, USA: IOS Press, 2002.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

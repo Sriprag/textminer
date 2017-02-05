@@ -1,0 +1,1642 @@
+1118
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+Blood Vessel Segmentation of Fundus
+Images by Major Vessel Extraction
+and Subimage Classification
+Sohini Roychowdhury, Student Member, IEEE, Dara D. Koozekanani, Member, IEEE,
+and Keshab K. Parhi, Fellow, IEEE
+
+Abstract—This paper presents a novel three-stage blood vessel segmentation algorithm using fundus photographs. In the first
+stage, the green plane of a fundus image is preprocessed to extract
+a binary image after high-pass filtering, and another binary image from the morphologically reconstructed enhanced image for
+the vessel regions. Next, the regions common to both the binary
+images are extracted as the major vessels. In the second stage, all
+remaining pixels in the two binary images are classified using a
+Gaussian mixture model (GMM) classifier using a set of eight features that are extracted based on pixel neighborhood and first and
+second-order gradient images. In the third postprocessing stage,
+the major portions of the blood vessels are combined with the classified vessel pixels. The proposed algorithm is less dependent on
+training data, requires less segmentation time and achieves consistent vessel segmentation accuracy on normal images as well as
+images with pathology when compared to existing supervised segmentation methods. The proposed algorithm achieves a vessel segmentation accuracy of 95.2%, 95.15%, and 95.3% in an average of
+3.1, 6.7, and 11.7 s on three public datasets DRIVE, STARE, and
+CHASE_DB1, respectively.
+Index Terms—Classification, feature selection, fundus images, high-pass filter, morphological reconstruction, peripapillary
+vessel, vessel segmentation.
+
+I. INTRODUCTION
+NALYSIS of the retinal blood vessels (vasculature) from
+fundus images has been widely used by the medical
+community for diagnosing complications due to hypertension,
+arteriosclerosis, cardiovascular disease, glaucoma, stroke, and
+diabetic retinopathy (DR) [1]. According to the American Diabetes Association, DR and glaucoma are the leading causes
+of acquired blindness among adults aged 20–74 years with estimates of 4.2 million Americans having DR and 2.3 million
+having glaucoma in 2011 [2]. Automated blood vessel segmentation systems can be useful in determining variations in the
+blood vessels based on the vessel branching patterns, vessel
+width, tortuosity, and vessel density as the pathology progresses
+
+A
+
+Manuscript received January 7, 2014; revised April 28, 2014; accepted June
+20, 2014. Date of publication July 8, 2014; date of current version May 7, 2015.
+This work was supported in part by an unrestricted departmental grant from
+Research to Prevent Blindness, Inc., New York, NY, USA, and in part by a grant
+from the Minnesota Lions Club, Minneapolis, MN, USA.
+S. Roychowdhury and K. K. Parhi are with the Department of Electrical and
+Computer Engineering, University of Minnesota, Minneapolis, MN 55455 USA
+(e-mail: roych005@umn.edu; parhi@umn.edu).
+D. D. Koozekanani is with the Department of Ophthalmology, University of
+Minnesota, Minneapolis, MN 55455 USA (e-mail: dkoozeka@umn.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2335617
+
+in patients [3]. Such analyses will guide research toward analyzing patients for hypertension [4], variability in retinal vessel diameters due to a history of cold hands and feet [5], and
+flicker responses [6].
+Existing automated detection systems for nonproliferative DR
+detection, such as [7], [8], require masking of the vasculature
+to ensure that the blood vessels are not mistaken for red lesions
+that are caused by DR. Also, automated detection of proliferative DR requires analysis of the density, vessel width, and
+tortuosity of the blood vessels. A fast and accurate segmentation algorithm for detecting the blood vessels is necessary
+for such automated detection and screening systems for retinal
+abnormalities such as DR. Some existing unsupervised vessel
+segmentation methods have achieved up to 92% segmentation
+accuracy on normal retinal images by line-detector and template matching methods [9] that are computationally very fast.
+However, increasing the segmentation accuracy above 92% for
+abnormal retinal images with bright lesions (exudates and cotton
+wool spots), or red lesions (hemorrhages and microaneurysms),
+or variations in retinal illumination and contrast, while maintaining low computational complexity is a challenge. In this paper,
+we separate the vessel segmentation problem into two parts,
+such that in the first part, the thick and predominant vessel pixels are extracted as major vessels and in the second part, the
+fine vessel pixels are classified using neighborhood-based and
+gradient-based features.
+This paper makes two major contributions. First, the number
+of pixels under classification is significantly reduced by eliminating the major vessels that are detected as the regions common
+to thresholded versions of high-pass filtered image and morphologically reconstructed negative fundus image. This operation
+is key to more than 90% reduction in segmentation time complexity compared to the existing methods, where all the vessel
+pixels are classified in [10] and [11]. Additionally, the proposed
+method is more robust to vessel segmentation in abnormal retinal images with bright or red lesions than thresholded high-pass
+filtered and tophat reconstructed images. The second major contribution is the identification of an optimal eight-feature set for
+classification of the fine blood vessel pixels using the information regarding the pixel neighborhood and first and second-order
+image gradients. These features reduce the dependence of vessel
+pixel classification on the training data and enhance the robustness of the proposed vessel segmentation for test images with
+45◦ , 35◦ , and 30◦ fields of view (FOV), and for images with
+different types of retinal abnormalities.
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+ROYCHOWDHURY et al.: BLOOD VESSEL SEGMENTATION OF FUNDUS IMAGES BY MAJOR VESSEL EXTRACTION AND SUBIMAGE
+
+The organization of this paper is as follows. In Section II,
+the existing automated vessel segmentation algorithms in the
+literature are reviewed. The proposed method and materials are
+described in Section III. In Section IV, the experimental setup
+for analyzing the performance of vessel segmentation and results
+are presented. Finally, in Section V, discussion and conclusions
+are presented.
+II. PRIOR WORK
+The problem of automated segmentation of retinal blood vessels has received significant attention over the past decade [12].
+All prior works for vasculature segmentation can be broadly
+categorized as unsupervised and supervised approaches.
+In the unsupervised methods category, algorithms that apply matched filtering, vessel tracking, morphological transformations, and model-based algorithms are predominant. In the
+matched filtering-based method in [13], a 2-D linear structuring
+element is used to extract a Gaussian intensity profile of the
+retinal blood vessels, using Gaussians and their derivatives, for
+vessel enhancement. The structuring element is rotated 8–12
+times to fit the vessels in different configurations to extract the
+boundary of the vessels. This method has high time complexity
+since a stopping criterion is evaluated for each end pixel. In another vessel tracking method [14], Gabor filters are designed to
+detect and extract the blood vessels. This method suffers from
+overdetection of blood vessel pixels due to the introduction of
+a large number of false edges. A morphology-based method
+in [15] combines morphological transformations with curvature
+information and matched-filtering for center-line detection. This
+method has high time complexity due to the vessel center-line
+detection followed by vessel filling operation, and it is sensitive to false edges introduced by bright region edges such as
+optic disc and exudates. Another morphology-based method in
+[16] uses multiple structuring elements to extract vessel ridges
+followed by connected component analysis. In another modelbased method [17], blood vessel structures are extracted by
+convolving with a Laplacian kernel followed by thresholding
+and connecting broken line components. An improvement of
+this methodology was presented in [18], where the blood vessels are extracted by the Laplacian operator and noisy objects
+are pruned according to center lines. This method focuses on
+vessel extraction from images with bright abnormalities, but it
+does not perform very effectively on retinal images with red lesions (such as hemorrhages or microaneurysms). The method in
+[19] presents perceptive transformation approaches to segment
+vessels in retinal images with bright and red lesions.
+A model-based method in [20] applies locally adaptive thresholding and incorporates vessel information into the verification process. Although this method is more generalizable than
+matched-filter-based methods, it has a lower overall accuracy.
+Another model-based vessel segmentation approach proposed in
+[21] uses active contour models, but suffers from computational
+complexity as well. Additionally, multiscale vessel segmentation methods proposed in [22] and [23] use neighborhood analysis and gradient-based information for determining the vessel
+pixels. All such unsupervised methods are either computationally intensive or sensitive to retinal abnormalities.
+
+1119
+
+The supervised vessel segmentation algorithms classify pixels
+as vessel and nonvessel. In [24], the k-nearest neighbor (kNN)
+classifier uses a 31-feature set extracted using Gaussians and
+their derivatives. The approach in [25] improved this method by
+applying ridge-based vessel detection. Here, each pixel is assigned to its nearest ridge element, thus partitioning the image.
+For each pixel, a 27 feature set is then computed and is used by
+a kNN classifier. Both these methods are slowed down by the
+large size of the feature sets. Also, these methods are training
+data dependent and sensitive to false edges. Another method
+presented in [26] uses Gaussian mixture model (GMM) classifier and a six-feature set extracted using Gabor-wavelets. This
+method is also training data dependent, and it requires hours
+for training GMM models with a mixture of 20 Gaussians. The
+method in [27] uses line operators and a support vector machine (SVM) classifier with a three-feature set per pixel. This
+method is very sensitive to the training data and is computationally intensive due to the SVM classifiers. The method in
+[10] applies boosting and bagging strategies with 200 decision
+trees for vessel classification using a nine-feature set extracted
+by Gabor filters. This method suffers from high computational
+complexity as well due to the boosting strategy. The only other
+supervised method that is independent of the training dataset is
+proposed in [11] that applies neural network classifiers using
+a seven-feature set extracted by neighborhood parameters and
+a moment invariants-based method. The proposed vessel segmentation method is motivated by the method in [11] to design
+a segmentation algorithm that has low dependence on training
+data and is computationally fast. So far, computational complexity of vessel segmentation algorithms has been addressed only in
+[9] and [19]. In this paper, we reduce the number of pixels under
+classification, and identify an optimal feature set to enhance the
+consistency in the accuracy of blood vessel segmentation, while
+maintaining a low computational complexity.
+III. METHOD AND MATERIALS
+For every color fundus photograph, the proposed vessel segmentation algorithm is performed in three stages. In the first
+stage, two thresholded binary images are obtained: one by highpass filtering and another by tophat reconstruction of the red
+regions in the green plane image. The regions common to the
+two binary images are extracted as the major vessels and the
+remaining pixels in both binary images are combined to create
+a vessel subimage. In the second stage, the pixels in the vessel
+subimage are subjected to a two-class classification. In the third
+postprocessing stage, all the pixels in the subimage that are classified as vessels by the classifier are combined with the major
+vessels to obtain the segmented vasculature. Depending on the
+resolution of the fundus images, in the postprocessing stage, the
+segmented vessels are further enhanced to ensure higher vessel
+segmentation accuracy. Here, the proposed vessel segmentation
+algorithm is evaluated using three publicly available datasets.
+A. Data
+The vessel segmentation algorithm is trained and tested with
+the following datasets that have been manually annotated for
+the blood vessel regions.
+
+1120
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+1) STARE [13] dataset contains 20 images with 35◦ FOV
+that are manually annotated by two independent human
+observers. Here, ten images represent patients with retinal
+abnormalities (STARE Abnormal). The other ten images
+represent normal retina (STARE Normal).
+2) DRIVE [25] dataset contains 40 images with 45◦ FOV.
+This dataset is separated by its authors into a training set
+(DRIVE Train) and a test set (DRIVE Test) with 20 images
+in each set. The DRIVE Train set of images are annotated
+by one human observer, while the DRIVE Test dataset is
+annotated by two independent human observers.
+3) CHASE_DB1 [28] dataset contains 28 images with 30◦
+FOV corresponding to two images per patient (one image
+per eye) for 14 children. Each image is annotated by two
+independent human observers [10].
+B. Problem Formulation
+The first preprocessing stage requires the green plane of the
+fundus image scaled in [0, 1] (I), and a fundus mask (g). In the
+green plane image, the red regions corresponding to the blood
+vessel segments appear as dark pixels with intensities close to
+0. In such cases, the fundus mask removes the dark background
+region from the photographs and helps to focus attention to the
+retinal region only. The fundus mask is superimposed on image
+I followed by contrast adjustment and vessel enhancement, resulting in a vessel enhanced image Ie . The vessel enhancement
+operation involves squaring each pixel intensity value and renormalizing the image in [0, 1] range thereafter. This is a vital operation since the dark pixels corresponding to the vessel regions
+(with pixel values closer to 0), when squared, become darker,
+while the nonvessel bright regions become brighter, hence resulting in the enhancement of the blood vessel regions.
+To extract the dark blood vessel regions from Ie , two different
+preprocessing strategies are implemented. First, a smoothened
+low-pass filtered version of Ie (LPF(Ie )) is subtracted from Ie
+to obtain a high-pass filtered image. Here, the low-pass filter is a
+median filter with window size [20 × 20] as used in [7] [29]. This
+high-pass filtered image is thresholded to extract pixels less than
+0, and the absolute pixel strengths of the thresholded image are
+contrast adjusted to extract the vessel regions. This is referred to
+as the preprocessed image H (1). For the second preprocessed
+image, the red regions corresponding to the dark pixels are
+extracted from the negative of image Ie , thus resulting in image
+R. Next, 12 linear structuring elements each of length 15 pixels
+and 1 pixel width and angles incremented by 15◦ from 0 through
+180◦ are used to generate tophat reconstructions of R [15], [10].
+The length of 15 pixels for the linear structuring element is
+chosen to approximately fit the diameter of the biggest vessels
+in the images [10]. For each pixel location, the reconstructed
+pixel with the highest intensity is selected, thereby resulting
+in image T (2). An example of the two preprocessed images
+H and T is shown in Fig. 1. These two preprocessed images
+H and T can be thresholded to obtain baseline unsupervised
+models to analyze the importance of the proposed method in
+the following sections. Both the preprocessed images H and
+T are thresholded for pixel values greater than “p” to obtain
+
+Fig. 1. Each fundus image is subjected to contrast adjustment and pixel enhancement followed by high-pass filtering and tophat reconstruction. (a) Contrast adjusted vessel enhanced image (Ie ). (b) High-pass filtered image (H ). (c)
+Red regions enhanced image (R). (d) Tophat reconstructed version of R (T ).
+
+binary images H  and T  (3-4). For images from DRIVE and
+STARE and CHASE_DB1 datasets, “p = 0.2,” which ensures
+the red regions to be highlighted in the vessel enhanced binary
+images. Next, the intersecting regions between the preprocessed
+binary images H  and T  are retained as the major portions of
+the blood vessels, or the major vessels (V̂ ) (5). Once the major
+vessels are removed from the two binary images, the resulting
+images are called vessel subimages H1 corresponding to binary
+image H  (6) and subimage T1 corresponding to binary image
+T  (7), respectively. These steps are summarized in (1)–(7).
+In the second stage, the pixels in subimages H1 and T1 are
+combined to form a vessel subimage C (8), and the pixels in
+C are classified using a GMM classifier that classifies each
+pixel as vessel (class 1) or nonvessel (class 0). Thus, for all
+pixels in C, a GMM classifier is trained once using the images
+from the DRIVE Train set of images and tested on the DRIVE
+Test image set, STARE image set, and CHASE_DB1 image set,
+independently, to identify the vessel pixels in each test image.
+The optimal feature set selection for vessel pixel classification
+is described in the following section. The pixels in subimage C
+that are classified as vessel result in image Vˆ  (9)
+∀(x, y), H(x, y) = abs(Ie (x, y) − LPF(Ie (x, y)) < 0) (1)
+R = (1 − Ie ) ◦ g, T = tophat(R)
+
+
+
+
+∀(x, y), H (x, y) =
+
+1,
+
+H(x, y) > p
+
+0,
+
+Otherwise
+
+(2)
+
+(3)
+
+ROYCHOWDHURY et al.: BLOOD VESSEL SEGMENTATION OF FUNDUS IMAGES BY MAJOR VESSEL EXTRACTION AND SUBIMAGE
+
+
+
+
+T (x, y) =
+
+V̂ (x, y) =
+
+1,
+
+T (x, y) > p
+
+0,
+
+Otherwise
+
+1,
+
+H(x, y) = T (x, y) = 1
+
+0,
+
+Otherwise
+
+⇒ V̂ = H  ∩ T  .
+
+1, H  (x, y) = 1 and
+H1 (x, y) =
+0,
+Otherwise
+
+T1 (x, y) =
+
+C(x, y) =
+
+1121
+
+(4)
+
+(5)
+
+V̂ (x, y) = 0
+
+(6)
+1,
+
+T  (x, y) = 1 and
+
+0,
+
+Otherwise
+
+V̂ (x, y) = 0
+
+(7)
+1,
+
+H1 (x, y) = 1 or
+
+0,
+
+Otherwise
+
+T1 (x, y) = 1
+(8)
+
+⇒ C = H1 ∪ T1
+Vˆ  (x, y) ← GMMclassify(C(x, y))
+
+
+V̂f = V̂ ∪ V̂ .
+
+(9)
+(10)
+
+In the third postprocessing stage, subimage V̂  representing
+all the pixels in C that are classified as vessel, are combined
+with the major vessels V̂ to obtain the segmented vasculature
+V̂f (10). Finally, the complete segmented blood vessel V̂f is
+postprocessed such that the regions in the segmented vasculature
+with area greater that “a” are retained, while smaller regions are
+discarded. The values of “a” were empirically determined as [20,
+40, 50], for the images from DRIVE, STARE, and CHASE_DB1
+datasets, respectively.
+The images from the CHASE_DB1 dataset are different from
+the DRIVE and STARE set of images since all these images
+are centered at the papilla and they have thicker blood vessels.
+Hence, to postprocess images from CHASE_DB1 dataset, the
+segmented vasculature V̂f is superimposed on the tophat reconstructed image T , and the resulting image (V̂f ◦ T ) is region
+grown at pixel threshold value 240 followed by vessel filling
+[11]. The performance of vasculature segmentation on each image is then analyzed with reference to manually marked blood
+vessels by human observers in image Vf . This three-stage vessel
+segmentation algorithm is demonstrated for an image from the
+DRIVE Test dataset in Fig. 2.
+C. Pixel-Based Classification
+Blood vessels in fundus images can be broadly categorized
+into two kinds. The first category includes wide and thick vessels that are easily distinguishable from the neighboring pixels
+based on the pixel intensities. The second category includes the
+fine small blood vessel branches that are not very distinct against
+the neighboring pixels. The extraction of major vessels ensures
+
+Fig. 2. Proposed vasculature segmentation algorithm. (a) Original image. (b)
+Binary image from high-pass filtering (H  ). (c) Binary image from top hat
+reconstruction (T  ). (d) Major vessels are the intersecting regions between H 
+and T  (V̂ ). (e) Subimage regions remaining in H  after masking out V̂ (H 1 ).
+(f) Subimage regions remaining in T  after masking out V̂ (T 1 ). (g) Example
+of feature extraction for each pixel in subimage C using a window size s = 7.
+(h) Postprocessed vasculature after classification of the subimage pixels and
+combining the major vessels (Vˆf ). (i) Manually marked vessels (V f ).
+
+segmentation of the first category of blood vessels, while the
+classification of the pixels in the vessel subimage aids identification of the second category of fine vessels.
+The proposed approach of separating the methods for identifying the thick and fine blood vessel regions enhances the robustness of vessel segmentation on normal and abnormal retinal
+images in two ways. First, the major vessel regions comprising
+of 50–70% of the total blood vessel pixels are segmented in the
+first stage, thereby significantly reducing the number of subimage vessel pixels for classification. This reduction in the number
+of vessel pixels under classification reduces the computational
+complexity and vessel segmentation error when compared to
+methods that classify all major and fine vessel pixels alike [11],
+[10], [27]. Second, the optimal feature set identified for subimage vessel pixel classification are discriminative for the fine
+vessel pixel segmentation. These features aid elimination of
+subimage vessel pixels from large red lesions and false bright
+lesion edges in retinal images with pathology.
+The most important aspect of subimage vessel pixel classification is identification of features that classify the fine vessel
+pixels from false edge pixels. Hence, we analyze the performance of pixel-based features that distinguish a vessel pixel
+from its immediate neighborhood, and select an optimal feature set that is suitable for fine vessel segmentation in fundus
+
+1122
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+images regardless of their FOV, illumination variability, and abnormality due to pathology. These features under analysis and
+the method for selecting the optimal feature set are described
+below.
+1) Feature Description: For each pixel “(x,y)” in vessel
+subimage C, 57 features are analyzed to detect a discriminative optimal feature set for classifying the vessel pixels. These
+features utilize the information regarding the pixel neighborhood and pixel gradient to identify a fine vessel pixel from
+false edge pixels. The neighborhood-based features under analysis are motivated from the supervised segmentation method in
+[11] where major and fine vessel pixels are classified alike. The
+gradient-based features have been analyzed in [23] and [22] for
+multilevel vessel pixel identification. In this paper, the goal is
+to identify discriminating features for fine vessel classification
+specifically, and hence, we analyze a range of neighborhoodbased features to select the optimal feature set using images
+from the DRIVE Train dataset.
+For extracting the neighborhood-based features for each vessel subimage pixel “(x,y),” five features are defined by placing
+the desired pixel “(x,y)” as the central pixel in a square window of side-length “s” pixels on image Ie . This 2-D window
+s
+is represented as W(x,y
+) , where the window side length “s”
+can be varied. We limit the size s to less than 15 pixels since
+the width of the widest vessel is about 15 pixels in the DRIVE
+Train dataset. The first four features (f1 to f4 ) are determined by
+mean, standard deviation, maximum pixel intensity, and minimum pixel intensity among all pixels extracted in the windowedWs
+
+image Ie ( x , y ) , and are described in (11)–(13). These features
+are motivated from the prior work [11], where s = 9. The fifth
+new feature f5 introduced in this paper is a relative neighborhood discriminator feature. False edges that are introduced by
+the edges of bright regions such as exudates and optic disc are
+discriminated by this function
+f1 (s) =
+
+Ws
+mean(Ie ( x , y ) ), f2 (s)
+
+f3 (s) =
+
+Ws
+max(Ie ( x , y ) ), f4 (s)
+
+= std.
+
+=
+
+Ws
+dev(Ie ( x , y ) )
+
+Ws
+min(Ie ( x , y ) )
+
+(11)
+(12)
+
+W (sx , y )
+
+ν(s) = #pixels in Ie
+
+W (sx , y )
+
+ν1 (s) = [#pixels in Ie
+
+> Ie (x, y)], f5 (s) =
+
+ν1 (s)
+.
+ν(s)
+(13)
+
+Two other neighborhood-based features, from the prior work
+[11], that extract moment-invariants based information are defined as f6 and f7 . For extracting these two features, a square
+windowed-image with side-length s and centered at pixel
+“(x,y)” is extracted from the stophat reconstructed image T .
+In this windowed-image (T W ( x , y ) ), the “(p+q)”th order moments for second-order moments are defined in (14)-(17). Here,
+p + q = 2. Corresponding to each pixel, the second-order moments invariant-based features f6 and f7 as the window side
+length varies are given in (18) and (19)
+∀(x, y), (p, q) = {(0, 2), (1, 1), (2, 0)}
+
+(14)
+
+mpq (s) =
+
+
+u
+
+μp,q (s) =
+
+(15)
+
+v
+
+
+u
+
+s
+
+up v q T W ( x , y ) (u, v)
+s
+
+(u − ū)p (v − v̄)q T W ( x , y ) (u, v)
+
+v
+
+(16)
+ηpq (s) =
+
+μpq (s)
+p+q
++1=2
+,γ =
+μ00 (s)γ
+2
+
+(17)
+
+θ1 (s) = η20 (s) + η02 (s), f6 (s) = |log(θ1 (s)))|
+(18)
+2
+
+2
+
+θ2 (s) = (η20 (s) + η02 (s)) + 4η11 (s)
+f7 (s) = |log(θ2 (s)))|.
+
+(19)
+
+The seven features f1 (s) to f7 (s) are evaluated for each
+vessel subimage pixel by varying window side-lengths s =
+[3, 5, 7, 9, 11, 13, 15]. Also, the pixel intensity Ie (x, y) is another
+feature. Along with the 50 neighborhood-based features mentioned above, seven additional gradient-based features are also
+analyzed for vessel pixel classification. For these gradient-based
+features, the first and second-order gradient images of Ie are extracted. The first-order gradient images in the horizontal and
+vertical direction are extracted as gh and gv , respectively. Next,
+the second-order gradient images in the horizontal, vertical, and
+both directions are extracted as ghh , gv v , ghv , respectively. The
+pixel intensity in the “(x,y)” location of these first and secondorder gradient images are five gradient-based features. The final
+two gradient-based features are the Eigen values obtained by
+the Eigen decomposition of matrix G that is formed using the
+pixel intensities from the second-order gradient images as
+
+
+g (x, y) ghv (x, y)
+.
+(20)
+G = hh
+gv h (x, y) gv v (x, y)
+2) Feature Selection: To select the most discriminating features from the 57 pixel-based features described above, we performed feature ranking and leave-one-out double cross validation [30] on the 20 images from the DRIVE Train dataset using
+GMM classifiers with 2-Gaussians (Gaussian with class label
+0 corresponds to nonvessel pixels, Gaussian with class label 1
+correspond to vessel pixels). In the first cross-validation step,
+one image is selected as the validation image and the pixels
+from its vessel subimage are used to generate the validation
+dataset. Pixels from the remaining 19 images are used to generate the training dataset, hence the name leave-one-out. Corresponding to the 20 images from DRIVE Train dataset, 20 such
+training/validation datasets are thus generated. Each training
+dataset is then subjected to feature ranking using the minimalredundancy-maximal-relevance (mRMR) criterion [31].
+The mRMR criterion is based on mutual information from
+the individual features, such that, the features are ranked based
+on the top combination of features that have maximum relevance with the sample class labels and minimum redundancy.
+The mRMR criterion is chosen for feature ranking over other
+ranking strategies such as F-score or AdaBoost [30] since the
+neighborhood-based pixel features are mutually dependent, and
+the mRMR criterion aims at maximizing the information from
+
+ROYCHOWDHURY et al.: BLOOD VESSEL SEGMENTATION OF FUNDUS IMAGES BY MAJOR VESSEL EXTRACTION AND SUBIMAGE
+
+Fig. 3. Mean ACC and pixel classification error obtained on the validation
+images in the second cross-validation step. Maximum ACC and minimum classification error occurs with the top eight voted features and classifier threshold
+of 0.92.
+
+these dependent features instead of ranking features independently.
+Once the features from the training dataset are ranked, GMM
+classifiers are trained using the top “F” ranked features, and the
+classifier is tested on the validation dataset. As F is varied from
+1 to 57, and the threshold for GMM classifier is varied from 0
+to 1 in increments of 0.01, we observe that the highest mean
+ACC = 0.9541 and least mean classification error = 0.0961
+occurs at a threshold of 0.94 with a combination of top 12
+features.
+Since the feature ranking is done separately for each of the 20
+training/validation datasets, hence the top 12 features appearing
+in each of the 20 sets may be different. To identify the optimal feature set that are common to all the training/validation
+datasets, feature voting is performed. We observe that by selecting the top F features for each of the 20 training/validation
+datasets, F1 unique features are identified across the 20 training
+datasets. By varying F = [2, 3, 4, 5, 6, 7, 8, 9, 10], we observe
+the variation in the number of uniquely identified features is
+F1 = [9, 10, 11, 16, 20, 23, 27, 31, 33]. Here, we observe that by
+selecting the top five features for each training dataset, a total of
+16 features are uniquely identified. The number of occurrences
+for each of these 16 features among the 20 training/validation
+datasets is considered as the feature vote. These 16 features are
+ranked in decreasing order of their feature vote. In the second
+cross-validation step, these top 16 voted features are reanalyzed
+by leave-one-out cross validation.
+For the second cross-validation step, 20 training/validation
+datasets are regenerated using the top 16 voted features and
+the mean ACC and classification error on the validation images
+are shown in Fig. 3. In Fig. 3, we observe that, the highest
+mean ACC = 0.9540 and lowest mean pixel classification error
+= 0.1067 occurs at a threshold of 0.92 with a combination of top
+eight features. These top eight voted features and their respective
+votes are given in Table I. At the end of the cross validation,
+eight top features identified include four neighborhood-based
+features and four gradient-based features. These eight features
+will henceforth be used for classification of vessel pixels from
+the vessel subimage derived from test datasets.
+IV. EXPERIMENTAL EVALUATION AND RESULTS
+The performance of the proposed vessel segmentation algorithm is evaluated using the segmented vasculature and the
+
+1123
+
+manually marked vessels by the human observers. While manual vessel segmentation can take more than 2 h [25], automated
+vessel segmentation algorithms aim to reduce the manual labor
+while maintaining acceptable accuracy of vessel segmentation.
+All prior works have used the manual segmentations of the first
+human observer for segmentation performance analysis. The
+vessel segmentation performance of the second human observer
+with respect to the first human observer within the retinal region
+is used to standardize the segmentation process.
+The performance metrics for assessing the efficiency of the
+vessel segmentation is computed in terms of the number of vessel pixels that are correctly classified as vessels (true positives,
+TP), or nonvessels (true negatives, TN), pixels falsely classified as vessels (false positives, FP), and pixels falsely classified
+as nonvessels (false negatives, FN). Thus, the performance metrics are: pixel-based sensitivity (SEN), specificity (SPEC), ACC
+of vessel segmentation along with the area under the receiver
+operating characteristic curve (AUC) obtained by varying the
+threshold in a GMM classifier in steps of 0.02 in range [0,1]
+[11]. The vessel segmentation time required per image in seconds for implementing the proposed segmentation system in
+MATLAB on a Laptop with Intel Core i3 processor, 2.6 GHz,
+and 2 GB RAM is also recorded. The performance metrics of
+the proposed system are also compared to existing works in the
+followingsections.
+For complete assessment of the proposed supervised vessel
+segmentation algorithm, we performed the following three sets
+of experimental evaluations. In the first experiment, the performance metrics of the overall vessel segmentation algorithm is
+analyzed for all the three datasets. In the second experiment,
+the dependence of the training dataset on the vessel segmentation algorithm is analyzed by interchanging the training and test
+datasets. In the third experiment, the performance of blood vessel segmentation in the peripapillary region is analyzed to assess
+the importance of the proposed vessel segmentation system for
+retinal abnormality detection.
+A. Vessel Segmentation Performance
+For the proposed vasculature segmentation algorithm, the
+GMM classifier is trained once with 8 pixel-based features using the vessel subimages from the DRIVE Train set of images
+and then subsequent testing of vessel segmentation performance
+is performed on images from the DRIVE Test, STARE, and
+CHASE_DB1 datasets, separately. In the proposed approach,
+the GMM classifier aids segmentation of fine blood vessels
+only and hence it does not need to be retrained on incoming test
+dataset samples. This reduces the dependency of the proposed
+segmentation algorithm on the training dataset when compared
+to existing supervised approaches, where test images are subsampled to retrain classifiers [10] [27]. Since GMM classifiers
+are probabilistic in nature, the vessel segmentation ACC varies
+with the threshold. The receiver operating characteristic (ROC)
+curves in Fig. 4 demonstrate the variation in SEN and SPEC
+of vessel segmentation as classifier threshold varies. We observe that the DRIVE Train dataset achieved highest segmentation ACC at a threshold on 0.92 but the test datasets do not
+achieve best segmentation SEN/SPEC at threshold probability
+0.92. For the DRIVE Test, STARE and CHASE_DB1 datasets,
+
+1124
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+TABLE I
+OPTIMAL FEATURE SET IDENTIFIED BY FEATURE VOTING AND LEAVE-ONE-OUT DOUBLE CROSS VALIDATION
+Rank
+1
+2
+3
+4
+5
+6
+7
+8
+
+Vote
+
+Feature
+
+Meaning
+
+20
+17
+13
+12
+7
+6
+6
+6
+
+f 3 (3)
+gh v
+gv
+f 1 (5)
+gh
+f 2 (5)
+f 5 (5)
+gh h
+
+Maximum pixel value in a square window of side length 3.
+Second-order gradient in horizontal and vertical directions.
+First-order gradient in the vertical direction.
+Mean pixel value within a square window of side length 5.
+First-order gradient in the horizontal direction.
+Standard deviation of pixels within a square window of side length 5.
+Relative neighborhood discriminator in a square window of side length 5.
+Second-order gradient in the horizontal direction.
+
+Fig. 4. ROC curves for blood vessel segmentation on DRIVE test dataset and
+STARE dataset.
+
+the optimal threshold probability values are [0.92, 0.86, 0.82],
+respectively.
+The performance of blood vessel segmentation for the three
+test datasets is given in Table II. To analyze the incremental
+importance of the proposed supervised method over baseline
+unsupervised approaches, the high-pass filtered image H in (1)
+and the tophat transformed image T in (2) are thresholded at
+pixel values in increments of 0.01 in the range [0, 1]. These
+baseline unsupervised approaches have the highest mean ACC
+for all the three datasets at threshold probabilities of approximately [0.36, 0.44] for the high-pass filtered image H and tophat
+transformed image T , respectively.
+In Table II, we observe that the baseline high-pass filtered
+image and top-hat transformed image can achieve up to 93%
+vessel segmentation accuracy across all the datasets. However,
+further improvement in vessel segmentation ACC and SEN is
+observed by the proposed major vessel extraction followed by
+classification of the pixels from the vessel subimage. This observation is analogous with the work in [27], where SVM classifier
+is shown to improve the segmentation performance when compared to unsupervised line detector models.
+Also, in Table II, we observe for the retinal images with abnormalities due to pathology, such as bright or red lesions as in the
+STARE Abnormal dataset, the baseline unsupervised models H
+and T introduce a lot of false positives by including the lesions
+
+as a part of the vasculature, thereby incurring a low segmentation ACC. In such cases, the proposed method first extracts
+the major vessel regions, followed by classification of the fine
+vessel pixels using neighborhood-based and gradient-based features. Large lesion regions or bright region edges are removed
+in this classification step and hence, the proposed approach has
+higher segmentation ACC than the baseline models.
+The images from the CHASE_DB1 dataset correspond to retinal photographs from children that are centered at the papilla.
+These images have deeper pigmentation than the other datasets
+that causes false positive pixels to get introduced by the baseline models. In this case, the proposed method has a superior
+segmentation ACC due to the classification of vessel subimages.
+Next, the performance and segmentation time of the proposed
+blood vessel segmentation algorithm in comparison with existing vessel segmentation methods are shown in Table III.
+From Table III, we observe that the proposed vessel segmentation algorithm outperforms most of the existing methods
+on the DRIVE Test dataset in terms of segmentation ACC and
+AUC. However, on the STARE dataset, the accuracy of the proposed algorithm is outperformed in terms of ACC and AUC
+by the existing methods Lam et al. [19] and Fraz et al. [10].
+The method Marin et al. [11] has better AUC and the method
+Ricci et al. [27] has better ACC. The method by Lam et al. [19]
+uses a perceptive transform model to handle abnormal images
+specifically and incurs considerably high computational complexity in this process. The method by Fraz et al. [10] uses
+complex decision tree-based classifiers for vessel classification,
+and hence it suffers from high computational complexity and
+test data dependence. The proposed approach of segmenting
+the major vessel pixels and fine vessel pixels separately incurs
+lower computational complexity and consistent segmentation
+ACC. The method by Marin [11] trains neural network classifiers on a few hand-picked image pixels from the DRIVE Train
+dataset and classifies major vessel pixels and fine vessel pixels
+using the same 7-D feature set. Hence, the optimal threshold
+for vessel-pixel classification varies significantly with varying
+FOVs of the test dataset, i.e., threshold for DRIVE Test dataset
+and STARE datasets are 0.63 and 0.91, respectively. Since the
+proposed method applies classification for only for the fine vessel pixels, hence the optimal classification thresholds are observed to be less variable, thereby increasing the robustness of
+the proposed method with respect to the existing methods. The
+method by Ricci et al. [27] trains support vector machine (SVM)
+classifiers using 20 000 manually segmented randomly chosen
+
+ROYCHOWDHURY et al.: BLOOD VESSEL SEGMENTATION OF FUNDUS IMAGES BY MAJOR VESSEL EXTRACTION AND SUBIMAGE
+
+1125
+
+TABLE II
+PERFORMANCE OF THE PROPOSED METHOD ON THE TEST DATASETS
+Data
+DRIVE Test
+
+STARE
+
+STARE Normal
+
+STARE Abnormal
+
+CHASE_DB1
+
+Segmentation
+
+AUC
+
+ACC
+
+SEN
+
+SPEC
+
+Time(s)
+
+Second Observer
+High-Pass Filter (H)
+Tophat Transform(T)
+Proposed
+Second Observer
+High-Pass Filter (H)
+Tophat Transform (T)
+Proposed
+Second Observer
+High-Pass Filter (H)
+Tophat Transform (T)
+Proposed
+Second Observer
+High-Pass Filter (H)
+Tophat Transform (T)
+Proposed
+Second Observer
+High-Pass Filter (H)
+Tophat Transform (T)
+Proposed
+
+0.9061
+0.9408
+0.962
+–
+0.9426
+0.9280
+0.9688
+–
+0.9480
+0.9355
+0.9768
+–
+0.9365
+0.9133
+0.9596
+–
+0.9052
+0.9196
+0.9532
+
+0.9485 (0.0049)
+0.938 (0.047)
+0.937 (0.008)
+0.9519 (0.005)
+0.9356 (0.013)
+0.9317 (0.015)
+0.9265 (0.014)
+0.9515 (0.013)
+0.931 (0.01)
+0.9390 (0.009)
+0.9300 (0.008)
+0.9576 (0.005)
+0.9402 (0.014)
+0.9243 (0.017)
+0.9229 (0.017)
+0.9453 (0.016)
+0.9593 (0.0068)
+0.9295 (0.006)
+0.9292 (0.006)
+0.9530 (0.005)
+
+0.7798 (0.058)
+0.5982 (0.055)
+0.5871 (0.076)
+0.7249 (0.0481)
+0.9024 (0.054)
+0.5936 (0.088)
+0.5535 (0.090)
+0.7719 (0.071)
+0.9353 (0.015)
+0.603 (0.060)
+0.5593 (0.067)
+0.801 (0.061)
+0.8694 (0.059)
+0.5842 (0.116)
+0.5477 (0.113)
+0.7428 (0.070)
+0.8286 (0.052)
+0.5256 (0.038)
+0.5626 (0.052)
+0.7201 (0.0385)
+
+0.973 (0.0081)
+0.9854 (0.074)
+0.9868 (0.007)
+0.983 (0.0071)
+0.939 (0.018)
+0.9788 (0.016)
+0.9777 (0.012)
+0.9726 (0.012)
+0.9304 (0.011)
+0.9912 (0.003)
+0.9868 (0.003)
+0.9785 (0.006)
+0.9477 (0.019)
+0.9663 (0.024)
+0.9686 (0.021)
+0.9718 (0.015)
+0.9723 (0.0099)
+0.9762 (0.004)
+0.9713 (0.003)
+0.9824 (0.004)
+
+0.34 (0.04)
+0.65 (0.08)
+3.115 (0.7641)
+–
+0.39 (0.04)
+0.87 (0.09)
+6.695 ( 2.417)
+–
+0.39 (0.04)
+0.87 (0.09)
+5.031 (1.325)
+–
+0.39 (0.04)
+0.87 (0.09)
+8.358 (2.104)
+–
+1.49 (0.08)
+0.87 (0.09)
+11.711 (2.515)
+
+Mean performance metrics and their standard deviation is given in ().
+
+TABLE III
+COMPARATIVE PERFORMANCE OF PROPOSED MODEL WITH EXISTING WORKS ON THE DRIVE AND STARE DATASETS
+Test Data:
+
+DRIVE
+
+Test
+
+STARE
+
+Method
+
+ACC
+
+SPEC
+
+SEN
+
+AUC
+
+Time
+
+ACC
+
+SPEC
+
+SEN
+
+AUC
+
+Time
+
+System
+
+Hoover et al. [13]
+Jiang et al. [20]
+Niemeijer et al. [24]
+Staal et al. [25]
+Mendonca et al. [15]
+Soares et al. [26]
+Ricci et al. [27]
+Lam and Yan [18]
+Al-Diri et al.[21]
+Lam et al. [19]
+Budai et al.(2010)[22]
+Budai et al.(2013)[23]
+Marin et. al. [11]
+Miri et al. [16]
+Fraz et al. [10]
+Proposed
+
+–
+0.891
+0.942
+0.944
+0.945
+0.946
+0.959
+–
+–
+0.947
+0.949
+0.957
+0.945
+0.943
+0.948
+0.952
+
+–
+0.90
+0.969
+0.977
+0.976
+0.978
+0.972
+–
+0.955
+–
+0.968
+0.987
+0.98
+0.976
+0.981
+0.983
+
+–
+0.83
+0.689
+0.719
+0.734
+0.733
+0.775
+–
+0.728
+–
+0.759
+0.644
+0.706
+0.715
+0.74
+0.725
+
+–
+0.932
+0.93
+0.952
+–
+0.961
+0.963
+–
+–
+0.961
+–
+–
+0.958
+–
+0.974
+0.962
+
+–
+8-36 s
+–
+15 min
+2.5 min
+3 min
+–
+–
+11 min
+13 min
+11 s
+1.04 s
+∼90 s
+∼50 s
+∼100 s
+3.11 s
+
+0.927
+0.901
+–
+0.952
+0.944
+0.948
+0.965
+0.947
+–
+0.957
+0.938
+0.938
+0.952
+–
+0.953
+0.951
+
+0.81
+0.90
+–
+0.981
+0.973
+0.975
+0.939
+–
+0.968
+–
+0.975
+0.982
+0.982
+–
+0.976
+0.973
+
+0.65
+0.857
+–
+0.697
+0.699
+0.72
+0.903
+–
+0.752
+–
+0.651
+0.58
+0.694
+–
+0.755
+0.772
+
+0.75
+0.929
+–
+0.961
+–
+0.967
+0.968
+0.939
+–
+0.974
+–
+–
+0.977
+–
+0.976
+0.969
+
+5 min
+8-36 s
+–
+15 min
+3 min
+3 min
+–
+8 min
+–
+13 min
+16 s
+1.31 s
+∼90 s
+–
+∼100 s
+6.7 s
+
+Sun SPARCstation 20
+600 MHz PC
+–
+1.0 GHz, 1 GB RAM
+3.2 GHz, 980 MB RAM
+2.17 GHz, 1 GB RAM
+–
+1.83 GHz, 2 GB RAM
+1.2 GHz
+1.83 GHz, 2 GB RAM
+2.0 GHz, 2 GB SDRAM
+2.3 GHz, 4 GB RAM
+2.13 GHz, 2 GB RAM
+3 GHz, 1 GB RAM
+2.27 GHz, 4 GB RAM
+2.6 GHz, 2 GB RAM
+
+pixels from the DRIVE and STARE dataset separately. This
+method requires SVM classifiers to be retrained for any new
+test dataset and it suffers from computational complexity due to
+the SVM classifier.
+The proposed method incurs low computational complexity
+since the major vessels are extracted by an unsupervised approach followed by supervised identification of fine blood vessel
+segments, thereby significantly reducing in the number of pixels
+under classification. However, segmentation time is dependent
+not only on algorithmic complexity but also on the implementation software and platform. The unsupervised methods by Budai
+et al. [22] and Budai et al. [23] achieve vessel segmentation in
+the least time since these methods are implemented using C++,
+while all the other methods in Table III are implemented using
+MATLAB.
+
+B. Cross Training by Interchanging the Training/Test Data
+The dependence of the proposed segmentation method on the
+training dataset is demonstrated by interchanging the training
+and test datasets and analyzing the change in mean and standard
+deviation of the vessel segmentation ACC in Table IV. As the
+training data are changed, the classifier threshold is determined
+by leave-one out cross validation on the training set of images.
+By training on the DRIVE Test, STARE, and CHASE_DB1
+datasets, the threshold probabilities were found to be 0.94, 0.9,
+and 0.8, respectively.
+From the second column in Table IV, we observe that by
+training the GMM classifier on pixels from the STARE and
+CHASE_DB1 dataset and testing the classifier on the DRIVE
+Test set of images, the mean ACC varies by 0.01% (0.9493
+
+1126
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+TABLE IV
+VESSEL CLASSIFICATION ACC BY CROSS TRAINING
+Train Data
+
+DRIVE Test
+STARE
+CHASE_DB1
+
+Test Data
+DRIVE Test
+NA
+0.9494 (0.0072)
+0.9493 (0.0071)
+
+STARE
+0.951 (0.013)
+NA
+0.9535 (0.016)
+
+CHASE_DB1
+0.952 (0.005)
+0.9486 (0.011)
+NA
+
+TABLE V
+SEGMENTATION PERFORMANCE WITH CROSS TRAINING IN TERMS OF MEAN
+ACC GIVEN FOR TEST DATA (TRAINING DATA)
+Method
+
+Marin et al.[11]
+Ricci et al.[27]
+Fraz et al.[10]
+Proposed
+
+DRIVE Test
+
+STARE
+
+CHASE_DB1
+
+(STARE)
+0.9448
+0.9266
+0.9456
+0.9494
+
+(DRIVE Test)
+0.9526
+0.9452
+0.9493
+0.951
+
+(STARE)
+–
+–
+0.9415
+0.9486
+
+to 0.9494). The third column demonstrates that by varying the
+training dataset from DRIVE Test to CHASE_DB1 and testing
+the classifier on STARE set of images, the ACC varies by 0.25%
+(0.951 to 0.9535). The fourth column demonstrates that by varying the training dataset from DRIVE Test to STARE and testing
+the classifier on the CHASE_DB1 image set, the ACC varies
+by 0.34% (0.9486 to 0.952). Thus, the variation in ACC for
+each Test dataset by varying the training dataset is considerably
+small, which leads to low dependence on training data and high
+robustness of the proposed algorithm. Next, the performance
+of cross training of the proposed algorithm is compared with
+existing methods in Table V.
+From Table V, we observe that by cross training, the absolute ACC variations between DRIVE Test and STARE datasets
+incurred by the Marin et al. [11] method, Ricci et al. [27]
+method, Fraz et al. method [10], and the proposed method are
+0.78%, 1.86%, 0.37%, and 0.16%, respectively. Also, the absolute ACC variation between the STARE and CHASE_DB1
+dataset by cross training is observed to be 0.78% for the Fraz.
+et al. [10] method, and 0.24% for the proposed algorithm. Thus,
+the segmentation performance of the proposed method has lower
+dependence on the training dataset when compared to the existing methods since the segmentation ACC remains significantly
+consistent when the training dataset is changed.
+C. Peripapillary Vessel Analysis
+In retinal fundus images, the blood vessels in and around
+the optic disc are referred to as the peripapillary blood vessels.
+Many retinal abnormalities such as proliferative DR (PDR),
+glaucoma, central retinal vein occlusion, cilio retinal artery occlusion can lead to changes in the blood vessel structure mainly
+in the peripapillary region. For instance, neovascularization at
+the disc (NVD) caused due to PDR is evident if new blood vessels are visible within 1-optic disc diameter (1-DD) centered at
+the papilla [32]. For this purpose, the images from the DRIVE,
+STARE, and CHASE_DB1 dataset were manually annotated
+for the optic disc boundary and optic nerve head in each image,
+
+and then, a mask was created centered at the optic nerve head
+with 1-DD radius to extract the peripapillary region. The first
+19 images from the STARE vessel segmentation dataset contain
+the peripapillary region and hence peripapillary vessel detection
+was performed on these 19 images only.
+The segmented vessel images using the Marin et al. method
+[11], Soares et al. method [26], Jiang et al. method [20], and
+Staal et al. method [25] are downloaded from the respective
+websites for comparison. Next, the performance of the proposed vessel segmentation method in comparison with existing
+methods and the more detailed second human observer annotations for the STARE dataset is analyzed. The segmented vessel
+images are compared to the segmentation results produced by
+the Marin et al. method [11], Soares et al. method [26], and
+Hoover et al. method [13].
+We compute the performance of peripapillary vessel segmentation for the three datasets with respect to the two human observers in Table VI. We observe that for the DRIVE Test dataset,
+the proposed segmentation algorithm results in 0.1% (with respect to Marin et al. [11]) to 6.1% (with respect to Jiang et al.
+[20]) improvement in vessel accuracy when compared to existing methods using the first human observer annotations, and
+0.8% to 7.0% improvement against the same methods using the
+second human observer.
+For the STARE dataset, the proposed vessel segmentation
+achieves 3.3% (with respect to Marin et al. [11]) to 8.2% (with
+respect to Hoover et al. [13]) improvement in vessel accuracy
+when compared to existing methods using the first human observer annotations, and 4.5% (with respect to Soares et al. [26])
+to 5.4% (with respected to Hoover et al. [13]) improvement using the second human observer. For the CHASE_DB1 dataset,
+peripapillary vessel segmentation accuracy greater than 83% is
+achieved with respect to both human observers.
+V. DISCUSSION AND CONCLUSION
+The most important feature of the proposed segmentation algorithm is separate segmentation of major vessel and fine vessel
+regions. Major vessels regions are identified as the intersecting
+regions between thresholded versions of two preprocessed images, i.e., the high-pass filtered image and tophat transformed
+image. The pixel threshold “p” can be varied across images to
+increase or decrease the number of pixels identified as major
+vessels. If the number of major vessel pixels is decreased by
+varying the pixel thresholds for the two preprocessed images,
+then the number of pixels subjected to classification in the vessel
+subimage increase. This process will aid automated segmentation of very fine vessel branches that are necessary for detecting
+retinal abnormalities such as intraretinal microvascular abnormalities (IRMA) or vessel beading.
+In the second stage of the proposed algorithm, the major vessels are removed from the thresholded preprocessed images to
+1 Available
+
+at http://www.uhu.es/retinopathy/eng/bd.php
+at
+http://sourceforge.net/apps/mediawiki/retinal/index.php
+?title=Segmentation results
+3 Available at http://www.isi.uu.nl/Research/Databases/DRIVE/browser.php
+4 Available at http://www.parl.clemson.edu/ ahoover/stare/probing/index.
+html
+2 Available
+
+ROYCHOWDHURY et al.: BLOOD VESSEL SEGMENTATION OF FUNDUS IMAGES BY MAJOR VESSEL EXTRACTION AND SUBIMAGE
+
+TABLE VI
+Peripapillary Vessel Analysis
+Method
+
+Marin et al. [11]
+Soares et al. [26]
+Jiang et al. [20]
+Staal et al. [25]
+Proposed
+Marin et al. [11]
+Soares et al. [26]
+Hoover et al. [13]
+Proposed
+Proposed
+
+First Observer
+DRIVE Test
+0.9141 (0.0165)
+0.9116 (0.0178)
+0.8625 (0.0261)
+0.9103 (0.0202)
+0.9150 (0.0233)
+STARE
+0.8053 (0.0372)
+0.8038 (0.0480)
+0.7685 (0.0341)
+0.8322 (0.0291)
+CHASE_DB1
+0.8393 (0.0205)
+
+Second Observer
+
+0.9189 (0.0177)
+0.9167 (0.0141)
+0.8656 (0.0243)
+0.9146 (0.0176)
+0.9261 (0.0201)
+0.7189 (0.0584)
+0.7239 (0.0536)
+0.7179 (0.0387)
+0.7571 (0.0588)
+0.8478 (0.0146)
+
+ACC and the standard deviation is given in () with respect
+to the two human observers.
+
+TABLE VII
+SEGMENTATION PERFORMANCE ON THE STARE ABNORMAL DATASET
+Method
+Hoover et al. [13]
+Jiang et al. [20]
+Mendonca et al. [15]
+Soares et al. [26]
+Vermeer et al. [17]
+Marin et al. [11]
+Lam and Yan [18]
+Lam et al. [19]
+Proposed
+
+ACC
+
+AUC
+
+Time
+
+0.9211
+0.9352
+0.9426
+0.9425
+0.9287
+0.9510
+0.9474
+0.9556
+0.9453
+
+0.7590
+0.9343
+–
+0.9571
+0.9187
+–
+0.9392
+0.9707
+0.9596
+
+5 min
+8–36 s
+3 min
+3 min
+–
+90 s
+8 min
+13 min
+8.36 s
+
+1127
+
+In this paper, we have identified a set of eight features that discriminate nonvessel pixels from fine vessel pixels in the vessel
+subimage. These eight features are ranked based on the mRMR
+criterion since the neighborhood-based features were mutually
+dependent and since the number of vessel and nonvessel pixels from the vessel subimages obtained from the DRIVE Train
+dataset were almost equally weighted.
+The proposed segmentation method outperforms most existing methods for the ten abnormal retinal images with pathology
+in the STARE Abnormal dataset as shown in Table VII. The
+method by Marin et al. [11], Lam and Yan [18], and Lam et al.
+[19] have higher segmentation ACC or AUC than the proposed
+method, but they incur higher computational complexity as compared to the proposed approach.
+The next most significant feature of the proposed method
+is the high accuracy of peripapillary blood vessel extraction
+that makes the proposed segmentation algorithm very useful for
+computer-aided screening for patients with PDR, glaucoma, and
+retinal vein occlusions.
+The low computational complexity and low dependence on
+training data make the proposed algorithm ideal for integration
+with retinal screening systems. Future work will be directed
+toward combining the proposed algorithm with DR screening
+systems such as [8] to detect neovascularization in the peripapillary region, and to reduce false positives while detecting red
+lesions. Also, the proposed method will be further fine-tuned
+for automated extraction of vessels in wide-field fundus images
+with 200◦ FOV.
+ACKNOWLEDGMENT
+The authors are grateful to the anonymous reviewers for their
+numerous constructive comments.
+
+generate a vessel subimage. A GMM classifier with two Gaussians is then used to identify the fine vessel pixels in this vessel
+subimage. Since the number of vessel pixels subjected to classification is lowered by major vessel region removal, hence the
+dependence of the classifier on training data is lower when compared to existing supervised methods that classify the complete
+vasculature [11] [27], [10]. Future work will be directed toward analyzing the variations in computational complexity and
+segmentation performance for the proposed method using other
+classifiers and GMM models with a mixture of more than 2
+Gaussians [26].
+The proposed vessel segmentation method not only achieves
+consistent vessel segmentation ACC of 95%, but it also ensures
+extraction of fine vessel branches. In Table III, we observe that
+the existing methods in Budai et al. [23], Marin et al. [11], and
+Staal et al. [25] have comparable segmentation ACC, but lower
+SEN and comparable or higher SPEC when compared to the
+proposed approach. Thus, for the analysis of abnormalities in the
+fine blood vessels, the proposed approach is preferable over the
+other methods with lower SEN. However, the method by Ricci
+et al. [27] demonstrates higher SEN but lower SPEC than the
+proposed approach. The proposed approach is preferable over
+this method in retinal images with significantly large number of
+red lesions in the vicinity of the vasculature, since it introduces
+lesser false vessel pixels in the final segmented blood vessels.
+
+REFERENCES
+[1] M. D. Abrmoff, M. K. Garvin, and M. Sonka, “Retinal imaging and image
+analysis,” IEEE Trans. Med. Imag., vol. 3, pp. 169–208, Jan. 2010.
+[2] CDC, (2011, Mar.). Diabetic retinopathy. Atlanta, GA: National for
+chronic disease prevention and health promotion [Online]. Available:
+http://www.cdc.gov/visionhealth/pdf/factsheet.pdf
+[3] H. M. Pakter, S. C. Fuchs, M. K. Maestri, L. B. Moreira, L. M. Dei Ricardi,
+V. F. Pamplona, M. M. Oliveira, and F. D. Fuchs, “Computer-assisted
+methods to evaluate retinal vascular caliber: What are they measuring?”
+Investigative Ophthalmol. Visual Sci., vol. 52, no. 2, pp. 810–815, 2011.
+[4] K. Kotliar, E. Nagel, W. Vilser, S.-F. Seidova, and I. Lanzl, “Microstructural alterations of retinal arterial blood column along the vessel axis in
+systemic hypertension,” Investigative Ophthalmol. Visual Sci., vol. 51,
+no. 4, pp. 2165–2172, 2010.
+[5] A. Kochkorov, K. Gugleta, C. Zawinka, R. Katamay, J. Flammer, and
+S. Orgul, “Short-term retinal vessel diameter variability in relation to
+the history of cold extremities,” Investigative Ophthalmol. Visual Sci.,
+vol. 47, no. 9, pp. 4026–4033, 2006.
+[6] E. Nagel, W. Vilser, and I. Lanzl, “Age, blood pressure, and vessel diameter
+as factors influencing the arterial retinal flicker response,” Investigative
+Ophthalmol. Visual Sci., vol. 45, no. 5, pp. 1486–1492, 2004.
+[7] S. Roychowdhury, D. D. Koozekanani, and K. K. Parhi, “Screening fundus
+images for diabetic retinopathy,” in Proc. Conf. Record 46th Asilomar
+Conf. Signals, Syst. Comput., 2012, pp. 1641–1645.
+[8] S. Roychowdhury, D. Koozekanani, and K. Parhi, “Dream: Diabetic
+retinopathy analysis using machine learning,” IEEE J. Biomed. Health
+Informat., no. 99, Dec. 2013, doi: 10.1109/JBHI.2013.2294635.
+[9] R. Perfetti, E. Ricci, D. Casali, and G. Costantini, “Cellular neural networks with virtual template expansion for retinal vessel segmentation,”
+IEEE Trans. Circuits Syst. II: Exp. Briefs, vol. 54, no. 2, pp. 141–145,
+Feb. 2007.
+
+1128
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+[10] M. Fraz, P. Remagnino, A. Hoppe, B. Uyyanonvara, A. Rudnicka,
+C. Owen, and S. Barman, “An ensemble classification-based approach
+applied to retinal blood vessel segmentation,” IEEE Trans. Biomed. Eng.,
+vol. 59, no. 9, pp. 2538–2548, Sep. 2012.
+[11] D. Marin, A. Aquino, M. Gegundez-Arias, and J. Bravo, “A new supervised method for blood vessel segmentation in retinal images by using gray-level and moment invariants-based features,” IEEE Trans. Med.
+Imag., vol. 30, no. 1, pp. 146–158, Jan. 2011.
+[12] M. Fraz, P. Remagnino, A. Hoppe, B. Uyyanonvara, A. Rudnicka,
+C. Owen, and S. Barman, “Blood vessel segmentation methodologies
+in retinal images a survey,” Comput. Methods Programs Biomed., vol.
+108, no. 1, pp. 407–433, 2012.
+[13] A. Hoover, V. Kouznetsova, and M. Goldbaum, “Locating blood vessels
+in retinal images by piecewise threshold probing of a matched filter response,” IEEE Trans. Med. Imag., vol. 19, no. 3, pp. 203–210, Mar. 2000.
+[14] R. Rangayyan, F. Oloumi, F. Oloumi, P. Eshghzadeh-Zanjani, and F. Ayres,
+“Detection of blood vessels in the retina using gabor filters,” in Proc.
+Canadian Conf. Electr. Comput. Eng., 2007, pp. 717–720.
+[15] A. Mendonca, and A. Campilho, “Segmentation of retinal blood vessels by
+combining the detection of centerlines and morphological reconstruction,”
+IEEE Trans. Med. Imag., vol. 25, no. 9, pp. 1200–1213, Sep. 2006.
+[16] M. Miri, and A. Mahloojifar, “Retinal image analysis using curvelet transform and multistructure elements morphology by reconstruction,” IEEE
+Trans. Biomed. Eng., vol. 58, no. 5, pp. 1183–1192, May 2011.
+[17] K. A. Vermeer, F. M. Vos, H. G. Lemij, and A. M. Vossepoel, “A model
+based method for retinal blood vessel detection,” Comput. Biol. Med.,
+vol. 34, no. 3, pp. 209–219, 2004.
+[18] B. Lam, and H. Yan, “A novel vessel segmentation algorithm for pathological retina images based on the divergence of vector fields,” IEEE Trans.
+Med. Imag., vol. 27, no. 2, pp. 237–246, Feb. 2008.
+[19] B. Lam, Y. Gao, and A.-C. Liew, “General retinal vessel segmentation
+using regularization-based multiconcavity modeling,” IEEE Trans. Med.
+Imag., vol. 29, no. 7, pp. 1369–1381, Jul. 2010.
+[20] X. Jiang, and D. Mojon, “Adaptive local thresholding by verificationbased multithreshold probing with application to vessel detection in retinal images,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 25, no. 1,
+pp. 131–137, Jan. 2003.
+[21] B. Al-Diri, A. Hunter, and D. Steel, “An active contour model for segmenting and measuring retinal vessels,” IEEE Trans. Med. Imag., vol. 28,
+no. 9, pp. 1488–1497, Sep. 2009.
+[22] A. Budai, G. Michelson, and J. Hornegger, “Multiscale blood vessel segmentation in retinal fundus images,” Proc. Bildverarbeitung fr die Med.,
+pp. 261–265, Mar. 2010.
+[23] A. Budai, R. Bock, A. Maier, J. Hornegger, and G. Michelson, “Robust vessel segmentation in fundus images,” Int. J. Biomed. Imag., article
+154860, 2013, doi: 10.1155/2013/154860.
+[24] M. Niemeijer, J. Staal, B. van Ginneken, M. Loog, and M. D. Abramoff,
+“Comparative study of retinal vessel segmentation methods on a new
+publicly available database,” in Proc. SPIE,, vol. 5370, pp. 648–656,
+2004.
+[25] J. Staal, M. Abramoff, M. Niemeijer, M. Viergever, and B. van Ginneken,
+“Ridge-based vessel segmentation in color images of the retina,” IEEE
+Trans. Med. Imag., vol. 23, no. 4, pp. 501–509, Apr. 2004.
+[26] J. Soares, J. Leandro, R. Cesar, H. Jelinek, and M. Cree, “Retinal vessel
+segmentation using the 2-D Gabor wavelet and supervised classification,”
+IEEE Trans. Med. Imag., vol. 25, no. 9, pp. 1214–1222, 2006.
+[27] E. Ricci, and R. Perfetti, “Retinal blood vessel segmentation using line
+operators and support vector classification,” IEEE Trans. Med. Imag.,
+vol. 26, no. 10, pp. 1357–1365, Oct. 2007.
+[28] K. U. Research. (2011, Jan.). Chase_db1 [Online]. Available:
+http://blogs.kingston.ac.uk/retinal/chasedb1/.
+[29] A. Frame, P. Undrill, M. Cree, J. Olson, K. McHardy, P. Sharp, and
+J. Forrester, “A comparison of computer based classification methods
+applied to the detection of microaneurysms in ophthalmic fluorescein
+angiograms,” Comput. Biol. Med., vol. 28, pp. 225–238, May. 1998.
+[30] V. Cherkassky, and F. Mullier, Learning from Data. New York, NY, USA:
+Wiley, 1998.
+[31] H. Peng, F. Long, and C. Ding, “Feature selection based on mutual information criteria of max-dependency, max-relevance, and min-redundancy,”
+IEEE Trans. Pattern Anal. Mach. Intell., vol. 27, no. 8, pp. 1226–1238,
+Aug. 2005.
+[32] K. Goatman, A. Fleming, S. Philip, G. Williams, J. Olson, and P. Sharp,
+“Detection of new vessels on the optic disc using retinal photographs,”
+IEEE Trans. Med. Imag., vol. 30, no. 4, pp. 972–979, Apr. 2011.
+
+Sohini Roychowdhury (SM’12) received the B.Tech
+degree in electronics and communication engineering
+from Birla Institute of Technology, Pilani, India, in
+2007, and the M.S. degree in electrical engineering
+from Kansas State University, Manhattan, KS, USA,
+in 2010. She is currently working toward the doctoral
+degree in the Electrical and Computer Engineering
+Department, University of Minnesota Twin Cities,
+Minneapolis, MN, USA.
+Her research interests include image processing,
+signal processing, pattern recognition, machine learning, and artificial intelligence.
+Dara D. Koozekanani (M’14) received the Ph.D. degree in biomedical engineering from the Ohio State
+University, Columbus, OH, USA, in 2001. He subsequently received the M.D. degree from the Ohio
+State University in 2003, completed ophthalmology
+residency from the University of Wisconsin, Madison, WI, USA, in 2007, and completed a surgical
+retinal fellowship from the Medical College of Wisconsin, Wauwatosa, WI, USA, in 2009.
+His research dissertation involved application of
+computer vision techniques to the analysis of optical coherence tomography images. He is currently an Assistant Professor of
+ophthalmology at the clinical faculty at the University of Minnesota. He sees
+patients with a variety of surgical and medical retinal diseases. His research interests include application of ophthalmic imaging technologies and automated
+analysis of those images.
+Keshab K. Parhi (S’85–M’88–SM’91–F’96) received the B.Tech. degree from the Indian Institute
+of Technology Kharagpur, Kharagpur, India, in 1982,
+the M.S.E.E. degree from the University of Pennsylvania, PA, USA, in 1984, and the Ph.D. degree from
+the University of California, Berkeley, CA, USA, in
+1988.
+He has been with the University of Minnesota,
+Minneapolis, since 1988, where he is currently Distinguished McKnight University Professor and Edgar
+F. Johnson Professor in the Department of Electrical
+and Computer Engineering. He has published more than 500 papers, has authored the textbook VLSI Digital Signal Processing Systems (New York, NY,
+USA: Wiley, 1999) and coedited the reference book Digital Signal Processing for
+Multimedia Systems (New York, NY, USA: Marcel Dekker, 1999). His research
+addresses VLSI architecture design and implementation of signal processing,
+communications and biomedical systems, error control coders and cryptography
+architectures, high-speed transceivers, secure computing and molecular computing. He is also currently working on intelligent classification of biomedical
+signals and images, for applications such as seizure prediction and detection,
+schizophrenia classification, biomarkers for mental disorder, brain connectivity,
+and diabetic retinopathy screening.
+Dr. Parhi received the numerous awards including the 2013 Distinguished Alumnus Award from IIT Kharagpur, Kharagpur, India, 2013 Graduate/Professional Teaching Award from the University of Minnesota, 2012
+Charles A. Desoer Technical Achievement Award from the IEEE Circuits and
+Systems Society, the 2004 F. E. Terman Award from the American Society of
+Engineering Education, the 2003 IEEE Kiyo Tomiyasu Technical Field Award,
+the 2001 IEEE W. R. G. Baker Prize Paper Award, and a Golden Jubilee Medal
+from the IEEE Circuits and Systems Society in 2000. He has served on the Editorial Boards of the IEEE TRANSACTIONS ON CIRCUITS AND SYSTEMS—PART I:
+REGULAR PAPERS and IEEE TRANSACTIONS ON CIRCUITS AND SYSTEMS—PART
+II: EXPRESS BRIEFS, IEEE TRANSACTIONS ON VERY LARGE SCALE INTEGRATION (VLSI) SYSTEMS, IEEE TRANSACTIONS ON SIGNAL PROCESSING, IEEE
+SIGNAL PROCESSING LETTERS, and IEEE SIGNAL PROCESSING MAGAZINE, and
+served as the Editor-in-Chief of the IEEE TRANSACTIONS ON CIRCUITS AND
+SYSTEMS—PART I: REGULAR PAPERS (2004–2005 term), and currently serves
+on the Editorial Board of the Springer Journal of VLSI Signal Processing Systems. He has served as a Technical Program Cochair of the 1995 IEEE VLSI
+Signal Processing Workshop and the 1996 ASAP Conference, and as the General Chair of the 2002 IEEE Workshop on Signal Processing Systems. He was
+a Distinguished Lecturer for the IEEE Circuits and Systems Society during
+1996–1998. He served as an elected member of the Board of Governors of the
+IEEE Circuits and Systems Society from 2005 to 2007.
+
+

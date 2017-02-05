@@ -1,0 +1,671 @@
+1122
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+Online Decoding of Hidden Markov Models for Gait
+Event Detection Using Foot-Mounted Gyroscopes
+Andrea Mannini, Vincenzo Genovese, and Angelo Maria Sabatini, Senior Member, IEEE
+
+Abstract—In this paper, we present an approach to the online
+implementation of a gait event detector based on machine learning algorithms. Gait events were detected using a uniaxial gyro
+that measured the foot instep angular velocity in the sagittal plane
+to feed a four-state left–right hidden Markov model (HMM). The
+short-time Viterbi algorithm was used to overcome the limitation
+of the standard Viterbi algorithm, which does not allow the online decoding of hidden state sequences. Supervised learning of
+the HMM structure and validation with the leave-one-subject-out
+validation method were performed using treadmill gait reference
+data from an optical motion capture system. The four gait events
+were foot strike, flat foot (FF), heel off (HO), and toe off. The accuracy ranged, on average, from 45 ms (early detection, FF) to 35 ms
+(late detection, HO); the latency of detection was less than 100 ms
+for all gait events but the HO, where the probability that it was
+greater than 100 ms was 25%. Overground walking tests of the
+HMM-based gait event detector were also successfully performed.
+Index Terms—Gait event detection, gyroscope, hidden Markov
+model (HMM), human movement analysis, short-time Viterbi
+(STV).
+
+I. INTRODUCTION
+INIATURE solid-state inertial sensors (accelerometers
+and gyros) are steadily gaining interest because of their
+low cost, limited power consumption, and the good user compliance when they are embedded in wearable sensor systems [1].
+Hence, the application niches of these sensors extend well beyond the traditional fields of, e.g., automotive industry and
+factory automation, to include consumer and medical electronics [2]. Currently, several human-centric applications of
+miniature solid-state inertial sensors are investigated, including
+ambulatory human movement analysis [3], [4], activity monitoring and classification [5], [6], assessment of neurological
+and movement disorders [7], [8], and mixed and augmented
+reality [9], [10].
+
+M
+
+Manuscript received January 3, 2013; revised September 30, 2013; accepted
+November 30, 2013. Date of publication December 5, 2013; date of current
+version June 30, 2014. This work was supported in part by the Italian Ministry
+of Education and Research through the relevant interest national project (PRIN)
+“A quantitative and multi-factorial approach for estimating and preventing the
+risk of falls in the elderly people,” and by the EC funded project I-DONTFALL “Integrated prevention and Detection sOlutioNs Tailored to the population
+and Risk Factors associated with FALLs” (CIP-ICT-PSP-2011–5–297225). The
+views expressed in this paper are not necessarily those of the I-DONT-FALL
+consortium.
+The authors are with the BioRobotics Institute, Scuola Superiore Sant’Anna,
+Pisa 56127, Italy (e-mail: andrea.mannini@sssup.it; vincenzo.genovese@sssup.
+it; sabatini@sssup.it).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2293887
+
+Using inertial sensors (either accelerometer or gyros)
+mounted on different parts of the lower limbs (waist, thigh,
+shank, and foot) is widespread in systems for ambulatory human movement analysis and, of interest in this paper, for gait
+events and phases detection. Henceforth, with the term gait
+event detection, we denote the detection of a sequence of events
+that can be used to specify the transition from one gait phase
+to another during each gait cycle. The detection of gait events
+and phases is of great importance in nearly all aspects of gait
+analysis and restoration. Gait parameters estimated from detecting gait events and phases can be associated with specific
+functional impairments and are widely used to quantify improvements occurring after therapeutic and rehabilitative treatment [11]–[14]. Gait event detectors that address the online
+detection of the phases of gait are essential components of controllers for functional electrical stimulation (FES) gait [15]. Either simple stance/swing detectors or more complex detectors
+that added further states for FES control through the detection of
+multiple gait phases (e.g., loading response, midstance, terminal
+stance, preswing, and swing) have been considered [16], [17].
+Moreover, even pedestrian navigation systems that estimate the
+location of a walking person using on-foot inertial measurement
+units (IMUs)—a.k.a, on-foot PNS—may benefit from the capability of accurately detecting gait phases online, in particular
+midstance and preswing. This is because, in order to decrease
+navigation errors, angular rates and linear accelerations are integrated in the time interval from the heel-off event to the successive heel off (HO) of the same foot [18] from initial conditions
+that are specified when the foot is steady during midstance [19].
+In this paper, we disclose the method of online gait event and
+phase detection we intend to exploit in an ongoing project concerning the development of an on-foot IMU-based PNS. The
+gait events we are interested in detecting are heel strike (HS),
+flat foot (FF), HO, and toe off (TO); HS and TO detection allows
+us to estimate temporal parameters of gait, such as stride time,
+cadence, and normalized stance; FF and HO detection will be
+used to estimate parameters of gait, such as stride length and
+walking speed, using strap-down navigation techniques.
+The inertial sensor-based approach to gait event detection
+presents many advantages over using, e.g., optical motion capture systems and shoe-mounted force sensors: compared to optical motion capture systems, the inertial sensor-based approach
+allows measurements to be made in unrestrained conditions;
+compared to insole force sensors, the durability of inertial sensors is higher and factors, such as load changes and weight
+shifting, have no influence on the measurements [20]. Although
+accelerometers are the most popular choice among practitioners [21], [22], gyros are also very attractive, because they are
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+MANNINI et al.: ONLINE DECODING OF HIDDEN MARKOV MODELS FOR GAIT EVENT DETECTION USING FOOT-MOUNTED GYROSCOPES
+
+not influenced by gravity, and shock and vibrations affect their
+output less than accelerometers [18].
+As for the gait detection methods, functional data analysis
+(FDA) and, to a more limited extent, machine learning (ML)
+methods have been considered [15]. Usually, FDA methods employ techniques of curve tracing to search for features occurring
+in sensor signals (e.g., by detection of local extrema or threshold
+crossings), while ML methods learn to recognize stable patterns
+that may recur in the signals from a sensor (or combination of
+sensors) due to the cyclical nature of gait.
+Simple threshold rules were applied to the angular velocity
+from a foot-mounted gyro in [18]; a biaxial accelerometer was
+then used for estimating the spatial parameters of gait via strapdown integration. Wavelet transformation and peak detection
+algorithms were applied to the angular velocity from pairs of
+gyros affixed to the thigh and the shank in [23]; the estimation of gait spatial parameters was then performed using simple
+biomechanical models of the lower limb.
+Common to the approaches described in [18] and [23] is
+that careful hand-crafted thresholds were needed to overcome
+variations across different subjects and walking conditions: in
+other words, these are approaches that may suffer from limited
+generalization capabilities. In this regard, ML methods, such as
+adaptive logic networks and fuzzy logic, were shown to outperform FDA methods for their capability of accommodating the
+relatively large stride-to-stride variability observed especially
+in pathologic gait [16], [17]. Recently, a four-state left–right
+hidden Markov model (HMM) was developed in [24] and [25],
+where a sensor unit composed of a foot-mounted uniaxial gyro
+was used for detecting HS, FF, HO, and TO gait events, with
+good results during treadmill walking of healthy subjects; the
+HMM-based method outperformed the threshold-based method
+described in [18].
+Mannini and Sabatini [24], [25] took inspiration from [26],
+where HMMs were applied to identify and segment into strides,
+data from a trunk-mounted IMU in galloping horses. Another
+approach with some resemblance to [24] and [25] was presented in [27], where a body area network composed of eight
+sensor nodes, each with one triaxial accelerometer and one biaxial gyro, was employed to estimate temporal parameters of
+gait using HMM. However, the problem of online decoding
+the HMM hidden states, which is a prerequisite for online operation of a HMM-based gait event detector, has never been
+considered in biomechanics research [24]–[27]. In the attempt
+to fill the gap, we propose a solution to this problem starting
+from the same sensor unit and HMM structure as in our previous work on gait events and phases detection. To this aim,
+we adopted the short-time Viterbi (STV) algorithm [28] to this
+particular problem. STV is a variant of the Viterbi algorithm,
+namely the standard method used to estimate the sequence of
+hidden states in HMMs [29], which cannot indeed operate in
+online conditions [30]. The tradeoff between accuracy and latency of detection by the STV algorithm was analyzed offline;
+the performance of the method was compared with that of the
+Viterbi algorithm using data that were logged to the memory
+of the ARM-based controller of the sensor unit during treadmill
+walking trials (HMM learning and validation). The decoder running the validated STV algorithm was ported to the ARM-based
+
+1123
+
+Fig. 1. (a) Screenshot of the GUI on the smartphone. (b) GPS-assisted geolocalization on an outdoor athletic track.
+
+controller; overground walking trials were then performed for
+testing, during which sensor data and the estimated gait events
+were transmitted to a smartphone running Android as operating
+system (OS) for graphical rendering and user feedback.
+II. MATERIALS AND METHODS
+A. System Architecture and Experimental Procedure
+A wireless IMU developed in our laboratory was used for
+carrying out the experiments described in this paper. The sensor unit is endowed with a 32-bit ARM Cortex processor (NXP
+Semiconductors LPC1768). Data logging to ARM memory was
+allowed with sampling rates up to 500 Hz for the IMU sensors: a
+digital triaxial gyro (InvenSense ITG-3200), with measurement
+range ±2000◦ /s, and 16-bit analog-to-digital conversion, a digital triaxial accelerometer (Bosch BMA180), and a digital triaxial
+magnetic sensor (Honeywell HMC5843). The IMU board was
+equipped with a Bluetooth transceiver for data communication
+with a host computer; the host computer was an Android-based
+smartphone (Samsung Galaxy SII, GT-I9100), to which IMU
+sensor data were delivered at a maximum rate of 100 Hz.
+Data visualization on the smartphone was possible through a
+graphical user interface (GUI) written in Java using the Eclipse
+integrated development environment; the GUI also allowed to
+set parameters such as sensor measurement range, filter type,
+and bandwidth (e.g., second-order Butterworth filter; cut-off
+frequency 25 Hz), sampling rate, recording time (see Fig. 1);
+moreover, data from inertial sensors embedded in the smartphone and the built-in GPS receiver could be polled and timestamped for joint analyses with data from the external sensors.
+The integrity of the wireless communication link was successfully checked by comparing the frequency at which samples
+were received with the nominal sampling frequency.
+A first dataset for algorithm validation was acquired focusing on treadmill walking whereas a second dataset concerned
+overground walking tests on a straight corridor.
+
+1124
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+Fig. 2. Subject performs his walking trial on the treadmill machine, while the
+STV decoder running in the ARM-based controller of the sensor unit estimates
+gait phases and events. Measured angular velocity data and estimated gait events
+are transmitted to the smartphone using a Bluetooth connection. The angular
+velocity is plotted on the smartphone with different colors that are based on
+which gait phase is detected by the STV decoder.
+
+Nine young healthy subjects were recruited to perform treadmill walking after providing informed consent. The IMU was
+placed on the instep of the (left) foot and attached to the shoe
+with a Velcro strap; no particular care was taken to align the
+IMU with respect to the anatomical planes of the body. Subjects
+were asked to perform walking trials at five speeds (from 4 to
+8 km/h, at 1 km/h steps). Each walking trial lasted 2 min (see
+Fig. 2).
+Only the output from the gyro whose sensitivity axis was approximately oriented in the mediolateral direction was collected
+in the experiments of this paper. Data from the second minute
+were retained for HMM training and validation. A six-camera
+optical motion capture system (Vicon-460, Vicon, Oxford, U.K.)
+was used to collect data at 100 Hz from two reflective markers (diameter: 14 mm) that were placed in correspondence of
+the heel and the second metatarsal head of the instrumented
+foot. The IMU and Vicon data streams were electronically time
+synchronized.
+A stride was defined as the period from the beginning of the
+stance phase at FS to the beginning of the next stance phase of
+the same leg. The temporal parameters of gait were the stride
+time, namely the time between two consecutive strikes of the
+instrumented foot, and the relative stance, namely the time between FS and TO of the instrumented foot, normalized to the
+stride time of the same gait cycle. The kinematic data from the
+optical motion capture system were used to create the reference
+data needed to learn and validate the HMM: FS, FF, and HO
+were estimated using the method described in [20]; TO was
+estimated using the method described in [31].
+As for the overground walking trials, recruited subjects were
+asked to walk along a 45-m long corridor two times at their
+freely selected walking speed. They wore the IMU in the same
+configuration as described previously. Data from nine subjects
+were considered; only two of these subjects were also involved
+in the treadmill walking trials.
+Reference points (waypoints) at relative distances of 5 m were
+marked along the corridor. One researcher annotated the time
+instants when subjects crossed each waypoint using a computercontrolled stopwatch. Gyro data corresponding to the time inter-
+
+val from the 5-m waypoint to the 40-m waypoint were retained
+for further processing (steady-state walking conditions). Average walking speed for each 5-m segment of the traveled path
+was then computed.
+The STV algorithm running on the ARM-based controller of
+the sensing units employed the HMM learnt using all treadmill
+walking data. The HMM-based gait event detector delivered
+the estimated stride time and relative stance of each detected
+stride. In Figs. 3 and 4, two flowcharts are reported to illustrate
+the various steps of the proposed method. In Fig. 3, the model
+validation using treadmill walking data is described while the
+flowchart of Fig. 4 indicates how overground walking data were
+processed. Detailed information concerning validation and test
+activities will be reported in following sections.
+B. HMM-Based Method for Gait Event Detection
+The observation that, during normal walking, the angular
+velocity of the foot in the medial lateral direction repeats itself
+indefinitely, with a sequence of humps and plateaus [24], [25], is
+central to the use of HMMs for gait event detection (see Fig. 5).
+Inter/intrasubject variability and walking conditions (e.g.,
+speed and grade) do not influence the angular velocity patterns
+too much, unless the foot contact with the ground occurs at the
+toe rather than at the heel. In Fig. 5(a), the angular velocity was
+sketched in a plot where the abscissa was normalized to the
+stride time—0% corresponded to FS (HS).
+Since four gait phases were extracted from the reference data,
+one state was associated with each of these phases using a
+Q-state left–right model (Q = 4) [see Fig. 5(b)]. Hence, the
+state S1 was paired to the gait phase delimited by the FS and FF
+events; further pairings were S2 : FF–HO; S3 : HO–TO; and S4 :
+TO–FS of the next stride.
+The emissions from each state were feature vectors that included, at any sampling time, the measured angular velocity
+and the angular acceleration, computed by first-order finitedifference approximation; the statistical properties of emissions
+were modeled using a bivariate Gaussian mixture of three components for each state.
+The availability of reference data allowed us to perform HMM
+supervised training. The HMM parameters were trained using
+a leave-one-subject-out validation approach: the HMM training
+was performed using data from all subjects but one, the HMM
+testing was then applied using data from the remaining subject.
+This procedure was repeated for all subjects in turn. The performance metrics, see next, were then averaged and presented. As
+compared with other validation methods, e.g., the popular N fold cross validation, the leave-one-subject-out cross validation
+allowed to stress the inter-subject generalization capabilities of
+the HMM-based gait event detector [25].
+C. Online Decoding of HMM Hidden States
+The HMM structure establishes a connection between states
+of the model and gait phases; gait phase detection is achieved
+by estimating the most likely sequence of hidden states given
+an observed sequence of feature vectors, henceforth referred
+
+MANNINI et al.: ONLINE DECODING OF HIDDEN MARKOV MODELS FOR GAIT EVENT DETECTION USING FOOT-MOUNTED GYROSCOPES
+
+1125
+
+Fig. 3. Flowchart that illustrates how treadmill walking data were used to validate the methodology. Treadmill data were split between a training set and a test
+set, using data from one subject as the test set. A model was then trained after applying the preprocessing steps (feature extraction) and tested using the feature
+vectors available from the test set. Model performance assessment was based on the availability of reference data from the optoelectronic movement analysis
+system. The procedure was repeated so as each subject had the chance to become a tester; hence, a number of models equal to the number of subjects were trained.
+
+Fig. 4. Flowchart that illustrates how overground test data were processed. A model was trained using treadmill walking data from all subjects. It was then
+applied to the overground walking dataset. Temporal gait parameters were evaluated by the HMM-based gait event detector and experimenter annotations were
+used for performance assessment.
+
+to as the optimal path, using the Viterbi algorithm (maximum
+a posteriori criterion).
+The Viterbi algorithm is a dynamic programming technique
+to find the optimal path by tracing back through an array of
+back-pointers, starting from the end of the observed sequence
+of feature vectors. Two main steps are involved in the Viterbi
+algorithm [29]. First, a forward pass is performed to compute
+δ(t, i) which is the score of the best path ending in state Si at
+time t, namely the value of the partial likelihood for each hidden
+state i (i = 1, . . . , Q), given observed feature vectors up to the
+time t (t = 1, . . . , T ). A back-pointer ψ(t, i) is computed to
+indicate the best state predecessor, namely the most probable
+predecessor of the state Si at time t. Second, a backtracking
+search on ψ(t, i) starts from the state with the highest score at
+the final time T to find the optimal path. In spite of the fact
+
+that the Viterbi algorithm is very efficient computationally, its
+standard implementation is not suitable for online decoding of
+hidden states, since the backtracking search must start from the
+end of the observed sequence of feature vectors.
+Different approaches have been proposed to deal with this
+problem. A simple windowing approach consists of processing
+windows containing a finite set of observed feature vectors; before moving the window ahead in time, just the first decoded
+states are accepted. The delay of the decoding process is dependent on the window length: any attempt to decrease the delay
+is thus at the expense of the decoding accuracy. Another approach consists of comparing different partial path hypotheses,
+which are constructed by incorporating new feature vectors in a
+variable-length window, until the different hypotheses converge
+to a unique solution [28], [30].
+
+1126
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+Fig. 5. (a) Stride-normalized plot of the angular velocity measured from the
+foot-mounted gyro. (b) HMM is a left–right model with four states, each of one
+associated with a gait phase (see text).
+
+In the STV algorithm when a feature vector is available at time
+t, it is entered in a data buffer whose length (BL) is variable and
+the computation of the best score proceeds as in the standard
+Viterbi algorithm [29]. It is the backtracking search to mark the
+difference between the two algorithms. Rather than restricting
+the search from the state with the highest score at time t as in
+the standard Viterbi algorithm, all states are considered in turn
+as the starting point for the backtracking search in the statetime lattice. The local paths for each starting point are then
+backtracked. Suppose that a fusion point (FP) is reached at the
+τ th sample of the buffer [an FP is where the local paths from all
+states at time t converge; see Fig. 6(a)]: the decoded sequence
+of states from the previous FP up to the current FP is retained
+as the optimal subpath delivered by the STV algorithm. Then,
+the feature vectors that lead up to the FP are eliminated from
+the buffer and the prior probabilities are set to one for the state
+occupied at the FP and zero elsewhere [see Fig. 6(b)]. This is
+done, differently to [28], so as to preserve the left–right structure
+of the model chosen for analyzing gait in this paper. The STV
+decoder is forced indeed to start from the state at the FP, jumping
+to the next state allowed by the HMM structure. Otherwise, the
+chance would exist to resume the path from any state. In [28], the
+transition probabilities were not allowed to be zero to retain the
+chance to reach all states from the FP on. Iteratively, the feature
+vectors at each sampling time are appended to the data buffer,
+whose BL is due then to increase [see Fig. 6(c)]; when a new FP
+is found, the buffer content is updated as described previously,
+in preparation for the next iteration [see Fig. 6(d)]. A maximum
+BLM AX is specified for bounding the delay of detection [28]:
+when the data buffer is full, the (suboptimal) path with the
+highest score is accepted, and the whole procedure starts anew
+from the last feature vector.
+The HMM-based gait event detector including the standard
+Viterbi was implemented in MATLAB using the HMM toolbox
+[32]. The STV algorithm and the scripts used to train and cross
+validate the HMM structure were also written in MATLAB.
+
+Fig. 6. State-time lattice of the STV algorithm. The dot size of each lattice point is proportional to the partial likelihood value. (a) Back-tracking
+search and FP detection; (b) path saving and buffer update, upon FP detection;
+(c) back-tracking search and FP detection; and (d) path saving and buffer update,
+upon FP detection.
+
+Finally, the STV algorithm learned using all treadmill data was
+ported to the ARM-based controller of the sensor unit using a
+dynamic link library written in ANSI-C, for further testing of
+the method.
+D. Performance Assessment
+The STV algorithm was validated using two performance
+metrics: 1) the timing error e(i, k) incurred in estimating when
+the ith gait phase transition took place in the kth gait stride,
+namely the difference between estimated and reference gait
+events tSTV (i, k) and tREF (i, k); 2) the latency l(i, k) namely
+the difference between when tSTV (i, k) was actually delivered
+by the STV algorithm and tREF (i, k). The two performance
+metrics were assessed for different values of the maximum
+data buffer length. Furthermore, the STV algorithm was tested
+against the standard Viterbi algorithm for any difference in the
+optimal paths, which was quantified by counting how many
+times the two methods were in disagreement divided by the
+observed data sequence length.
+The Viterbi decoding in this scenario is known to be affected by erroneous events that consist of missed and additionally detected gait strides (deletions and insertions, respectively) [24], [25]. Deletions and insertions were quantified by
+the number of occurrences of each of them, and then normalized
+
+MANNINI et al.: ONLINE DECODING OF HIDDEN MARKOV MODELS FOR GAIT EVENT DETECTION USING FOOT-MOUNTED GYROSCOPES
+
+1127
+
+watch read-outs and the fractional number of strides counted in
+each 5-m segment of the walked path. In presenting the data of
+Table II, cadence and stride time were defined using all four detected gait events as stride markers (previously, only the FS gait
+event was considered for this purpose). This generalization was
+helpful to assess the good behavior of the HMM-based method.
+It is worth noting that during the overground walking trials no
+insertions were introduced by the HMM-based gait event detector. In Table III, the gait temporal parameters are reported for
+the two subjects that were involved in both the treadmill and
+the overground walking trials (the FS was used as the stride
+marker).
+The experimental data distributions of the gait temporal parameters estimated in the two walking conditions (treadmill and
+overground) were tested for normality using normal q − q plots,
+as shown in Fig. 9.
+IV. DISCUSSION
+
+Fig. 7. Stride-normalized whisker plots for (a) reference gait events and
+(b) gait events estimated by the STV algorithm (BL M A X = 100 ms).
+(c) Stride-normalized plot reporting the median value of the BL, in samples.
+
+to the number of correctly detected gait strides. The timing error
+statistics were computed after outlying values of estimated gait
+events had been excluded.
+III. RESULTS
+The whisker plots reported in Fig. 7(a) and (b) help showing how the estimated gait events were scattered along the
+stride-normalized time axis relative to the beginning of each
+detected stride [0% and 100% were marked by the reference
+FS in Fig. 7(a) and by the FS estimated by the STV algorithm
+in Fig. 7(b)]. Fig. 7(c) shows the stride-normalized BL, which
+indicates how many feature vectors were needed by the STV
+algorithm, on average, to estimate the gait phase at each point
+along the gait cycle when BLM AX = ∞.
+Table I reports the results of the leave-one-subject-out validation study, for different values of BLM AX . The timing error
+provides an assessment of the accuracy of the HMM-based gait
+event detector in capturing the reference gait events when the
+STV algorithm was used for decoding the sequence of hidden
+states; the latency yields the information needed to grasp the
+feasibility of an online implementation of the STV algorithm.
+Finally, the empirical distribution of the values of the latency
+for the various gait events was investigated from data across
+subjects and walking speeds [see Fig. 8].
+The values of the cadence, stride time, and relative stance
+estimated for the overground walking trials are reported in Table II, together with the corresponding values estimated during
+the treadmill walking trials at the walking speeds closest to the
+freely selected walking speed (4.8 ± 0.5 km/h). The values of
+the cadence and stride time were also estimated using the stop-
+
+The stride-normalized whisker plots of Fig. 7(a) and (b) indicate the extent to which the HMM-based gait event detector
+performs in detecting gait events as compared to the reference
+detector. The two methods performed similarly, although the
+stride-normalized plot may be somewhat misleading since the
+FS event is frozen at 0% on the abscissa axis.
+An interesting point of discussion comes from analyzing the
+plot of Fig. 7(c): the length of the data buffer used by the STV
+algorithm is an indicator of how much information was needed
+before the uncertainty was reduced to a point where a decision
+could be made. In our left–right model, the transition probabilities from one state to the next were typically low [25]. For
+example, given a stride lasting about 1 s and a sampling rate
+of 100 Hz, only four state transitions were expected over the
+span of about 100 feature vectors. Hence, the HMM training
+gave rise to transition probability matrices that are almost diagonal. This implies that the model uncertainty was substantial
+at the time when a gait phase transition actually occurred; in
+fact, several feature vectors from the new gait phase had to be
+acquired before the a posteriori probabilities were modified to
+the extent needed for a reliable FP detection. In Fig. 7(c), three
+peaks are present. The first two peaks are related to the FS and
+FF estimation processes, while the third peak merges the HO
+and TO estimation processes.
+Remarkably, the path estimated by the STV algorithm was
+the same as the standard Viterbi algorithm for BLM AX greater
+than 200 ms (20 feature vectors at 100 Hz), which means that
+their timing error statistics were identical. The path difference
+between the STV and the standard Viterbi algorithms was very
+small when BLM AX was greater than 100 ms, and generally
+small down to BLM AX = 60 ms. Moreover, the timing errors
+incurred by the STV algorithm did not significantly depend
+on BLM AX . This was especially true for the FF, HO, and TO
+gait events; in particular, the HO gait event was the one whose
+estimate was affected by the higher variability (about 60 ms),
+with a late detection of 35 ms, on average; the best case occurred
+for the TO gait event, where the variability was about 12 ms
+(early detection of about 8 ms, on average).
+
+1128
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+TABLE I
+PERFORMANCE METRICS OF THE HMM-BASED GAIT EVENT DETECTOR FOR TREADMILL DATA
+
+Fig. 8. Empirical distributions of the latency in determining the gait events FS, FF, HO, and TO. Left column: BL M A X = ∞; right column: BL M A X = 100 ms.
+The estimated probability, expressed in percent, that the latency in estimating the gait event exceeds 100 ms is reported close to the vertical line.
+TABLE II
+STATISTICS OF THE GAIT TEMPORAL PARAMETERS, EXPRESSED AS MEAN
+VALUE ± SD
+
+TABLE III
+STATISTICS OF THE GAIT TEMPORAL PARAMETERS FOR SUBJECTS WHO
+PERFORMED BOTH TREADMILL AND OVERGROUND WALKING TRIALS
+
+The systematic error incurred by the STV algorithm in determining the time instant of foot contact at the beginning of
+the stance phase corresponded to an early detection going from
+
+about 16 ms (BLM AX = ∞) to 26 ms (BLM AX = 100 ms),
+with standard deviations of 15 and 69 ms, respectively. In [25],
+the HMM-based gait event detector in its offline version outperformed a reference threshold-based method, i.e., [18], showing
+higher generalization capabilities against intra- and intersubject
+
+MANNINI et al.: ONLINE DECODING OF HIDDEN MARKOV MODELS FOR GAIT EVENT DETECTION USING FOOT-MOUNTED GYROSCOPES
+
+1129
+
+Fig. 9. q − q plots of temporal parameters of gait: stride time on the left column and relative stance on the right column. Parameters are estimated during
+overground and treadmill walking trials performed in almost identical conditions of speed/cadence (Subject #2, 110 bpm). (a) Quantiles of the overground data
+are represented compared with quantiles of the treadmill walking data. (b) Experimental quantiles against the theoretical quantiles from a normal distribution.
+
+variability. Results in this paper show that the STV performs
+similarly to the standard Viterbi: since the procedures of algorithmic validation in this paper are the same used in [25], where
+the HMM-based method was shown to outperform the reference threshold-based method described in [18], we conclude
+that the STV as well would perform better than this reference
+threshold-based method, although we have not implemented it
+in this paper. A comparison of the HMM-based method for gait
+event detection with other ML methods is beyond the scope
+of this paper; it should also be observed that the ML methods
+that are already available in the literature are based on sensor
+configurations different from ours, e.g., [16], [17].
+It comes as no surprise that the latency did depend on
+BLM AX , as shown in Table I. Higher latencies affected the
+determination of FS, HO, and TO gait events, which was also
+confirmed by looking at Fig. 7(c). In particular, the uncertainty
+affecting the detection of the HO gait event was reflected in
+both the high variability of gyro signals observed in Fig. 5(b),
+and in the difficulties encountered by the same reference method
+[see Fig. 7(a)]. Interestingly, the empirical distributions of Fig. 8
+tended to be less skewed when BLM AX = 100 ms, as compared
+with the case when the BL constraint was inactive. Moreover,
+the probability that the latency values were less than 100 ms
+increased with lower values of BLM AX . This probability was
+
+about 0.75 for the HO event and 1 for the remaining gait events,
+in a situation where the penalty in terms of detection accuracy
+was minimal as compared with BLM AX = ∞. To put the matter
+in another perspective, a latency in determining the HO event of
+about 100 ms was suggested in [33] as acceptable in prostheses
+that attempt to provide foot drop correction via FES. This is
+not to say that the proposed method can be used for drop foot
+stimulators as it is: different patterns of angular velocity are expected in pathologic gait compared with the patterns analyzed
+in this paper; hence statistical models adapted to pathologic gait
+are likely to be developed [34]. Moreover, it is reasonable to
+assume that the STV algorithm performance may be improved,
+namely with smaller latency, when more complex sensor configurations, feature vectors, and emission models are considered
+in the HMM development. These issues are the focus of our
+current research.
+The behavior of the HMM-based gait event detector was
+also tested in overground walking conditions. It is still debated
+whether the limb kinematics is modified, and to which extent, in
+overground walking compared to treadmill walking. However,
+we were not able to generate the reference overground walking
+data needed for training and validating the HMM-based gait
+event detector and our aim was simply to check any change
+in the way the proposed method worked, e.g., whether the
+
+1130
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+experimental distribution of temporal parameters of gait (stride
+time and relative stance) changed and to which extent. As shown
+in Tables II and III, the statistics of stride time and relative stance
+did not differ much in both walking conditions, the walking
+speed being almost the same. Moreover, the estimated parameters turned out to be marginally normally distributed, and the
+q − q plots of Fig. 9 did not highlight any difference between
+their experimental distributions in both walking conditions.
+V. CONCLUSION
+The development of a HMM-based method for online detection of gait events and phases has been described. The method
+revolves around a STV algorithm for online decoding of the
+sequence of hidden states using a uniaxial gyro that measured
+the foot instep angular velocity in the sagittal plane. The HMM
+was trained with treadmill walking data and validated using
+the leave-one-subject-out validation method to stress its generalization capabilities across different users. The HMM-based
+gait event detector was also shown accurate and fast during
+overground walking trials. The STV decoder was ported to the
+ARM-based controller of the sensor unit, and a smartphone
+running an Android OS was used for data collection and visualization. The online version of the HMM gait event detector
+performed similarly to the offline version, in terms of estimation
+accuracy. The latencies introduced by the online implementation were small and are deemed acceptable, especially in the
+perspective of developing an on-foot IMU-based PNS for telehealth applications.
+REFERENCES
+[1] G. F. Welch and E. Foxlin, “Motion tracking: No silver bullet, but a respectable arsenal,” IEEE Comput. Graph. Appl., vol. 22, no. 6, pp. 24–38,
+Nov./Dec. 2002.
+[2] N. Barbour and G. Schmidt, “Inertial sensor technology trends,” IEEE
+Sens. J., vol. 1, no. 4, pp. 332–339, Dec. 2001.
+[3] R. Zhu and Z. Zhou, “A real-time articulated human motion tracking
+using tri-axis inertial/magnetic sensors package,” IEEE Trans. Neural
+Syst. Rehabil. Eng., vol. 12, no. 2, pp. 295–302, Jun. 2004.
+[4] S. J. M. Bamberg, A. Y. Benbasat, D. M. Scarborough, D. E. Krebs, and
+J. A. Paradiso, “Gait analysis using a shoe-integrated wireless sensor system,” IEEE Trans. Inf. Technol. Biomed., vol. 12, no. 4, pp. 413–423, Jul.
+2008.
+[5] D. N. Karantonis, M. R. Narayanan, M. Mathie, N. H. Lovell, and
+B. G. Celler, “Implementation of a real-time human movement classifier
+using a triaxial accelerometer for ambulatory monitoring,” IEEE Trans.
+Inf. Technol. Biomed., vol. 10, no. 1, pp. 156–167, Jan. 2006.
+[6] S. J. Preece, J. Y. Goulermas, L. P. J. Kenney, and D. Howard, “A comparison of feature extraction methods for the classification of dynamic
+activities from accelerometer data,” IEEE Trans. Biomed. Eng., vol. 56,
+no. 3, pp. 871–879, Mar. 2009.
+[7] A. Salarian, H. Russmann, F. J. G. Vingerhoets, C. Dehollain, Y. Blanc,
+P. R. Burkhard, and K. Aminian, “Gait assessment in Parkinson’s disease:
+Toward an ambulatory system for long-term monitoring,” IEEE Trans.
+Biomed. Eng., vol. 51, no. 8, pp. 1434–1443, Aug. 2004.
+[8] S. Patel, K. Lorincz, R. Hughes, N. Huggins, J. Growdon, D. Standaert,
+M. Akay, J. Dy, M. Welsh, and P. Bonato, “Monitoring motion fluctuations
+in patients with Parkinson’s disease using wearable sensors,” IEEE Trans.
+Inf. Technol. Biomed., vol. 13, no. 6, pp. 864–873, Nov. 2009.
+[9] E. Foxlin, “Pedestrian tracking with shoe-mounted inertial sensors,” IEEE
+Comput. Graph. Appl., vol. 25, no. 6, pp. 38–46, Nov./Dec. 2005.
+[10] X. Yun and E. R. Bachmann, “Design, implementation, and experimental results of a quaternion-based Kalman filter for human body motion
+tracking,” IEEE Trans. Robot., vol. 22, no. 6, pp. 1216–1227, Dec. 2006.
+[11] H. P. von Schroeder, R. D. Coutts, P. D. Lyden, E. Billings, Jr., and
+V. L. Nickel, “Gait parameters following stroke : A practical assessment,”
+J. Rehabil. Res. Dev., vol. 32, no. 1, pp. 25–31, 1995.
+
+[12] P. A. Goldie, T. A. Matyas, and O. M. Evans, “Gait after stroke: Initial
+deficit and changes in temporal patterns for each gait phase,” Arch. Phys.
+Med. Rehabil., vol. 82, pp. 1057–1065, 2001.
+[13] K. Aminian, C. Trevisan, B. Najafi, H. Dejnabadi, C. Frigo, E. Pavan,
+A. Telonio, F. Cerati, E. C. Marinoni, P. Robert, and P.-F. Leyvraz, “Evaluation of an ambulatory system for gait analysis in hip osteoarthritis and
+after total hip replacement,” Gait Posture, vol. 20, pp. 102–107, 2004.
+[14] J. B. J. Bussmann, K. M. Culhane, H. L. D. Horemans, G. M. Lyons, and
+H. J. Stam, “Validity of the prosthetic activity monitor to assess the duration and spatio-temporal characteristics of prosthetic walking,” IEEE
+Trans. Neural Syst. Rehabil. Eng., vol. 12, no. 4, pp. 379–386, Dec. 2004.
+[15] J. Rueterbories, E. G. Spaich, B. Larsen, and O. K. Andersen, “Methods
+for gait event detection and analysis in ambulatory systems,” Med. Eng.
+Phys., vol. 32, no. 6, pp. 545–552, 2010.
+[16] R. Williamson and B. J. Andrews, “Gait event detection for FES using
+accelerometers and supervised machine learning,” IEEE Trans. Rehabil.
+Eng., vol. 8, no. 3, pp. 312–319, Sep. 2000.
+[17] M. M. Skelly and H. J. Chizeck, “Real-time gait event detection for paraplegic FES walking,” IEEE Trans. Neural Syst. Rehabil. Eng., vol. 9, no. 1,
+pp. 59–68, Mar. 2001.
+[18] A. M. Sabatini, C. Martelloni, S. Scapellato, and F. Cavallo, “Assessment
+of walking features from foot inertial sensing,” IEEE Trans. Biomed. Eng.,
+vol. 52, no. 3, pp. 486–494, Mar. 2005.
+[19] I. Skog, P. Handel, J. O. Nilsson, and J. Rantakokko, “Zero-velocity
+detection—An algorithm evaluation,” IEEE Trans. Biomed. Eng., vol. 57,
+no. 11, pp. 2657–2666, Nov. 2010.
+[20] I. P. I. Pappas, M. R. Popovic, T. Keller, V. Dietz, and M. Morari, “A
+reliable gait phase detection system,” IEEE Trans. Neural Syst. Rehabil.
+Eng., vol. 9, no. 2, pp. 113–125, Jun. 2001.
+[21] A. T. M. Willemsen, F. Bloemhof, and H. B. K. Boom, “Automatic stanceswing phase detection from accelerometer data for peroneal nerve stimulation,” IEEE Trans. Biomed. Eng., vol. 37, no. 12, pp. 1201–1208, Dec.
+1990.
+[22] M. Hanlon and R. Anderson, “Real-time gait event detection using wearable sensors,” Gait Posture, vol. 30, pp. 523–527, 2009.
+[23] K. Aminian, B. Najafi, C. Bula, P. F. Leyvraz, and P. Robert, “Spatiotemporal parameters of gait measured by an ambulatory system using
+miniature gyroscopes,” J. Biomech., vol. 35, no. 5, pp. 689–699, 2002.
+[24] A. Mannini and A. M. Sabatini, “A hidden Markov model-based technique
+for gait segmentation using a foot-mounted gyroscope,” in Proc. IEEE 33th
+Annu. Conf. Eng. Med. Biol. Soc., Boston, MA, USA, 2011, pp. 4369–
+4373.
+[25] A. Mannini and A. Sabatini, “Automatic gait phase segmentation method
+using a hidden Markov model,” Gait Posture, vol. 35, pp. S17–S18, 2012.
+[26] T. Pfau, M. Ferrari, K. Parsons, and A. WIlson, “A hidden Markovmodel based segmentation technique applied to equine inertial sensor
+trunk movement data,” J. Biomech., vol. 41, pp. 216–220, 2008.
+[27] E. Guenterberg, A. Y. Yang, H. Ghasemzadeh, R. Jafari, R. Bajcsy, and
+S. S. Sastry, “A method for extracting temporal parameters based on hidden Markov models in body sensor networks with inertial sensors,” IEEE
+Trans. Inf. Technol. Biomed., vol. 13, no. 6, pp. 1019–1030, Nov. 2009.
+[28] J. Bloit and X. Rodet, “Short-time Viterbi for online HMM decoding:
+Evaluation on a real-time phone recognition task,” in Proc. IEEE Int.
+Conf. Acoust., Speech, Signal Process., Las Vegas, NV, USA, 2008,
+pp. 2121–2124.
+[29] L. R. Rabiner, “A tutorial on hidden Markov models and selected applications in speech recognition,” Proc. IEEE, vol. 77, no. 2, pp. 257–286,
+Feb. 1989.
+[30] H. Ardo, K. Astrom, and R. Berthilsson, “Real time Viterbi optimization of
+hidden Markov models for multi target tracking,” in Proc. IEEE Workshop
+Motion Video Comput., Austin, TX, USA, 2007, pp. 1–8.
+[31] F. Alton, S. Baldey, S. Caplan, and M. C. Morrissey, “A kinematic comparison of overground and treadmill walking,” Clin. Biomech., vol. 13,
+pp. 434–440, 1998.
+[32] K. Murphy. (1998). Hidden Markov Model (HMM) Toolbox for Matlab
+[Online]. Available: http://www.cs.ubc.ca/∼murphyk/Software/HMM/
+hmm.html
+[33] D. Kotiadis, H. J. Hermens, and P. H. Veltink, “Inertial gait phase detection for control of a drop foot stimulator inertial sensing for gait phase
+detection,” Med. Eng. Phys., vol. 32, pp. 287–297, 2010.
+[34] J. Bae and M. Tomizuka, “Gait phase analysis based on a hidden Markov
+model,” Mechatronics, vol. 21, no. 6, pp. 961–970, 2011.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

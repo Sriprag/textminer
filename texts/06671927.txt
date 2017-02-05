@@ -1,0 +1,972 @@
+900
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+An Efficient Finite Element Approach for Modeling
+Fibrotic Clefts in the Heart
+Caroline Mendonca Costa, Fernando O. Campos, Anton J. Prassl, Rodrigo Weber dos Santos,
+Damián Sánchez-Quintana, Helmut Ahammer, Ernst Hofer, and Gernot Plank∗
+
+Abstract—Advanced medical imaging technologies provide a
+wealth of information on cardiac anatomy and structure at a
+paracellular resolution, allowing to identify microstructural discontinuities which disrupt the intracellular matrix. Current stateof-the-art computer models built upon such datasets account for
+increasingly finer anatomical details, however, structural discontinuities at the paracellular level are typically discarded in the
+model generation process, owing to the significant costs which incur when using high resolutions for explicit representation. In this
+study, a novel discontinuous finite element (dFE) approach for discretizing the bidomain equations is presented, which accounts for
+fine-scale structures in a computer model without the need to increase spatial resolution. In the dFE method, this is achieved by
+imposing infinitely thin lines of electrical insulation along edges of
+finite elements which approximate the geometry of discontinuities
+in the intracellular matrix. Simulation results demonstrate that
+the dFE approach accounts for effects induced by microscopic size
+scale discontinuities, such as the formation of microscopic virtual
+electrodes, with vast computational savings as compared to high
+resolution continuous finite element models. Moreover, the method
+can be implemented in any standard continuous finite element code
+with minor effort.
+Index Terms—Bidomain equation, computational efficiency,
+defibrillation, finite element analysis, numerical models, tissue
+structure.
+
+I. INTRODUCTION
+OMPUTATIONAL modeling of cardiac electrophysiology at the tissue and organ scale relies mostly on continuum formulations which characterize emergent bioelectric
+phenomena such as wavefront propagation at a macroscopic
+
+C
+
+Manuscript received July 19, 2013; revised October 21, 2013; accepted
+November 15, 2013. Date of publication November 21, 2013; date of current
+version February 14, 2014. This work was supported by the Austrian Science
+Fund (FWF) under Grants P19993-N15 and SFB F3210-N18, NIH 1RO1 HL
+10119601, SIMNET Styria as well as by FAPEMIG-Brazil. Asterisk indicates
+corresponding author.
+C. M. Costa, F. O. Campos, A. J. Prassl, H. Ahammer, and E. Hofer are
+with the Institute of Biophysics, Medical University of Graz, A-8010 Graz,
+Austria (e-mail: caroline.mendonca-costa@medunigraz.at; fernando.campos@
+medunigraz.at; anton.prassl@medunigraz.at; helmut.ahammer@medunigraz.
+at; ernst.hofer@medunigraz.at).
+R. Weber dos Santos is with the Graduate Program on Computational Modeling, Universidade Federal de Juiz de Fora, Campus Universitário, 36036-330
+Juiz de Fora - MG, Brazil (e-mail: rodrigo.weber@ufjf.edu.br).
+D. Sánchez-Quintana is with the Departamento de Anatomı́a, Biologı́a Celular y Zoologı́a, Universidad de Extremadura, Avenida de la Universidad, 10003
+Caceres, Spain (e-mail: damians@unex.es).
+∗ G. Plank is with the Institute of Biophysics, Medical University of Graz,
+A-8010 Graz, Austria (e-mail: gernot.plank@medunigraz.at).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2292320
+
+size scale. Such models are built upon the assumption of an
+electric syncytium, that is, diffusive material properties of the
+tissue are continuous. The validity of this assumption at a macroscopic size scale is supported by the successful application of
+macroscopic models such as the cardiac bidomain model [1],
+whose predictions are very well in line with experimental observations [2]. When viewed at a finer microscopic size scale
+though, cardiac tissue is a discrete medium in which electrical
+impulses propagate discontinuously [3]. Under healthy conditions during normal propagation there are no direct significant
+manifestations of microscopic discontinuities which would play
+a major role at the tissue and organ scale, however, when external electric fields are applied [4] or when discontinuities become
+more pronounced as it may be the case under pathological conditions, conduction pathways at the microscopic size scale are
+altered to an extent which can cause noticeable effects at the
+macroscopic size scale as well. A particularly important case is
+fibrosis, a degenerative progressive disease in which connective
+tissue invades the intracellular matrix thus interrupting the intracellular space. While such disruptive lines or layers can be very
+thin, longitudinally they may grow over several space constants.
+Such elongated fibrotic inlays can induce discontinuous zig-zag
+propagation patterns which are associated with significant conduction delays [5]. Thus, despite their thinness, such structures
+lead to an apparent conduction slowing which shortens wavelength and induces wavefront fractionation, both factors which
+are known to promote the formation of arrhythmias.
+In continuum models such fine-scale structures are not explicitly accounted for, particularly in larger tissue preparations
+or in whole organ models. The choice of spatial resolution h
+in continuum models is mainly dictated by the physics of the
+model equations and the level of geometric detail one wishes
+to account for. In terms of physical constraints upon h, the fast
+transients involved in electrical activation last less than 1 ms
+which translates into steep wave fronts of extent <1 mm, necessitating high spatiotemporal resolution. Current state-of-the-art
+organ scale models use fairly high paracellular resolutions with
+h ≈ 100 μm which correspond roughly to the length of a single
+cell [6]. While such high resolutions suffice to accommodate
+explicit representations of fine structures such as endocardial
+trabeculae or major vessels in the myocardium, they are insufficient to spatially resolve thin, but elongated fibrotic textures
+which may cause noticeable effects at a global macroscopic size
+scale.
+Using standard continuous finite element (FE) techniques
+structures at such a fine size scale can only be represented explicitly by using sufficiently high spatial resolutions, which may be
+
+0018-9294 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+COSTA et al.: EFFICIENT FINITE ELEMENT APPROACH FOR MODELING FIBROTIC CLEFTS IN THE HEART
+
+901
+
+prohibitive in terms of the computational costs involved. In this
+study, a novel computationally efficient discontinuous FE (dFE)
+bidomain modeling approach is presented, which accommodates fine-scale structural detail without the need to increase spatial resolution. Instead, standard discretizations (h ≈ 100 μm)
+are used upon which the finer structures at size scales  h are
+conformally projected. Insulation is enforced along the conformal projections in the intracellular space through splitting
+of FE nodes, while the interstitial space remains coupled. The
+method provides increased flexibility by allowing to account
+for microstructural details in bidomain simulations with minimal extra computational cost.
+II. METHODS
+A. Discontinuous Finite Element Approach
+The basic idea of the proposed dFE technique is to model microscopic conduction barriers as infinitely thin insulating lines
+or surfaces in a conformal FE mesh. Geometry and topology
+of such barriers are extracted from high-resolution images and
+projected onto a coarse FE mesh by marking those element
+edges/faces which best approximate the topology of conduction barriers. Across the marked edges, electrical insulation of
+the intracellular space is enforced via no-flux boundary conditions which are imposed by decoupling nodes shared between
+adjacent elements. This is achieved by assigning a new nodal
+index to a shared node in a FE located at one side of an insulating line/surface, while keeping the original nodal index at
+the other side. Spatial coordinates of the split nodes remain unchanged, since the width of the isolating structure is assumed to
+be infinitely small. The basic principle is illustrated in Fig. 1(a)–
+(d). Renumbering of nodes 1 and 4 in elements Qd1 and Qd3
+imposes no-flux boundary condition, thus impeding wavefront
+propagation across the insulating boundary. In this study, we aim
+at developing the discontinuous FE method for 2-D meshes. We
+start off from pure quadrilateral meshes which are derived from
+segmented decimated images of histologically processed tissue
+slices.
+B. Governing Equations
+The bidomain equations in the elliptic-parabolic form are
+given by
+ 
+
+
+∇ · σ i ∇Vm
+−∇ · (σ i + σ e ) ∇φe
+=
+(1)
+−∇ · σb ∇φe
+0
+βCm
+
+∂Vm
+= (∇ · σ i ∇φi )
+∂t
+− βIion (Vm , η)
+∂η
+= g(Vm , η)
+∂t
+V m = φi − φ e
+
+(2)
+
+(3)
+(4)
+
+where φi and φe are the intracellular and extracellular potentials,
+respectively, Vm = φi − φe is the transmembrane voltage, σ i
+and σ e are the anisotropic intracellular and extracellular conductivity tensors, respectively, σb is the isotropic conductivity
+
+Fig. 1. Upper panels show element connectivity of continuous FE (left) and
+dFE (right) mesh. Lower panels indicate wave front propagation patterns for
+both cases. In the right dFE panel nodes 1 and 4 are decoupled, preventing
+impulse propagation across the line 1-4-7, only node 7 allows transduction.
+Impact of nodal splitting upon propagation pattern when stimulating node 0 is
+illustrated using artificial isochrones.
+
+of a surrounding bath or of larger interstitial cleft spaces, β
+is the bidomain surface-to-volume ratio, Cm is the membrane
+capacitance per unit area, and Iion is the ionic current density
+which depends on Vm and a state vector η.
+At tissue boundaries, no-flux boundary conditions are imposed for φi , with the potential φe and the normal component
+of the extracellular current being continuous. At boundaries of
+the conductive bath surrounding the tissue, no-flux boundary
+conditions on φe are imposed.
+In a general case, the sizes of intracellular and extracellular
+domain are unequal, necessitating a domain mapping operator
+for data transfer between the domains. This is the case in the
+presence of a bath or larger cleft spaces within the myocardium,
+or, as in this study, when additional insulating boundary conditions are applied to the intracellular domain. The mapping
+operator P is shown in (6), which gives the FE discretization of
+the bidomain equations
+Kie φe = −P (Ki Vm )
+
+(5)
+
+Ki Vm = −βMi Im − Ki (P T φe )
+
+(6)
+
+where K∗ and M∗ are stiffness and mass matrices, respectively,
+with ∗ = e|i being either the extracellular space Ωe or the intracellular space Ωi , P is a prolongation operator from Ωi to Ωe ,
+its transpose P T is a restriction operator from Ωe to Ωi , and Im
+is the transmembrane current.
+In the continuous case in absence of a bath, P and P T are 1:1
+injections. In the presence of a bath, data are mapped 1:1 within
+
+902
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+Fig. 2. Generalized dFE mapping between intracellular domain Ω i , and extracellular domain Ω e in presence of a bath. Source terms from nodes 4 and 9
+of the Ω i grid are mapped onto node 5 of the Ω e grid, i.e., node 5 in domain
+Ω e “sees” two source points. Conversely, nodes 4 and 9 in domain Ω i sense the
+same extracellular potential Φ e from node 5. Nodes which were not split, e.g.
+6, map 1:1 to an extracellular node. Pure bath nodes such as 12 are not mapped.
+
+A representative, artifact-free slice was chosen from which a
+square region of 2000 × 2000 pixels, pixel size of 10 × 10 μm2 ,
+was selected for model construction [see Fig. 3(a)].
+2) Image Segmentation: Trichrome stain labels myocytes
+pinkish-red and connective tissue bluish-green, interstitial cleft
+spaces remain unstained [see Fig. 3(a)]. For the construction of
+a computer model only two spaces are discriminated, the intracellular space consisting of myocytes and the interstitial space
+consisting of cleft space and connective tissue. Fig. 3(b) shows
+binarization results, with connective tissue and cleft spaces appearing in white and myocytes in black.
+3) Downsampling: For the dFE approach, a coarse representation of a domain is needed upon which fine scale details
+are projected. Such a coarse representation was derived from the
+segmented high-resolution image [see Fig. 3(b)] by downsampling the image to 200 × 200 pixels (pixel size 100 × 100 μm2 )
+[see Fig. 3(c)], a standard resolution in state-of-the-art models [6], [7]. This reduction entailed a loss of information. Only
+structures >100 μm were retained and explicitly represented in
+the FE grid, any structures <100 μm disappeared.
+4) Skeletonization: A skeletonization algorithm was employed to extract the network of connective tissue from the
+high-resolution image. Fig. 3(d) shows the skeletonization result. Note that the skeletonized microstructure is visualized as
+thin lines of 1 pixel width. The topology of the connective tissue network is given now as a set of line segments which is a
+suitable format for being projected onto a 2-D FE mesh.
+5) Fiber Detection: Prevailing myocyte orientations a.k.a.
+“fiber orientations” were extracted by converting the color highresolution image to a grayscale image. The grayscale image
+was downsampled and an intensity gradient method [8] was
+applied to both high- and low-resolution images to compute
+fiber orientations.
+D. Mesh Generation and Postprocessing
+
+Fig. 3. (a) Histological image selected for building FE meshes. Image consists
+of 2000 × 2000 pixels (pixel size 10 × 10 μm2 ). (b) Segmentation result for
+high resolution image. (c) Segmentation result for lower resolution image. Image
+consists of 200 × 200 pixels (pixel size 100 × 100 μm2 ). (d) Visualization of
+extracted skeleton showing a magnification of the area indicated by the red
+square in panel B).
+
+the myocardium and no mapping is performed in the bath. In
+the discontinuous case, within the myocardium, data are either
+mapped 1:1 or 1 : n at split nodes, where n is the multiplicity
+of the splitting (see Fig. 2).
+C. Construction of a 2-D Test Case
+1) Sectioning, Histological Staining and Image Acquisition:
+For the sake of testing the proposed dFE method a 2-D test
+case is constructed. Rabbit ventricles were embedded in paraffin
+wax, microtome sliced and stained using Masson’s trichrome
+staining [see Fig. 3(a)]. Slices were imaged at high resolution.
+
+1) Generation of High and Lower Resolution Meshes: Two
+sets of FE meshes were generated directly from the segmented
+images shown in Fig. 3(b) and (c) [9]. In this process, each pixel
+was replaced by a 2-D quadrilateral element of the same size, i.e.,
+10 × 10 μm2 for the high-resolution image and 100 × 100 μm2
+for the low-resolution image. In the FE mesh of the intracellular
+grid only those pixels were included which have been previously
+identified as myocardium, pixels classified as interstitial space or
+connective tissue were discarded whereas in the FE mesh of the
+extracellular grid, all pixels were considered. That is, two grids
+were generated, a high-resolution grid which accounted for all
+structural detail present in the histological images [see Fig. 3(b)],
+and a coarser grid which accounted only for those structures
+which could be spatially resolved at the coarser resolution [see
+Fig. 3(c)].
+2) Skeleton Projection: To account for fine-scale structures
+in the coarse FE mesh the line segments computed during
+the skeletonization procedure are projected onto the mesh [see
+Fig. 4(a)]. In a first sweep of this process, the coarse mesh is
+searched for intersections of element edges and element diagonals with the line segments [see Fig. 4(b)]. Information on
+
+COSTA et al.: EFFICIENT FINITE ELEMENT APPROACH FOR MODELING FIBROTIC CLEFTS IN THE HEART
+
+903
+
+Fig. 5. Comparison between the setups. (a) dCM setup, which consists of the
+projected discontinuities, represented by the red dotted lines, over the CM setup.
+(b) Comparison between the representation of the discontinuous structures on
+the dCM setup and the actual structures on the FM setup.
+
+E. Simulation Setups
+
+Fig. 4. (a) Projection of skeleton onto coarse grid. (b) Search for edge and
+diagonal intersections. (c) Nodes selected for splitting are highlighted in green.
+Diagonals selected for splitting the quadrilateral elements into two triangles are
+highlighted as green lines. (d) Modified grid after nodal and element splitting.
+
+intersections, such as the numbers of two elements sharing an
+intersected edge, the element number of elements with intersected diagonals, and the index of the node closest to the intersection are stored.
+3) Nodal and Element Splitting: By the end of the skeleton projection, all elements with intersections were processed.
+Those nodes in elements with intersections were marked for
+splitting [see Fig. 4(c)]. Depending on number and location of
+marked nodes within the element, different procedures were implemented. In those rare cases where all four nodes of a quad
+were marked, the element was removed from the mesh. Special treatment was implemented for cases when two marked
+nodes were not directly connected by an element edge, i.e., the
+nodes were located at diagonals of a quad. In this case, the FE
+mesh was modified by splitting the quadrilateral element into
+two triangular elements, and by splitting the nodes that span the
+edge shared by the two triangular elements [see Fig. 4(c) and
+(d)]. This procedure allows smoother projections which avoid
+unnecessarily jagged fault lines [see Fig. 4(d)]. In all other
+cases no grid modifications were required since electrical insulation across the assumed conduction barriers can be achieved
+by decoupling along preexisting edges of the quadrilateral
+element.
+By the end of the splitting procedure a hybrid mesh, with
+quadrilateral and triangular elements, is generated. Information
+on nodal splitting is stored in a list, which holds the indices
+of the nodes marked for splitting, the indices of the elements
+where these nodes should be split and the new nodal index that
+should be attributed to these nodes. This list is used as input to
+the simulator to perform the nodal splitting on the fly. The nodal
+splitting is done via renumbering of nodes in elements of the
+intracellular grid.
+
+To evaluate the dFE method three different setups were used:
+1) a fine mesh (FM) consisting of 2000 × 2000 quadrilateral
+elements with an edge length of 10 μm capturing full microstructural detail [see Fig. 3(b)]; 2) a coarser mesh (CM) consisting
+of 200 × 200 quadrilateral elements with an edge length of
+100 μm, where only those major structures were explicitly represented which could be resolved at the lower resolution [see
+Fig. 3(c)]; 3) the CM was used, but the dFE method was applied
+(dCM) which led to the insertion of 18 377 additional nodes. The
+total number of nodes N in each FE grid were 4004001, 40401,
+and 58778 for FM, CM, and dCM, respectively. A comparison
+between the setups is shown in Fig. 5. In panel (A) the discontinuous structures represented by the decoupled nodes are
+presented over the CM. Note that the fine structures present in
+the FM are not present in the CM, but are included as the insulating lines shown in red, that were created by decoupling the
+highlighted nodes. In panel (B) the representation of the discontinuous structures is compared against the actual fine structures
+that are present in the FM. Note that, although the representation is slightly jagged, it matches the original structures fairly
+well. Fine structures that were below 200 μm of diameter were
+removed from the CM and dCM setups to reduce computational
+cost. Such small structures do not induce virtual electrodes polarizations, as shown in [10], and thus can be ignored. Since
+numerical parameters were kept constant throughout all simulation runs, the relative computational costs are proportional to
+N . That is, the computational cost of CM and dCM relative to
+the FM were 1.00% and 1.46%, respectively.
+The Beeler–Reuter–Drouhard–Roberge model as modified
+in [11] was employed to describe the cellular dynamics of a
+mammalian ventricular cell. To distinguish differences between
+FM and dFE simulations which arise due to the representation of structural discontinuity and the averaged representation
+of fiber orientations, two sets of conductivities were used. An
+isotropic setup, using intracellular and extracellular conductivities of 0.11963 and 0.625 S/m, respectively, served to assess
+differences attributable solely to the alternative representation
+of structural discontinuity. Alternatively, an anisotropic setup
+in which longitudinal conductivities in the intracellular and
+
+904
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+Fig. 6. Spatial distribution of the transmembrane potential (a and c) and extracellular potential (b and d), when using the isotropic (a and b) and anisotropic
+(c and d) setups. Results are shown for all three models, FM, CM, and dCM, at 0.5 and 1.5 ms postshock.
+
+extracellular spaces were set to 0.11963 and 0.625 S/m, respectively, and transverse conductivities to 0.02621 and 0.236 S/m,
+respectively. This setup can be considered to be more realistic
+by accounting for anisotropy, however, for gauging the quality
+of approximation of the dFE approach it is less suitable, since
+additional discrepancies will incur due to the downsampling of
+the fiber field. Bidomain surface-to-volume ratio β and membrane capacitance Cm were chosen as 1400 cm−1 and 1 μF/cm2 ,
+respectively.
+Wavefront propagation was initiated by electric field stimulation applied via two line electrodes located at top and bottom of the domain, as shown at the right bottom of Fig. 6.
+In line with our goal of evaluating the quality of the dFE approximation relative to high-resolution models, the application
+of an electric field has been chosen as a test case since induced virtual electrode polarization patterns [4] are highly sensitive to the presence of structural discontinuity. In particular, a
+field strength of 4 V/cm was applied for 2 ms which was sufficiently strong to elicit suprathreshold responses around finescale discontinuities. Cathodal and anodal stimulation were implemented as time-varying Dirichlet boundary conditions along
+
+which Φe = 0 mV and Φe = 8000 mV was enforced during the
+stimulus period. After the end of the stimulus, the anode was
+kept grounded while the cathodal Dirichlet boundary condition
+was removed, i.e., extracellular potentials Φe along the top edge
+of the domain could float which is analog to opening the stimulation circuit in an experimental setting.
+F. Evaluation of Discontinuous FE Method
+The dFE method was evaluated by comparing against the FM
+grid. Potential benefits of the dFE method were investigated
+by assessing whether and as to which degree the dFE method
+provides more accurate predictions of activation patterns, i.e.,
+differences to the reference FM grid are reduced, and the savings
+in terms of computational cost.
+Simulation results were qualitatively evaluated by visually
+comparing the spatial distribution of transmembrane voltage Vm
+and extracellular potential φe between the three different setups
+FM, CM, and dCM 0.5 and 1.5 ms after the break of the stimulus,
+as shown in Fig. 6. In addition, activation times were computed
+for the intracellular grid as the instant where a threshold of
+−10.0 mV is achieved. Difference in activation times relative to
+
+COSTA et al.: EFFICIENT FINITE ELEMENT APPROACH FOR MODELING FIBROTIC CLEFTS IN THE HEART
+
+905
+
+the FM grid was then calculated at all nodes which were present
+in both the FM as well as the CM/dCM grids. Execution times
+for the full bidomain simulation sequence were recorded and
+compared against the FM case. Speedup was calculated as the
+FM grid execution divided by CM/dCM grids execution times.
+G. Computational Considerations
+The bidomain equations were solved with the cardiac arrhythmia research package (CARP) [12], running on 1 to 16 cores of
+an 8 Quad-Core AMD OpteronTM 8386 SE 2.8 GHz processors
+cluster with 128 GB of RAM running a 64-bit Linux system.
+The specifics of the numerical regimes used in CARP have been
+described extensively elsewhere [13]–[15]. Image segmentation
+and skeletonization were performed in custom written software
+(Courtesy of Prof. H. Ahammer). Fiber detection, downsampling, and mesh generation and postprocessing procedure were
+implemented in MATLAB (The Mathworks, Nantucket, USA).
+Visualization of results was performed with the custom written
+Meshalyzer software (Courtesy of Dr. E. J. Vigmond).
+III. RESULTS
+A. Evaluating Polarization Patterns and Activation Times
+Postshock polarization patterns predicted by the dFE method
+were compared against the reference solution computed at the
+fine FM grid and the standard solution computed with the continuous FE method on the CM grid. Fig. 6 presents the spatial
+distribution of Vm and Φe for all three scenarios 0.5 and 1.5 ms
+postshock. Figs. 6(a) and (b) show results for isotropic conductivity settings in which case all observed differences are
+attributable to the presence or absence of fine-scale discontinuities, but not to differences in fiber orientations. While there were
+minor visible deviations between FM and dCM case, a qualitative visual comparison against the standard CM case reveals
+that the dFE method captures structure-induced polarizations
+more accurately than the standard FE approach, with the solution being much closer to high-resolution reference simulation.
+In the CM simulation many fine-scale discontinuities which
+were explicitly represented in the FM case were absent. Thus,
+virtual electrode polarizations were induced to a much lesser
+degree which was particularly striking in the lower left quadrant of the domain [see Fig. 6(a) and (c)]. Hence, no wavefront
+propagation was initiated there, thus leading to a noticeable activation delay in this region. This is illustrated in the activation
+maps in Fig. 7(a) which present the spatial distribution of differences in local activation times relative to the reference FM case.
+Mean activation time errors and standard deviations were 1.37 ±
+1.11 and 0.35 ± 0.69 ms in the isotropic CM and dCM cases,
+respectively.
+In the anisotropic case, additional deviations emerged due to
+differences in fiber orientation between FM and dCM grid which
+influenced the formation of virtual electrode polarizations. This
+is apparent when comparing polarization patterns in FM/dCM
+panels between Fig. 6(a) and (c) or activation time errors between Fig. 7(a) and (b). Nonetheless, the overall distribution of
+Vm and Φe achieved with the dFE method approximates the so-
+
+Fig. 7. Spatial distribution of the activation time errors for the transmembrane
+potential, when using the isotropic (a) and anisotropic (b) setups. Results are
+shown for CM and dCM relative to FM.
+TABLE I
+SUMMARY OF EXECUTION TIMES (T ) AND SPEEDUPS (S) FOR SOLVING THE
+TOTAL SYSTEM USING FINE MESH (FM), COARSE MESH (CM) AND
+DECOUPLED COARSE MESH (dCM)
+
+lution obtained with the high resolution FM significantly better
+than in the standard CM case, as evidenced by comparing the
+CM and dCM panels in Fig. 6(c) and (d), albeit the match is not
+as close as in the isotropic case. In the anisotropic case, mean
+activation time errors and standard deviations were 1.40 ± 1.3
+and 0.63 ± 1.03 ms, respectively.
+B. Computational Costs
+The reduction in terms of nodes in the coarser CM and dCM
+meshes relative to the FM mesh translated into significant savings in execution times. As shown in Table I, when running
+on a single core simulation using the coarse CM mesh executed 158.9× faster than the corresponding run which used the
+FM mesh. Such speedups are within the range expected due
+to the reduction in workload by a factor of ∼100. Comparable reductions in execution time (126.1×) were measured with
+the dFE method on the coarse dCM mesh, with speedups being slightly smaller than in the CM case, due to the marginally
+
+906
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+higher workload imposed by additional 18 377 nodes. While the
+overall speedups decreased slightly when increasing the number
+of compute cores n even with n = 16 reductions in execution
+time were significant. Solving the FM problem within similar
+time frames as the dCM problem would necessitate engaging a
+much larger number of cores, in the range n > 1000.
+IV. DISCUSSION
+In this study, a novel discontinuous FE approach for modeling fine-scale structural discontinuities in cardiac bidomain
+simulations has been developed. The method accounts for the
+presence of insulating microstructures, as they arise in the aging
+myocardium or under pathologies such as fibrosis, without increasing the mesh resolution to spatially resolve these structures
+explicitly. Instead, electrical insulation due to such structures
+arising at size scales below a given spatial resolution are accounted for by a nodal splitting approach which imposes no-flux
+boundary conditions on intracellular current density and allows
+for discontinuities in intracellular potential φi while keeping
+the extracellular domain continuous. Simulation results demonstrate that the dFE method reduces computational costs significantly, by about two orders of magnitude. Qualitatively, relevant
+mechanisms such as virtual electrode formation around insulating obstacles, the subsequent initiation of wavefronts and their
+fractionation when encountering with such barriers, are captured
+faithfully. Quantitative comparison revealed only very minor
+differences relative to significantly more expensive simulation
+performed in a matching high-resolution mesh. The proposed
+method can be implemented in any continuous FE bidomain
+code with very minor effort which is a major advantage from
+a practical point of view. This additional flexibility renders the
+dFE method highly suitable for being used in modeling studies which seek to investigate bioelectric phenomena related to
+myocardial tissue structure at a microscopic size scale in the
+context of whole organ simulations.
+A. Shock-Induced Polarizations and Activation Patterns
+In the process of aging or in diseased hearts, active myocytes
+are being replaced by connective tissue which invades spaces
+between myocytes, thus interrupting the intracellular matrix.
+Current flux between myocytes situated at opposite sites of fibrotic lesions, no matter how thin they are, is prevented, which
+renders the intracellular space discontinuous along such fracture lines. Such discontinuities may not show any noticeable
+manifestations at a macroscopic size scale and, therefore, their
+presence is most often fully ignored in computer models. However, there are various important scenarios in which microscale
+fibrotic lesions show prominent effects which are not limited to
+minor modulation of local behavior in the vicinity of the lesion,
+but influence behavior at the tissue and organ scale.
+One such important effect is the induction of virtual electrode polarizations when external electric fields are applied [4].
+Virtual electrodes form around such discontinuities which may
+initiate propagating wavelets after the break of a shock. There
+is mounting evidence that this mechanism plays a crucial role
+in success and failure of defibrillation shocks [16], [17] in ad-
+
+dition to other mechanisms which are driven by continuous
+macroscopic size scale factors such as fiber rotation [18] or
+unequal anisotropy ratios [2]. It has been shown that a critical
+minimum size is required for such structures to elicit propagated
+responses [17], [19]. However, even lesions which are thin in
+width and well below a critical size, if their spatial extent in
+the longitudinal direction is sufficient as it is the case with fibrotic textures classified as patchy fibrosis [20], they constitute
+an important substrate for eliciting shock-induced propagated
+responses which clearly influence the outcome of defibrillation
+shocks.
+Moreover, fibrosis does not only manifest during stimulation
+with electric fields, it has a profound impact upon activation patterns. Again, elongated lesions provide a substrate which structurally constrains conduction pathways through which electrical activation wave fronts stumble following complex zig-zag
+patterns. At a macroscopic size scale, these altered micropropagation patterns may not be noticeable, but they manifest as
+apparent conduction slowing an important factor known to promote arrhythmias by shortening the effective wavelength [21].
+However, wavefront fractionation due to microscopic lesions
+may manifest at a macroscopic size scale depending on the incidence direction of wavefronts. Under incidence directions in
+parallel to a lesion electrogram fractionation at a given observation site may be negligible, however, large conduction delays
+between depolarization events may arise at the same observation site which are reflected as electrogram fractionation in the
+extracellular space, if incidence direction is orthogonal to the
+prevailing direction of fibrotic lesions [5].
+The dFE method accounts for these effects in a computationally efficient manner. As illustrated in Fig. 6(a) and (b), virtual
+electrode polarization patterns were very similar between the
+FM and dCM case while computations were 126× to 203×
+less costly. In the standard CM case, many virtual electrode
+polarizations were missing, particularly in the lower left quadrant, which had a profound impact upon postshock evolution.
+The postshock excitable gap was much larger in this case and
+the total activation time needed to depolarize the tissue sheet
+was significantly prolonged. This was also reflected in a much
+closer match in local activation times between dCM and FM as
+compared to the CM case [see Fig. 7(a) and (b)].
+In the isotropic case, differences arose due to the imperfect approximation of fracture lines [see Fig. 4(b)]. Including
+anisotropy gave rise to additional deviations as a consequence
+of extracting fiber orientations from low-resolution images. Induced polarizations depend on the angle between lesion and
+fiber orientation [18]. In the high-resolution FM case, there is
+a fine-grained variation in fiber angle along a lesion which is
+much coarser in the dCM case, thus leading to differences in
+average angle between dCM and FM. Despite these additional
+uncertainties, dCM results match the FM case much closer than
+the standard CM results.
+B. Discontinuous FE Method Versus High-Resolution Models
+In recent years, major advances in imaging technology [22]
+alongside with other factors such as a massive increase in
+
+COSTA et al.: EFFICIENT FINITE ELEMENT APPROACH FOR MODELING FIBROTIC CLEFTS IN THE HEART
+
+available compute power [23]–[25], significant advancements in
+numerical methods for solving the bidomain equations [13], and
+image-based mesh generation techniques to spatially discretize
+complex geometries [26], [27] led to an increased interest in using anatomically highly accurate tomographic reconstructions
+of individual hearts [6], [7]. In ex vivo MRI scans, ultrahigh spatial resolutions of around ≈25 μm can be achieved [22] which
+allow us to identify fine structures at a paracellular size scale.
+Histological images such as used in this study provide even
+higher resolution and more structural detail, but typically these
+techniques are vastly time consuming, destructive, and susceptible to artifacts [6] which limits their application to smaller tissue samples [28]. Models using such high-spatial resolutions are
+feasible and have been employed to study the role of microstructure in the formation of virtual electrode polarizations, and in
+electrogram fractionation, however, these studies have been limited to simpler model geometries such as 2-D sheets [17], thin
+ventricular or atrial slices [19], [5] or small transmural wedge
+preparations [29]. While using such simplified model geometries can be insightful under many circumstances, mechanisms
+which govern success and failure of defibrillation therapy or
+formation and maintenance of arrhythmias can only be fully
+appreciated at the organ scale since factors such as biventricular
+geometry, structure of the endocardium, tissue orthotropy, specialized conduction system, physiological differences between
+right and left chambers as well as the presence of transmural,
+apico-basal, and regional heterogeneities are known to be implicated in the underlying processes.
+With current technology organ scale simulations at such ultrahigh resolutions <25 μm which could explicitly resolve mezoscale structures as modeled in this study with the dFE method,
+are not feasible yet, however, such simulations may become
+feasible over the next decade. Further methodological advances
+will enable research to take advantage of massively parallel
+high-performance computers to deal with workloads imposed
+by problem sizes of several tens to hundreds of million of unknowns. However, even in such scenarios discontinuous FE
+methods such as dFE may be of great utility. Not only execution times alone, also handling the overall amount of data
+generated, the computational costs of postprocessing and visualization remain to be expensive. Further, using high resolutions
+in areas devoid of any mezo-scale structures may not be warranted. Therefore, it is common to reduce image resolution prior
+to mesh generation down to h ≈ 100 μm. Such paracellular resolutions at length of a single myocyte seem to be a viable tradeoff between compute cost and anatomical detail. Models at this
+spatial discretization resolve the physics of the bidomain equations with high numerical accuracy and allow fast simulation
+and analysis cycles, the sweeping of large parameters spaces, or
+performing simulations on cheaper hardware. However, valuable information on the cardiac microstructure, available at full
+resolution, is lost in the decimation process and, thus, its effects
+cannot be studied in the resulting model. While this may be
+negligible in many cases, particularly when macroscopic phenomena are under consideration, there are many problems of
+high practical relevance in which accounting for the myocardial
+microstructure may be crucial.
+
+907
+
+The strength of the proposed dFE is its ability to account
+for the presence of microscopic structures which are at size
+scales below a chosen spatial resolution without any increase
+in computational costs. While the dFE method cannot achieve
+an identical match with the high-resolution model, the observed
+differences are only marginal—particularly when viewed in context of uncertainties model parameters are afflicted with—and
+the savings in computational costs are vast. The main limitation
+is rather image processing and representation as a skeleton. Any
+inaccuracies in these preprocessing steps will introduce errors
+in the simulations. Any missing skeleton representation of a
+fibrotic structure cannot cause a secondary source during field
+stimulation. Therefore, activation patterns in these regions will
+locally differ from the high-resolution model. However, this is
+a limitation of the preprocessing methods only, not of the dFE
+method itself.
+C. Comparison With Previous Studies and Other Techniques
+In a previous study [30], the basic principle of using the
+dFE method for modeling fibrotic cleft spaces has been outlined for a simpler monodomain formulation. This concept has
+been applied successfully in subsequent studies for this very
+purpose [31]. This paper extends this idea by generalizing the
+dFE method to render it suitable for being used with a full bidomain formulation. In this case, the two spaces—intracellular
+and interstitial—are treated differently. Only the intracellular
+space is decoupled, but not the interstitial space. Thus, there
+is no 1:1 relationship anymore between FE nodes in the two
+domains, requiring a more elaborate mapping procedure when
+exchanging data between the two interpenetrating grids. Further, in contrast to other previous studies, detailed simulations
+were performed to quantitatively assess potential deviations relative to the computationally more expensive standard method
+which relies upon high-resolution meshes. As a benchmark, a
+simulation setup has been chosen which aims at modeling microscopic size scale virtual electrode polarizations induced by
+electric field stimulation. In such a scenario, the use of a full
+bidomain formulation is mandatory and the induced polarization patterns are highly sensitive to the present fibrotic cleft
+spaces. In addition, the polarization patterns are also highly
+sensitive to fiber orientation and anisotropy. Therefore, in this
+study an anisotropic setup, which includes fiber orientation, is
+quantitatively compared against an isotropic setup.
+Various methods for modeling of cracks using continuum FE
+discretizations have been developed for a variety of applications in other fields of research. Similar approaches which rely
+upon nodal renumbering, as proposed in this study, have been
+used in other application such as, e.g., [32] and [33]. While the
+proposed method bears similarities with other approaches, the
+way it is applied in this study is novel and unique due to the
+specific requirements imposed by the bidomain models where
+two spaces interpenetrate and isolation has to be enforced only
+in one of them.
+Trew and coworkers developed a finite volume method for
+modeling discontinuities in cardiac tissue which would be applicable to the problem described in here as well [34]. They argued
+
+908
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+that the FVM paradigm has an distinct advantage over FE formulations in that planes of intracellular disruption can be represented without an implicit gain of extracellular volume. Their rationale was based on previous studies by Hooks et al. in which a
+FE formulation was used [28]. The gain of volume resulted from
+the fact that their standard FE formulation represented cleavage
+planes as volumetric elements so that the width of planes could
+not be smaller than the mesh resolution. While their argument
+is correct, the dFE method overcomes this very difficulty and
+allows to model cleavage planes of infinite thinness the same
+way as their FVM approach. Considering that a large percentage
+of currently used bidomain solver codes relies on FE discretizations, a key advantage of our dFE method lies in that the cost of
+extending an existing continuous FE bidomain code to support
+modeling of fine-scale discontinuities is very minor.
+Whether to use the dFE method or the FVM-based method
+due to Trew et al. [34] is a question of preference, technically
+both methods achieve the same goal. The preprocessing task of
+identifying zero-flux faces is the same with both methods with
+the minor difference that in the dFE case the no-flux conditions
+are controlled on a per nodal basis and not over entire element
+faces. The FVM allows imposing no-flux conditions across faces
+in a mesh in a somewhat more natural way. With the dFE method
+the number of unknowns increases due to nodal splitting which
+increases the overall system size. However, in the most widely
+used scenario which relies on tetrahedral elements for spatial
+discretization, the dFE method may result in much smaller system sizes than the FVM since the sought after unknowns are
+potentials at element nodes and not potentials at element centers as it is the case with the FVM developed by Trew et al. [34].
+Thus, the overall number of unknowns in this particular FVM
+scenario may be significantly higher, by about a factor of 5.
+D. Extension to 3-D
+For the sake of elucidating the basic principle of the dFE
+method in a bidomain context, 2-D grids were used in this
+study, however, the method extends naturally to 3-D without
+any further modifications. A simplified monodomain version of
+the dFE method has been employed already in a previous study
+which investigated the role of fibrosis in the formation and maintenance of arrhythmias in a 3-D model of the human atria [31].
+In contrast to this study, bidomain effects were neglected and
+discontinuities in the fibrotic substrate were represented in a
+statistical sense. Thus, the additional complexity of intersecting fracture lines or surfaces with a preexisting FE mesh and
+the projection operations between intracellular and extracellular
+grids were not required.
+As in the 2-D scenario, in 3-D the only information needed is
+on the elements marked for splitting, and the subset of nodes in
+these elements to be split, but neither dimensionality nor type of
+element matter. The more challenging problem are the preprocessing algorithms which generate the splitting information. To
+be of wider applicability all steps in the pipeline which include
+segmentation, mesh generation, finding discrete representation
+of discontinuities, and intersecting them with the previously
+generated mesh have to be executed in an almost fully automatic fashion, as it is the case for the 2-D method presented in
+this study. The critical difficulties in a generic 3-D scenario are
+
+to find discrete representations of the discontinuous planes and
+to intersect these planes with a fully unstructured grid. While
+this can be addressed in 2-D by skeletonization of fracture lines,
+analog skeletonization methods applicable in 3-D are not readily
+available.
+In previous studies [28], fracture planes were identified manually and represented by bilinear FEs. While this is a feasible
+approach for a small number of samples, for high throughput modeling studies it would be prohibitive. Moreover, these
+discrete representations were projected onto structured grids
+without attempts to remesh to accommodate discontinuities as
+smoothly as possible [34]. Thus, fracture planes are represented
+as jagged surfaces which may cause spurious polarizations when
+applying external electric field, since, unlike with unstructured
+grids which smoothly accommodate organ surfaces, fiber orientations cannot be aligned in parallel to the organ surface. This
+is a well-known artifact in defibrillation studies which represent
+complex geometries with structured voxel-based grids.
+Ideally, accounting for fine-scale discontinuities is integrated
+in the mesh generation process to obtain smooth boundaryfitted representations. However, image-based mesh generation
+of complex structures such as organ-scale heart models at a
+paracellular resolution is a highly challenging problem in its
+own right [26], [27]. To our knowledge, there are currently no
+mesh generation methods available which would be able to deal
+with this added complexity.
+In the near future, we aim at extending the method presented
+in this study to a 3-D scenario by first developing an analog
+representation of the skeleton in 3-D using the available image processing technology. To our understanding, as the 3-D
+datasets typically consist of 2-D image stacks, the 3-D problem
+could be treated as a set of pseudo-2-D problems, that can later
+on be combined to construct a complete 3-D representation of
+the discontinuous structures. Moreover, extending the procedure used in this study to search for intersections between the
+discontinuous structures and the previously generated mesh to a
+3-D scenario should be straightforward, with intersections now
+occurring between tridimensional planes instead of lines.
+V. CONCLUSION
+In this study, a novel computationally efficient discontinuous
+FE method is presented which allows us to account for effects
+due to uncoupling structures in cardiac tissue upon wavefront
+propagation and field-induced polarization patterns on a coarser
+computational grid, without the need to use high-resolution
+meshes to spatially resolve these structures explicitly. Comparison between computationally expensive high-resolution bidomain simulations and the novel dFE method used on coarser
+grids demonstrated that an excellent qualitative and quantitative
+match could be achieved at a fraction of the computational costs.
+REFERENCES
+[1] W. T. Miller and D. B. Geselowitz, “Simulation studies of the
+electrocardiogram—Part I: The normal heart,” Circ. Res., vol. 43, no. 2,
+pp. 301–315, Aug. 1978.
+[2] N. G. Sepulveda, B. J. Roth, and J. Wikswo, Jr. (1989, May). Current injection into a two-dimensional anisotropic bidomain. Biophys. J. [Online].
+
+COSTA et al.: EFFICIENT FINITE ELEMENT APPROACH FOR MODELING FIBROTIC CLEFTS IN THE HEART
+
+[3]
+
+[4]
+
+[5]
+
+[6]
+
+[7]
+
+[8]
+
+[9]
+
+[10]
+[11]
+[12]
+[13]
+[14]
+[15]
+
+[16]
+
+[17]
+
+[18]
+
+[19]
+
+55(5), pp. 987–999. Available: http://dx.doi.org/10.1016/S0006-3495(89)
+82897-8
+M. S. Spach, “The discontinuous nature of electrical propagation in cardiac muscle. Consideration of a quantitative model incorporating the
+membrane ionic properties and structural complexities. The ALZA distinguished lecture,” Ann. Biomed. Eng., vol. 11, no. 3–4, pp. 209–261,
+1983.
+V. G. Fast, S. Rohr, A. M. Gillis, and A. G. Kléber, “Activation of cardiac
+tissue by extracellular electrical shocks: Formation of ‘secondary sources’
+at intercellular clefts in monolayers of cultured myocytes,” Circ. Res.,
+vol. 82, no. 3, pp. 375–385, Feb. 1998.
+F. Campos, T. Wiener, A. Prassl, R. Weber Dos Santos, D. SanchezQuintana, H. Ahammer, G. Plank, and E. Hofer. (2013, Apr.). Electroanatomical characterization of atrial microfibrosis in a histologically detailed computer model. IEEE Trans. Biomed. Eng. [Online]. 60(8).Available: http://dx.doi.org/10.1109/TBME.2013.2256359
+G. Plank, R. A. Burton, P. Hales, M. Bishop, T. Mansoori, M. O. Bernabeu,
+A. Garny, A. J. Prassl, C. Bollensdorff, F. Mason, F. Mahmood,
+B. Rodriguez, V. Grau, J. E. Schneider, D. Gavaghan, and P. Kohl, “Generation of histo-anatomically representative models of the individual heart:
+Tools and application,” Philos. Transact. A Math Phys. Eng. Sci., vol. 367,
+no. 1896, pp. 2257–2292, 2009.
+M. J. Bishop, G. Plank, R. A. B. Burton, J. E. Schneider, D. J. Gavaghan, V.
+Grau, and P. Kohl. (2010, Feb.). Development of an anatomically detailed
+mri-derived rabbit ventricular model and assessment of its impact on
+simulations of electrophysiological function. Am. J. Physiol. Heart Circ.
+Physiol. [Online]. 298(2), pp. H699–H718. Available: http://dx.doi.org/
+10.1152/ajpheart.00606.2009
+W. J. Karlon, J. W. Covell, A. D. McCulloch, J. J. Hunter, and
+J. H. Omens, “Automated measurement of myofiber disarray in transgenic mice with ventricular expression of RAS,” Anat. Rec., vol. 252,
+no. 4, pp. 612–625, 1998.
+R. Weber dos Santos, U. Steinhoff, E. Hofer, D. Sánchez-Quintana, and
+H. Koch, “Modelling the electrical propagation in cardiac tissue using detailed histological data,” Biomedizinische Technik. Biomed. Eng., vol. 48,
+pp. 476–479, 2003.
+M. Bishop, G. Plank, and E. Vigmond, “Investigating the role of the coronary vasculature in the mechanisms of defibrillation clinical perspective,”
+Circ. Arrhythm Electrophysiol., vol. 5, pp. 210–219, 2012.
+K. Skouibine, N. Trayanova, and P. Moore, “Anode/cathode make and
+break phenomena in a model of defibrillation,” IEEE Trans Biomed Eng.,
+vol. 46, no. 7, pp. 769–777, Jul. 1999.
+E. Vigmond, M. Hughes, G. Plank, and L. Joshua Leon, “Computational
+tools for modeling electrical activity in cardiac tissue,” J. Electrocardiol.,
+vol. 36, pp. 69–74, 2003.
+G. Plank, M. Liebmann, R. W. dos Santos, E. J. Vigmond, and G. Haase,
+“Algebraic multigrid preconditioner for the cardiac bidomain model,”
+IEEE Trans. Biomed. Eng., vol. 54, no. 4, pp. 585–596, Apr. 2007.
+E. J. Vigmond, R. W. dos Santos, A. J. Prassl, M. Deo, and G. Plank,
+“Solvers for the cardiac bidomain equations,” Prog. Biophys. Mol. Biol.,
+vol. 96, no. 1–3, pp. 3–18, 2008.
+G. Plank, L. Zhou, J. L. Greenstein, S. Cortassa, R. L. Winslow, B.
+O’Rourke, and N. A. Trayanova. (2008, Sep.). From mitochondrial ion
+channels to arrhythmias in the heart: Computational techniques to bridge
+the spatio-temporal scales. Philos. Trans. A, Math. Phys. Eng. Sci. [Online]. 366(1879), pp. 3381–3409. Available: http://dx.doi.org/10.1098/
+rsta.2008.0112
+F. H. Fenton, S. Luther, E. M. Cherry, N. F. Otani, V. Krinsky, A. Pumir,
+E. Bodenschatz, and R. F. Gilmour, Jr. (2009, Aug.). Termination of
+atrial fibrillation using pulsed low-energy far-field stimulation. Circulation [Online]. 120(6), pp. 467–476. Available: http://dx.doi.org/10.1161/
+CIRCULATIONAHA.108.825091
+S. Luther, F. H. Fenton, B. G. Kornreich, A. Squires, P. Bittihn, D. Hornung, M. Zabel, J. Flanders, A. Gladuli, L. Campoy, E. M. Cherry, G.
+Luther, G. Hasenfuss, V. I. Krinsky, A. Pumir, R. F. Gilmour, Jr, and
+E. Bodenschatz. (2011, Jul.). Low-energy control of electrical turbulence in the heart. Nature [Online]. 475(7355), pp. 235–239. Available:
+http://dx.doi.org/10.1038/nature10216
+G. Plank, A. Prassl, E. Hofer, and N. A. Trayanova. (2008, Mar.). Evaluating intramural virtual electrodes in the myocardial wedge preparation:
+Simulations of experimental conditions. Biophys. J. [Online]. 94(5), pp.
+1904–1915. Available: http://dx.doi.org/10.1529/biophysj.107.121343
+M. J. Bishop, G. Plank, and E. Vigmond. (2012, Feb.). Investigating
+the role of the coronary vasculature in the mechanisms of defibrillation.
+Circ. Arrhythm Electrophysiol. [Online]. 5(1), pp. 210–219. Available:
+http://dx.doi.org/10.1161/CIRCEP.111.965095
+
+909
+
+[20] S. de Jong, T. A. B. van Veen, H. V. M. van Rijen, and J. M. T. de Bakker.
+(2011, Jun.). Fibrosis and cardiac arrhythmias. J. Cardiovasc. Pharmacol.
+[Online]. 57(6), pp. 630–638. Available: http://dx.doi.org/10.1097/FJC.
+0b013e318207a35f
+[21] P. L. Rensma, M. A. Allessie, W. J. Lammers, F. I. Bonke, and
+M. J. Schalij, “Length of excitation wave and susceptibility to reentrant
+atrial arrhythmias in normal conscious dogs,” Circ. Res., vol. 62, no. 2,
+pp. 395–410, 1988.
+[22] J. E. Schneider, J. Böse, S. D. Bamforth, A. D. Gruber, C. Broadbent,
+K. Clarke, S. Neubauer, A. Lengeling, and S. Bhattacharya. (2004).
+Identification of cardiac malformations in mice lacking PTDSR using a
+novel high-throughput magnetic resonance imaging technique. BMC Dev.
+Biol. [Online]. 4, p. 16. [Online]. Available: http://dx.doi.org/10.1186/
+1471-213X-4-16
+[23] S. Niederer, L. Mitchell, N. Smith, and G. Plank. (2011). Simulating
+human cardiac electrophysiology on clinical time-scales. Front Physiol.
+[Online]. 2, p. 14. Available: http://dx.doi.org/10.3389/fphys.2011.00014
+[24] A. Neic, M. Liebmann, E. Hoetzl, L. Mitchell, E. J. Vigmond, G. Haase,
+and G. Plank. (2012, Aug.). Accelerating cardiac bidomain simulations
+using graphics processing units. IEEE Trans. Biomed. Eng. [Online].
+59(8), pp. 2281–2290. Available: http://dx.doi.org/10.1109/TBME.2012.
+2202661
+[25] D. F. Richards, J. N. Glosli, E. W. Draeger, A. A. Mirin, B. Chan, J.L. Fattebert, W. D. Krauss, T. Oppelstrup, C. J. Butler, J. A. Gunnels,
+V. Gurev, C. Kim, J. Magerlein, M. Reumann, H.-F. Wen, and J. J. Rice.
+(2013, Jun.). Towards real-time simulation of cardiac electrophysiology in
+a human heart at high resolution. Comput. Methods Biomech. Biomed. Eng.
+[Online]. Available: http://dx.doi.org/10.1080/10255842.2013.795556
+[26] A. J. Prassl, F. Kickinger, H. Ahammer, V. Grau, J. E. Schneider, E. Hofer,
+E. J. Vigmond, N. A. Trayanova, and G. Plank. (2009, May). Automatically
+generated, anatomically accurate meshes for cardiac electrophysiology
+problems. IEEE Trans. Biomed. Eng. [Online]. 56(5), pp. 1318–1330.
+Available: http://dx.doi.org/10.1109/TBME.2009.2014243
+[27] S. Institute. (2013). bioMesh3D: Quality Mesh Generator for Biomedical
+Applications. Scientific Computing and Imaging Institute (SCI). [Online].
+Available: http://www.biomesh3d.org
+[28] A. D. Hooks, A. K. Tomlinson, G. S. Marsden, I. J. LeGrice, B. H. Smaill,
+A. J. Pullan, and P. J. Hunter, “Cardiac microstructure: Implications for
+electrical propagation and defibrillation in the heart,” Circulat. Res.,
+vol. 91, pp. 331–338, 2002.
+[29] D. A. Hooks, M. L. Trew, B. H. Smaill, and A. J. Pullan. (2006, Mar.). Do
+intramural virtual electrodes facilitate successful defibrillation? modelbased analysis of experimental evidence. J. Cardiovasc. Electrophysiol. [Online]. 17(3), pp. 305–311. Available: http://dx.doi.org/10.1111/
+j.1540-8167.2006.00360.x
+[30] C. M. Costa, F. O. Campos, A. J. Prassl, R. W. dos Santos, D. SanchezQuintana, E. Hofer, and G. Plank, “A finite element approach for modeling
+micro-structural discontinuities in the heart,” in Proc. IEEE Eng. Med.
+Biol. Soc., 2011, pp. 437–440.
+[31] K. McDowell, F. Vadakkumpadan, R. Blake, J. Blauer, G. Plank,
+R. MacLeod, and N. Trayanova, “Mechanistic inquiry into the role of
+tissue remodeling in fibrotic lesions in human atrial fibrillation,” Commun. ACM, vol. 104, no. 12, 2013.
+[32] A. Grillo, D. Logashenko, S. Stichel, and G. Wittum, “Simulation of
+density-driven flow in fractured porous media.,” Adv. Water Res., vol. 33,
+pp. 1494–1507, 2010.
+[33] T. Moes and N. Dolbow J. Belytschko, “A finite element method for crack
+growth without remeshing,” Int. J. Numer. Meth. Eng., vol. 46, pp. 131–
+150, 1999.
+[34] M. Trew, I. L. Grice, B. Smaill, and A. Pullan, “A finite volume method
+for modeling discontinuous electrical activation in cardiac tissue,” Ann.
+Biomed. Eng., vol. 33, no. 5, pp. 590–602, May 2005.
+Caroline Mendonca Costa received the B.Sc. degree
+in computer science from the Federal University of
+Juiz de Fora (UFJF), Juiz de Fora, Brazil, in 2009 and
+the M.Sc. degree in computational modeling from the
+UFJF in 2011. She is currently working toward the
+Ph.D. degree at the Institute of Mathematics and Scientific Computing, University of Graz, Graz, Austria,
+and Research Assistant at the Institute of Biophysics,
+Medical University of Graz, Austria.
+Her research interests include methodological and
+applied aspects of computational modeling of cardiac
+electrophysiology, with emphasis on the role of tissue microstructure and model
+parametrization.
+
+910
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 3, MARCH 2014
+
+Fernando O. Campos received the B.Sc. degree
+in informatics from the Federal University of Juiz
+de Fora (UFJF), Juiz de Fora, Brazil, in 2005; the
+M.Sc. degree in computational modeling from UFJF
+in 2008; and the Ph.D. degree from the Graz University of Technology, Graz, Austria, in 2012.
+He is currently a Postdoctoral Fellow at the Institute of Biophysics, Medical University of Graz, Graz,
+Austria. He is a Member of the Austrian Society for
+Biomedical Engineering. His research interests include computational modeling of the electrical activity in the heart, with emphasis on the role of tissue microstructure and triggered
+activity on arrhythmogenesis.
+
+Anton J. Prassl received the M.Sc. and Ph.D. degrees in electrical engineering from the Institute of
+Biomedical Engineering, Graz University of Technology, Graz, Austria, in 2003 and 2008, respectively.
+He is currently a Postdoctoral Fellow at the Institute of Biophysics, Medical University of Graz,
+Graz. From 2006 to 2007, he was a Research Scholar
+at the Johns Hopkins University. His research interests include computational modeling of electrical and
+mechanical activity of the heart.
+
+Rodrigo Weber dos Santos received the B.Sc. degree in electrical engineering from the Federal University of Rio de Janeiro (UFRJ), Juiz de Fora, Brazil,
+in 1995; the M.Sc. degree from UFRJ, Computer and
+Systems Engineering, in 1998; and the D.Sc. degree
+from UFRJ, Mathematics Department, in 2002.
+He is currently an Associate Professor in the Department of Computer Science, the Federal University of Juiz de Fora, Juiz de Fora, Brazil, and with
+the Graduate Program in Computational Modelling.
+Prior to this, he was a Research Fellow with the Department of Biosignals, PTB, Berlin, Germany (2002–2004); and with CERN,
+Geneva, Switzerland (1995–1996). His research interests include parallel computing, numerical methods for PDEs and mathematical and computational modelling of the heart.
+
+Damián Sánchez-Quintana received the M.D. and
+Ph.D. degrees in medicine from the University of
+Extremadura, Badajoz, Spain, in 1979 and 1986,
+respectively.
+He is currently a Professor of human anatomy at
+the Faculty of Medicine of Badajoz. In 1995, he was
+a Senior Visitor at the Laboratory of Professor Robert
+H. Anderson, in the Department of Paediatrics, National Heart and Lung Institute, London. Since 1996,
+he has been involved in the study of the macroscopic
+and microscopic structure of morphologic substrates
+underlying different arrhythmias in different areas of the heart such as triangle
+of Koch, cavo-tricuspid isthmus, cardiac nodes and their vascularization, left
+atrium, and pulmonary veins.
+
+Helmut Ahammer received the M.Sc. and Ph.D. degrees in experimental physics from the University of
+Graz, Graz, Austria, in 1990 and 1996, respectively.
+He is currently an Associate Professor of medical
+physics and biophysics at the Institute of Biophysics,
+Medical University of Graz, Graz, where he is involved in the field of image processing and quantitative image analysis. His current research interests
+include fractals, nonlinear methods, and quantitative
+methods in order to analyze digital images of biological objects.
+
+Ernst Hofer received the M.Sc. degree in 1997
+and the Ph.D. degree in 1985 in electrical engineering from the Technical University of Graz, Graz,
+Austria.
+From 1985 to 1990, he was an Assistant Professor at the Karl-Franzens-University Graz, Graz.
+Since 1990, he has been an Associate Professor of
+medical physics and biophysics in the Department
+of Biophysics, Medical University of Graz, Graz.
+His current research interests include development
+of scientific instruments and measurement systems
+for cardiac electrophysiology, specifically for measurement and analysis of microscopic excitation spread in cardiac tissue. He is currently the Vice-President
+of the Austrian Society for Biomedical Engineering.
+
+Gernot Plank received the M.Sc. degree in 1996 and
+the Ph.D. degree in 2000 in electrical engineering
+from the Technical University of Graz (TUG), Graz,
+Austria.
+He is currently an Associate Professor with
+the Institute of Biophysics, Medical University of
+Graz, Graz and Academic Fellow with the Oxford
+e-Research Centre, University of Oxford, U.K. Prior,
+he was a Postdoctoral Fellow with the Technical University of Valencia, Spain (2000–2002), the University of Calgary, AB, Canada in 2003 and Marie Curie
+Fellow with Johns Hopkins University (2006–2008). His research interests include methodological and applied aspects of computational modeling of cardiac
+electrophysiology and mechanics.
+
+

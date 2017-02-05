@@ -1,0 +1,857 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 11, NOVEMBER 2015
+
+2685
+
+A Multiscale Tridomain Model for Simulating
+Bioelectric Gastric Pacing
+Shameer Sathar, Mark L. Trew, Greg O’Grady, and Leo K. Cheng∗
+
+Abstract—Goal: Gastric motility disorders have been associated
+with abnormal slow wave electrical activity (gastric dysrhythmias).
+Gastric pacing is a potential therapy for gastric dysrhythmias;
+however, new pacing protocols are required that can effectively
+modulate motility patterns, while being power efficient. This study
+presents a novel comprehensive 3-D multiscale modeling framework of the human stomach, including anisotropic conduction, capable of evaluating pacing strategies. Methods: A high-resolution
+anatomically realistic mesh was generated from CT images taken
+from a human stomach. Principal conduction axes were calculated
+and embedded within this model based on a modified Laplace–
+Dirichlet rule-based algorithm. A continuum-based tridomain formulation was implemented and evaluated for performance and
+used to model the slow-wave propagation, which takes into account the two main cell types present in gastric musculature. Model
+parameters were found by matching predicted normal slow-wave
+activity to experimental observation and data. These simulation
+parameters were applied while modeling an external pacing event
+to entrain slow-wave patterns. Results: The proposed formulation
+was found to be two times more efficient than a previous formulation for a normal slow-wave simulation. Convergence analysis
+showed that a mesh resolution of ≈0.4–0.5 mm is required for
+an accurate solution process. Conclusion: The effect of different
+pacing frequencies on entrainment demonstrated that the pacing
+protocols are limited by the frequency of the native propagation
+and the refractory period of the cellular activity. Significance: The
+model is expected to become an important tool in studying pacing
+protocols for both efficiency and effectiveness.
+Index Terms—Conduction axes, gastric pacing, multiscale stomach model, tridomain model.
+
+I. INTRODUCTION
+HE phasic contractions in the gastrointestinal tract are
+controlled and coordinated by an electrical activity termed
+slow waves (SW). Interstitial cells of Cajal (ICC) generate and
+propagate these events, within a syncytial cell network. These
+signals in turn activate the adjacent smooth muscle cells (SMC)
+[1]. In isolation, ICC excite at a unique intrinsic frequency with
+
+T
+
+Manuscript received March 2, 2015; revised May 21, 2015; accepted May
+31, 2015. Date of publication June 11, 2015; date of current version October 16,
+2015. This work was supported in part by grants from the Riddet Institute, New
+Zealand, Health Research Council of New Zealand and NIH (R01 DK 64775).
+The work of L. K. Cheng was supported by an Fraunhofer-Bessel Research
+Award from the Alexander von Humboldt Foundation and the Fraunhofer IPA.
+Asterisk indicates corresponding author.
+S. Sathar, M. L. Trew, and G. O’Grady are with the Auckland Bioengineering
+Institute, University of Auckland.
+∗ L. K. Cheng is with the Auckland Bioengineering Institute, University of Auckland, Auckland 1142, New Zealand, and also with the Department of Surgery, Vanderbilt University, Nashville, TN 37240 USA (e-mail:
+l.cheng@auckland.ac.nz).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2444384
+
+a decreasing frequency gradient along the antegrade direction
+of the stomach [2]–[4]. However, in intact in-vivo tissue, ICC
+are entrained to a single frequency corresponding to the highest
+frequency present, which is critical for a coordinated motility
+of the GI tract [1], [4]. Depletion and degradation of ICC networks has been implicated in gastric motility disorders such as
+gastroparesis and slow transit constipation [5]–[8].
+Gastric pacing has been investigated as a potential therapeutic
+tool that can extrinsically entrain and control ICC frequencies,
+and therefore, it has been used to improve symptoms and motility in cases of gastroparesis [9], [10]. However, active research
+seeks to determine the most efficient pacing parameters, such
+as stimulus location and pulse amplitude, width, and frequency.
+At present, such studies require extensive and expensive trialand-error experiments with animal models [11].
+Mathematical models are increasingly successful and robust
+for in-silico analysis of bioelectric activity [12], [13] and are
+therefore a potentially useful tool for investigating SW response
+to stimulation, prior to focused experimental studies [11]. In
+systems with single-cell types, balancing current conservation
+between intra and extracellular spaces with membrane electrophysiology results in coupled reaction-diffusion equations,
+commonly referred to as the bidomain equations. These equations capture electrical anisotropies and heterogeneities and are
+considered to accurately represent the underlying biophysics
+[14]. In the cardiac context, they have been widely applied to
+study electrical arrhythmia and their treatment by external stimuli [15].
+In gastric electrophysiology, studies have identified that
+sparse gap junctions mediate communication between intermingled ICC and SMC [16], [17]. An alternative to the single-cell
+type and extracellular space bidomain formulation that accounts
+for the multiple cell types present in the stomach has been recently proposed by Buist and colleagues [18], [19]. However,
+this “extended-bidomain” formulation results in nonsymmetric
+systems of equations, limiting the choice of efficient and stable
+linear solvers.
+Gastric experimental observations have indicated that there
+are preferred directions in the spread of electrical activation
+[20], [21]. Different layers of ICC, ICC-MY (ICC in the myenteric plexus region between the circular muscle (CM) and longitudinal muscle (LM) layer), ICC-IM (intramuscularly within
+the CM and LM layers), and ICC-SEP (lying in the septa between muscle layer bundles) coordinate anisotropic SW propagation [21], [22]. In the model equations, mathematically, the
+morphology of electrical propagation depends on the principal
+directions of the conductivity tensors. We are not aware of studies that have incorporated electrical anisotropy into studies of
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+2686
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 11, NOVEMBER 2015
+
+
+
+electrical activation in the stomach which solely depends on the
+conductivity parameters. In cardiac electrical studies, anisotropy
+is determined by the orientation of the local myocyte long axis
+and other structural features [23], [24]. These orientations are
+usually extracted from detailed 3-D image reconstructions [23]
+or at the organ scale from MRI-based diffusion tensor imaging
+[25]. Such image-based methods are largely unexplored in the
+gastrointestinal field largely due to the resolution and signalto-noise challenges of imaging the thin gut wall. An alternative
+to image-based extraction of principal directions are rule-based
+methods [26], [27].
+In this study, we present an efficient anatomically realistic human stomach model for simulating bioelectric pacing activity.
+Importantly, to simulate the effects of pacing protocols on SW
+activity, we introduce a novel multicell tridomain formulation
+of the governing equations such that the resulting finite-element
+discretization is symmetrical, generating positive-definite systems of linear equations that may be efficiently solved. A rulebased method was devised to determine principal axes of activation, taking into considerations all layers of ICC activation, and
+these were introduced into anisotropic conductivity tensors. Finally, for the first time, normal SW activity and pacing induced
+activity has been efficiently simulated in the context of intermingled ICC and SMC cells with anisotropic axes of electrical
+conduction.
+
+χ
+
+(1)
+
+− ∇ · (σi
+
+ξ
+
+∂t
+
+(1)
+
+(1)
+
+⎡
+
+(1) (ξ
+
+⎢χ
+⎢
+⎢
+⎢
+⎢
+⎢
+⎣
+
+(1)
+
+Δt
+
+)
+
++ σe )∇φe = −I totalstim .
+
+(2)
+
+(1)
+
+⎤
+M+
+0
+(1)
+
+(1)
+K[σi ]
+
+0
+χ(2)
+
+(ξ (2) )
+(2)
+M + K[σi ]
+Δt
+(2)
+
+(1)
+K[σi ]
+(2)
+
+K[σi ]
+(1)
+
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎦
+
+(2)
+
+K[σi ]
+K[σi + σi + σe ]
+K[σi ]
+⎡
+⎤
+(1)
+)
+(1)
+(1) (ξ
+(1)(n −1)
+(1)
+(gap)
+(1)
+⎡ (1) ⎤
+M Vm
+− χ M Iion + χ
+M Igap − M Istim ⎥
+⎢χ
+Vm
+Δt
+⎥
+⎢
+⎥ ⎢
+⎥
+(2)
+⎢ V (2) ⎥ = ⎢
+(ξ
+)
+⎢
+(2) ⎥
+⎣ m ⎦ ⎢ χ(2)
+M Vm(2)(n −1) − χ(2) M Iion (2) − χ(gap) M Igap − M Istim ⎥
+⎣
+⎦
+Δt
+φ
+e
+
+(3)
+
+To test numerical convergence and inform the choice of conductivity parameters, electrical activity in a 100-mm-long 1-D
+fiber was simulated. A finite-state machine -based Corrias and
+Buist ICC model (FSM ICC-CB) for ICCs [30], [31] and passive cells with zero active ionic current for SMCs were used
+for membrane currents. A tridomain simulation was performed
+with solution points at different spatial resolutions ranging from
+0.1 to 2 mm. The experimentally observed propagation pattern
+of SW activity in the human stomach shows a faster circumferential propagation ≈8–13 mm · s−1 than the longitudinal propagation ≈3–5 mm · s−1 , due to anisotropic properties arising
+
+(1)
+(1)
+Iion (u(1) , φi , φe )
+
+− ∇ · (σi (1) ∇Vm(1) + φe ) + Istim + χgap Igap = 0
+
+(2)
+
++ σi
+
+B. Convergence and Performance Analysis
+
+
++
+
+(2)
+
+Here σi , σi , and σe are the intracellular conductivity tensors for first and second domain, and the extracellular domain,
+(1)
+(2)
+respectively. The variables Vm , Vm , and φe are transmembrane potential for first and second domain, and extracellular
+potential, respectively; χgap and Igap are the surface-to-volume
+ratio of the space and the associated gap junction current, respectively; Iion with superscripts (1) and (2) are the total membrane
+ionic current flowing between the respective intracellular and
+extracellular spaces; and ξ is the membrane capacitance per
+unit area. The total sum of the applied stimuli is I totalstim .
+The discrete tridomain system of equations in terms of transmembrane potentials of the two domains is obtained as (4),
+shown at the bottom of the page, where M is the mass matrix
+and K is the stiffness matrix.
+A linear system is obtained from FEM spatial discretization
+method on tetrahedral meshes together with semi-implicit time
+discretizations [29]. This system of equations is symmetric and
+positive-semi-definite, enabling solution using efficient preconditioned conjugate gradient (cg) solver. To date, a simple jacobi
+preconditioner has been adequate.
+
+The problem syncytium is divided into three domains. Domain 1 corresponds to the ICC, domain 2 the SMC, and the third
+domain the extracellular space. The conservation of current in
+these three domains can be expressed as [18]
+χ
+
++
+
+(2)
+(2)
+Iion (u(2) , φi , φe )
+
+−∇ · (σi (1) ∇Vm(1) ) − ∇ · (σi (2) ∇Vm(2) )
+
+A. Tridomain Formulation
+
+(1)
+(1) ∂Vm
+
+∂Vm
+∂t
+
+(2)
+
+The Chaste modeling environment (http://www.cs.ox.ac.uk/
+chaste/) was used for all simulations [28].
+
+
+
+ξ
+
+
+
+(2)
+
+(2)
+
+− ∇ · (σi (2) ∇Vm(2) + φe ) + Istim − χgap Igap = 0
+
+II. MATERIALS AND METHODS
+
+(1)
+
+(2)
+
+M I totalstim
+
+(4)
+
+SATHAR et al.: MULTISCALE TRIDOMAIN MODEL FOR SIMULATING BIOELECTRIC GASTRIC PACING
+
+from bidirectional coupling in ICC networks [7], [20]. Thus,
+two separate tests were performed on extreme cases: one for
+a slower conduction velocity of ≈3 mm · s−1 and another for
+conduction velocity of ≈13 mm · s−1 . Approximate conductivity parameters were initially estimated for a 0.1-mm resolution
+mesh and later assigned to a coarser mesh to identify a suitable
+mesh resolution. The conduction velocities were noted for both
+simulations at different spatial resolutions.
+The test with conduction velocity of ≈3 mm · s−1 was evaluated on a previous nonsymmetrical formulation [19] and the
+new tridomain formulation at a spatial resolution of 0.2 mm.
+The linear system solution iteration count and time spent was
+analyzed for each solution time-step for the best possible linear solver. The simulations used an absolute tolerance value of
+10−6 mV for the linear solver.
+C. Anatomically Realistic Stomach Mesh
+
+2687
+
+TABLE I
+TRIDOMAIN PARAMETERS MOTIVATED FROM [18]
+Parameter
+(1)
+
+Intracellular conductivities (ICC), σ i
+Extracellular conductivities, σ e
+χ ( 1 ) (ICC)
+χ ( 2 ) (SMC)
+ξ ( 1 ) (ICC)
+ξ ( 2 ) (SMC)
+χg a p
+(2)
+Intracellular conductivities (SMC), σ i
+
+Value
+
+Units
+
+0.0004, 0.03, 0.001
+0.01, 0.128, 0.001
+200
+100
+0.025
+0.010
+0.1
+0.0004, 0.03, 0.001
+
+mS · mm−1
+mS · mm−1
+mm−1
+mm−1
+μF · mm−2
+μF · mm−2
+mm−1
+mS · mm−1
+
+100 on S4 and ϕ2 = 0 on S3 and no-flux boundary conditions
+otherwise. The gradients of ϕ2 were evaluated at the centroids
+of the tetrahedral elements. The cross-surface axis direction is
+then given by
+−
+→2 = ∇ϕ2 .
+ϕ
+|∇ϕ2 |
+
+An anatomically realistic stomach geometry was obtained
+from CT images taken from a human patient using the methods
+described previously in the literature [32], [33]. A cubic Hermite
+finite-element mesh was fitted to the digitized 3-D outline of
+the stomach using an iterative fitting method. The surface of
+the generated surface mesh was projected normally to obtain a
+realistic muscle layer thickness of 2.66 mm [34].
+The stomach geometry volume was discretized into tetrahedral elements delimited by tetrahedral volume constraint
+and quality constraint using TetGen (http://tetgen.berlios.de/
+index.html) to obtain a suitable computational mesh.
+
+4) Conduction Axes Orientation Tensor: The generated di→1 , −
+→2 , and −
+→3 are assembled as 3 × 3 tensor
+rection vectors −
+ϕ
+ϕ
+ϕ
+→2 , and −
+→3 ,
+→1 , −
+ϕ
+ϕ
+quantity. The rows in the tensor corresponds to −
+ϕ
+respectively.
+
+D. Generating Principal Axes of Conduction
+
+E. Normal SW Activity
+
+A modified Laplace–Dirichlet rule-based algorithm [27] was
+used to generate principal conduction axes, necessary for simulating the anisotropic properties of gastric SW propagation [20].
+In this study, the principal conduction axis for SW simulation
+was assumed to be aligned with the main axis of the stomach
+(the longitudinal direction), with orthogonal transmural and circumferential axes. Four surface segments (S1, S2, S3, and S4)
+were extracted from the stomach mesh (shown in Fig. 4) and
+used to prescribe boundary conditions for computing the conduction axes. The surface segments corresponded to the top of
+the fundus region, the bottom of the antrum region, the outer
+serosal surface, and the inner mucosal surface.
+1) Longitudinal Axis: The Laplace’s equation was solved on
+the stomach mesh for a scalar quantity ϕ1 :
+
+In the full-scale stomach simulation of normal SW activity,
+the tridomain formulation was used with parameters as shown
+in Table I, motivated from a previous study [18]. The conductivity parameters reflect the effect of multiple ICC layers and
+the resulting impact on the conduction velocity. In vivo, the fundus region is devoid of SWs and each new wave begins in the
+corpus region [2], [35]. The fundus region was made inactive
+by assigning passive cells in both intracellular domains with an
+initial resting membrane potential of −57 mV [2]. Elsewhere,
+ICC and passive cells were used for intracellular domains 1 and
+2, respectively. The initial Vm value were set to −67 mV for
+both domains.
+The pacemaker region was localized to the greater curvature
+region just below the fundus, with an intrinsic pacing frequency
+of 3 cycles · min−1 initiated by setting tstart parameter of the
+FSM-ICC CB model to 0 [30]. The tstart value was set at all
+other locations to a larger value and was therefore entrained by
+the activity from the pacemaker region. An intrinsic frequency
+gradient was assigned in the antegrade direction with the frequency values linearly varying from 3 (pacemaker region) to
+1.5 (antrum) cycles · min−1 [3]. The frequency was varied using
+the non-refractory period parameter of the ICC cell model. The
+refractory period for the cell model was approximately 10 s for
+an [IP 3] value of 0.0006 mM. Therefore, the nonrefractory periods corresponding to 3 and 1.5 cycles · min−1 were evaluated
+to be 10 and 30 s, respectively. The ODE solver (for the FSM
+
+∇2 ϕ1 = 0
+
+(5)
+
+subject to Dirichlet boundary conditions ϕ1 = 100 on S1 and
+ϕ1 = 0 on S2 and no-flux boundary conditions otherwise. The
+resulting nodal ϕ1 distribution is used to evaluate the gradient of
+ϕ1 at the centroids of the tetrahedral elements. The longitudinal
+or principal conduction axis is then given by
+−
+→1 = ∇ϕ1 .
+ϕ
+|∇ϕ1 |
+
+(6)
+
+2) Transmural Axis: Laplace’s equation was solved for a
+scalar quantity ϕ2 subject to Dirichlet boundary conditions ϕ2 =
+
+(7)
+
+3) Circumferential Axis: The longitudinal and cross-surface
+directions were used to obtain the circumferential axis as
+−
+→3 = −
+→1 × −
+→2 .
+ϕ
+ϕ
+ϕ
+
+(8)
+
+2688
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 11, NOVEMBER 2015
+
+Fig. 1. Convergence analysis for conduction velocities of 3 and 13 mm · s−1
+observed experimentally. Figure shows normalized conduction velocities and
+indicates that a resolution of <0.5 mm is required for velocities of 3 mm · s−1 .
+
+ICC-CB model) time-step was set to 0.1 ms and PDE solver
+time-step was set to 1 ms, a selection based on a convergence
+analysis to obtain a stable solution.
+F. Gastric Pacing
+Gastric pacing was initiated at the antrum region (indicated
+in Fig. 5). The pacing was induced extracellularly with amplitude 5 mA · cm−3 , pulsewidth 200 ms and frequency of 4 cycles · min−1 , consistent with established human pacing protocols
+[9], [10]. The cathode and anode were separated by ≈10 mm
+and were aligned parallel to the CM fiber direction as shown in
+Fig. 4.
+
+Fig. 2. (a) Linear solver iterations for each time-step (n = 5000). Data compared between tridomain and extended bidomain formulation. (b) Time spent
+on linear solver for each time-step (n = 5000) comparing the tridomain and
+extended bidomain formulation. Tips of the whiskers in the box plot represents
+the maximum and minimum values, the box spans from first to third quartile,
+the central line indicates the median and “+” indicates the mean.
+
+III. RESULTS
+A. Convergence and Performance Analysis
+Convergence analysis showed that a more refined mesh was
+required to capture the slower conduction velocity compared to
+the higher conduction velocity. Fig. 1 shows that a minimum
+resolution of ≈0.4–0.5 mm was required to accurately represent
+the slow longitudinal component of the gastric SW activity.
+The linear solution performance for the tridomain equations
+(1)–(3) was compared to an earlier formulation known as the extended bidomain [19]. The number of iterations and the solving
+time was reduced by approximately 50% as shown in Fig. 2(a)
+and (b). The mean linear solver iterations were seen to be 382
+and 174 for extended bidomain formulation and tridomain formulation, respectively, while the mean time spent on each timestep was found to be 0.03 and 0.01 s, respectively. The minimal
+spread in the tridomain data suggests that the solution process
+for tridomain formulation was more numerically stable compared to the extended bidomain formulation.
+The tridomain solution framework described here is now
+available as part of the Chaste project from version 3.3 and
+can be downloaded from the Chaste website (http://www.cs.ox.
+ac.uk/chaste/download.html).
+
+B. Mesh Generation
+A realistic 3-D stomach tetrahedral mesh was generated from
+an initial surface mesh [see Fig. 3(a)] using TetGen (http://wiasberlin.de/software/tetgen/), based on the mesh resolution requirement informed from the convergence analysis. The tetrahedral mesh had 2 529 627 elements and 497 081 node points
+as shown in Fig. 3(b). The TetGen quality parameter of the generated mesh was set to 0.7, measured as a ratio of the radius of
+the circumsphere associated with the tetrahedron and the length
+of the shortest edge.
+The boxplot analysis of internodal spacing for each edges in
+the generated mesh is shown in Fig. 3(c). The mesh had a mean
+edge of 0.32 mm, which was accurate enough to capture the
+numerical solution process as per the convergence analysis.
+C. Generating Principal Axes of Conduction
+Laplace’s equation was solved on the stomach geometry
+to evaluate longitudinal and cross-surface gradients using the
+Chaste computational framework. The generated gradients were
+determined on an element by element basis on the partitioned
+→2 , and −
+→3 were corrected for
+→1 , −
+ϕ
+ϕ
+mesh. The generated vectors −
+ϕ
+
+SATHAR et al.: MULTISCALE TRIDOMAIN MODEL FOR SIMULATING BIOELECTRIC GASTRIC PACING
+
+2689
+
+Fig. 4. Generation of the principal axes of conduction. (a) Stomach mesh geometry. (b) Enlarged view of circular conduction axis direction. (c) Longitudinal
+conduction axis direction. (d) Cross-layer conduction axis direction.
+
+Fig. 3. (a) Anatomically realistic stomach mesh is represented in STL surface
+mesh. (b) STL mesh was used to generate high-quality tetrahedral mesh using
+TetGen. (c) Internodal spacings for the generated tetrahedral mesh. Median:
+0.32 mm, 75% percentile: 0.39 mm, 25% percentile: 0.25 mm.
+
+numerical loss of orthogonality as follows:
+−
+→1 = −
+→2 × −
+→3
+ϕ
+ϕ
+ϕ
+−
+→2 = −
+→1 × −
+→3 .
+ϕ
+ϕ
+ϕ
+An enlarged view of the generated principal conduction axes
+is shown in Fig. 4(b)–(d).
+D. Normal SW Activity
+Normal SW propagation was simulated with activity starting at the pacemaker region just below the fundus. The activity
+propagated in the antegrade direction with a velocity of 3 and
+8 mm · s−1 along the circumferential direction. The transmembrane potential pattern is shown in Fig. 5(a). A maximum of
+three waves were present in the stomach at any point of time.
+Because of a higher resting membrane potential in the fundus
+and the preferential spread along the circular direction, the activity initiated from the pacemaker region quickly formed a ring
+which propagated in the antegrade direction, in accordance with
+experimental observations [20], [35]. The simulations required
+7 h to solve 80 s of SW activity using 128 threads on the Auckland NeSI Pan cluster with SandyBridge architecture CPUs.
+E. Normal SW Activity and Interaction With Gastric Pacing
+Gastric pacing successfully entrained gastric SW activity in
+the model as shown in Fig. 5. The pacing activity progressively took over the antegrade activity by inducing a retrograde
+
+propagation. As observed in experimental studies, the retrograde propagation incrementally captured greater portions of
+the stomach [10], [36], [37].
+The site of collision formed due to the pacing induced activity and the normal antegrade SW activity gradually moved
+proximally, as shown in Fig. 5(a). For each successive cycle, the
+corresponding collision regions are marked as C1, C2, and C3.
+The rate at which a region was entrained increased with pacing
+frequency as shown in Fig. 6. The y-axis indicates the increase
+in the entrained region in terms of a distance for each successive
+cycle (e.g., C2–C1). The formation of a collision region was
+defined by both pacing location and relative frequencies. Fig. 6
+shows that for constant tissue electrical properties, the cycle-tocycle increase in the entrained region was linearly dependent on
+the pacing interval. Moreover, the pacing protocols were limited
+by the frequency of the native propagation and the refractory
+period of the cellular activity. In this case, the native frequency
+of propagation was 3 cycles · min−1 and refractory period was
+approximately 10 s.
+IV. DISCUSSION
+This study presents a multiscale 3-D stomach model with a realistic biophysically based FSM-CB ICC model and anisotropic
+conduction for analyzing the effects of gastric pacing and its
+interaction with normal SW activity. A key development was to
+introduce a numerically efficient and stable tridomain formulation. A high-resolution mesh was generated with anatomically
+realistic geometrical properties to accurately solve the numerical problem. A modified Laplace–Dirichlet rule-based method
+was used to evaluate synthetic principal conduction axes information. Finally, the model was applied to simulate normal SW
+
+2690
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 11, NOVEMBER 2015
+
+Fig. 5. Sequence of ICC transmembrane potential distribution at different time instants and V m traces for ICC at four locations on the greater curvature of
+the stomach (P1, P2, P3, P4). (a) Normal SW activity was entrained by extracellular pacing electrodes (marked in red dots) with pulses of duration 200 ms and
+amplitude 5 mA, initiated at t = 56 s with a frequency 4 cycles · min−1 . The site of collision (C1, C2, C3) between the normal and paced waves show the gradual
+increase in the area entrained by the paced activity. (b) V m versus time plots for points P1, P2, P3, and P4 as marked in (a). The waves are initially entrained to 3
+cycles · min−1 corresponding to the normal SW activity. The dashed line corresponds to normal 3 cycles · min−1 activity.
+
+Fig. 6. Increase in the region entrained for each pacing cycle in the retrograde
+direction [e.g. C 2 − C 1 shown in Fig. 5(a)] for a range of pacing intervals.
+
+activity and shows the efficacy of predictively evaluating the
+effects of gastric pacing protocols on SW activity.
+Previously, attempts have been made to simulate normal SW
+activity on a complete 3-D stomach model, but their useful predictive capability was not established [19], [33], [38]. Other
+studies considered a phenomenological-based model that could
+effectively describe basic biological properties, such as the frequency and amplitude of the SW activity; however, the lack of
+physiological basis affected their capacity to predict the effects
+of experimental protocols [11], [38]. More recently, a biophysically based modified Corrias and Buist ICC model was incorporated into a 3-D anatomically realistic stomach modeling frame-
+
+work [33]. However, the initial activation times were prescribed
+a priori and simulated for subsequent cycles—again limiting
+its predictive capability. Moreover, homogeneous conductivity
+parameters were used with no principal directions of conductivity [33]. More exhaustive simulations with extended bidomain
+formulations have also been performed, but anisotropic conduction was not incorporated in the simulation [19]. This study
+resolves all of these issues and therefore represents a significant advance in physiologically accurate gastric modeling, with
+diverse potential applications in integrated electrophysiology,
+investigating pathophysiology, and therapeutic assessments for
+electroceuticals and drug design [39].
+The tridomain formulation resulted in a symmetric positivedefinite matrix, improving the simulation efficiency by a factor
+of 2 compared to an alternative formulation [19]. Additionally,
+the solution process was largely stable throughout the entire
+simulation as shown in Fig. 2(a). The human stomach mesh is
+relatively coarse and a detailed representation of the internal
+microstructure could yield a mesh ≈3–4 times larger. This will
+necessitate more efficient solution processes utilizing available
+high-performance computers as presented here.
+The application of extracellular stimuli to the alternative multidomain formulations often encountered numerical problems.
+The study presented here has only taken into consideration
+the combination of a cg solver and jacobi preconditioner. A
+combination of algebraic-multigrid preconditioners and blockpreconditioners with a cg solver can be investigated as a possibly
+more effective preconditioner–solver combination [40].
+Among the possible applications for this model, the current
+study focused on a proof-of-principle evaluation of a single
+human gastric pacing protocol [9], [10]. No previous studies have modeled gastric pacing on a realistic 3-D stomach.
+
+SATHAR et al.: MULTISCALE TRIDOMAIN MODEL FOR SIMULATING BIOELECTRIC GASTRIC PACING
+
+Previous biophysical simulation attempts have been limited to
+a 2-D model with FSM-CB ICC model, [30] which although
+comparatively limited, established the capability of the same
+ICC model applied here. Importantly, this study also allowed
+the gastric anisotropy to be simulated for the first time on a 3-D
+model, as experimentally observed [7], [37]. This is a crucial advance in gastric modeling, because anisotropic conductivity has
+been shown to be a key determinant of arrhythmic conduction
+patterns and their interactions [7], [20].
+The model will be used to optimize pacing protocols for functional motility disorders, including gastroparesis, where therapeutic pacing has already shown promise. Interestingly, gastric
+pacing is also being investigated for the treatment of obesity, as it
+attempts to disrupt the normal antegrade activity and induce retrograde events thereby slowing the motility and inducing satiety
+[41]. Intolerable side effects have not yet been observed through
+this approach [36].
+Currently, progress in this field is limited by the difficulty
+in determining optimal pacing protocols and optimized pacing
+sites [42]. The model presented here can be used as an ideal
+platform for rapidly progressing such investigations without the
+requirement of exhaustive animal experiments. Optimal pacing
+protocols will additionally be important for improving the power
+consumption of implantable devices.
+In this study, the principal conductivity direction was assumed to be aligned along the circumferential direction of the
+stomach model. The conductivity parameters defined in Table I
+provide anisotropic diffusion properties in circumferential and
+longitudinal directions of the realistic stomach with respect to
+the reference principal axes of conduction. Such an approach is
+a simplification considering that the stomach has multiple layers (including longitudinal, circular, and oblique) with different
+properties. Future work will investigate the sensitivity of SW
+propagation to variations in the principal conduction axes. Incorporating detailed muscle layer information could ultimately
+provide greater insights into the effects of microstructure on
+diseased gastric activity.
+In the present study, the conductivities associated with the intracellular domain for both cell types are the same. This implies
+an equivalent bidomain solution with a sink but with different
+membrane properties (passive SMC) coupled to the intracellular
+ICC cell. We have chosen to use a passive cell model primarily
+for simplicity. This assumption does not obscure the effectiveness of the study as the passive cell with different material
+properties will act as a load to the ICC cell, which is an advance
+over a traditional bidomain framework. As experimental investigations progress, anisotropies in the second domain, or SMC
+electrophysiological properties [43], can easily be incorporated
+and studied. Finally, the conductivity values associated with the
+presented model are constant throughout the domain resulting
+in a constant conduction velocity which is not observed experimentally [35]. A model incorporating with realistic multi-layer
+information, biophysically-based, and varying spatial properties
+(including conductivity parameters) can now be utilized for future studies. This will provide greater insights into physiological
+questions otherwise difficult to consider with usual experimental
+approaches [42].
+
+2691
+
+V. CONCLUSION
+We present, for the first time, a 3-D multiscale model for
+simulating gastric SWs and gastric pacing, achieved using a
+novel numerically efficient and stable tridomain formulation.
+The utility of this model was demonstrated by simulating normal SW activity in accordance with experimental observations
+and then applying the model to gastric extracellular stimulus
+pulses. With further incorporation of realistic muscle layers,
+experimental data, and pacing validation studies, this model is
+anticipated to become an important tool for clinical applications
+especially in defining efficient pacing protocols in dysmotility
+and obesity.
+ACKNOWLEDGMENT
+The authors would like to thank Dr. A. Corrias, National
+University of Singapore and the CHASTE team at Oxford University, U.K., for their valuable inputs and suggestions during
+the course of this work. The authors also wish to acknowledge
+the contribution of the NeSI high-performance computing facilities at the University of Auckland and the staff at NeSI and
+Centre for eResearch. URL http://www.nesi.org.nz.
+REFERENCES
+[1] J. D. Huizinga and W. J. E. P. Lammers, “Gut peristalsis is governed by
+a multitude of cooperating mechanisms,” Am. J. Physiol. Gastrointest.
+Liver Physiol., vol. 296, no. 1, pp. G1–G8, Jan. 2009.
+[2] T. Y. El-Sharkawy et al., “Intracellular electrical activity of canine and
+human gastric smooth muscle,” J. Physiol., vol. 279, pp. 291–307, Jun.
+1978.
+[3] R. A. Hinder and K. A. Kelly, “Human gastric pacesetter potential. Site
+of origin, spread, and response to gastric transection and proximal gastric
+vagotomy,” Am. J. Surg., vol. 133, no. 1, pp. 29–33, Jan. 1977.
+[4] D. F. van Helden et al., “Generation and propagation of gastric slow
+waves,” Clin. Exp. Pharmacol. Physiol., vol. 37, no. 4, pp. 516–524, Apr.
+2010.
+[5] G. Farrugia, “Interstitial cells of Cajal in health and disease,” Neurogastroenterol. Motil., vol. 20 Suppl 1, pp. 54–63, May 2008.
+[6] M. Grover et al., “Cellular changes in diabetic and idiopathic gastroparesis,” Gastroenterology, vol. 140, no. 5, pp. 1575–1585, May 2011.
+[7] G. O’Grady et al., “Abnormal initiation and conduction of slow-wave
+activity in gastroparesis, defined by high-resolution electrical mapping,”
+Gastroenterology, vol. 143, no. 3, pp. 589–598, Sep. 2012.
+[8] J. Gao et al., “Numerical metrics for automated quantification of interstitial
+cell of Cajal network structural properties,” J. R. Soc. Interface, vol. 10,
+no. 86, p. 20130421, Sep. 2013.
+[9] Z. Y. Lin et al., “Effects of pacing parameters on entrainment of gastric
+slow waves in patients with gastroparesis,” Am. J. Physiol., vol. 274, no. 1
+Pt 1, pp. G186–G191, Jan. 1998.
+[10] R. W. McCallum et al., “Gastric pacing improves emptying and symptoms
+in patients with gastroparesis,” Gastroenterology, vol. 114, no. 3, pp. 456–
+461, Mar. 1998.
+[11] L. K. Cheng et al.,, “Gastrointestinal system,” Wiley Interdiscip. Rev. Syst.
+Biol. Med., vol. 2, no. 1, pp. 65–79, 2010.
+[12] P. J. Hunter and T. K. Borg, “Integration from proteins to organs: The
+Physiome Project,” Nat. Rev. Mol. Cell Biol., vol. 4, no. 3, pp. 237–243,
+Mar. 2003.
+[13] L. K. Cheng et al., “Mapping and modeling gastrointestinal bioelectricity:
+From engineering bench to bedside,” Physiology (Bethesda), vol. 28, no.
+5, pp. 310–317, Sep. 2013.
+[14] A. J. Pullan et al., Mathematically Modelling the Electrical Activity of
+the Heart: From Cell to Body Surface and Back Again. Singapore: World
+Scientific, 2005.
+[15] N. Trayanova et al., “What have we learned from mathematical models of
+defibrillation and postshock arrhythmogenesis? Application of bidomain
+simulations,” Heart Rhythm, vol. 3, no. 10, pp. 1232–1235, Oct. 2006.
+
+2692
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 11, NOVEMBER 2015
+
+[16] M. Hanani et al., “Intercellular coupling of interstitial cells of Cajal in the
+digestive tract,” Int. Rev. Cytol., vol. 242, pp. 249–282, Jan. 2004.
+[17] E. E. Daniel, “Communication between interstitial cells of Cajal and gastrointestinal muscle,” Neurogastroenterol. Motil., vol. 16, pp. 118–122,
+Apr. 2004.
+[18] M. L. Buist and Y. C. Poh, “An extended bidomain framework incorporating multiple cell types,” Biophys. J., vol. 99, no. 1, pp. 13–18, Jul.
+2010.
+[19] A. Corrias et al., “Modelling tissue electrophysiology with multiple cell
+types: Applications of the extended bidomain framework,” Integr. Biol.,
+vol. 4, no. 2, pp. 192–201, Feb. 2012.
+[20] G. O’Grady et al., “Rapid high-amplitude circumferential slow wave propagation during normal gastric pacemaking and dysrhythmias,” Neurogastroenterol. Motil., vol. 24, no. 7, pp. e299–e312, Jul. 2012.
+[21] G. D. S. Hirst et al., “Propagation of slow waves in the guinea-pig gastric
+antrum,” J. Physiol., vol. 571, no. Pt 1, pp. 165–77, Feb. 2006.
+[22] S. Torihashi et al., “c-Kit immunoreactive interstitial cells in the human
+gastrointestinal tract,” J. Auton. Nerv. Syst., vol. 75, pp. 38–50, 1999.
+[23] B. J. Caldwell et al., “Three distinct directions of intramural activation reveal nonuniform side-to-side electrical coupling of ventricular myocytes,”
+Circ. Arrhythm Electrophysiol., vol. 2, no. 4, pp. 433–40, Aug. 2009.
+[24] D. A. Hooks et al., “Laminar arrangement of ventricular myocytes influences electrical behavior of the heart,” Circ. Res., vol. 101, no. 10,
+pp. e103–e12, Nov. 2007.
+[25] P. Helm et al., “Measuring and mapping cardiac fiber and laminar architecture using diffusion tensor MR imaging,” Ann. NY Acad. Sci., vol. 1047,
+pp. 296–307, Jun. 2005.
+[26] F. Vadakkumpadan et al., “Image-based models of cardiac structure in
+health and disease,” Wiley Interdiscip. Rev. Syst. Biol. Med., vol. 2, no. 4,
+pp. 489–506, 2010.
+[27] J. D. Bayer et al., “A novel rule-based algorithm for assigning myocardial
+fiber orientation to computational heart models,” Ann. Biomed. Eng., vol.
+40, no. 10, pp. 2243–2254, Oct. 2012.
+[28] G. R. Mirams et al., “Chaste: An open source C++ library for computational physiology and biology,” PLoS Comput. Biol., vol. 9, no. 3,
+p. e1002970, Jan. 2013.
+[29] P. Pathmanathan et al., “A numerical guide to the solution of the bidomain equations of cardiac electrophysiology,” Prog. Biophys. Mol.
+Biol., vol. 102, nos. 2/3, pp. 136–155, 2010.
+[30] S. Sathar et al., “A biophysically based finite-state machine model for
+analyzing gastric experimental entrainment and pacing recordings,” Ann.
+Biomed. Eng., vol. 42, no. 4, pp. 858–870, Apr. 2014.
+
+[31] A. Corrias and M. L. Buist, “Quantitative cellular description of gastric
+slow wave activity,” Am. J. Physiol. Gastrointest. Liver Physiol., vol. 294,
+no. 4, pp. G989–G995, Apr. 2008.
+[32] A. Pullan et al., “Modelling gastrointestinal bioelectric activity,” Prog.
+Biophys. Mol. Biol., vol. 85, nos. 2/3, pp. 523–550, 2004.
+[33] P. Du et al., “A multiscale model of the electrophysiological basis of the
+human electrogastrogram,” Biophys. J., vol. 99, no. 9, pp. 2784–2792,
+Nov. 2010.
+[34] C. H. Huh et al., “Individual variations in mucosa and total wall thickness
+in the stomach and rectum assessed via endoscopic ultrasound,” Physiol.
+Meas., vol. 24, no. 4, pp. N15–N22, Nov. 2003.
+[35] G. O’Grady et al., “Origin and propagation of human gastric slow-wave
+activity defined by high-resolution mapping,” Am. J. Physiol. Gastrointest.
+Liver Physiol., vol. 299, no. 3, pp. G585–G592, Sep. 2010.
+[36] S. Yao et al., “Retrograde gastric pacing reduces food intake and delays
+gastric emptying in humans: A potential therapy for obesity?” Dig. Dis.
+Sci., vol. 50, no. 9, pp. 1569–1575, Sep. 2005.
+[37] G. O’Grady et al., “High-resolution entrainment mapping of gastric pacing: A new analytical tool,” Am. J. Physiol. Gastrointest. Liver Physiol.,
+vol. 298, no. 2, pp. G314–G321, Feb. 2010.
+[38] M. L. Buist et al., “Multiscale modelling of human gastric electric activity:
+Can the electrogastrogram detect functional electrical uncoupling?” Exp.
+Physiol., vol. 91, no. 2, pp. 383–390, Mar. 2006.
+[39] P. Du et al., “Toward the virtual stomach: Progress in multiscale modeling
+of gastric electrophysiology and motility,” Wiley Interdiscip. Rev. Syst.
+Biol. Med., vol. 5, no. 4, pp. 481–493, Mar. 2013.
+[40] M. O. Bernabeu and D. Kay, “Scalable parallel preconditioners for an open
+source cardiac electrophysiology simulation package,” Procedia Comput.
+Sci., vol. 4, pp. 821–830, Jan. 2011.
+[41] J. Yin and J. D. Z. Chen, “Implantable gastric electrical stimulation: ready
+for prime time?” Gastroenterology, vol. 134, no. 3, pp. 665–667, Mar.
+2008.
+[42] J. Zhang and J. D. Z. Chen, “Systematic review: Applications and future
+of gastric electrical stimulation,” Aliment Pharmacol. Ther., vol. 24, no. 7,
+pp. 991–1002, Oct. 2006.
+[43] A. Corrias and M. L. Buist, “A quantitative model of gastric smooth muscle
+cellular activation,” Ann. Biomed. Eng., vol. 35, no. 9, pp. 1595–1607, Sep.
+2007.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

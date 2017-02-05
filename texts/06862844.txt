@@ -1,0 +1,952 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+1019
+
+Performance-Power Consumption Tradeoff
+in Wearable Epilepsy Monitoring Systems
+Syed Anas Imtiaz, Student Member, IEEE, Lojini Logesparan, Student Member, IEEE,
+and Esther Rodriguez-Villegas, Senior Member, IEEE
+
+Abstract—Automated seizure detection methods can be used to
+reduce time and costs associated with analyzing large volumes of
+ambulatory EEG recordings. These methods however have to rely
+on very complex, power hungry algorithms, implemented on the
+system backend, in order to achieve acceptable levels of accuracy.
+In size, and therefore power-constrained EEG systems, an alternative approach to the problem of data reduction is online data
+selection, in which simpler algorithms select potential epileptiform
+activity for discontinuous recording but accurate analysis is still
+left to a medical practitioner. Such a diagnostic decision support
+system would still provide doctors with information relevant for
+diagnosis while reducing the time taken to analyze the EEG. For
+wearable systems with limited power budgets, data selection algorithm must be of sufficiently low complexity in order to reduce the
+amount of data transmitted and the overall power consumption.
+In this paper, we present a low-power hardware implementation of
+an online epileptic seizure data selection algorithm with encryption
+and data transmission and demonstrate the tradeoffs between its
+accuracy and the overall system power consumption. We demonstrate that overall power savings by data selection can be achieved
+by transmitting less than 40% of the data. We also show a 29%
+power reduction when selecting and transmitting 94% of all seizure
+events and only 10% of background EEG.
+Index Terms—Data reduction, electroencephalography (EEG),
+encryption, epilepsy, low power, monitoring, seizure, wearable.
+
+I. INTRODUCTION
+PILEPSY is a serious neurological condition that affects
+50 million people worldwide [1]. It is characterized by
+spontaneous debilitating seizures that could cause harm to the
+individual, deteriorate their quality of life, and may even lead to
+sudden death [2]. Despite its high incidence and serious consequences, 25% of patients have been reported to be misdiagnosed
+[3]. For definitive diagnosis of epilepsy, an electroencephalography (EEG) recording of the brain activity during an epileptic seizure is often required [4]. However, seizures may occur
+within a space of few hours, weeks, or even months, and thus,
+long-term EEG monitoring may be required to be able to record
+the patient’s brain activity during a seizure.
+
+E
+
+Manuscript received December 20, 2013; revised June 9, 2014; accepted July
+20, 2014. Date of publication July 23, 2014; date of current version May 7,
+2015. This work was supported by the European Research Council under the
+European Community’s seventh Framework Program (FP7/2007-2013)/ERC
+Grant 239749.
+S. A. Imtiaz and E. R.-Villegas are with the Department of Electrical and
+Electronic Engineering, Imperial College London, London SW7 2AZ U.K.
+(e-mail: anas.imtiaz@imperial.ac.uk; e.rodriguez@imperial.ac.uk).
+L. Logesparan is with Schlumberger, West Sussex RH6 0NZ, U.K. (e-mail:
+lojini.logesparan04@imperial.ac.uk).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2342501
+
+There are two main limitations of this long-term monitoring
+approach. First, the patients undergoing monitoring for long periods of time need to carry around a portable EEG monitoring
+system which is both uncomfortable and unaesthetic. Because
+of this, most patients prefer to stay at home or in clinic during
+these recording sessions. Present portable and ambulatory EEG
+systems that are suitable for clinical use weigh about 500 g, can
+monitor up to 72 h, and have large battery packs connected by
+long cables (making it difficult to ensure good electrode connection for the entire recording duration) [5]. Thus, patients undergoing long-term monitoring for several days are required to
+attend a clinic regularly to check electrode connections, recharge
+batteries, and save EEG data obtained from recording. The second limitation is that long-term monitoring generates enormous
+amount of diagnostic data that takes medical practitioners a proportionally long time to analyze (approximately 2 h per 24 h of
+recording [6]).
+There has been significant research on methods to improve
+ambulatory EEG systems in order to make them comfortable,
+easy to use, and last for a longer time. Power consumption
+of such systems is an important issue since it needs to be reduced to make them wearable [5]. A reduction in the amount
+of data to be processed can save significant amount of power.
+Different methods of reducing data for long-term epilepsy monitoring include using lower sampling frequency, compression
+of data, and discontinuous recording [7]. Daou and Labeau [8]
+presented a method combining compression of EEG and detection of seizures at the same time. Tolbert et al. [9] reduced
+data by applying wavelet compression when there was no significant activity and transmitted raw data when they detected
+spikes and related activity. Other methods of reducing data at
+the sensor node include the use of optimal features [10], [11] to
+save useful information, reducing the number of channels [12],
+and dynamically selecting relevant EEG channels [13]. All these
+techniques can lead to reduction in data rate and consequently
+power consumption.
+Several research groups have also worked on methods to reduce the time taken to analyze large volume of recorded EEG
+data from long-term monitoring. This involves developing algorithms aimed at analyzing the recording for the presence of
+epileptic seizures automatically. These algorithms could be used
+to detect either the start or onset of a seizure event, its termination, or any part of its occurrence. Furthermore, the algorithms
+may be developed for offline use or online, real-time application.
+Qu and Gotman [14] extracted features including wave amplitude, duration, power and dominant frequency and used
+template matching for patient-specific seizure onset detection.
+
+This work is licensed under a Creative Commons Attribution 3.0 License. For more information, see http://creativecommons.org/licenses/by/3.0/
+
+1020
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+Osorio et al. [15] proposed a method for real-time detection of
+seizures and onset prediction using bandpass and median filtering of intracranial recordings. Saab and Gotman [16] proposed
+a method using three features extracted from wavelet coefficients, relative average amplitude, relative scale energy, and
+coefficient of variation of amplitude to estimate the probability
+of seizure onset. Kuhlmann et al. [10] used the same method
+to analyze six additional features and compared their performance to determine the best performing features for seizure
+detection.
+Meier et al. [17] used features extracted from scalp EEG, including continuous wavelet transform powers, number of zero
+crossings, mean variance, cross correlation coefficient, and spectral powers with a support vector machine (SVM) classifier for
+online detection of seizures. Zandi et al. [18] also proposed a
+method using wavelet packet transform to derive a seizure index for real-time seizure detection. Since both of these methods
+were implemented on a desktop computer for real-time operation, their applicability in a wearable setting, where power
+budget is extremely limited, is not known. Kelly et al. developed an algorithm, called IdentEvent [19], for offline processing and detection of seizure events. They used pattern-matching
+regularity statistics, amplitude variation, and local maximum
+frequency with fixed thresholds, and stored the timestamps
+of detected seizures for later analysis. Shoeb et al. [20] developed an algorithm to detect termination of seizure once
+its start has been identified using spectral energies and SVM
+classifier.
+Artificial neural networks have often been used to classify
+seizures with a large number of features used as inputs. Wilson et al. [21] described an algorithm, called Reveal, based
+on matching pursuit and small neural network rules. GhosDastidar et al. [22] used wavelet decomposition and chaos
+analysis to extract three features in different EEG subbands
+which were used with neural network classifiers. Srinivasan
+et al. [23] used approximate entropy (ApEn) as feature input to
+two different types of neural networks and evaluated their performance for seizure detection in ambulatory EEG recordings.
+Tzallas et al. [24] also used neural networks with power spectral density and features extracted from time-frequency analysis,
+while Yuan et al. [25] used fractal intercept and relative fluctuation index as feature inputs to a neural network for seizure
+detection. In another method, Alam and Bhuiyan [26] used
+higher order statistical features with an artificial neural network to classify EEG signals in to healthy, interictal, or seizure
+groups.
+More recently, Niknazar et al. [27] applied wavelet decomposition and recurrence quantification analysis to classify
+scalp EEG recordings as either ictal, interictal, or healthy.
+Hopfengärtner et al. [28] used adaptive thresholding of integrated and average power in 3–12 Hz band to detect seizures in
+long-term EEG recordings.
+The seizure detection algorithms based on neural networks
+and other complex signal processing methods are suitable for
+offline analysis of data, or even real-time analysis when power
+consumption is not a limiting factor. In wearable systems, power
+requirements, amount of data, and system size are all important
+
+Fig. 1. Principle of data selection as discussed in [5]. Interesting data sections
+(marked by vertical dashed lines) are selected for transmission and subsequent
+discontinuous recording while noninteresting data is rejected.
+
+factors. Therefore, any detection method used needs to be of
+such low complexity that it could run on a very small processor,
+sourcing power from a small battery and run for a long period
+of time.
+The approach of discontinuous recording [7] for wearable
+epilepsy monitoring systems, described in [5], allows data reduction in real time, by selecting interesting data and discarding
+others. A low-complexity algorithm could be incorporated in
+the portable EEG system to select epilepsy-related brain activity that could be analyzed later by a neurologist. This principle
+of data selection, shown in Fig. 1, would reduce the duration of
+data provided to the neurologists and, thus, reduce the time taken
+for them to analyze the discontinuous recording while keeping
+their decisive role in diagnosing the patient [5]. Such sampled
+reviews of discontinuous EEG recording has been shown to not
+substantially alter the final electroclinical diagnosis of the patient [29], [30]. Casson et al. [5] also suggest combining the
+data selection algorithm with wireless transmission in order to
+increase the monitoring duration, reduce the power consumption and subsequently the weight and volume of the portable
+EEG system. Wireless transmission will also overcome issues
+of electrode disconnection caused by tugging on long connecting cables.
+This paper demonstrates the practical implementation of the
+discontinuous recording approach for epileptic seizure analysis and detection. It describes the design of a data selection
+algorithm for epileptic seizures, its implementation on a lowpower microcontroller with encryption and data transmission.
+It demonstrates how the low-power implementation of the data
+selection algorithm could be utilized to reduce the power consumption of a portable EEG system. Section II describes the
+theoretical approach proposed in [5], the dataset used in this
+study, and the design and implementation of the data selection
+algorithm, data encryption, and wireless transmission. The performance has been detailed in Section II as a tradeoff between
+the seizure detection accuracy of the algorithm and the power
+consumption of the overall system. Finally, the design tradeoffs of the algorithm and wireless transmission are described in
+Section III, and its implications on the development of a smaller,
+light-weight EEG system and medical diagnosis of epilepsy will
+be discussed in Section IV.
+
+IMTIAZ et al.: PERFORMANCE-POWER CONSUMPTION TRADEOFF IN WEARABLE EPILEPSY MONITORING SYSTEMS
+
+1021
+
+Fig. 2. Simplified model of the wearable EEG system [5] showing the headmounted processing system with: the low power detection unit containing intelligent signal processing to achieve data reduction, and the data transmission
+unit that interfaces with the wireless base station to discontinuously transmit
+and record.
+
+II. MATERIAL AND METHODS
+A block diagram of the wearable EEG system proposed in [5]
+is shown in Fig. 2. It illustrates the head-mounted processing
+system connected to electrodes placed on the scalp of an individual and a separate base station for recording the transmitted
+data. The head-mounted processing system consists of: a low
+power detection unit that contains the front-end circuitry (such
+as an amplifier, analog-to-digital converter and antialiasing filter) in addition to intelligent signal processing to achieve data
+reduction; and a data transmission unit consisting of a wireless
+transmitter with possible encryption. The head-mounted system
+is wirelessly linked to a base station that receives the transmitted
+data and saves it for real-time or offline analysis by a neurologist
+or EEG technician.
+In this model of the wearable EEG system, the power consumption of the head mounted system, PS , is given by
+PS = PF + PA + CPT
+
+(1)
+
+where PF is the power consumption of the front-end circuitry,
+PA is the power consumption of the signal processing algorithm
+to achieve data reduction, PT is power consumption of the wireless transmission unit, and C is the compression ratio obtained
+by dividing the compressed bit rate with uncompressed bit rate
+(lower values of C denote higher compression). In (1), assuming
+the power consumption of the front-end circuitry to be fixed at
+25 μW per EEG channel [31], there are two interesting cases:
+1) When there is no data reduction: PA = 0, and thus, C =
+1. The power consumption of the head-mounted system
+is PS = PF + PT .
+2) When data reduction C is achieved, and the power consumption of the system is given by (1).
+In the latter case, data reduction is only beneficial in terms
+of power if the implementation of signal-processing techniques
+consume less power than the savings achieved due to reduced
+wireless transmission, i.e., PA < (1 − C)PT . Nevertheless, the
+advantage of less analysis time for reduced data would still hold
+even when power saving is not achieved.
+
+Fig. 3. Proposed multichannel data selection algorithm developed to identify
+epileptic seizures and reject normal brain activity.
+
+(U.K.), Katholieke Universiteit Leuven (Belgium) [32], [33],
+and Freiburg University Hospital (Germany). It consists of scalp
+EEG signals with a total duration of over 168 h obtained from
+21 adults. The data contained 16 EEG channels common to all
+records: C3, C4, CZ, F3, F4, FZ, F7, F8, FP1, FP2, O1, O2,
+T3, T4, T5, and T6. A total of 181 recordings were analyzed,
+34 of which contained sections of seizure occurrence marked
+by medical practitioners (total seizure duration of 4158 s). All
+of the data had been sampled at a frequency of at least 200 Hz
+during routine, long-term and ambulatory monitoring sessions.
+
+A. Database
+
+B. Data Selection Algorithm
+
+The database used for performance assessment in this study
+was obtained from multiple recordings at the Epilepsy Society
+
+The proposed multichannel seizure data selection algorithm
+is illustrated in Fig. 3. The algorithm contains two parts:
+
+1022
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+channel-specific processing and collating information across
+channels. The channel-specific processing is identical across all
+channels, and the result from each is then collated for the final
+decision making. Line length [34] is used as the main discriminatory feature in the algorithm to distinguish between seizure
+and nonseizure events. This feature is selected because of its
+high discriminatory ability and low computational complexity,
+as established in our previous study comparing 65 different
+features [11].
+The multichannel input EEG signal is represented as
+x = (x1 , x2 , . . . , xN )
+
+(2)
+
+where N is the number of channels.
+All EEG channels are processed separately in parallel, using
+the input signal xn [k], where k is a sample in time, and n
+is the channel number. The results from each channel-specific
+processing are combined to determine whether or not an EEG
+section contains an epileptic seizure.
+In Fig. 3, a single-channel EEG signal is initially filtered by a
+first-order high-pass filter with a cutoff frequency of 0.16 Hz to
+remove any dc offset (as recommended by [35]). The output of
+this is then passed through a third-order Bessel low-pass filter
+(LPF) with a cutoff frequency of 10 Hz. The resulting time
+domain signal is then down-sampled to 20 Hz and split into
+2 s nonoverlapping epochs. The cutoff frequency is selected
+to achieve maximum down-sampling without affecting seizure
+detection performance. Next, the line length is calculated within
+each epoch as
+F (e) =
+
+S
+
+
+|w(k − 1) − w(k)|
+
+(3)
+
+k =1
+
+where F (e) is the line length for an epoch e being analyzed, w
+is the down-sampled signal, k is the sample number, and S is
+the total number of samples within the epoch.
+The calculated feature F (e) is normalized to correct for broad
+level amplitude changes between EEG channels and patients
+[36] so that a fixed threshold may then be applied to the normalized feature to discriminate between the high-amplitude seizure
+sections and the low-amplitude normal EEG sections. Normalization is carried out by estimating the background activity z(e)
+using median decaying memory and is calculated as
+
+newer median{F (e − 1) · · · F (e − B)} decays to 1% in about
+15 min, which is a reasonable lifetime considering the majority
+of records in the test database have a duration of more than 1
+h. Since the background estimate is calculated over a period of
+2 min (120 s), B should be 60 for 2 s epochs.
+The feature F (e) is divided by the normalization estimate
+z(e) to restrict the range of values prior to applying a fixed
+detection threshold
+A(e) = F (e)/z(e).
+
+(5)
+
+The normalized feature A(e) is then compared against a fixed
+threshold β. If A(e) exceeds β, a detection flag for the channel
+n being analyzed, DFn (e), is set to one. If not, the flag is set to
+zero. The detection threshold β is a tunable parameter that can
+be set to vary the algorithm sensitivity:
+
+1, if A(e) ≥ β
+DFn (e) =
+(6)
+0, otherwise.
+The channel-specific processing has now ended, and information in the epoch across all N channels can be analyzed. The
+flags across all the channels are summed and compared to γ (the
+minimum number of channels required for a detection which is
+set to 4) to see how many channels have detected the presence
+of abnormal activity within the same epoch. If the sum of flags
+C(e) exceeds γ, then it is considered a seizure, and 2 s data
+from all N channels are selected for transmission. Otherwise
+the epoch is rejected as a nonseizure event
+C(e) =
+
+z(e) = (1 − λ) × median{F (e − 1) · · · F (e − B)}
++λ × z(e − 1)
+
+Fig. 4. Block diagram of the Texas Instruments MSP430 microcontroller and
+NORDIC Semiconductor nRF24L01+ wireless transmitter connections. The
+data selection algorithm, data packaging, and encryption are carried out by the
+microcontroller.
+
+N
+
+
+DFn (e)
+
+(7)
+
+n =1
+
+
+
+(4)
+
+where B is the number of epochs preceding the current epoch
+that is used to estimate background activity, λ is a decay constant, and z(e − 1) is the background estimate calculated for
+the previous epoch. The maximum transient or ramp-up time of
+the background estimate has been selected as 2 min to ensure
+that z(e) has reached the steady state when analyzing seizures
+in the test database (the earliest time of seizure commencement
+from the start of recording was found to be 2 min). During
+the transient phase, the median is calculated within all available epochs using λ = 0.92 to ensure that the normalization
+estimate z(e) reaches the same range of values as the feature
+F (e). In the steady state λ = 0.99 such that the effect of any
+
+S(e) =
+
+Seizure,
+
+if C(e) ≥ 4
+
+Nonseizure,
+
+otherwise.
+
+(8)
+
+C. Hardware Implementation
+The algorithm is implemented on Texas Instruments
+MSP430F5438A microcontroller [37] and uses Nordic Semiconductor nRF24L01 + transceiver [38] for wireless transmission of data. Both components were selected for their ultralowpower consumption. The hardware connection diagram in Fig. 4
+shows the microcontroller connected to the wireless transceiver
+using serial peripheral interface (SPI). In the figure, two pins in
+the SPI bus are used for full duplex communication. The third
+
+IMTIAZ et al.: PERFORMANCE-POWER CONSUMPTION TRADEOFF IN WEARABLE EPILEPSY MONITORING SYSTEMS
+
+pin provides clock signal from the microcontroller (master) to
+the transceiver (slave) for synchronous data transfer. The two
+control pins, CE and CSN are used to enable the nRF2401 +
+chip and activate the SPI communication, respectively. The IRQ
+pin is an interrupt request input that notifies the microcontroller
+whenever data transmission is complete and when new data is
+received. The master clock frequency of the microcontroller is
+selected such that epochs from all the channels can be processed
+completely before the start of next epoch.
+Each channel-specific processing stage starts with a high-pass
+filter (see Fig. 3). This filtering operation is performed on the
+microcontroller with the following transfer function:
+y[k] = 0.9975x[k] − 0.9975x[k − 1] + 0.9950y[k − 1] (9)
+where y[k] is the filtered output, and x[k] is the raw input.
+The filter coefficients are represented as 16-bit signed fixed
+point numbers (Q15 format), thus using simple integer arithmetic operations. Multiplication is performed on the MSP430
+using the dedicated MPY32 hardware multiplier in fractional
+mode with two 16-bit operands as inputs.
+The next stage is a third-order Bessel LPF that has been
+realized as a cascade of a first-order filter followed by a secondorder section with the following transfer functions:
+u[k] = 0.1000y[k] + 0.1000y[k − 1] + 0.7423u[k − 1] (10)
+v[k] = 0.1000u[k] + 0.1999u[k − 1] + 0.0999u[k − 2]
++1.5452v[k − 1] − 0.6283v[k − 2].
+
+(11)
+
+The output of the filter, v[k], is multiplied by a constant gain of
+0.2679. The LPF coefficients and gain are represented in Q4.28
+format (32 bits with 4 integer bits and 28 fractional bits) for
+increased accuracy. The filtered signal that goes downstream for
+further calculation is also kept in this format. It was empirically
+determined that 4 integer bits were sufficient to represent the
+maximum number produced in the algorithm in most cases. In
+a rare case where an unusually large number would appear after
+computation, the number of integer bits would increase while
+sacrificing some fractional bits.
+The filtered signal v[k] is down-sampled to 20 Hz (factor of
+10). This step reduces the arithmetic computations performed
+downstream when calculating the line length, thereby saving
+processing cycles and consequently power. The next step is
+the computation of line length. This is the sum of absolute
+differences between the samples in an epoch, and hence, it is a
+simple operation to implement in the microcontroller. A variable
+to store line length is initialized to zero at the start of a new
+epoch. Each time a new filtered sample arrives, the difference
+between the new sample and the previous sample is calculated.
+The absolute value of this difference is then added to the line
+length variable which gets updated. The value at the end of
+epoch is then the required feature.
+To calculate the normalization estimate in (4), the median
+of previous B data points is required. In the previous section,
+B was set to 60 to cover a duration of 2 min. However, at the
+implementation stage, 59 epochs were used to determine the
+median instead of 60. This is because finding the median from
+an even number of samples requires averaging the two middle
+
+1023
+
+values. Using the closest odd number smaller than 60 allows
+saving some processing cycles without affecting the algorithm
+output. The median is implemented on the microcontroller using
+linked lists based on Phil Ekstrom’s method [39] with a sorting
+complexity of N . When a new value of feature F (e) is available,
+it is inserted at the appropriate position in an already sorted list,
+and the oldest value is removed at the same time. The data in
+the list do not need to be shifted, and only the pointers of the
+neighboring elements in the list need to be updated, when a new
+element is added or an existing element is removed. Since the list
+is always sorted, the median is trivially the middle element of the
+list (average of two middle elements in a list with even number
+of elements). The transient and steady-state values of λ and
+(1 − λ) in (4) are stored in Q15 format on the microcontroller.
+Instead of calculating the normalized feature A(e) in (5) and
+then comparing against the threshold, the equivalent operation
+in (12) is performed to check for seizure detection on the microcontroller. This allows using the hardware multiplier instead
+of a costly division operation. A detection flag is set for each
+channel whenever the condition in (12) is true. The detection
+flags are summed and checked for seizure detection as in (8)
+F (e) ≥ z(e) × β.
+
+(12)
+
+Since 2 s of EEG data are used to compute the feature and
+subsequently checked against the threshold for seizure event,
+this data need to be stored for transmission in case of a positive detection. For this reason, 2 s of unfiltered EEG is stored
+in the microcontroller RAM. The on-chip memory sets an upper bound on the amount of data that may be buffered and,
+therefore, the number of channels that may be processed by the
+microcontroller. For the MSP430F5438A, this works out to be
+12 channels sampled at 200 Hz and is also the reason for using
+12 channels in this study. When an epoch is deemed to be a
+nonseizure event, the detection flag is set to zero, and all the
+EEG data buffered for transmission are cleared.
+D. Wireless Transmission and Encryption
+To guarantee security of patient data according to the U.K.
+Data Protection Act 1998 [40] and NHS Code of Practice [41],
+EEG data should be transmitted wirelessly in encrypted form.
+The Advanced Encryption Standard (AES), issued by the National Institute of Standards and Technology, is one of the most
+popular and widely used encryption technique that encrypts data
+in blocks of 128 bits, and cipher key size of 128, 192, or 256 bits.
+In this study, when a seizure epoch is detected by the data selection algorithm, data from all 12 channels are encrypted using the
+AES-128 standard (128-bit cipher key) prior to transmission.
+The encrypted data are then transmitted using a nRF24L01
++ transceiver, powered at 2 V, with the transmit power set to 0
+dBm and over-the-air data rate of 2 Mbps. One seizure epoch
+of 2 s, sampled at 200 Hz, will generate 9600 bytes of data
+across 12 channels. The transmitter will only need to be switched
+ON when there is encrypted data ready for transmission. The
+transceiver uses Nordic Shockburst protocol for transmission
+with a payload size of 32 bytes in each round and an additional
+
+1024
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+five bytes for preamble, address and cyclic redundancy check
+(CRC).
+E. Performance Assessment Criteria
+The performance of the algorithm and its hardware implementation are assessed with the following metrics: sensitivity
+to identify epileptic seizures, specificity (ability to reject nonseizure data), and power saving of the overall head-mounted
+system. Each of these metrics will be described in detail below:
+1) Sensitivity is a measure of the fraction of expertly marked
+seizure epochs and events that has been correctly identified by the algorithm. Two variants of sensitivity are
+determined: epoch sensitivity and event sensitivity.
+For epoch sensitivity, the ground truth is taken to be the
+total number of epochs enclosing all the seizure events
+marked by experts. For example, a 10-s seizure event will
+have five 2-s seizure epochs. The average epoch sensitivity
+is calculated as
+N
+epT Pn
+1 
+× 100%
+N n =1 epT Pn + epF Nn
+(13)
+where epT Pn is the number of true positives (correctly
+identified seizure epochs) in record n, epF Nn is the number of false negatives (incorrectly rejected seizure epochs)
+in record n, and N is the number of total seizure containing records present in the test database.
+The epoch sensitivity does not reflect on the actual fraction of seizure events correctly identified but instead it
+measures the fraction of total seizure duration. Thus, the
+fraction of expert marked seizure events correctly identified, event sensitivity, is sometimes reported in addition
+to this metric.
+For event sensitivity, the ground truth is the total number
+of seizure events expertly marked in the test database. The
+average event sensitivity is calculated as
+
+Epoch Sensitivity =
+
+N
+evT Pn
+1 
+× 100%
+N n =1 evT Pn + evF Nn
+(14)
+where evT Pn and epF Nn are the number of true positives
+(correctly identified seizure event) and false negatives (incorrectly rejected seizure event) in record n, while N is
+the total number of records in the database. Here, an event
+is considered to be a true positive if there is an overlap of
+at least one epoch (2 s) between the detected event and
+the corresponding seizure event in the ground truth.
+2) Specificity is the fraction of nonseizure epochs correctly
+rejected. It is calculated as
+
+on a patient, the duration of seizure data is mostly insignificant in comparison to the duration of nonseizure
+(normal EEG data), and thus, the specificity of the algorithm in such cases is equal to the achieved data reduction.
+If seizure duration is considered, the total data reduction would be marginally less than the specificity of the
+algorithm.
+3) Power saving: The sensitivity and specificity of the algorithm must be traded off with the power consumption of
+the algorithm hardware implementation as high sensitivity and specificity can be achieved if the algorithm used
+more computationally complex signal-processing techniques but the hardware implementation of such methods
+would generally require higher power consumption. Thus,
+the power consumption, or more importantly, the power
+saving, achieved by introducing the data selection algorithm in the wearable EEG system should be quantified.
+The power consumption for continuous wireless transmission can be measured, and the data reduction/compression
+C at a specific threshold β is known. Thus, the power consumption of continuous and discontinuous transmission
+can be calculated as in (1).
+
+III. RESULTS
+In this section, the accuracy of the algorithm is first evaluated
+by determining the number of true seizure events present in the
+reduced data. The power consumption of the algorithm is then
+determined in its idle, processing, and transmission stages. This
+is used to evaluate its overall average power consumption. Using
+these, a power-performance curve is plotted to demonstrate how
+much power savings can be achieved due to data reduction at
+different compression ratios and the consequent degradation in
+algorithm’s detection performance due to reduced data being
+transmitted.
+
+Event Sensitivity =
+
+Specificity =
+
+N
+epT Nn
+1 
+× 100% (15)
+N n =1 epT Nn + epF Pn
+
+where epT Nn is the number of true negatives (correctly
+rejected nonseizure epochs), epF Pn is the number of false
+positives (incorrectly detected nonseizure epochs), and N
+is the total number of tests. When the algorithm is tested
+
+A. Data Selection Accuracy
+The accuracy of the algorithm at identifying seizure EEG and
+rejecting normal brain activity is shown in Fig. 5. In the figure,
+the sensitivity-data reduction tradeoff can be seen, where high
+sensitivity can be achieved if larger amount of data is transmitted an vice versa. The fraction of seizure events detected, as
+given by event sensitivity, is consistently better than the fraction of seizure duration detected for transmission (shown by
+epoch sensitivity) for the same amount of data transmitted. All
+seizure events are detected (100% event sensitivity), when 65%
+of seizure epochs are selected for transmission amongst 22%
+of background data. For 80% of seizure epochs to be correctly
+identified for transmission, about 51% of background data need
+to be transmitted.
+The percentage of data transmitted at each sensitivity/threshold β can be used to determine the power consumption
+of the algorithm and wireless transmission, which will be discussed next.
+
+IMTIAZ et al.: PERFORMANCE-POWER CONSUMPTION TRADEOFF IN WEARABLE EPILEPSY MONITORING SYSTEMS
+
+Fig. 5. Performance-power consumption tradeoff shown with sensitivity–
+specificity curve.
+
+Fig. 6. Performance-power consumption tradeoff shown with power consumption of the combined algorithm and wireless transmission for each sensitivity.
+
+B. Power Consumption
+To determine the power consumption of the microcontroller
+and wireless transmitter system, it is necessary to mention the
+three distinct modes in which the system operates, and the current drawn by the system during them:
+1) Idle: Both microcontroller and transceiver are not used
+and, thus, are in low-power idle mode. The current drawn
+in idle mode is iidle = 0.03 mA.
+2) Processing: The microcontroller is performing certain operations such as filtering, line length computation, encryption, etc., while the transceiver is in idle mode. The current
+drawn is ipro c = 4.20 mA.
+
+1025
+
+Fig. 7. Current draw in different operation modes. Only a portion of algorithm
+period is shown followed by data transmission of 160 bytes (32 bytes during
+each of the five transmission rounds).
+
+3) Transmission: Microcontroller and transceiver are both
+operating in active mode. The current drawn in this mode
+is itran = 10.96 mA.
+The current drawn in each mode of operation is shown in
+Fig. 7 which illustrates the current drawn while the microcontroller processes input EEG data in 2-s epochs, then transmits
+the analyzed data if it is a candidate seizure event, and finally,
+when both the microcontroller and transmitter are in idle mode
+until the next 2-s EEG epoch should be analyzed. As shown
+in Fig. 7, the highest current is drawn during transmission, and
+thus, minimizing the time spent in transmission mode and maximizing the time spent in the idle mode will reduce the overall
+power consumption.
+Subsequently, the measured current at any instance in time
+would be the current drawn at one of the three modes of operation. The average current drawn over time, Iavg , can be calculated by measuring the fraction of time spent in each mode of
+operation:
+Iavg = iidle × tidle + ipro c × tpro c + itran × ttran .
+
+(16)
+
+The time spent in a mode of operation has been determined for
+the computations of a single epoch of 2-s duration.
+The average power consumption is then the average current multiplied by the supply voltage (2 V). Using (16), the
+power consumption of continuous transmission (encryption and
+transmission of all data) and discontinuous transmission (data
+selection algorithm, encryption, and transmission) has been
+determined:
+1) Continuous transmission: For 12-channel 16-bit input
+EEG sampled at 200 Hz to be transmitted in 2-s sections,
+the average current was 1.4 mA. The power consumption for encrypting and transmitting all the EEG data was
+2.8 mW.
+2) Discontinuous transmission: The microcontroller implementation of the data selection algorithm analyzing the
+
+1026
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+same 12 channels of EEG data required 1.7 mW. Using
+this, the power consumption for encryption and transmission can now be calculated at different points of the
+sensitivity-data transmitted curve in Fig. 6.
+C. Performance-Power Consumption Tradeoff
+Fig. 5 shows the tradeoff between sensitivity of detecting
+epileptic seizures versus the specificity of rejecting nonseizure
+data sections. For the same set of sensitivity and threshold values, Fig. 6 illustrates the total power consumption for discontinuous transmission. From Fig. 6, it is possible to determine the
+maximum and minimum power consumption. If no data are selected for transmission, the algorithm will have 0% sensitivity,
+and the total power consumption will be equal to the power consumption of the algorithm (1.7 mW). If all the data are selected
+for transmission, the algorithm will achieve 100% sensitivity,
+and the total power consumption will be equal to the power
+consumption of the algorithm plus the power consumption of
+continuous transmission, which adds up to 4.5 mW.
+In Fig. 6, a tradeoff limit has been plotted as a dot–dash vertical line at 2.8 mW (the power consumption for continuous
+transmission). This illustrates the maximum sensitivity-data reduction that can be achieved by the algorithm without the total
+power consumption of discontinuous transmission exceeding
+the power consumption of continuous transmission. In other
+words, sensitivity values that are on left-hand side of the tradeoff limit will lead to power reduction through discontinuous
+transmission while the performance on right-hand side of the
+tradeoff limit will lead to an overall increase in power consumption. From Figs. 5 and 6, an overall power saving can be
+obtained, if data transmission is less than or equal to 40%, which
+in turn corresponds to event sensitivity up to 100% but epoch
+sensitivity only up to 75%.
+Ideally, a medical practitioner will decide on the threshold
+(β) such that at least a minimum level of sensitivity is achieved.
+For the sake of analysis, let us assume that over 90% of seizure
+events must be detected with at least 50% duration selected for
+recording. In this case, the closest threshold would be selected
+to give 94.12% event sensitivity (missing only two events) with
+54.04% of seizure duration selected for transmission in addition
+to 9.98% of nonseizure data. This corresponds to a power consumption of 2 mW for the 12-channel algorithm with discontinuous encrypted data transmission, which is a 29% reduction in
+power consumption in comparison to continuous transmission
+or raw data.
+IV. DISCUSSION
+The data selection algorithm implemented here showed a discernible reduction in power consumption through discontinuous
+transmission. This reduction in power consumption translates
+to an equivalent increase in the lifetime of a battery-powered
+portable EEG system. Alternatively, a battery with lower energy
+capacity (and thus lower weight and volume) can be selected to
+allow the system to operate for the same lifetime. In portable
+EEG systems, the battery dominates the weight and volume of
+the entire system and thus selecting a lower energy capacity,
+
+lighter, smaller battery would significantly reduce its weight
+and volume making it more comfortable for the patient to wear.
+The data selection approach used here has two main advantages. The first one is reduction in specialist analysis time. Taking the same analysis point as above, a neurologist will be able
+to view 54.04% of seizure duration of 32 out of 34 seizure events
+(94.12% event sensitivity) but will only unnecessarily analyze
+9.98% of nonseizure data. Since seizure duration is significantly
+less than nonseizure duration, the time taken by the neurologist
+to analyze the discontinuous recording would be approximately
+a tenth of the time taken to analyze a continuous EEG recording, saving time for the neurologist. Alternatively, the patient
+could be monitored for a longer duration without an increase
+in analysis time for the neurologist. The second advantage of
+data selection is a reduction in power consumption at the wireless base station since the power consumption of the receiver
+is also proportional to the amount of data received. Data reduction will allow the receiver to be turned ON only when data
+is available for transmission. Thus, for truly portable systems
+where the wireless base station (such as a mobile phone) is also
+carried by the patient during monitoring, the power reduction
+at the head-mounted transmitter will be matched at the portable
+receiver.
+A further benefit of this method, as opposed to automated
+diagnostic systems, is that it maintains the crucial role of the
+doctor in diagnosing a patient while reducing the time taken
+for the doctor to analyze the recording. Although an obvious
+disadvantage is that it adds a slight delay in obtaining diagnostic results in contrast to online seizure detection systems where
+the result is instantaneous (without doctor’s involvement). However, online seizure detectors use sophisticated signal processing
+and classification methods. This adds computational complexity
+increasing power consumption and reducing battery lifetime.
+Although the reduction in data (and subsequently power) is
+advantageous and since it saves analysis time of medical practitioners, there is a possibility of losing important information
+using the data selection approach. Ideally, there should be no
+loss of data when it is being reduced however that is practically
+impossible. Therefore, a tradeoff must be found to reduce data
+and power consumption up to a point where this reduction does
+not lead to considerable loss of information.
+There are other ways of reducing power consumption including the use of flash memory to save sections of data rather that
+transmitting them. In [42], we showed that saving the data on
+a NAND flash consumes less power than transmitting using the
+Nordic transmitter used here. Furthermore, wireless transmission may also lead to packet losses requiring multiple retransmission of data. Nevertheless, wireless transmission is more
+comfortable to the user, allows the capability of real-time analysis and assistance.
+It should be noted that the algorithm utilized in this study is a
+first prototype developed to demonstrate the performance-power
+consumption tradeoff in wearable epilepsy monitoring system.
+Thus, the data selection accuracy or power consumption of the
+algorithm may be improved through the use of another algorithm
+evaluated using the same methods utilized in this study or an
+alternative hardware implementation (for example, in analog or
+
+IMTIAZ et al.: PERFORMANCE-POWER CONSUMPTION TRADEOFF IN WEARABLE EPILEPSY MONITORING SYSTEMS
+
+digital ASIC). Furthermore, the algorithm implemented in this
+paper was designed specifically to detect seizure events and not
+to predict their occurrence or termination. To detect other seizure
+features, different low-power algorithms can be developed. The
+methods of data selection proposed in this paper would still be
+applicable for any alternative implementation.
+Furthermore, these results are obviously linked to the choice
+of algorithm. This algorithm was designed having the power
+constraint as a requirement, so it is relatively low complexity, and consequently, its implementation was expected to require low power at the cost of accuracy. Different algorithms
+might lead to different power/accuracy tradeoff points. In the
+microcontroller implementation of the algorithm discussed previously, it is also interesting to note that the current drawn by
+the microcontroller during processing time is less than half the
+current drawn during transmission. Thus, it may be possible to
+achieve better data selection accuracy and more power reduction
+by adding more signal-processing staging (and thus increasing
+the computational complexity of the algorithm) provided it reduces the amount of data transmitted by more than twice the
+increase in power consumption of the microcontroller.
+V. CONCLUSION
+This paper presents a new EEG data selection algorithm together with its implementation on a low-power microcontroller
+with AES-128 encryption and wireless transmission. It demonstrates how data reduction can be utilized to reduce the power
+consumption of wireless transmission and subsequently of the
+overall EEG system. The data selection algorithm proposed here
+selected 94.12% of seizure events and 54.04% of total seizure
+duration for transmission, in addition to only 9.98% of normal brain activity. Utilizing this data selection algorithm to selectively transmit candidate seizure sections would allow 29%
+reduction in power consumption of the EEG system, thus increasing the battery lifetime proportionally. Additionally, the
+discontinous EEG recording would reduce the analysis time for
+the neurologist to a tenth of the time taken to analyze the continuous recording, while not significantly altering the final electroclinical diagnosis of the patient. The paper also discusses the
+tradeoffs between the data selection accuracy of the algorithm
+and the power consumption of wireless transmission, where
+higher accuracy can be achieved if higher power consumption is
+tolerated, and the potential for increased power saving through
+alternative hardware implementation. This study proves that
+online data selection algorithms designed for low power consumption can be utilized to reduce the power consumption of
+wireless battery-powered EEG systems while aiding clinical
+diagnosis through discontinuous recording of candidate epileptiform EEG.
+REFERENCES
+[1] S. Sisodiya, “Etiology and management of refractory epilepsies,” Nat.
+Clin. Pract. Neurol., vol. 3, no. 6, pp. 320–330, 2007.
+[2] M. Black and D. Graham, “Sudden death in epilepsy,” Curr. Diag. Pathol.,
+vol. 8, pp. 365–372, 2002.
+
+1027
+
+[3] D. Smith, B. A. Defalla, and D. W. Chadwick, “The misdiagnosis of
+epilepsy and the management of refractory epilepsy in a specialist clinic,”
+QJM, vol. 92, pp. 15–23, 1999.
+[4] S. Noachtar and J. Rémi, “The role of EEG in epilepsy: A critical review,”
+Epilepsy Behav., vol. 15, pp. 22–33, 2009.
+[5] A. J. Casson, D. C. Yates, S. J. M. Smith, J. S. Duncan, and E. RodriguezVillegas, “Wearable electroencephalography,” IEEE Eng. Med. Biol. Mag.,
+vol. 29, no. 3, pp. 44–56, May/Jun. 2010.
+[6] J. Gotman, “Automatic detection of seizures and spikes,” J. Clin. Neurophysiol., vol. 16, no. 2, pp. 130–140, 1999.
+[7] A. J. Casson and E. Rodriguez-Villegas, “Data reduction techniques to
+facilitate wireless and long term AEEG epilepsy monitoring,” in Proc.
+IEEE Eng. Med. Biol. Soc. Neural Eng., Kohala Coast, HI, USA, May
+2007, pp. 298–301.
+[8] H. Daou and F. Labeau, “Dynamic dictionary for combined EEG compression and seizure detection,” IEEE J. Biomed. Health Inform., vol. 18,
+no. 1, pp. 247–256, Jan. 2014.
+[9] J. Tolbert, P. Kabali, S. Brar, and S. Mukhopadhyay, “An accuracy aware
+low power wireless EEG unit with information content based adaptive
+data compression,” in Proc. IEEE Eng. Med. Biol. Soc., Minneapolis,
+MN, USA, Sep. 2009, pp. 5417–5420.
+[10] L. Kuhlmann, A. Burkitt, M. Cook, K. Fuller, D. Grayden, L. Seiderer,
+and I. Mareels, “Seizure detection using seizure probability estimation:
+Comparison of features used to detect seizures,” Ann. Biomed. Eng., vol.
+37, pp. 2129–2145, 2009.
+[11] L. Logesparan, A. J. Casson, and E. Rodriguez-Villegas, “Optimal features
+for online seizure detection,” Med. Bio. Eng. Comput., vol. 50, no. 7,
+pp. 659–669, 2012.
+[12] E. Glassman and J. V. Guttag, “Reducing the number of channels for
+an ambulatory patient-specific EEG-based epileptic seizure detector by
+applying recursive feature elimination,” in Proc. IEEE Eng. Med. Biol.
+Soc., 2006, pp. 2175–2178.
+[13] S. Faul, “Dynamic channel selection to reduce computational burden in
+seizure detection,” in Proc. IEEE Eng. Med. Biol. Soc., Buenos Aires,
+Argentina, Sep. 2010, pp. 6365–6368.
+[14] H. Qu and J. Gotman, “A patient-specific algorithm for the detection of
+seizure onset in long-term EEG monitoring: possible use as a warning
+device,” IEEE Trans. Biomed. Eng., vol. 44, no. 2, pp. 115–122, Feb.
+1997.
+[15] I. Osorio, M. G. Frei, and S. B. Wilkinson, “Real-time automated detection
+and quantitative analysis of seizures and short-term prediction of clinical
+onset,” Epilepsia, vol. 39, no. 6, pp. 615–627, 1998.
+[16] M. Saab and J. Gotman, “A system to detect the onset of epileptic seizures
+in scalp EEG,” Clin. Neurophysiol., vol. 116, no. 2, pp. 427–442, 2005.
+[17] R. Meier, H. Dittrich, A. Schulze-Bonhage, and A. Aertsen, “Detecting epileptic seizures in long-term human EEG: A new approach to
+automatic online and real-time detection and classification of polymorphic seizure patterns,” J. Clin. Neurophysiol., vol. 25, pp. 119–131,
+2008.
+[18] A. S. Zandi, M. Javidan, G. A. Dumont, and R. Tafreshi, “Automated
+real-time epileptic seizure detection in scalp EEG recordings using an
+algorithm based on wavelet packet transform,” IEEE Trans. Biomed. Eng.,
+vol. 57, no. 7, pp. 1639–1651, Jul. 2010.
+[19] K. M. Kelly, D. S. Shiau, R. T. Kern, J. H. Chien, M. C. K. Yang, K.
+A. Yandora, J. P. Valeriano, J. J. Halford, and J. C. Sackellares, “Assessment of a scalp EEG-based automated seizure detection system,” Clin.
+Neurophysiol., vol. 121, no. 11, pp. 1832–1843, 2010.
+[20] A. Shoeb, A. Kharbouch, J. Soegaard, S. Schachter, and J. Guttag, “A
+machine-learning algorithm for detecting seizure termination in scalp
+EEG,” Epilepsy Behav., vol. 22, Supplement 1, pp. S36–S43, 2011.
+[21] S. B. Wilson, M. L. Scheuer, R. G. Emerson, and A. J. Gabor, “Seizure
+detection: Evaluation of the Reveal algorithm,” Clin. Neurophysiol.,
+vol. 115, no. 10, pp. 2280–2291, 2004.
+[22] S. Ghosh-Dastidar, H. Adeli, and N. Dadmehr, “Mixed-band waveletchaos-neural network methodology for epilepsy and epileptic seizure detection,” IEEE Trans. Biomed. Eng., vol. 54, no. 9, pp. 1545–1551, Sep.
+2007.
+[23] V. Srinivasan, C. Eswaran, and N. Sriraam, “Approximate entropybased epileptic EEG detection using artificial neural networks,” IEEE
+Trans. Inf. Technol. Biomed., vol. 11, no. 3, pp. 288–295, May
+2007.
+[24] A. T. Tzallas, M. G. Tsipouras, and D. I. Fotiadis, “Epileptic seizure
+detection in EEGs using time-frequency analysis,” IEEE Trans. Inform.
+Technol. Biomed., vol. 13, no. 5, pp. 703–710, Sep. 2009.
+
+1028
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 3, MAY 2015
+
+[25] Q. Yuan, W. Zhou, Y. Liu, and J. Wang, “Epileptic seizure detection with
+linear and nonlinear features,” Epilesy Behav., vol. 24, no. 4, pp. 415–421,
+2012.
+[26] S. Alam and M. Bhuiyan, “Detection of seizure and epilepsy using higher
+order statistics in the EMD domain,” IEEE J. Biomed. Health Inform.,
+vol. 17, no. 2, pp. 312–318, Mar. 2013.
+[27] M. Niknazar, S. Mousavi, B. Vosoughi Vahdat, and M. Sayyah, “A
+new framework based on recurrence quantification analysis for epileptic seizure detection,” IEEE J. Biomed. Health Inform., vol. 17, no. 3,
+pp. 572–578, May 2013.
+[28] R. Hopfengärtner, B. S. Kasper, W. Graf, S. Gollwitzer, G. Kreiselmeyer,
+H. Stefan, and H. Hamer, “Automatic seizure detection in long-term scalp
+EEG using an adaptive thresholding technique: A validation study for
+clinical routine,” Clin. Neurophysiol., vol. 125, pp. 1346–1352, 2014.
+[29] R. A. B. Badawy, N. Pillay, N. Jetté, S. Wiebe, and P. Federico, “A
+blinded comparison of continuous versus sampled review of video-EEG
+monitoring data,” Clin. Neurophysiol., vol. 122, no. 6, pp. 1086–1090,
+2011.
+[30] M. Z. Koubeissi and T. U. Syed, “Inpatient video-EEG monitoring: How
+much shall we review?” Clin. Neurophysiol., vol. 122, no. 6, pp. 1065–
+1066, 2011.
+[31] R. F. Yazicioglu, P. Merken, R. Puers, and C. Van Hoof, “A 200 μW
+eight-channel EEG acquisition ASIC for ambulatory EEG systems,” IEEE
+J. Solid-State Circuits, vol. 43, no. 12, pp. 3025–3038, Dec. 2008.
+[32] W. De Clercq, A. Vergult, B. Vanrumste, W. Van Paesschen, and S. Van
+Huffel, “Canonical correlation analysis applied to remove muscle artifacts from the electroencephalogram,” IEEE Trans. Biomed. Eng., vol. 53,
+no. 12, pp. 2583–2587, Nov. 2006.
+[33] A. Vergult, W. De Clercq, A. Palmini, B. Vanrumste, P. Dupont, S. Van
+Huffel, and W. Van Paesschen, “Improving the interpretation of ictal
+scalp EEG: BSS–CCA algorithm for muscle artifact removal,” Epilepsia,
+vol. 48, no. 5, pp. 950–958, 2007.
+[34] R. Esteller, J. Echauz, T. Tcheng, B. Litt, and B. Pless, “Line length: An
+efficient feature for seizure onset detection,” in Proc. IEEE Eng. Med.
+Biol. Soc., Istanbul, Turkey, Oct. 2001, pp. 1707–1710.
+[35] M. R. Nuwer, G. Comi, R. Emerson, A. Fuglsang-Frederiksen, J.-M. Gurit,
+H. Hinrichs, A. Ikeda, F. Jose C. Luccas, and P. Rappelsburger, “IFCN
+standards for digital recording of clinical EEG,” Electroencephalogr. Clin.
+Neurophysiol., vol. 106, no. 3, pp. 259–261, 1998.
+[36] L. Logesparan, A. J. Casson, and E. Rodriguez-Villegas, “Assessing the
+impact of signal normalization: Preliminary results on epileptic seizure
+detection,” in Proc. IEEE Eng. Med. Biol. Soc., Boston, MA, USA, 2011,
+pp. 1439–1442.
+[37] Texas Instruments. (2013). MSP430 ultra-low power 16-bit microcontrollers. [Online]. Available: http://www.ti.com/msp430/
+[38] Nordic Semiconductor. (2013). [Online]. Available: http://www.
+nordicsemi.com/
+[39] P. Ekstrom. (2000). Running median better than average. [Online].
+Available:
+http://www.eetindia.co.in/STATIC/PDF/200011/EEIOL_
+2000NOV03_EMS_EDA_TA.pdf
+[40] U.K. (1998). Data protection act 1998. [Online]. Available: http://
+www.legislation.gov.uk/ukpga/1998/29/contents
+[41] Department of Health. (2003). Confidentiality: NHS code of practice. [Online]. Available: https://www.gov.uk/government/publications/
+confidentiality-nhs-code-of-practice
+[42] S. A. Imtiaz, A. J. Casson, and E. Rodriguez-Villegas, “Compression in
+wearable sensor nodes: Impacts of node topology,” IEEE Trans. Biomed.
+Eng., vol. 61, no. 4, pp. 1080–1090, Apr. 2014.
+
+Syed Anas Imtiaz (S’07) received the B.Eng. degree from the National University of Sciences and
+Technology, Islamabad, Pakistan, in 2008, and the
+M.Sc. degree with distinction in integrated circuit design from Imperial College London, London, U.K.,
+in 2009. He is currently working toward the Ph.D.
+degree in low-power circuits and systems at Imperial
+College London.
+His research interests include signal processing,
+algorithms and mixed-signal circuit design of lowpower and wearable EEG systems for use in sleep
+medicine and epilepsy monitoring.
+
+Lojini Logesparan (S’10) received the B.Eng. degree in electrical and electronic engineering and the
+Ph.D. degree from Imperial College London, London, U.K., in 2007 and 2013, respectively. She concentrated on algorithm and circuit design for online
+EEG data reduction while working toward the Ph.D.
+degree.
+She is currently with Schlumberger, West Sussex,
+U.K., creating new signal processing algorithms for
+use in the oil and gas industry.
+
+Esther Rodriguez-Villegas (SM’08) received the
+graduate degree from the Department of Physics,
+University of Seville, Seville, Spain, in 1996, where
+she received the Ph.D. degree in 2002.
+She is currently a Reader in Low Power Electronics with the Department of Electrical and Electronic Engineering, Imperial College London, London, U.K., where she specializes in ultralow-power
+electronic circuits and systems for truly wearable
+physiological monitoring. She is the author of more
+than 100 peer-reviewed papers and a book on FGMOS transistors which was published by the Institution of Engineering and
+Technology in 2006.
+Dr. Rodriguez-Villegas has been a Member of technical committees in several international conferences such as the IEEE International Symposium on
+Circuits and Systems, the IEEE International Conference on Electronics, Circuits and Systems, and the IEEE Biomedical Circuits and Systems. In 2010,
+she organized a mini-symposium on truly wearable medical devices at the IEEE
+Engineering in Medicine and Biology Conference. In 2009, she received the
+Complutense Young Award for Science and Technology, and an IET innovation
+award.
+
+

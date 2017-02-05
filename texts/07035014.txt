@@ -1,0 +1,892 @@
+1576
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+Graphics-Processor-Unit-Based Parallelization of
+Optimized Baseline Wander Filtering Algorithms
+for Long-Term Electrocardiography
+Thomas Niederhauser, Thomas Wyss-Balmer, Andreas Haeberlin, Thanks Marisa, Reto A. Wildhaber, Josef Goette,
+Marcel Jacomet, and Rolf Vogel∗
+
+Abstract—Long-term electrocardiogram (ECG) often suffers
+from relevant noise. Baseline wander in particular is pronounced
+in ECG recordings using dry or esophageal electrodes, which are
+dedicated for prolonged registration. While analog high-pass filters introduce phase distortions, reliable offline filtering of the
+baseline wander implies a computational burden that has to be
+put in relation to the increase in signal-to-baseline ratio (SBR).
+Here, we present a graphics processor unit (GPU)-based parallelization method to speed up offline baseline wander filter algorithms, namely the wavelet, finite, and infinite impulse response,
+moving mean, and moving median filter. Individual filter parameters were optimized with respect to the SBR increase based on
+ECGs from the Physionet database superimposed to autoregressive
+modeled, real baseline wander. A Monte-Carlo simulation showed
+that for low input SBR the moving median filter outperforms any
+other method but negatively affects ECG wave detection. In contrast, the infinite impulse response filter is preferred in case of high
+input SBR. However, the parallelized wavelet filter is processed
+500 and four times faster than these two algorithms on the GPU,
+respectively, and offers superior baseline wander suppression in
+low SBR situations. Using a signal segment of 64 mega samples
+that is filtered as entire unit, wavelet filtering of a seven-day highresolution ECG is computed within less than 3 s. Taking the high
+filtering speed into account, the GPU wavelet filter is the most
+efficient method to remove baseline wander present in long-term
+ECGs, with which computational burden can be strongly reduced.
+Index Terms—Autoregressive (AR) model, compute unified device architecture (CUDA), long-term ECG, R wave, signal-tobaseline (SBR) ratio.
+Manuscript received July 9, 2014; revised December 23, 2014 and November 9, 2014; accepted January 13, 2015. Date of publication February 6, 2015;
+date of current version May 18, 2015. This work was supported by the Commission for Technology and Innovation CTI (10717.1-PFLS-LS), Switzerland,
+the Department of Cardiology, Bern University Hospital, the Department of
+Cardiology, Bürgerspital Solothurn, and the Swiss Heart Foundation. T. Niederhauser and T. Wyss-Balmer contributed equally to this work. Asterisk indicates
+the corresponding author.
+T. Niederhauser was with the University of Bern. He is now with the Institute
+for Human Centered Engineering, Engineering and Information Technology,
+Bern University of Applied Sciences.
+T. Wyss-Balmer was with the ARTORG Center—Cardiovascular Engineering. He is now with the Institute for Surgical Technology and Biomechanics,
+University of Bern.
+A. Haeberlin is with the ARTORG Center—Cardiovascular Engineering,
+University of Bern and also with the Department of Cardiology, Inselspital,
+Bern University Hospital and University of Bern.
+T. Marisa, R. A. Wildhaber, J. Goette, and M. Jacomet are with the Institute for
+Human Centered Engineering, Engineering and Information Technology, Bern
+University of Applied Sciences.
+∗ R. Vogel was with the University of Bern, Bern 3010, Switzerland. He is now
+with the Department of Cardiology, Bürgerspital Solothurn, 4500 Solothurn,
+Switzerland (e-mail: rolf.vogel@spital.so.ch).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2395456
+
+I. INTRODUCTION
+ONG-TERM electrocardiography is highly demanded due
+to the increasing prevalence of heart rhythm disorders.
+Rare and short episodes of, e.g., atrial fibrillation require prolonged ECG recording for a correct diagnose [1]. However, common disposable Ag/AgCl-gelled skin electrodes are not suitable for long-term applications due to technical limitations: the
+electromechanical contact properties of gelled skin electrodes
+frequently induce motion artifacts [2] and alter over time [3],
+in particular, during physical activity and sweating [4]. Both
+result in significant reduction of the signal quality and concurrent false diagnostic outcomes [5]–[7]. Moreover, long-term
+recording with gelled skin electrodes is accompanied with skin
+irritations or even skin defects, both reducing the patient’s compliance [8].
+The long-term inability of gelled skin electrodes supports the
+investigation of dry electrodes. Dry electrodes, often textileintegrated, make use, e.g., of macroscopic surface areas [9] or
+nanoparticles [10] to reduce the interfacial contact impedance
+without additional electrolytes (gels). With novel dry electrode
+designs, distortion free and stable long-term ECG signals might
+be recorded [3]. However, dry electrodes are more susceptible
+to baseline wander [11] and motion artifacts [3], [12] compared
+to gelled electrodes as particularly observed during physical
+activity. Such low-frequency disturbances might be orders of
+magnitude stronger than the true ECG signal and overlap with
+the useful frequency spectrum and, thus, are hard to suppress
+or cancel out [13]. Among others, this limits the clinical application of dry electrodes. Similar limitations hold for long-term
+esophageal electrodes [14], [15], where such low-frequency disturbances mainly arise during ingestion and strong respiration
+episodes.
+Filtering the baseline wander and motion artifacts is a crucial
+preprocessing part for long-term ECG signals with respect to
+analysis, interpretation and presentation [16]. On the one hand,
+the preprocessing should minimally affect the low-frequency
+components of the ECG signal containing diagnostic relevant information. Analog filters have the drawback of phase distortions
+negatively affecting the ECG signal quality. On the other hand,
+fast processing is required to lower the diagnostic burden in automatic rhythm analysis REF. Both requirements tighten when
+the long-term ECG recording device features dc coupling [17]
+or just tracks and not removes the low-frequency disturbances
+[18]. In such cases, the baseline wander removal is intended
+to run offline on desktop computers. Given the critical role of
+
+L
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+NIEDERHAUSER et al.: GRAPHICS-PROCESSOR-UNIT-BASED PARALLELIZATION OF OPTIMIZED BASELINE WANDER FILTERING
+
+baseline wander removal in ECG signals, several real time or
+offline solutions have been proposed using algorithms based
+on cubic spline estimation [19], finite impulse response (FIR)
+high-pass (HP) filtering [20], adaptive filtering [21], FIR filter
+bank processing [22], moving mean or median removal [23],
+forward–backward infinite impulse response (IIR) HP filtering
+[24], discrete wavelet processing [25], discrete cosine transformation [26], singular-value decomposition [27], processing
+based on morphological operations [28], nonlinear filter bank
+processing [29], empirical mode decomposition, [30], processing based on independent component analysis [31], model-based
+filtering [32], processing based on S-transformation [33], sinusoidal modeling [34], or quadratic variation reduction [35].
+However, these algorithms were investigated with respect to filtering quality and rarely to algorithm efficiency. They are mainly
+evaluated on synthetic baseline wander signals superimposed to
+a limited number of ECG signals. As a consequence, there are no
+direct conclusions regarding the filtering performance of baseline disturbed ECG signals with respect to the input SBR and
+high ECG signal variability.
+To improve the processing speed of baseline removal, techniques to parallelize the computationally demanding filtering
+algorithms might be derived from various applications like image compression [36], [37], echocardiographic image denoising
+[38], or ECG simulations [39]. Nowadays parallelization for
+desktop computers is in particular realized with the graphics
+processing unit (GPU). In contrast to the central processing unit
+(CPU), the GPU features up to hundreds of massively parallel
+coprocessors, depending on the GPU type. The recent development of GPUs enables highly parallel general-purpose computations on large amount of data even for applications beyond
+graphics.
+In this paper, we propose a novel methodology to estimate the
+quality of baseline filtering algorithms and to investigate GPUbased parallelization aiming to improve the filter’s efficiency.
+Dedicated filtering algorithms were implemented on CPU and
+GPU and evaluated on a large dataset containing high-resolution
+ECG signals. The baseline wander free ECG signals were superimposed to random baseline disturbances of various variances
+based on autoregressive (AR) modeling and Monte-Carlo (MC)
+simulations of real baseline wander. We hypothesize that the
+performance of the filters depends on the input SBR when ECG
+signals featuring large variability are used, and that the filter’s
+efficiency can be improved by parallelization of the algorithms.
+For the method to be of practical clinical use, the baseline wander filtering must be executed on standard desktop computers
+without dedicated hardware.
+This paper is organized as follows: the proposed baseline
+wander filters are described in Section II. Section III presents
+the investigated ECG dataset, the baseline wander modeling
+and the quality assessment. The algorithm parallelization and
+the performance evaluation comparing GPU and CPU implementations are addressed in Section IV. Section V concludes
+the paper.
+II. BASELINE FILTERING METHODS
+We investigated five baseline wander filtering methods, which
+are based on moving mean window, moving median window,
+
+1577
+
+FIR HP filter, IIR HP filter, and discrete wavelet transformation.
+The algorithms were expected to be the most dedicated ones for
+parallelization and did not include any adaptation process. This
+is justified because GPU processing aims to large datasets, and
+thus, filter adaption within frames of samples [21], [25] or seconds [22] is not feasible without compromising the efficiency.
+The filters are meant to preserve the time information of the
+ECG rhythm, i.e., the R wave locations, which are most relevant
+for long-term rhythm monitoring. Other ECG signal evaluations
+such as long-term ST-segment or QT interval monitoring are not
+targeted.
+The FIR and IIR filter were designed with the help of the FDATool from MATLAB (Mathworks, USA). The filter coefficients
+of both filters were calculated with a stopband and passband
+attenuation of 60 and 1 dB at the frequencies fSTOP and fPASS ,
+respectively. The FIR filter was realized as equiripple HP filter
+in direct form with order M
+y [n] =
+
+M
+
+
+bi x [n − i]
+
+(1)
+
+i=0
+
+where x [n] is the digitized input signal, y [n] is the filtered signal
+at index n, and bi are the filter coefficients. By its design, the
+FIR provides a linear phase associated with a constant time delay
+that is removed for the error estimations. For the IIR filter, the
+normalized form with the input and recursive filter coefficients
+bi and ai
+y [n] =
+
+M
+
+
+bi x [n − i] −
+
+i=0
+
+M
+
+
+ai y [n − i]
+
+(2)
+
+i=1
+
+was converted using the Butterworth design method to an
+HP filter realized as multiple second-order sections in direct
+form II. To correct for the nonlinear phase response of the IIR
+filter, a forward-backward filtering scheme [24] was applied
+resulting in a zero phase filter.
+The moving mean filter is straightforwardly implemented using the FIR structure in (1) and constant coefficients bi
+xm +1 [n] = xm [n] −
+
+1
+Mm
+
+
+
+M m /2−1
+
+xm [n − i]
+
+(3)
+
+i=−M m /2
+
+where Mm is the mth window size in samples and x1 [n] the input signal (m = 1). To filter the ECG’s baseline wander, we followed a two-step approach with m ∈ {1, 2} and y [n] = x3 [n]:
+the first stage removes the sharp R wave of the ECG signal and
+the second stage the slower P and T waves, both times by subtracting the window mean1 . The moving median filter was setup
+in a similar way as the moving mean filter, whereas the mean
+function was replaced by the median function. One subtraction
+was required (M2 = 0) only, since the median function is more
+robust to outliers than the mean, i.e., is less affected by signal
+values within the R wave.
+The wavelet filter design followed the principle described
+in [25], however, we did not consider the adaptive process. The
+1 The linear form of the two-step moving mean filter could be summarized
+in one equation. However, the nonlinear median filter requires the form shown
+in (3).
+
+1578
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+discrete wavelet transform decomposes a given signal x into two
+sets of coefficients, the low-frequency A and high-frequency D
+coefficients by convolving x with the low-pass (LP) (h) and HP
+(g) filter, respectively. The wavelet being used actually defines
+the pair of filters. Using the dyadic approach, the convolution
+is followed by a downsampling by a factor 2. The convolution
+and downsampling are recursively applied to A at each wavelet
+level j
+aj [n] =
+
+M
+
+
+hi · aj −1 [2n − i]
+
+(4)
+
+of 10 mV. They feature a SBR of 24 dB. However, the same
+HP filter was applied as for the teECG signals. The database
+additionally provides noise signals digitized with 360 Hz using
+physically active volunteers and standard ECG recorders, leads
+and electrodes; the electrodes were placed on the limbs in positions at which the subject’s ECGs were not visible [43]. We
+extracted the two assembled noise records that predominately
+contain baseline disturbances named hereafter as BW signals.
+The trECG and BW signals that are half an hour long were
+upsampled to 1000 Hz congruent to the teECG signals.
+
+i=0
+
+B. Autoregressive Model
+dj [n] =
+
+M
+
+
+gi · aj −1 [2n − i]
+
+(5)
+
+i=0
+
+where M is the number of filter coefficients of the wavelet
+filters. Let aj and dj be the zero-padded low- and high-frequency
+coefficients at level j, the reconstruction of x is recursively given
+by
+aj −1 [n] =
+
+M
+
+i=0
+
+hi · aj [n − i] +
+
+M
+
+
+gi · dj [n − i]
+
+(6)
+
+i=0
+
+where hi and gi are the low- and high-pass reconstruction filters,
+respectively. The baseline wander filter is realized by setting Aj
+at level j = J to zero before signal reconstruction. A critical parameter of the wavelet filter is the used mother wavelet, because
+the decomposition characteristics at each level vary with the
+wavelet type. For our purpose, we used the Daubechies wavelet
+family named as db {M }, which was previously found to be appropriate for ECG signal compression [40]. Since the baseline
+wander filter should preserve the ECG shape, we can adopt the
+idea from the wavelet compression where a signal reconstruction with minimal error is desired. M/2 denotes the number of
+moments of a particular Daubechies wavelet.
+III. QUALITY ASSESSMENT
+A. Signal Databases
+We explored the quality of the filter algorithms with measured
+ECG and baseline wander signals derived from the PTB diagnostic ECG database and the MIT-BIH noise stress database,
+respectively [41]. The high-resolution diagnostic ECGs were
+collected from healthy volunteers and patients with different
+heart diseases [42], in total from 290 subjects. Each of the 549
+records includes 15 simultaneously measured signals that are
+digitized at 1000 samples per second with 16 bit resolution over
+a range of +/− 16 mV. From the records, we exclusively read
+lead II that is widely used in the setting of long-term ECG
+recording [14]. The ECG signals with duration of 30 s were
+consistently processed and labeled as test ECG (teECG) signals. Prior to the filter evaluation, the dc drift was removed from
+the teECG signals with a HP filter featuring a cutoff frequency of
+0.05 Hz. From the noise stress database [43], we extracted four
+ambulatory ECG leads from the records 118e24 and 119e24,
+named hereafter as train ECG (trECG) signals. The records
+were digitized with 360 Hz and 11 bit resolution over a range
+
+The teECG signals feature a wide physiological and pathophysiogical variability dedicated to the baseline wander filter
+evaluation. However, only two records containing true baseline
+disturbances are available that can be used to alter the true ECG
+signals. We, therefore, propose a baseline disturbance model
+that randomly generates baseline wander signals with a predefined statistical feature set based on the BW signals. The
+model is formed as AR model that is a representative of the
+general class of nonstationary time series. The AR model was
+recently discussed for respiratory rate extraction [44], whereas
+the used pulse oximetry signals were similar in nature as the
+low-frequency respiration signals observed in the ECG [45].
+We adopt this idea to model the low-frequency baseline disturbances. The AR model is defined by a scalar statistical process
+of order T
+y [n] =
+
+T
+
+
+ak y [n − k] + e [n]
+
+(7)
+
+k =1
+
+where e [n] is assumed to be a sequence of independent and
+normally distributed random
+ variables with zero mean and a
+
+variance of σn2 (i.d. N 0, σn2 ). This variable can be interpreted
+as the prediction error of the next signal value by regressing the
+previous observations with the AR coefficients. We estimated
+two AR models using the Yule–Walker equations [46], each
+based on one of the two BW signals as observations. We used
+the Akaike information criterion (AIC [44]) to estimate the order
+T : T was found to be 50 for both AR models.
+C. Filter Optimization and Test Method
+Fig. 1 shows a sample segment of one trECG signal [see
+Fig. 1(a)] superimposed with a sample segment of one BW
+channel. The superposition was done so that the disturbed ECG
+signal achieved a SBR of –6 dB [see Fig. 1(c)]. Corresponding
+short-term power spectral densities (PSD) were extracted using
+Welch’s method with a window length of 10 s and 50% overlapping to reduce the estimation error. The PSD of the clean trECG
+[see Fig. 1(b)] depicts the fundamental ECG rhythm of 1.3 Hz
+that is equivalent to the mean RR interval measured as 760 ms
+for the present ECG segment. However, the baseline disturbance
+clearly overlaps with the fundamental frequency and even higher
+ECG frequencies as visualized in Fig. 1(d). In this example,
+a standardized analog HP filter with a frequency cutoff (3-dB
+down) at 0.67 Hz (see [16]) fail to remove the baseline wander as
+
+NIEDERHAUSER et al.: GRAPHICS-PROCESSOR-UNIT-BASED PARALLELIZATION OF OPTIMIZED BASELINE WANDER FILTERING
+
+1579
+
+Fig. 1. Segment of the ECG record #118, lead II (a) superimposed with baseline wander [SBR = −6 dB, (c)], corresponding short-term PSD (b), (d), zoomed
+view of one ECG cycle filtered with the proposed algorithms (e), and corresponding error signals (f). Signals are taken from the MIT-BIH noise stress test
+database [43].
+
+demonstrated by Fig. 1(e), (f). We, therefore, optimized the parameters of the baseline wander filtering algorithms based on the
+BW signals being the training set. The filter parameters, namely
+fSTOP and fPASS of the FIR and IIR filter, window sizes Mm of
+the moving mean and median filter, and level J and number of
+moments M of the Daubechies wavelet filter were determined
+using the Monte-Carlo (MC) approach. For the 2-D optimization
+problem, the trECG signals were superimposed subsequently
+with the BW channels (input SBR = −6 dB), the disturbed
+ECG signals were filtered with the swept parameters for each
+filter type and the mean output SBR improvement was reported.
+The MC optimizations found fSTOP,PASS = {0.1 Hz, 1.2 Hz}
+and {0.01 Hz, 0.9 Hz} for the FIR and IIR filter, respectively,
+M1,2 = {461, 671} and {621, 0} for the mean and median filter (a priori restricted to one filter step), respectively, and
+J, M = {9, 20} for the wavelet filter. The FIR was realized with
+order 1934 and the IIR filter with 2 s order sections. Fig. 1(e)
+depicts one ECG cycle of the ECG segment shown in Fig. 1(a)
+where the baseline wander was removed with the optimized filter settings. The large baseline disturbance at the beginning of
+the ECG cycle is mostly suppressed with the moving median
+filter. In contrast, the relevant ECG waves are less disturbed by
+the wavelet filter as can be seen in the error signal [see Fig. 1(f)].
+The other algorithms performed only suboptimal for the ECG
+example; in particular, the P wave is shifted downwards. Nevertheless, they preserved the time information of the main ECG
+waves due to their linear phase response, as well.
+The optimized baseline wander filters were subsequently
+evaluated on the test set, i.e., using the teECG signals. For
+
+Fig. 2. Output SBR improvement as a function of the input SBR and the
+baseline filtering algorithms: mean +/− std.
+
+this purpose, we set up an MC simulation. Each of the 549
+teECGs was superimposed with ten baseline wander segments
+randomly generated by the two AR models (7) each. The AR
+models were fed by white Gaussian noise of swept variances resulting in various input SBR. The output SBR improvement as
+the difference of the input SBR and the output SBR of the filter
+was separately reported for each algorithm. We further applied a
+standard R wave detection algorithm [47] to the teECG signals.
+Sensitivity and positive predictive value were calculated with
+respect to the true R waves in the original ECGs, once for the
+baseline-disturbed signal, which is referred to as before filtering,
+and once for the baseline-filtered signal, which is referred to as
+
+1580
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+after filtering. Based on the detection step, absolute amplitude
+and time errors of the delineated R wave, i.e., the R peak were
+reported as mean values of the teECG signals before and after
+filtering.
+D. Baseline Wander Filter Quality
+The first outcome of the MC simulation is shown in Fig. 2.
+A positive output SBR improvement indicates that the filter
+suppressed the baseline disturbances to a degree exceeding the
+distortion of the ECG waves by the filtering. In contrast, a negative SBR improvement results from high ECG signal distortions
+[similar to Fig. 1(e), (f)]. We observed that the baseline filtering
+algorithms achieve similar SBR improvement for input signals
+with an SBR between −10 and −3 dB. This is because the
+algorithms were optimized on the trECG set featuring −6 dB.
+However, the moving median filter outperforms the other algorithms at an SBR below −10 dB. For higher input SBR,
+the IIR filter achieves the highest output SBR improvement. If
+we consider the entire input SBR range, the FIR filter shows
+the highest filtering quality among all algorithms, although the
+SBR improvement is only slightly better than the two-stage
+moving mean filter with constant filter coefficients. It has to
+be mentioned that the wavelet filter with constant level of J
+baseline approximation is only appropriate for low input SBR.
+For a higher ECG signal quality, the level should have been
+adjusted according to [25] to avoid relevant ECG distortions.
+However, the adaptive process is incompatible with the filter
+parallelization discussed in Section IV.
+Fig. 3 shows the R wave detection and delineation accuracy derived from the MC simulations with respect to the original (baseline-free) ECG signals. All baseline filter algorithms
+strongly reduce the R peak amplitude error present with baseline
+disturbances up to 6 dB before filtering, and except the median
+filter, preserve the time information of the R peaks. The mean
+time error is only slightly increased for input SBR above 6 dB
+compared to the error before filtering, but is nevertheless well
+below the used sampling interval of 1 ms. The R wave detection
+(sensitivity) and separation (positive predictive value) accuracy
+are not affected by the baseline removal, except with the median filter. Over all input SBR values, the wavelet and IIR filters
+exhibit the highest R wave detection and delineation accuracy,
+as well.
+
+ter finishing the previous one without copying new data. The
+memory copy operations are reduced, too.
+The FIR filter algorithm is directly parallelized using the
+proposed principle (see Fig. 4). In case of the moving mean
+filter, each thread additionally subtracts the sum from the input
+sample x[n + p]. Instead of calculating the sum, each thread
+sorts a segment of the input signal vector x when the moving
+median filter is used. We make use of the in-place working
+and stable bubblesort algorithm that just has to sort half of
+the input vector until the median value can be subtracted from
+x[n + p]. In case of the wavelet filter, the schema of Fig. 4 was
+recursively applied twice with x = Aj , j = 2 . . . J − 1, once
+for the approximations Aj (4) and once for the details Dj (5).
+Each level j has to be completely calculated before the next level
+j + 1 can be processed. Due to the downsampling by factor 2,
+two subsequent threads have an index distance of 2p instead
+of p. The reconstruction of the filtered signal is done with (6),
+whereas each thread only computes the M summands that are
+different from zero at each level j.
+B. Impossibility of the IIR Filter Parallelization
+The normal form describing the IIR filter (2) can be rewritten
+as
+y [n] = b0 x [n] + b1 x [n − 1] + b2 x [n − 2]
+− a1 y [n − 1] − a2 y [n − 2]
+
+(8)
+
+in the case of a filter of order M = 2. The first part of (8)
+represents an FIR structure that we summarize as FIRX [n]
+and FIRX [n + 1] for two subsequent output samples y [n] and
+y [n + 1], respectively
+y [n] = FIRX [n] − a1 y [n − 1] − a2 y [n − 2]
+y [n + 1] = FIRX [n + 1] − a1 y [n] − a2 y [n − 1] . (9)
+Inserting y [n] into y [n + 1] leads to
+y [n + 1] = FIRX [n + 1] − a1 FIRX [n]
+
+
++ a21 − a2 y [n − 1] + a1 a2 y [n − 2] . (10)
+For y [n + p], we consequently get
+y [n + p] =
+
+p
+
+
+FIRX [n + i] · c1 [p + 1 − i]
+
+i=0
+
++ c1 [p + 2] y [n − 1] + c2 [p + 2] y [n − 2]
+IV. PERFORMANCE EVALUATION
+A. Algorithm Parallelization
+Fig. 4 demonstrates the parallelization principle that is applied to the baseline wander filtering algorithms described in
+Section II. The basic idea is to distribute the sum operations in
+(1)–(6) that produce one output sample of the convolution with
+index n to various processors, named hereafter as threads. Each
+thread p performs the same operation on a different segment
+of the input signal vector x and calculates the output sample
+y [n + p]. The number of output samples per time instant depends on the number of parallelized threads P . However, one
+thread might start processing the next segment immediately af-
+
+(11)
+using the recursively determined coefficients
+
+ 
+
+
+c1 [p]
+−a2 −a1
+c1 [p − 2]
+=
+,
+0
+−a2
+c2 [p]
+c1 [p − 1]
+
+p≥2
+
+(12)
+
+where c1 [0] = 0, c1 [1] = 1. With the predetermined coefficients c1 [0] , c1 [1] , . . . , c1 [P ] and c2 [0] , c2 [1] , . . . , c2 [P ], we
+are able to parallelize the IIR filter, in particular, the FIR part.
+However, each thread p has to wait for the two threads with
+numbers p = {P − 2, P − 1} to complete, and even more impracticable, the coefficients are rapidly growing with the recursion given in (12). We experientially identified that they exceed
+
+NIEDERHAUSER et al.: GRAPHICS-PROCESSOR-UNIT-BASED PARALLELIZATION OF OPTIMIZED BASELINE WANDER FILTERING
+
+1581
+
+Fig. 3. Mean R peak delineation error, absolute amplitude (a) and time error (b), and R wave detection accuracy, sensitivity (c) and positive predictive value (d),
+before and after baseline filtering as a function of the input SBR and the baseline filtering algorithms.
+
+the negative number range at a relatively low p for the optimized
+IIR filter coefficients2 . As a consequence, the number of threads
+P that can be run in parallel is strongly reduced. We, therefore,
+did not pursue the IIR filter parallelization and considered a
+sequential CPU implementation only.
+C. GPU Framework
+The huge amount of parallel working GPU cores requires
+an adapted programming strategy. Nvidia provides a framework called “compute unified device architecture” (CUDA).
+The CUDA library allows simplified control of Nvidia GPU
+hardware almost irrespective of the type of GPU being used.
+The functions (kernels) resemble standard C/C++ subroutines,
+but with a different modality to address memory. The kernel
+processes data as threads, which are organized in blocks. A
+kernel is initiated by handing over the number of blocks and
+threads necessary to process the data. The number of blocks is
+calculated as the number of samples within the data divided by
+the number of threads to be run. All threads in a block share the
+fast (processor local, shared) memory with access latency over a
+hundred times shorter than GPU global memory. The GPU executes numerous threads simultaneously in an entity called warp.
+The warp subdivision optimizes the global memory pipelining
+in a way that the thread results y [n + p] are pooled and written to the global memory. If two warps interfere on a memory
+
+operation, one will be prioritized. For more information about
+CUDA, the reader is referred to [37].
+D. Implementation Details
+In order to investigate the effect of the GPU parallelization on
+the filtering performance, we implemented the proposed algorithms on the CPU for a single processor (according to Section
+II) and on the GPU for multiple processors (according to Section IV-A). ECG signal segments of block sizes of 32, 64, 128,
+or 256 MB can be processed, which allows evaluating the influence of the amount of simultaneous data exchange between
+CPU and GPU. The data transfer is handled by direct memory access (DMA) that allows to measure the transfer time.
+The ECG samples are either of double precision floating point
+(Double) or 32-byte integer (Int32) format. The latter has to
+be converted into single precision floating point (float) prior to
+filtering. This step is likewise done on CPU and GPU. As a next
+step on the GPU, the shared data x [n] and the filter coefficients
+bi are loaded in relation to the thread index p. Before processing
+the related threads of a block, the shared data have to be synchronized, i.e., the input block has to be completely loaded into
+the shared memory. After processing of the data, the outcome
+of each thread y [n] is, organized by the warp control, stored in
+the global memory and transferred as entire data block back to
+the RAM via DMA.
+E. Measurement Setup
+
+2 This
+
+1.
+
+is justified because the maximal eigenvalue |λ|m a x
+
+−a 2 −a 1
+of (
+)>
+0 −a 2
+
+We used an office desk HP minitower with Intel Core i3-2120
+processor and 8GB-1333-MHz-DDR3-SDRAM, and the gen-
+
+1582
+
+Fig. 4.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+Parallelization principle of the baseline wander filtering algorithms.
+
+eral purpose GPU Asus GTX-660 Ti DirectCU II 2GB GDDR5,
+Keppler GK-104. GK-104 consists of seven streaming multiprocessors SM. Each SM can run up to six warps simultaneously;
+each wrap contains 32 threads, which leads to 7 · 6 · 32 = 1344
+parallel threads. The filtering and transfer times were measured
+using a hardware counter located on the main CPU processor.
+The counter is directly driven by a fraction of the main clock.
+Actually the clock frequency is in the range of 3 MHz which
+leads to a resolution of ∼
+= 0.3 μs. The difference of two consecutive readings defines the measured time in microseconds
+for one block. There is no similar hardware counter available
+on the GPU. For that reason, all timing measurements are done
+with the CPU. However, CUDA provides library functions that
+are executed on CPU and synchronize the command pipelining
+between CPU and GPU. With the help of these specialized functions, the exact time points between two GPU processes can be
+determined. We reported the filter performance divided in transfer and processing operation as time per sample in nanoseconds
+(ns) or speed in Mega samples per second (MS/s) as mean values
++/− standard deviation.
+
+Fig. 5. Baseline wander filtering speed as a function of the algorithms and the
+processor type for Int32 (a) and Double (b) data format: mean +/− std.
+
+F. Baseline Wander Filter Efficiency
+Fig. 5 shows the overall execution speeds as a function of
+the processor type and the baseline filtering algorithms for a
+block size of 32 MB. Using the integer data type [see Fig. 5(a)],
+the filtering speed strongly benefits from the GPU parallelization. The wavelet, moving mean, and FIR filter process 31.5,
+76.8, and 67 times faster on the GPU than on the CPU, respectively. The GPU wavelet filter is faster than any other filtering
+method, i.e., is 4.18 times faster than the CPU IIR filter, which
+was not dedicated for parallelization. In contrast, the moving
+median filter is quite slow with a mean filtering speed of 0.02
+and 0.37 MS/s on the CPU and GPU, respectively. This is related to the bubblesort algorithm, that does not require additional
+shared memory space, but takes O([M = 621]2 /2) comparison
+and insertion operations per sample in the worst case. As comparison, the wavelet and FIR filters have complexity orders of
+O (4 · ([J = 9] − 1) · [M = 20]) and O (M = 1932) per sample, respectively. The ratio of the FIR and wavelet filter complexities, i.e., O (1932)/O (4 · 8 · 20) = 3.02 verifies the time measurements, i.e., the speed ratio of 184 (MS/s) /60 (MS/s) =
+
+Fig. 6. Mean wavelet filtering time per sample as a function of the GPU block
+size broken down into CPU<−>GPU transfer and pure filter execution times
+for Int32 (left bars) and Double format (right bars).
+
+3.07 between the wavelet and FIR filter. When the Double
+format was used [see Fig. 5(b)], the GPU parallelization provides a lower gain in filtering performance as compared to
+the Int32 format, although no format conversion is necessary. This result is because the Double format doubles the
+number of bytes involved in the computations compared to
+Int32, and thus, less operation per clock cycle are effectively
+parallelized.
+In Fig. 6, the cumulative bar plot depicts the mean GPU filter
+performance divided into the required times T for the wavelet
+filter execution and transfer from and to the CPU. We observe
+that the filter execution and the transfer times assessed per
+sample are reduced with higher block sizes. A higher block
+size requires less memory copy operations and synchronization
+entities, which decreases the filter execution time. The transfer
+
+NIEDERHAUSER et al.: GRAPHICS-PROCESSOR-UNIT-BASED PARALLELIZATION OF OPTIMIZED BASELINE WANDER FILTERING
+
+times per sample decreases because the protocol overhead per
+sample is reduced. Compared to the speed measurement done
+with a block size of 32 MB (see Fig. 5), a memory size of
+256 MB increases the GPU wavelet filter efficiency from 184
+to 224 MS/s. As an example, the baseline disturbances within
+a single channel high resolution ECG signal with 1000 Hz
+sampling rate and duration of seven days is removed within
+less than 3 s. In addition to the high efficiency, the wavelet
+transform might be a dedicated basis for subsequent processing steps like the QRS detection or wave delineation [48].
+The parallelized wavelet decomposition, however, is done once
+only.
+V. DISCUSSION AND CONCLUSION
+In this paper, we introduced a novel methodology to measure
+the quality of baseline wander filter algorithms. An AR model
+was trained on low-frequency signal measurements. With the
+help of the parameterized AR model, randomized baseline wander signals of various variances were generated. We superimposed the baseline signals with high resolution, almost baseline
+wander free ECG signals derived from a large patient cohort.
+After filtering, the SBR improvement, R wave detection and
+peak delineation accuracy are reported as a function of the input
+SBR. In contrast, past algorithm evaluations were done with
+synthetic baseline wander signals [19], [22], [26], [28]–[30],
+[32], [34], [35] superimposed to test ECGs or using various features derived from measured ECG signals [20], [21], [24], [25],
+[31] including the baseline disturbances. However, the strictly
+synthetic approaches do not reflect the variability of baseline
+wander signals. As demonstrated in Fig. 1, e.g., Gaussian white
+noise filtered at 0.8 Hz [30] might underestimate the frequency
+content of true baseline disturbances. Baseline wander removal
+from unfiltered ECG signals suffers from the limitation that the
+true baseline signal is a priori unknown and quantitative assessments become difficult. One recent work done by Ari et al. [33]
+reported the use of measured baseline wander, but the evaluation
+was done with a limited number of ECG signals and input SBR.
+The proposed AR-model offers the opportunity to investigate the
+filtering performance on ECG signals with high interindividual
+variability and high baseline variability, as well. We thus suggest
+the AR-model approach as a reliable quantitative assessment for
+baseline wander filtering algorithms.
+In addition to the filtering quality, we present a GPU-based
+parallelization framework for the proposed algorithms aiming
+to increase the computational efficiency. The parallelization
+method illustrates that the convolution, the sample mean or
+the sample sorting involved in the filter execution can be distributed to multiple processors of the GPU. The GPU filters
+execute at least ten times faster than equivalent CPU filters. The
+gain in efficiency depends on the filtering method and is highest
+for the wavelet filter, which shows linear computational complexity with N, where N is the total number of samples of the
+baseline disturbed ECG signal. The same holds for a recently
+introduced baseline removal approach based on quadratic variation reduction by Fasano et al. [35]. The algorithm requires
+the inverse of a tridiagonal coefficient matrix and is controlled
+
+1583
+
+by a single scalar parameter. However, we note that the signaloptimized GPU wavelet filter shows a higher computational efficiency compared to quadratic variation reduction implemented
+on CPU: the processing of a seven-day high-resolution ECG in
+double format takes 7 s and 44 s (estimated from [35]), respectively. Nonetheless, the GPU framework might be applied to
+quadratic variation reduction, as well. It has to be mentioned,
+that the GPU-based filter parallelization is a valid method only if
+the signal block that is processed as entire unit is large enough.
+This prevents successful implementation of the IIR filter on
+GPU.
+To our best knowledge, this is the first evaluation that relates
+the baseline filtering performance to the algorithms efficiency. In
+low input SBR situations, the moving median filter provides the
+highest baseline suppression among all tested algorithms. However, the median approach strongly reduces the R wave detection
+performance and the filtering efficiency is extremely small. The
+GPU wavelet filter shows the best coincidence between filter
+and computational efficiency, R wave detection and peak delineation accuracy when high baseline disturbances are expected.
+In particular, this might be the case when outpatients’ ECGs are
+recorded with dry surface or esophageal electrodes. The GPU
+wavelet filter adversely affects the filter quality in low SBR situations (see Fig. 2) compared to the other methods, which would
+have required the adaption of the filter level. However, such
+an adaptive process considerably lowers the computational efficiency. For lower baseline wander signals, the two-stage moving
+mean filter shows the highest SBR improvement, although the
+amplitude and time errors of the R peaks are not lowered compared to the wavelet approach. We conclude that the baseline
+wander filtering algorithm should be chosen with respect to the
+expected input SBR and the desired ECG recording duration.
+For prolonged ECG registration, the GPU framework saves time
+when using computational expensive algorithms like the wavelet
+transform or moving mean filters. Although the present baseline
+filtering algorithms are not intended to remove muscle or electrode motion artifacts, the GPU framework might be similarly
+applied to such in-band noise, as well.
+Further evaluation of the various algorithms is desired on
+an ECG dataset containing annotated arrhythmic beats such
+as ventricular ectopic activity or bundle branch blocks. Such a
+study would allow a direct quantification of the effect of baseline
+removal on arrhythmic ECG beats. Nevertheless, the R peak
+detection and delineation, a major step in ECG classification
+schemes, is not negatively affected by the proposed algorithms,
+the wavelet or the moving mean filter (see Fig. 3).
+ACKNOWLEDGMENT
+The authors would like to thank to all ARTORG coworkers
+involved in the development of the ECG software.
+REFERENCES
+[1] A. A. Rabinstein, “Prolonged cardiac monitoring for detection of paroxysmal atrial fibrillation after cerebral ischemia,” Stroke, vol. 45, no. 4,
+pp. 1208–1214, Apr. 2014.
+[2] J. G. Webster, “Reducing motion artifacts and interference in biopotential
+recording,” IEEE Trans. Biomed. Eng., vol. BME-31, no. 12, pp. 823–826,
+Dec. 1984.
+
+1584
+
+[3] N. Meziane et al., “Dry electrodes for electrocardiography,” Physiol.
+Meas., vol. 34, no. 9, p. R47, Sep. 2013.
+[4] C. Shih et al., “Mechanism of degradation of AgCL coating on biopotential
+sensors,” J. Biomed. Mater. Res. A, vol. 82A, no. 4, pp. 872–883, Sep. 2007.
+[5] J. Behar et al., “ECG signal quality during arrhythmia and its application to false alarm reduction,” IEEE Trans. Biomed. Eng., vol. 60, no. 6,
+pp. 1660–1666, Jun. 2013.
+[6] Y. Tu et al., “A novel method for automatic identification of motion
+artifact beats in ECG recordings,” Ann. Biomed. Eng., vol. 40, no. 9,
+pp. 1917–1928, Sep. 2012.
+[7] M. F. Márquez et al., “Common electrocardiographic artifacts mimicking
+arrhythmias in ambulatory monitoring,” Amer. Heart J., vol. 144, no. 2,
+pp. 187–197, Aug. 2002.
+[8] L. Roten et al., “Is 7-day event triggered ECG recording equivalent to
+7-day Holter ECG recording for atrial fibrillation screening?” Heart,
+vol. 98, no. 8, pp. 645–649, Apr. 2012.
+[9] H.-C. Jung et al., “CNT/PDMS composite flexible dry electrodesfor
+long-term ECG monitoring,” IEEE Trans. Biomed. Eng., vol. 59, no. 5,
+pp. 1472–1479, May 2012.
+[10] T. InOh et al., “Nanofiber web textile dry electrodes for long-term biopotential recording,” IEEE Trans. Biomed. Circuits Syst., vol. 7, no. 2, pp.
+204–211, Apr. 2013.
+[11] V. Marozas et al., “A comparison of conductive textile-based and silver/silver chloride gel electrodes in exercise electrocardiogram recordings,” J. Electrocardiol., vol. 44, no. 2, pp. 189–194, Apr. 2011.
+[12] Y. M. Chi, T.-P. Jung, and G. Cauwenberghs, “Dry-contact and noncontact
+biopotential electrodes: Methodological review,” IEEE Rev. Biomed. Eng.,
+vol. 3, pp. 106–119, 2010.
+[13] S. Ha et al., “Integrated circuits and electrode interfaces for noninvasive
+physiological monitoring,” IEEE Trans. Biomed. Eng., vol. 61, no. 5,
+pp. 1522–1537, May 2014.
+[14] T. Niederhauser et al., “An optimized lead system for long-term
+esophageal electrocardiography,” Physiol. Meas., vol. 35, no. 4, pp. 517–
+532, Apr. 2014.
+[15] T. Niederhauser et al., “Electrodes for long-term esophageal electrocardiography,” IEEE Trans. Biomed. Eng., vol. 60, no. 9, pp. 2576–2584,
+Sep. 2013.
+[16] S. Luo and P. Johnston, “A review of electrocardiogram filtering,” J.
+Electrocardiol., vol. 43, no. 6, pp. 486–496, Dec. 2010.
+[17] R. Abächerli and H.-J. Schmid, “Meet the challenge of high-pass filter and
+ST-segment requirements with a DC-coupled digital electrocardiogram
+amplifier,” J. Electrocardiol., vol. 42, no. 6, pp. 574–579, Dec. 2009.
+[18] T. Niederhauser, T. Marisa, L. Kohler, A. Haeberlin, R. A. Wildhaber,
+R. Abcherli, J. Goette, M. Jacomet, and R. Vogel, “A baseline wander
+tracking system for artifact rejection in long-term electrocardiography,”
+IEEE Trans. Biomed. Circuits Syst., submitted for publication.
+[19] C. R. Meyer and H. N. Keiser, “Electrocardiogram baseline noise estimation and removal using cubic splines and state-space computation techniques,” Comput. Biomed. Res., vol. 10, no. 5, pp. 459–470,
+Oct. 1977.
+[20] J. A. Van Alste and T. S. Schilder, “Removal of base-line wander and
+power-line interference from the ECG by an efficient FIR filter with
+a reduced number of taps,” IEEE Trans. Biomed. Eng., vol. BME-32,
+no. 12, pp. 1052–1060, Dec. 1985.
+[21] N. V. Thakor and Y.-S. Zhu, “Applications of adaptive filtering to ECG
+analysis: Noise cancellation and arrhythmia detection,” IEEE Trans.
+Biomed. Eng., vol. 38, no. 8, pp. 785–794, Aug. 1991.
+[22] L. Sörnmo, “Time-varying digital filtering of ECG baseline wander,” Med.
+Biol. Eng. Comput., vol. 31, no. 5, pp. 503–508, 1993.
+[23] V. X. Afonso et al., “Comparing stress ECG enhancement algorithms,”
+IEEE Eng. Med. Biol. Mag., vol. 15, no. 3, pp. 37–44, May/Jun. 1996.
+[24] F. Gustafsson, “Determining the initial states in forward-backward filtering,” IEEE Trans. Signal Process., vol. 44, no. 4, pp. 988–992, Apr.
+1996.
+[25] K. L. Park et al., “Application of a wavelet adaptive filter to minimise
+distortion of the ST-segment,” Med. Biol. Eng. Comput., vol. 36, no. 5,
+pp. 581–586, Sep. 1998.
+[26] J. S. Paul et al., “Data processing of stress ECGs using discrete cosine
+transform,” Comput. Biol. Med., vol. 28, no. 6, pp. 639–658, Nov. 1998.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+[27] B. Acar and H. Koymen, “SVD-based on-line exercise ECG signal orthogonalization,” IEEE Trans. Biomed. Eng., vol. 46, no. 3, pp. 311–321,
+Mar. 1999.
+[28] P. Sun et al., “An improved morphological approach to background normalization of ECG signals,” IEEE Trans. Biomed. Eng., vol. 50, no. 1,
+pp. 117–121, Jan. 2003.
+[29] J. M. Łeski
+˛ and N. Henzel, “ECG baseline wander and powerline interference reduction using nonlinear filter bank,” Signal Process., vol. 85,
+no. 4, pp. 781–793, Apr. 2005.
+[30] M. Blanco-Velasco et al., “ECG signal denoising and baseline wander
+correction based on the empirical mode decomposition,” Comput. Biol.
+Med., vol. 38, no. 1, pp. 1–13, Jan. 2008.
+[31] M. Milanesi et al., “Independent component analysis applied to the removal of motion artifacts from electrocardiographic signals,” Med. Biol.
+Eng. Comput., vol. 46, no. 3, pp. 251–261, Mar. 2008.
+[32] O. Sayadi and M. B. Shamsollahi, “Model-based fiducial points extraction
+for baseline wandered electrocardiograms,” IEEE Trans. Biomed. Eng.,
+vol. 55, no. 1, pp. 347 –351, Jan. 2008.
+[33] S. Ari et al., “ECG signal enhancement using S-Transform,” Comput. Biol.
+Med., vol. 43, no. 6, pp. 649–660, Jul. 2013.
+[34] M. Zivanovic and M. González-Izal, “Simultaneous powerline interference and baseline wander removal from ECG and EMG signals by sinusoidal modeling,” Med. Eng. Phys., vol. 35, no. 10, pp. 1431–1441, Oct.
+2013.
+[35] A. Fasano and V. Villani, “Baseline wander removal for bioelectrical signals by quadratic variation reduction,” Signal Process., vol. 99,
+pp. 48–57, Jun. 2014.
+[36] T.-T. Wong et al., “Discrete wavelet transform on consumer-level graphics
+hardware,” IEEE Trans. Multimedia, vol. 9, no. 3, pp. 668–673, Apr. 2007.
+[37] W. J. van der Laan et al., “Accelerating wavelet lifting on graphics hardware using CUDA,” IEEE Trans. Parallel Distrib. Syst., vol. 22, no. 1,
+pp. 132–146, Jan. 2011.
+[38] M. Broxvall et al., “Fast GPU based adaptive filtering of 4D echocardiography,” IEEE Trans. Med. Imag., vol. 31, no. 6, pp. 1165–1172, Jun.
+2012.
+[39] W. Shen et al., “Parallelized computation for computer simulation of
+electrocardiograms using personal computers with multi-core CPU and
+general-purpose GPU,” Comput. Methods Programs Biomed., vol. 100,
+no. 1, pp. 87–96, Oct. 2010.
+[40] L. Brechet et al., “Compression of biomedical signals with mother
+wavelet optimization and best-basis wavelet packet selection,” IEEE
+Trans. Biomed. Eng., vol. 54, no. 12, pp. 2186–2192, Dec. 2007.
+[41] A. L. Goldberger et al., “PhysioBank, physiotoolkit, and physionet components of a new research resource for complex physiologic signals,”
+Circulation, vol. 101, no. 23, pp. e215–e220, Jun. 2000.
+[42] R. Bousseljot et al., “Nutzung der EKG-Signaldatenbank CARDIODAT
+der PTB über das Internet,” Biomed. Tech. Eng., vol. 40, no. s1, pp. 317–
+318, 2009.
+[43] G. B. Moody et al., “A noise stress test for arrhythmia detectors,” Comput.
+Cardiol., vol. 11, pp. 381–384, 1984.
+[44] J. Lee and K. H. Chon, “Respiratory rate extraction via an autoregressive
+model using the optimal parameter search criterion,” Ann. Biomed. Eng.,
+vol. 38, no. 10, pp. 3218–3225, Oct. 2010.
+[45] J. Lee et al., “Respiratory rate extraction from pulse oximeter and electrocardiographic recordings,” Physiol. Meas., vol. 32, no. 11, p. 1763–1773,
+Nov. 2011.
+[46] M. H. Hayes, Statistical Digital Signal Processing and Modeling, 1st ed.
+New York, NY, USA: Wiley, 1996.
+[47] J. Pan and W. J. Tompkins, “A real-time QRS detection algorithm,” IEEE
+Trans. Biomed. Eng., vol. BME-32, no. 3, pp. 230–236, Mar. 1985.
+[48] C. Li et al., “Detection of ECG characteristic points using wavelet transforms,” IEEE Trans. Biomed. Eng., vol. 42, no. 1, pp. 21–28, Jan. 1995.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

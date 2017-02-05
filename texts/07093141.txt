@@ -1,0 +1,1407 @@
+2338
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fully Automated Renal Tissue Volumetry in MR
+Volume Data Using Prior-Shape-Based Segmentation
+in Subject-Specific Probability Maps
+Oliver Gloger∗ , Klaus Tönnies, Rene Laqua, and Henry Völzke
+
+Abstract—Organ segmentation in magnetic resonance (MR) volume data is of increasing interest in epidemiological studies and
+clinical practice. Especially in large-scale population-based studies,
+organ volumetry is highly relevant requiring exact organ segmentation. Since manual segmentation is time consuming and prone
+to reader variability, large-scale studies need automatic methods
+to perform organ segmentation. In this paper, we present an automated framework for renal tissue segmentation that computes renal parenchyma, cortex, and medulla volumetry in native MR volume data without any user interaction. We introduce a novel strategy of subject-specific probability map computation for renal tissue
+types, which takes inter- and intra-MR-intensity variability into
+account. Several kinds of tissue-related 2-D and 3-D prior-shape
+knowledge are incorporated in modularized framework parts to
+segment renal parenchyma in a final level set segmentation strategy. Subject-specific probabilities for medulla and cortex tissue
+are applied in a fuzzy clustering technique to delineate cortex and
+medulla tissue inside segmented parenchyma regions. The novel
+subject-specific computation approach provides clearly improved
+tissue probability map quality than existing methods. Comparing
+to existing methods, the framework provides improved results for
+parenchyma segmentation. Furthermore, cortex and medulla segmentation qualities are very promising but cannot be compared
+to existing methods since state-of-the art methods for automated
+cortex and medulla segmentation in native MR volume data are
+still missing.
+Index Terms—Bayesian probability, 3-D level set segmentation,
+distance transform, Fourier descriptors, fuzzy c-means clustering,
+prior shape, renal tissue volumetry.
+
+I. INTRODUCTION
+N community medicine, data are acquired from subjects for
+epidemiological analysis. Frequently, images are part of the
+data and medical image analysis is necessary to quantify certain health-related properties in populations. Organ volumetry
+is of special interest requiring organ segmentation 3-D medical datasets. Manual segmentation of 3-D datasets is infeasible
+
+I
+
+Manuscript received November 16, 2014; revised April 2, 2015 and February
+12, 2015; accepted April 13, 2015. Date of publication April 23, 2015; date of
+current version September 16, 2015. This work was supported by the German
+Research Foundation (DFG) under the Grant GL 785/1-1. Asterisk indicates
+corresponding author.
+∗ O. Gloger and H. Völzke are with the Institute for Community Medicine,
+Ernst-Moritz-Arndt University Greifswald, Greifswald 17489, Germany
+(e-mail: gloger@uni-greifswald.de; voelzke@uni-greifswald.de).
+K. Tönnies is with the Institute for Simulation and Graphics, Otto-vonGuericke University of Magdeburg, Magdeburg 39106, Germany.
+R. Laqua is with the Institute for Diagnostic Radiology and Neuroradiology,
+Ernst-Moritz-Arndt University of Greifswald, Greifswald 17489, Germany.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2425935
+
+since epidemiological studies commonly include several thousands of subjects. Automatic segmentation would be much more
+appropriate. Although many contributions to organ segmentation (i.e., segmentation of liver, brain, spleen, kidney) can be
+found in the literature [1]–[6], it is still very challenging because of the complexity of the information in the data. Hence,
+most proposed methods require some kind of human interaction
+during segmentation. For epidemiological studies, this is a serious drawback, given the time needed and the potential intraand interreader variability.
+The study presented here is designed for the population-based
+Study of Health in Pomerania (SHIP), in which automated renal
+parenchyma volumetry for magnetic resonance images (MRI) is
+required for scientific purposes. Organ volumetry in a large cohort of healthy people allows to examine physiological changes
+of kidneys with age. It also makes it possible to search for cofounders of kidney diseases. And last but not least, it can be
+used as an indirect measurement for kidney function, which
+was even shown to work as a predictor for long-term renal function in transplanted kidneys [7]–[12]. Especially, the volumetry
+of renal cortex and renal medulla is highly interesting for epidemiological studies like SHIP, because the thickness of renal
+cortex is a sensitive parameter to detect early changes of chronic
+arteriosclerotic renal disease [13]. This disease is becoming a
+world-wide problem in particular for people over the age of 65
+[14]. Furthermore, it is known that the renal cortex tends to decrease over time, not only in chronically injured kidneys, but also
+in healthy subjects with age. Therefore, a precise measurement
+could become a helpful biomarker in follow-up examinations of
+chronic kidney diseases and transplanted kidneys.
+Since magnetic resonance (MR) datasets are available from
+numerous subjects in SHIP, some of them can be used for
+supervised learning of expected organ or tissue characteristics. However, some relevant organ features like MR-intensity
+distributions can vary between different subjects in a largescale study (intersubject MR-intensity differences). Furthermore, MR-intensities of similar tissue types can vary at different MR dataset positions (intrasubject MR-intensity differences), which leads to different renal MR-intensity distributions
+between both kidneys. The main reason is a very common MRI
+artifact, the field inhomogeneity, which is caused by an imperfect data acquisition process. This leads to unwanted intensity
+variations even in the same tissue type. Since MR-intensity distributions of different organs can overlap, the success of supervised learning strategies can be strongly reduced. Thus, subjectspecific MR-intensity distributions that have less overlap with
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+GLOGER et al.: FULLY AUTOMATED RENAL TISSUE VOLUMETRY IN MR VOLUME DATA USING PRIOR-SHAPE-BASED SEGMENTATION
+
+MR-intensity distributions of other organs or tissue types are
+required. In this study, we compute subject-specific MR distributions of renal parenchyma, medulla, and cortex and generate
+subject-specific tissue probability maps.
+In contrast to the most existing approaches, we use more characteristic features of renal tissue in MRI datasets for segmentation. Our framework is modularized to be robust with respect
+to small changes of necessary domain knowledge, and we incorporate prior knowledge about kidney features in a sequence
+of processes to arrive at the result. We recognize and segment
+characteristic parts of renal cortex and generate subject-specific
+cortex and medulla probability maps. Cortex probability masks
+are used as data-driven force in a prior-shape level set segmentation process to separate renal tissue from background regions
+at outer cortex frontiers. New attraction forces are computed
+to stop and to attract level set segmentation at outer renal tissue borders. After renal parenchyma volumetry, we extend our
+framework with an adapted fuzzy clustering technique to perform renal cortex and medulla volumetry. In our case, the goal
+was volumetry of the renal parenchyma, renal cortex, and renal
+medulla in a general population. Cases of renal cancer were
+excluded from automatic renal parenchyma volumetry and are
+not considered in our framework. The remainder of this paper is structured as follows: In Section II, we review existing
+work dealing with renal tissue segmentation approaches in medical images. In Section III, we describe the data acquisition. In
+Section IV, we present our framework in detail. In Section V, the
+results of our volumetry framework are shown and illustrated,
+and finally, we discuss the results of our framework in Section VI
+and draw important conclusions.
+II. RELATED WORK
+Several segmentation approaches exist for kidney segmentation, however, most of them were developed for CT images
+[15]–[22]. Most of the existing MR segmentation approaches
+that can be found in the literature [23]–[27] are designed for
+(dynamical) contrast enhanced MR images including also MR
+images of rat and mouse kidneys. Existing segmentation methods of the kidney belong to one of three different groups: 1)
+mainly data-driven methods like thresholding and region growing, 2) deformable models using low level prior knowledge, and
+3) methods incorporating prior-shape models. Kim et al. [15]
+combined region growing, thresholding, and histogram peak
+analysis to segment kidneys and kidney tumor tissue. Lin et al.
+[16] designed elliptical regions representing left and right kidney, respectively, by using spine locations as reliable landmarks
+and perform an adaptive region growing method for automatic
+kidney segmentation. Pizer et al. [17] presented a new method
+for 3-D anatomic shape modeling using prior geometric information. They tested their shape modeling method also for
+kidney segmentation by using a multiscale deformation algorithm. Rao et al. [18] compared the m-rep approach of [17]
+with manual segmentations. Tsagaan et al. [19] presented a 3-D
+deformable model based on a B-spline surface and combined
+it with prior knowledge of surface curvature characteristics in
+an energy minimization function. An active shape model as
+
+2339
+
+suggested in [20] is able to manage the landmark-based point
+correspondence problem between 3-D kidney training models
+by applying nonrigid registration techniques. Kohlberger et al.
+[21] presented a level set technique for organ segmentation that
+incorporates prior knowledge of local shape and appearance for
+liver and kidney segmentation on CT datasets. Their extended
+point tracking technique facilitates the insertion of local prior
+information about mean curvature and intensity that control the
+level set propagation. Simultaneous multiorgan segmentation
+was presented by Linguraru et al. [22]. They use a 4-D directional graph to automatically segment four abdominal organs
+(left and right kidney, liver, and spleen) from multiphase CT data
+by using a cost function, which incorporates among original CT
+data and CT enhancement information also shape constraints
+from Parzen windows and location from a probabilistic Atlas.
+In [23] and [24], the authors presented a rat kidney segmentation method based on a dynamic contrast-enhanced (DCE)
+MR time series. The perfusion signal is used for their level
+set minimization. Song et al. [25] described a (semi-)automatic
+registration and segmentation approach for DCE-MR images
+by using 4-D time-series images. A deformable model is used
+in [26] on DCE-MR images, which combines signed distance
+map densities—derived from registered 2-D kidney shape information of different patients—with gray value distributions calculated by an expectation maximization algorithm. However,
+this algorithm is only designed to segment the kidney in 2-D
+slices of the DCE-MR dataset. A graph cut technique for kidney
+segmentation on DCE-MRI images is proposed by Ali et al.
+[27]. They design an energy function combining region and
+boundary properties and including shape constraints by using
+a distance probabilistic model. Their new probabilistic model
+approximates distance marginal densities of the kidney by using
+Poisson distributions refined by negative Gaussian components
+inside predefined variability regions of kidney slices. The authors in [28] developed a 3-D kidney segmentation technique for
+MR volume data of mice. They use a set of Wavelet-based support vector machines considering texture features of the mouse
+kidneys. Kidney-specific intensity profiles are used to localize
+the kidney and a region growing method is used for final kidney
+segmentation.
+All methods described previously have certain drawbacks for
+renal parenchyma volumetry on native MR datasets. Generally,
+methods for CT images cannot be used directly due to different
+image properties inherently including different tissue intensity
+distributions. Parenchyma intensities on native MR datasets are
+similar to intensities of surrounding tissue. Hence, data-driven
+segmentation (i.e., region growing and thresholding) often fails
+to detect the organ boundary. It is not possible to specify elliptical starting regions of [16] for fully automatic parenchyma
+segmentation, because spine intensities are not visible in MR
+datasets. Furthermore, existing methods do not differentiate exactly between kidney and parenchyma recognition in anatomical sense, as they include the renal pelvis into the volume.
+Finally, all referenced methods require some kind of interaction, which makes them unsuitable for fully automated segmentation requirements in the context of epidemiological studies
+(analysis of several thousands of individuals). Unfortunately, all
+
+2340
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+listed MR segmentation techniques are developed for DCE-MR
+images [23]–[31] or are designed for small animal MR imaging
+[23], [24], [32] and cannot readily be applied to native MR volume data in humans. Methods discussed so far incorporate only
+few kidney features (i.e., mainly intensities or 3-D shape), which
+is not sufficient for the very difficult parenchyma volumetry on
+native MR datasets.
+Gloger et al. [33] proposed a 3-D segmentation framework
+to perform renal parenchyma volumetry of human MR volume
+data and exclude renal pelvis regions. Prior-shape level set segmentation is applied in stepwise refined 3-D renal parenchyma
+probability maps and several kidney features are used in different framework parts. However, the authors in [33] and all other
+listed MR segmentation approaches use only a single MR contrast to segment kidney tissue. Usually, MR imaging protocols
+produce volume data of different weightings showing variable
+values for several tissue types that should be incorporated in
+segmentation methods. Furthermore the authors in [33] computed probability maps for the whole renal parenchyma. Since
+parenchymal tissue cover a broader range of intensity values,
+parenchyma probability maps enhance also nonparenchymal tissue adjacent to the kidneys, which makes erroneous segmentations into adjacent tissue more likely. In epidemiological studies,
+volumetric analysis of renal cortex and renal medulla tissue is
+of high interest to evaluate relations of functional renal tissue
+with other subject-specific parameters. Unfortunately, there is
+no approach in the literature to segment renal cortex and renal
+medulla tissue from native MR volume data automatically. Furthermore, none of the listed approaches include differentiated
+segmentation of renal cortex and medulla tissue. In our MR
+volume datasets, renal cortex and medulla is often difficult to
+differentiate (even for experienced medical experts) due to partial volume effects. Frontiers between both renal tissue types can
+be fuzzy and are often not clearly visible. This makes automated
+segmentation very challenging. Moreover, intra- and intersubject MR-intensity differences of renal tissue [34] complicate applications of supervised learning methods using MR-intensity
+features. Since MR intensity of medulla and cortex overlap between different subjects, the application of a set of different
+subjects for supervised learning techniques can result in low
+probability map quality for both tissue types. Our experiments
+show, that cortex and medulla tissue can be suppressed significantly in this kind of probability maps. Hence, we combine
+MR-intensity features of renal tissue types with characteristic
+renal features that are more specific for the subject, and compute
+subject-specific probability maps for medulla and cortex tissue.
+The success of medulla and cortex segmentation depends
+strongly on the parenchyma segmentation quality. Hence, our
+goal is to improve the standard of parenchyma segmentation
+quality and to provide (in addition) a technique for medulla
+and cortex segmentation in native MR volume datasets. Consequently, our approach is twofold: on the one hand, we extend
+the work of [33] and propose a novel segmentation framework
+to segment renal parenchyma (kidney excluding renal pelvis
+tissue) more exactly on subject-specific probability maps. Our
+presented techniques produce subject-specific parenchyma and
+cortex probability maps that show less nonrenal tissue like the
+
+subject-unspecific probability map generation of [33] and offers
+improved possibilities to delineate parenchymal tissue at outer
+renal parenchyma borders. We use characteristic 2-D shapes
+of parenchyma as well as of cortex tissue in inner transversal kidney slices to recognize and segment significant cortex
+and parenchyma parts. Depending on segmented cortex and
+parenchyma parts, our approach computes subject-specific renal
+tissue probability maps and incorporates—in contrast to existing approaches—all available MR weightings. In a two-stepped
+prior-shape-based level set segmentation strategy, we segment
+cortex tissue in computed cortex probability maps followed by
+refined parenchyma segmentation in parenchyma probability
+maps. Novel attraction forces are used to attract the segmenting
+contour at outer renal cortex edges. On the other hand, we expand our framework to segment renal cortex and medulla tissue
+basing on segmented renal parenchyma tissue. In this framework part, we use tissue-specific probability maps of former
+framework steps and combine it with fuzzy clustering technique.
+Hence, in contrast to the study of [33], parenchyma probability
+maps are calculated subject specifically and by using four different MR-weightings instead of using images of a single MR
+sequence. Furthermore, our approach computes subject-specific
+probability maps for cortex as well as for the medulla tissue by
+incorporating all of the four available MR weightings. Furthermore, novel and more efficient stopping and attraction forces
+are proposed to steer the final level set segmentation module.
+Finally, renal medulla and cortex volumetry is performed what
+is not possible with the study of [33]. Our framework is designed to use it for renal parenchyma volumetry as well as for
+renal cortex and medulla volumetry in population-based studies
+and large patient populations. However, it can also be used for
+segmentation requirements in clinical routines.
+III. DATA ACQUISITION AND TRAINING PHASE DESCRIPTION
+The study is based on images taken from participants of the
+population-based SHIP [35]. Inclusion criteria for the whole
+study are the age of the subjects (20−79 years) and a valid
+German citizenship in West Pomerania, a region in Northeast
+Germany. All abdominal MR datasets have been acquired using a 1.5-T magnetic resonance scanner (Magnetom Avanto;
+Siemens Medical Systems, Erlangen, Germany). Subjects were
+placed in the supine position, and five phased-array surface
+coils were placed to the head, neck, abdomen, pelvis, and lower
+extremities. The spinal coil was embedded in the patient table. Two trained technicians performed all examinations in a
+standardized way. Four different datasets were created using
+the volume-interpolated breathhold exam (VIBE) sequence (see
+Fig. 1). The T1-weighted VIBE sequence [36] provides in- and
+out-phase as well as water- and fat-saturated images. TR =
+7.5 (ms) and multimodal TE = 2.4/4.8 (ms) have been used
+in context with a flip angle of 10°. The voxel size is 1.64 mm
+× 1.64 mm × 4.0 mm and the scan time has been 19 s for
+64 slices. The image resolution is common for diagnosis in
+clinical routine although it is relatively coarse to avoid long image acquisition times in SHIP. The numbers of acquired MRI
+series were fixed by study specifications. For this study, we
+
+GLOGER et al.: FULLY AUTOMATED RENAL TISSUE VOLUMETRY IN MR VOLUME DATA USING PRIOR-SHAPE-BASED SEGMENTATION
+
+Fig. 1. Original MR images taken from a transversal slice of the VIBE measurements with selected organs and tissue types relevant for MR parenchyma
+segmentation marked in the images. (a) Normal weighting, (b) opposed-phase
+weighting, (c) water-saturated weighting, (d) fat-saturated weighting. Here, a
+relatively easy case for segmentation can be seen showing only small partial volume effects in the right kidney. A characteristic 2-D parenchyma shape (ITCP
+in green) in the left kidney of image (c) and a characteristic 2-D cortex shape
+(ITCC in magenta) in the left kidney of image (d) are shown. Due to high
+abdominal fat quota the kidney is surrounded by fat that ensures strong image
+gradients at the kidney borders and facilitates renal parenchyma segmentation
+for this case.
+
+2341
+
+and cortex what can worsen the framework results. The 3-D
+binary masks of left and right parenchyma as well as left and
+right cortex are generated and saved. Slicewise convex hulls of
+the segmented parenchyma regions are computed and saved.
+Inner transversal kidney slices show frequently characteristic
+2-D cortex shapes [see Fig. 1(d)]. We call these cortex shapes
+“inner transversal characteristic cortex” (ITCC) shapes. Similarly, there are 2-D characteristic parenchyma (ITCP) shapes
+in inner transversal kidney slices. Since each kidney can show
+more than one ITCC or ITCP shape, medical experts selected 40
+different slices exhibiting ITCC shapes (for left and right cortex
+separately) and 40 different slices exhibiting ITCP shapes (for
+left and right parenchyma separately) from the already saved
+3-D cortex and parenchyma masks. The shape is represented
+by Fourier descriptors [37]. Since rotation and scaling differences between the sampled ITCC and ITCP shapes are small,
+we save only the translational invariant Fourier descriptors of
+these forms by setting their first Fourier descriptor to zero [38].
+Tissue-specific MR intensity distributions, 3-D dataset location, characteristic 2-D cortex and parenchyma shapes, and 3-D
+shape of renal cortex and parenchyma are produced from regions of the saved binary cortex masks. The 3-D renal cortex
+and parenchyma shape is represented as 3-D signed distance
+map of the segmented regions and used in prior-shape level set
+segmentation step in combination with the method of [39] (see
+Fig. 3). Similarly, 2-D signed distance maps of ITCC shapes are
+used for prior-shape level set segmentation of ITCC-like 2-D
+cortex shapes. Furthermore, distance transformed image data of
+the saved ITCC masks are computed and the maximal cortex
+thickness of all these masks is estimated.
+IV. DESCRIPTION OF THE METHOD
+
+Fig. 2. MLKR: MLKR_left and MLKR_right as 3-D ROIs for left and right
+kidney, respectively.
+
+used the images with the highest spatial resolution. Other MRI
+contrasts with lower spatial resolution as well as higher slice
+spacing and thickness were available. However, challenging
+coregistration and incompletely imaged kidney slices made its
+use impractical.
+Necessary domain knowledge is acquired in an initial training
+phase. Training is performed on denoised datasets (denoising is
+described in Section IV). Two medical experts selected 35 denoised MR datasets from different subjects and performed manual segmentations for training. The experts have 4.5 and 3 years
+of experience in reading MR images. Inter- and intrarater differences cannot be assessed because each dataset was only assessed
+one time by one of the readers. Subject ages are in the range from
+25 to 78 (mean: 54.03, standard deviation: 12.75). They chose
+only healthy subjects for not biasing the training of intensity
+distribution and 3-D shape toward pathological cases. Variation
+due to pathology should be handled by the data-driven component of the segmentation method. Known kidney malignancies
+were an exclusion criterion. All subjects had a glomerular filtration rate (GFR) > 90. Lower GFR might lead to reduced
+kidney size and decreased differentiation between parenchyma
+
+The main challenges for this study can be summarized as follows: 1) since native MR image data are used, there exist strong
+MR-intensity similarities between renal and adjacent nonrenal
+tissue complicating automatic tissue delineation, 2) inter- and
+intrasubject MR-intensity differences require subject-specific
+segmentation techniques, 3) partial volume effects and blurring
+artifacts make segmentation more difficult, 4) exact delineation
+of renal tissue parts is necessary to determine subject-specific
+MR-intensity distributions, 5) an alternative strategy is required
+if no cortex part is recognized, 6) progressing 3-D cortex and
+medulla volumetry basing on well-segmented 3-D parenchyma
+regions. These challenges are solved by incorporating several
+characteristic features (i.e., MR-intensity distribution, 2-D and
+3-D shape) of both renal tissue types in the segmentation strategy. A novel technique is proposed to compute subject-specific
+renal tissue probability maps that are based on collected MR
+intensities of automatically recognized characteristic 2-D cortex and parenchyma forms. A prior-cortex-shape-based 3-D
+level set segmentation method is extended by new outer cortex edge alignment forces to delineate left and right cortex
+in subject-specific cortex probability maps. Similarly, a priorparenchyma-shape-based 3-D level set method is conducted to
+refine parenchyma segmentation. If no 2-D cortex form is recognized, an alternative parenchyma segmentation is proposed.
+Cortex and medulla tissue is then segmented more exactly in
+
+2342
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 3. Framework overview as flowchart diagram: The framework differentiates between two possible cases. The main part of our proposed framework depends
+on segmented ITCC shapes. If at least one ITCC Shape was segmented, then 3-D cortex shape-based level set segmentation is performed on subject-specific cortex
+probability maps (right lower part). The cortex based segmentation is refined with a parenchyma-based 3-D segmentation in the convex hull of the segmented
+cortex using subject-specific parenchyma probability maps generated based on found ITCP shapes in the convex hull. If no ITCC shape is found and no renal cortex
+is segmented, then ITCP shapes are segmented and 3-D parenchyma shape-based level set segmentation is performed on subject-specific parenchyma probability
+masks (left lower part). Case-specific prior knowledge is incorporated if required in selected steps.
+
+delineated parenchyma regions by applying a fuzzy c-means
+clustering method.
+We integrate a denoising module to reduce noise and potential artifacts in MR volume data as preparation step in our
+framework. We selected the anisotropic denoising method of
+[40], since organ frontiers are well preserved and inner-organ
+MR intensities are homogenized sufficiently for all processing
+modules of our framework. We determine the union set of all
+trained parenchyma masks (left and right separately, similar as
+
+in [33]) to use them as 3-D region of interests (ROIs) (most
+likely kidney regions (MLKR): MLKR_left and MLKR_right)
+and to focus renal tissue segmentation in such areas (see Fig. 2).
+An overview of our modularized framework is shown in Fig. 3
+and is presented in the following sections. Characteristic 2-D
+shapes of cortex (ITCC) and parenchyma (ITCP) are used to
+perform subject-specific tissue segmentation in 3-D MR volume data. In most cases, ITCC shapes can be identified, however, this cannot be guaranteed for all SHIP MR datasets. Some
+
+GLOGER et al.: FULLY AUTOMATED RENAL TISSUE VOLUMETRY IN MR VOLUME DATA USING PRIOR-SHAPE-BASED SEGMENTATION
+
+MR datasets have artifacts and strong partial volume effects
+resulting in hardly visible ITCC shapes. Hence, ITCP shapes
+are frequently easier to segment than ITCC shapes. Our framework contains two segmentation strategies that integrate recognized ITCC and ITCP shapes in different manner. We developed a cortex-based (pre-) segmentation by using ITCC shapes
+followed by a refined parenchyma segmentation incorporating
+ITCP shapes (two-stepped segmentation strategy). If no ITCC
+shapes can be recognized, we apply our one-stepped segmentation strategy that only incorporates recognized ITCP shapes
+for parenchyma segmentation. However, MR intensities of cortex tissue cover a smaller intensity range than parenchyma tissue leading to lower probability values of nonrenal tissue in
+cortex probability maps than in parenchyma probability maps.
+Hence, the slicewise convex hulls of such better segmented
+3-D cortex regions provide a good segmentation area for the
+following refined parenchyma segmentation and reduce oversegmentations into adjacent organs. Due to this higher cortex
+probability map quality, we give the two-stepped strategy priority in our modularized framework. The one-stepped strategy is
+only applied if no ITCC shapes can be recognized. ITCC recognition and segmentation is explained in Section IV-A. The twostepped strategy is explained subsequently in the Sections IV-B,
+IV-C, and IV-D. If no ITCC region is identified the one-stepped
+strategy incorporating segmented ITCP shapes is described in
+Section IV-E.
+Variational calculus is combined with the level set method
+to segment renal tissue in some of the following framework
+steps. Existing energy functionals proposed in [39] and [41] are
+added and minimized resulting in interacting image and shape
+forces of the level set propagation. Energy minimization of a
+functional E(φ) = F (x, φ, ∇φ)dx is performed by using the
+Ω
+
+Euler–Lagrange equation of variational calculus
+
+
+m
+∂F  ∂
+∂F
+−
+=0
+∂φ
+∂xi ∂φx i
+i=1
+
+(1)
+
+(with the level set function φ(x, t) and m = 3 as 3-D segmentation) and by gradient descent (leading to ∂φ/∂t = −dE/dφ).
+Stopping and attraction forces are integrated in the minimization
+process and are explained in Section IV-C.
+A. Segmentation of ITCC Shapes
+Recognition and segmentation of ITCC shapes in cortex tissue can be very challenging. Signal intensities of medulla and
+cortex depend on MRI acquisition parameters but are usually
+very close to each other. Partial volume effects can blur boundaries between renal cortex and medulla tissue and complicate
+delineation of cortex tissue. Existing magnetic field inhomogeneities make renal tissue differentiation even more difficult.
+Additionally, cortex and medulla MR-intensity distributions of
+different subjects can merge due to intersubject MR-intensity
+differences resulting in overlapping histograms (see Fig. 4).
+This limits the success of supervised learning strategies that
+use solely MR-intensity features to differentiate both tissue
+types. Consequently, we develop a new strategy to recognize and
+
+2343
+
+Fig. 4. Normalized distributions of fat-saturated MR intensities for renal cortex tissue (red and dashed) and renal medulla tissue (green) of 35 training
+subjects. Intensity range for stepwise thresholding marked with rectangular
+area.
+
+segment ITCC shapes incorporating additional features. A stepwise (one intensity step) increasing threshold algorithm is applied to compute 2-D ITCC candidate regions independently in
+the two kidney ROIs (MLKR_left and MKLR_right). ITCC candidates are computed by thresholding the fat-saturated MR slices
+with thresholds between 150 and 250 based on histogram analysis of cortex intensities (see Fig. 4). Segments above the threshold are ITCC candidates since the cortex is usually brighter than
+the medulla in these images. Only those candidates are selected
+as ITCC that have a thickness below a prespecified maximum
+and that agree the most with trained ITCC shapes. Thickness
+is measured by applying a signed distance transform to the
+ITCC candidates. The shape is represented by Fourier descriptors generated from the segment boundary to perform shape
+comparison (such as in [33]) between trained ITCC shapes and
+ITCC candidates. Expected cortex thickness and expected shape
+is generated from the training data. The result of this step is initial ITCCs that can be found for some inner transversal kidney
+slices in both MLKRs separately.
+Due to technical challenges like partial volume effects, initial
+ITCCs can contain over- and undersegmentations that will be removed by applying a combined region-driven and shape-driven
+2-D level set segmentation in an region of interest (ROI) that is
+generated from the initial ITCCs by mirroring each initial ITCC
+at a line connecting its two cusps and removing parts from this
+ROI that belong to the renal pelvis or background tissue. This
+line is found by computing the convex hull of the initial ITCC
+and computing the part of the boundary of the convex hull that is
+not part of the ITCC. After mirroring, pixels are removed from
+the ROI that are brighter than a trained threshold (= 70) in the
+water-saturated images (such as in Fig. 1(c)) that belong to renal
+pelvis and background tissue. This threshold technique is not
+used to delineate exactly between parenchyma and renal pelvis
+regions but to exclude clearly nonparenchymal tissue inside the
+ROI. The mirrored extension of the convex hull is mainly conducted to overcome infrequent but possible undersegmentations
+of excluded cusps of initial ITCCs.
+In the remaining extended convex cortex region (ECCR),
+a region-based level set segmentation [41] combined with a
+prior-shape-based level set segmentation [39] is applied to refine
+candidate regions. The energy functionals for both forces are
+
+2344
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 5. (a) Threshold-based segmented ITCC (green). (b) 2-D convex hull
+of ITCC (red). (c) ITCC border (green) overlaid with convex hull border (red)
+with cusp connection line (blue). (d) Mirrored ROI (red). (e) Extended convex
+cortex region (ECCR) (blue). (f) Refined ITCC (green) after region-based and
+prior-shape-based level set segmentation.
+
+combined (2) to steer the minimization process using gradient
+descent (3):
+1
+· EECCR im age (φ) + EITCC shap es (φ)
+(2)
+α
+1 ∂EE C C R im age (φ) ∂EI T C C shap es (φ)
+∂φ
+= − ·
+−
+∂t
+α
+∂φ
+∂φ
+
+E (φ) =
+
+(3)
+with a weighting parameter α, the level set function φ, and
+the time parameter t. The data-driven force is steered by MRintensity differences between cortex and medulla regions inside
+ECCR in fat-saturated images. The shape-driven force is controlled by the trained ITCC signed distance maps. This 2-D level
+set segmentation is initialized with the signed distance function
+of the candidate region. The resulting shape and image forces are
+normalized by dividing them through their maxima. We tested
+several values for α and found empirically that a small overweight for the data-driven force provides good results. Hence,
+we chose α = 0.8 for this level set refinement step. The stepwise
+thresholding terminates if all slices in both MLKRs were visited.
+The segmented ITCC-like candidate regions and the ECCR are
+saved as binary masks for further processing framework modules (see Fig. 5). To be consistent with Fig. 1, we show in Fig. 5
+results for the same subject and the same slice as selected for
+Fig. 1. Furthermore, medulla and cortex are well visible here
+what should provide a better idea of method details.
+B. Subject-Specific Cortex Probability Map Generation
+If at least one ITCC shape was segmented in left or right
+kidney, the two-stepped segmentation strategy is applied and
+the framework will produce subject-specific cortex probability
+maps for that kidney. At the beginning of this processing step,
+2-D convex hulls are calculated from each segmented ITCC
+region. The segmented ITCC regions contain subject-specific
+samples of cortex tissue. We collect in each segmented ITCC
+region the MR intensities of all four MR weightings resulting in
+a set of cortex samples. Similarly, a set of background samples
+is generated by all voxels that are inside the convex hull but not
+inside the segmented ITCC region. Since there can be intrasub-
+
+ject MR-intensity differences [34] of renal tissue between left
+and right kidney (what we also observed in our MR datasets), we
+collect cortex as well as background samples for left and right
+kidney separately. The collected samples are subject-specific
+samples that are also specific for left and right kidney. In contrast
+to existing approaches, we incorporate information of all available MR-weightings in our framework. Hence, the collected
+samples are vectors containing four entries. Since we perform
+segmentation in probability maps in following framework steps,
+we compute sample transformations that reduce sample dimensionality from four to one to obtain scalar probability values.
+Similar to [2], we use the linear discriminant analysis (LDA)
+of [42] as reduction technique by preserving as much discriminant information between cortex and background distributions
+as it is possible in linear manner. In contrast to [2], we do not
+integrate position probabilities, because prior knowledge about
+kidney locations is already used for MLKR computation. Cortex
+and background samples are projected onto the LDA projection
+axis with the highest eigenvalue resulting in projected sample
+distributions for both tissue types. Histograms of the projected
+sample data are determined, which are smoothed using a convolution with a Gaussian kernel (standard deviation 3.0). The
+smoothed histograms are used to determine the subject-specific
+likelihoods of cortex tissue p(ILDR |cortex) and background tissue p(ILDR |bg) for the Bayesian theorem. Consequently, cortex
+probability maps (Pcortex ) inside the MLKR are determined by
+Pcortex
+=
+
+p(ILDR |cortex) · pr(cortex)
+p(ILDR |cortex) · pr(cortex) + p(ILDR |bg) · pr(bg)
+
+(4)
+
+where ILDR = ILDR (x, y, z) is the 4-D projected sample value
+onto the projection axis of the LDA calculated between cortex
+and background tissue for the sample vector at position (x,y,z)
+in the MR dataset. The a priori probabilities for the cortex class
+pr(cortex) and pr(bg) for the background class are determined by
+calculating the voxel ratio between trained binary cortex masks
+and the remaining background masks of the trained convex hulls.
+A comparison between subject-specific and subject-unspecific
+cortex probability maps is shown in Fig. 6.
+Although fat- and water-saturated images suffice for other
+steps in the framework, we incorporated all of the four MR
+weightings for probability map generation. Each MR weighting contains useful, tissue-specific image information of renal
+tissue. Hence, comparisons show that probability maps incorporating all MR weightings—instead of using only fat-and watersaturated MR-weightings—increase probability map qualities
+(see Fig. 7).
+C. Level Set Segmentation in Subject-Specific
+Probability Maps
+Since our 2-D segmentation techniques recognize in most
+cases sufficient ITCC shapes in both kidneys, cortex probability
+maps exist for both kidneys and are used as data-driven part
+of the following 3-D level set segmentation technique. Usually, shape variation of inner cortex areas adjacent to medulla
+tissue is higher than outer cortex shape variation. Hence, the
+
+GLOGER et al.: FULLY AUTOMATED RENAL TISSUE VOLUMETRY IN MR VOLUME DATA USING PRIOR-SHAPE-BASED SEGMENTATION
+
+Fig. 6. Comparison of subject-specific cortex probability map with subjectunspecific cortex probability map of existing approach [33]. Two rows showing
+two different subjects with original fat-saturated image (left column), cortex
+probability images calculated according to [33] (middle column) and novel
+subject-specific cortex probability image (right column). Cortex tissue is clearly
+enhanced in subject-specific probability images for both kidneys compared to
+the results of [33].
+
+2345
+
+tion IV-B. Thus, segmented cortex parts of (not necessarily adjacent) 2-D transversal slices are used to form the initial 3-D
+level set function. Level set segmentation is conducted for cortex tissue in both MLKRs separately by using gradient descent
+for minimization of (5). In [33], it was shown that stopping
+and attraction forces improve prior-shape level set segmentation results for intrinsic aligned parenchyma shapes. Similar to
+[33], we introduce new outer cortex alignment forces to guide
+the intrinsic alignment-based level set segmentation of [39] to
+outer cortex edges. However, we present newly calculated alignment forces. The segmented ITCC regions are located in inner
+transversal slices of the kidney and our experiments with manual
+segmented parenchyma masks show that their common centroid
+are often located near the renal parenchyma centroid but always
+inside the kidney, which is important for the following method.
+At the beginning of the level set propagation process, we calculate a function that enhances outer cortex edges (OCE). For each
+voxel location x in MLKR, we compute the normalized difference vector to the automatically estimated parenchyma centroid
+−→
+CP . We compute the gradients of the cortex probability map to
+determine the dot product.
+−
+→
+x − Cp
+
+OCE (x) = 
+(6)
+−
+→ · ∇Pcortex (x) .
+x − Cp 
+Gradients of outer cortex edges are directed inside the kidney
+and point frequently to the parenchyma centroid region. Hence,
+the values of OCE are high at outer cortex edges. Now, we
+determine stopping (S) and attraction (A) forces that attract the
+zero level set to outer edges of cortex tissue.
+1
+→
+1 + OCE2 (−
+x)
+→
+→
+−
+→
+−
+x).
+A ( x ) = ∇S ( x ) · ∇Pcortex (−
+→
+S (−
+x) =
+
+Fig. 7. Comparison between probability maps incorporating water- and fatsaturated MR-weighting (left) in contrast to probability maps with all four
+incorporated MR-weightings (right) for cortex (upper row) and parenchyma
+(lower row) tissue of right kidney (original fat-saturated image in Fig. 6 lower
+left).
+
+3-D cortex-based level set segmentation is mainly used to delineate renal parenchyma tissue at its outer borders. The 3-D
+level set segmentation in parenchyma probability maps is then
+used to refine inner parenchyma delineation, which will be explained in the following section. Similar to the presented 2-D
+level set technique of Section IV-B, we combine the prior-shape
+information with image information. Here, we apply this technique for the 3-D level set segmentation and use—instead of
+original images—cortex probability maps as image data. The
+shape forces (E3D cortexshap es ) in the level set segmentation are
+steered by signed distance functions of the manually segmented
+3-D cortex masks in the training phase that are aligned according
+to their centroids (intrinsic alignment).
+E (φ) =
+
+1
+· EP c o r t e x (φ) + E3D
+α
+
+cortexshap es
+
+(φ) .
+
+(5)
+
+The level set segmentation is initialized by signed distance
+functions of segmented ITCC shapes that are calculated in Sec-
+
+(7)
+(8)
+
+We use gradient descent for minimization and incorporate the
+stopping and attraction terms into the level set equation.
+
+
+1 ∂EP c o r t e x
+∂E3D cortexshap es
+∂φ
+= S(x, y, z) · − ·
+−
+∂t
+α
+∂φ
+∂φ
++ β · A(x, y, z).
+
+(9)
+
+Since the applied prior-shape segmentation of [39] depends
+on intrinsic alignment of the signed distance functions, stopping
+and attraction forces are used to attract the zero level set to outer
+cortex edges and assist the alignment of the trained shapes at
+subject-specific outer cortex edges (see Fig. 8). The authors in
+[33] use stopping and attraction forces that depend strongly on
+the level set function and have to be calculated in every time
+step of the level set propagation. This is time consuming and can
+lead to erroneously enhanced OCE values if the zero level set
+propagates into regions of noncortex tissue showing enhanced
+values in cortex probability maps. The new proposed stopping
+and attraction forces depend on ITCC shapes that are already
+recognized kidney parts and provide well-estimated parenchyma
+centroids. Moreover, the new forces are calculated only once at
+the beginning of the level set segmentation that is more timesaving. We divide all forces through their maxima and found
+
+2346
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+Fig. 9. Result of the refined parenchyma segmentation: final segmentation
+result in parenchyma probability (left), fat-saturated image (middle) and watersaturated image (right). Segmentation results are shown in green and the convex
+cortex hull is shown in magenta.
+
+Fig. 8. Example for the four interacting terms in level set segmentation: final
+zero level set (green) on (a) denoised original image and (b) cortex probability
+image. Final forces of (c) data-driven term and (d) shape-driven term are depicted. Our new proposed attraction (e) and stopping terms (f) are also shown.
+We illustrate the terms for the right kidney of the same example as we used in
+Fig. 6 (lower row). Shape-driven, data-driven, and attraction forces are normalized in the range [–1; 1]. Shape and attraction forces are then multiplied by their
+given weights. Stopping forces are in the range [0; 1].
+
+empirically that α = 1.2 and β = 1.4 are suitable choices to
+steer the minimization process. Erroneous segmentations could
+be further reduced by individual weighting values for every participant, but this solution is not feasible, because the knowledge
+of the individual weighting value is not known a priori.
+D. Refined Parenchyma Segmentation in Subject-Specific
+Parenchyma Probability Maps
+We test in each slice of the convex cortex hulls if ITCP shapes
+of left or right parenchyma can be found. Similarly to ITCC
+shape recognition, stepwise thresholding is performed to find
+ITCP-like shapes for left and right kidney separately. Since renal, parenchymal tissue is suppressed in water-saturated MR
+datasets, we use water-saturated MR weightings to identify
+ITCP shapes. Histogram analysis using all trained parenchyma
+masks show that water-saturated MR intensities of parenchymal
+tissue are between zero and an upper limit of 70. Thus, stepwise thresholding in this intensity range is conducted to find
+ITCP shapes. Similar to the presented cortex probability map
+calculation, we collect subject-specific parenchyma samples inside the segmented ITCP regions and collect subject-specific
+background samples outside ITCP regions but inside the slicewise convex hulls. Similar to Section IV-B, LDA is used to map
+the vector of image values on a scalar. Smoothed histograms
+of projected parenchyma p(ILDR |parenchyma) and background
+p(ILDR |rp_bg) samples are used as likelihoods in the Bayesian
+theorem.
+Pparenchym a =
+
+p(I L D R |parenchym a)·pr (parenchym a)
+p(I L D R |parenchym a)·pr (parenchym a)+p(I L D R |r p bg)·pr (r p bg) .
+
+(10)
+Since refined parenchyma segmentation is performed in the
+convex hulls of the kidney, the voxel ratio (7.63) between
+
+trained parenchyma masks and the remaining background regions inside the trained convex hulls but outside the trained
+parenchyma masks are used to determine prior probabilities of
+parenchyma pr(parenchyma) and background pr(rp_bg) tissue.
+The 3-D level set segmentation is then performed in subjectspecific parenchyma probability maps and signed distance maps
+of trained parenchyma masks are used as prior parenchyma
+shape knowledge. Similar to level set segmentation in cortex
+probability maps (Section IV-C), we use gradient descent for
+minimization of
+1
+E (φ) = · Epparenchym a (φ) + E3D parenchym a shap es (φ) .
+α
+(11)
+Since this level set propagation is used for the refined
+parenchyma segmentation and is performed inside the convex
+hulls of the segmented cortex, we do not need stopping and
+attraction forces to fix the zero level set at outer cortex borders. The union of already segmented cortex and ITCP regions
+is used for initialization of the signed distance function, which
+reduces redundant time steps to converge to inner parenchymal
+borders. Level set segmentation is limited inside convex cortex
+hulls (cch) as
+
+1, inside convex cortex hull
+cch(x) =
+(12)
+0,
+otherwise.
+Resulting in the level set function
+∂φ
+= cch (x)
+∂t
+
+∂E3D
+1 ∂EP p a r e n c h y m a
+−
+· − ·
+α
+∂φ
+
+
+parenchym a shap es
+
+∂φ
+
+.
+(13)
+
+Segmented cortex regions are used as initial parenchymal
+segmentation (see Sections IV-B and C) and to delineate outer
+parenchymal borders. The refined parenchyma segmentation
+(see Section IV-D) is then applied to delineate inner parenchymal borders (two-stepped parenchyma segmentation) inside
+the convex hulls of the already segmented cortex regions (see
+Fig. 9).
+E. One-Stepped Parenchyma Segmentation
+Our intention is to implement an automated parenchyma segmentation framework for all subjects in an epidemiological
+
+GLOGER et al.: FULLY AUTOMATED RENAL TISSUE VOLUMETRY IN MR VOLUME DATA USING PRIOR-SHAPE-BASED SEGMENTATION
+
+Fig. 10. Comparison of subject-specific parenchyma probability map with
+subject-unspecific parenchyma probability map of existing approach [33]. Results are shown for the same two subjects shown in Fig. 6 (left column).
+Parenchyma probability image calculated according to [33] (middle column)
+and subject-specific parenchyma probability image computed by our proposed
+new method (right column). Subject-specific parenchyma images suppress more
+nonparenchymal tissue than subject-unspecific parenchyma probability images.
+
+study. Since ITCC shape recognition may not always be successful, we extend our framework to perform parenchyma volumetry even if no ITCC shape for left or right kidney is recognized.
+In such cases, we do not conduct cortex segmentation before
+but segment parenchyma directly inside MLKR regions (onestepped parenchyma segmentation). We apply the ITCP shape
+recognition technique that is also used for refined parenchyma
+segmentation in Section IV-D. ITCP shape recognition is more
+robust against blurring than ITCC shape recognition, because
+MR intensities of parenchyma and most adjacent tissue are different in water-saturated MR-images. On the other hand, ITCP
+regions are used to compute parenchyma probability maps,
+which show frequently more enhanced nonparenchymal tissue
+than cortex probability maps. Enhanced nonparenchymal tissue
+in parenchyma probability maps can misdirect level set segmentation to erroneous segmentations. Consequently, we provide the
+proposed two-step variant, in which ITCC-based cortex segmentation is followed by refined ITCP-based parenchyma segmentation a higher priority in our framework than the one-stepped
+parenchyma segmentation in parenchyma probability maps presented in this section. We compute subject-specific parenchyma
+probability maps in the same manner as it was used for refined parenchyma segmentation by using (10). Automatically
+collected vector voxels from found ITCP regions and from remaining regions outside of ITCP regions but inside of convex
+ITCP hulls are incorporated for parenchyma probability map
+calculations (see Fig. 10).
+The following level set segmentation is performed (similar
+to Section IV-C) in subject-specific parenchyma probability
+maps using signed distance functions of trained parenchyma
+masks. The level set segmentation is initialized with a signed
+distance function computed by the union of the segmented
+ITCP regions. Since cortex tissue is not segmented before, the
+one-step parenchyma segmentation is not limited inside convex cortex hulls. Since convex cortex hulls do not delineate
+outer parenchyma borders, we incorporate stopping and attraction forces to fix the one-stepped parenchyma segmentation at
+outer parenchyma borders. Parenchyma centroids are estimated
+by found ITCP masks and stopping as well as attraction forces
+
+2347
+
+Fig. 11. Example for the four interacting terms in the one-stepped level set
+segmentation in parenchyma probability maps: final zero level set (green) in (a)
+denoised original image and (b) parenchyma probability image. Final forces of
+(c) data-driven term and (d) shape-driven term as well as (e) attraction and (f)
+stopping terms are shown.
+
+can be computed in similar manner like we used it for level
+set segmentation in cortex probability maps (see Section IV-C).
+Instead of gradients from cortex probability maps, we apply gradients from parenchyma probability maps. Parenchyma probability maps produced in the one-stepped case can enhance more
+non-parenchymal tissue outside the kidney that can produce
+more stopping and attraction forces than in case of cortex segmentation (see Fig. 11).
+F. Refined Segmentation and Volumetry of Cortex
+and Medulla Tissue
+Cortex regions are segmented in our framework, if ITCC regions were recognized. However, inner-parenchymal cortex delineation can differ strongly between different subjects resulting
+in high inner cortex shape variation. Furthermore, MR-intensity
+differences between cortex and medulla tissue can be very low
+in case of strong partial volume effects and the subject-specific
+cortex samples depend strongly on segmented ITCC regions.
+Hence, prior shape and data-driven forces of the precedent level
+set segmentation may be suboptimal to find the exact borders between cortex and medulla tissue. The one- and two-step variants
+of the level set segmentations are mainly designed to segment
+parenchyma from the background tissue.
+Consequently, we refine the cortex and medulla segmentation results of the former steps to obtain improved segmentation and volumetric results for renal cortex and medulla tissue. At first, we consider the two-step segmentation variant.
+Since cortex probability maps are based on recognized ITCCregions and medulla probability maps have not yet been computed, we incorporate a step to determine medulla probability
+as well as cortex probability maps depending on the whole segmented cortex and parenchyma regions. Subject-specific cortex and medulla probability maps are calculated similarly as
+in (4) and (10). Tissue samples containing the four entries of
+the different MR-weightings are now collected from segmented
+
+2348
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+TABLE I
+SEGMENTATION RESULTS FOR PARENCHYMA, CORTEX, AND MEDULLA TISSUE
+OF THE TWO-STEPPED VARIANT: MEAN AND STANDARD DEVIATION (STD) OF
+DICE COEFFICIENT OF ALL TESTED SUBJECTS ARE GIVEN FOR ALL THREE
+TISSUE CLASSES AND RIGHT AND LEFT KIDNEY, RESPECTIVELY
+Parenchyma
+Dice right
+mean
+0.92
+
+Fig. 12. Result of fuzzy c-means clustering for cortex tissue (green) and
+medulla tissue (blue) with automatic segmented parenchyma region (magenta)
+for same subject as shown in Fig. 5.
+
+std
+0.022
+
+J (U, V ) =
+
+C 
+N
+
+
+2
+um
+ik dik
+
+mean
+0.924
+
+Medulla
+
+mean
+0.821
+
+Dice left
+
+std
+0.037
+
+mean
+0.816
+
+std
+0.031
+
+Dice right
+mean
+0.749
+
+std
+0.058
+
+Dice left
+mean
+0.736
+
+std
+0.062
+
+TABLE II
+MEAN OF FALSE POSITIVES (FP) VOXELS AND FALSE NEGATIVE VOXELS (FN)
+OF THE TWO-STEPPED VARIANT
+Parenchyma
+
+(14)
+
+i=1 k =1
+
+is minimized. Here, C = 2 stands for the two different tissue
+types and N for the number of vector voxels inside the segmented parenchyma consisting of MR intensities of the four MR
+weightings. U represents the partition matrix containing membership degrees (u) for both tissue types of each segmented
+parenchyma voxel and m is the fuzzifier that determines the
+level of cluster fuzziness. d2ik = (xk − vi )T · (xk − vi ) are the
+squared Euclidean distances of the vector voxels xk to the cluster centers vi in the set of parenchyma vector voxels (V). We use
+the soft assignment property of the fuzzy c-means algorithm to
+provide the calculated cortex and medulla probability values as
+initial partition matrix for each parenchyma vector voxel. (A
+fuzzy clustering result for the two-step segmentation variant is
+shown in Fig. 12.) In the one-step parenchyma segmentation,
+variant cortex and parenchyma volumetry is calculated directly
+by fuzzy c-means clustering. Here, we initialize the partition
+matrix with membership degrees of 0.5 for both parenchymal
+tissue types.
+
+std
+0.022
+
+Cortex
+Dice right
+
+cortex and parenchyma regions. Cortex samples are taken from
+the whole segmented cortex region and medulla samples are
+gathered from segmented parenchyma that is not contained in
+segmented cortex. Subject-specific tissue probability maps as
+initial tissue estimation are refined by fuzzy clustering. In the
+iterative fuzzy c-means calculation, the function
+
+Dice left
+
+right
+FP
+699
+
+left
+
+FN
+1931
+
+FP
+719
+
+FN
+1808
+
+Cortex
+right
+FP
+815
+
+FN
+7553
+
+Medulla
+left
+
+FP
+922
+
+right
+FN
+3488
+
+FP
+1775
+
+left
+FN
+607
+
+FP
+2135
+
+FN
+765
+
+V. RESULTS
+We used 25 different MR volume data of subjects that are
+not contained in the training set to test our segmentation results. The age range of the subjects is 21–75 with a mean of
+48.75, and a standard deviation of 14.62. Medical experts created manual segmentations of parenchyma as well as cortex
+tissue. Manual segmentations were stored in binary masks. To
+evaluate the quality of parenchyma tissue delineation computed
+by our framework, we compute the Dice coefficient—as well
+as false negative and false positive segmented voxels—between
+the manual segmented parenchyma masks and the results of the
+automatically segmented parenchyma masks.
+The segmentation quality measures show that our proposed
+techniques to segment parenchyma tissue in native MR volume data provide very good results for left and right renal
+
+Fig. 13. Relative errors related to left (red) and right (blue) parenchyma
+volume (two-stepped variant).
+
+parenchyma (see Table 1). The results for false positive and false
+negative voxels show that parenchyma and cortex segmentations produce more undersegmented than oversegmented areas.
+Medulla segmentation results show more oversegmentations
+than undersegmentations. Oversegmentations of medulla areas
+and undersegmentations of cortex areas might be influenced
+mutually. Furthermore, it can be shown that the parenchyma
+segmentation results do not depend on basic study parameters like parenchyma volume and cortex thickness (see Figs. 13
+and 14).
+
+GLOGER et al.: FULLY AUTOMATED RENAL TISSUE VOLUMETRY IN MR VOLUME DATA USING PRIOR-SHAPE-BASED SEGMENTATION
+
+2349
+
+TABLE IV
+MEAN OF FALSE POSITIVES (FP) VOXELS AND FALSE NEGATIVE VOXELS (FN)
+OF THE ONE-STEPPED VARIANT
+Parenchyma
+right
+FP
+1002
+
+left
+
+FN
+2485
+
+FP
+1246
+
+FN
+2321
+
+Cortex
+right
+
+Fig. 14. Relative errors related to left (red) and right (blue) cortex thickness
+(two-stepped variant).
+
+FP
+1240
+
+FN
+7938
+
+Medulla
+left
+
+FP
+1409
+
+right
+FN
+5208
+
+FP
+1867
+
+left
+FN
+669
+
+FP
+2367
+
+FN
+889
+
+TABLE III
+SEGMENTATION RESULTS FOR PARENCHYMA, CORTEX AND MEDULLA TISSUE
+FOR THE SEPARATELY TESTED ONE-STEPPED VARIANT (SAME STRUCTURE AS
+TABLE I)
+Parenchyma
+Dice right
+mean
+0.836
+
+Dice left
+
+std
+0.18
+
+mean
+0.826
+
+std
+0.157
+
+Cortex
+Dice right
+mean
+0.782
+
+std
+0.171
+
+Medulla
+Dice left
+
+mean
+0.746
+
+std
+0.149
+
+Dice right
+mean
+0.7
+
+std
+0.16
+
+Dice left
+mean
+0.675
+
+std
+0.151
+
+Result comparison with existing approaches is difficult, because the most approaches are developed for CT data [15]–[22]
+or use image material produced by contrast-enhanced MR data
+[23]–[31]. Most existing methods are designed for kidney segmentation including renal pelvis and do not differentiate exactly
+between parenchyma and kidney segmentation. Approaches for
+CT data use different quality measures or segmented only one
+of both kidneys (see [21]). Lin et al. [16] calculated a mean Dice
+coefficient for both kidneys in CT volume data of 0.88. Gloger
+et al. [33] proposed a framework for automated parenchyma segmentation in native MR volume data, however, more detailed
+tissue segmentation of medulla and cortex is not solved in this
+approach. The authors in [33] computed mean Dice coefficients
+of 0.903 for right parenchyma and 0.893 for left parenchyma.
+Our framework provides mean Dice coefficients of 0.920 for
+right and 0.924 for left parenchyma, which is better than segmentation results of existing segmentation approaches. We did
+not find any previous approaches for medulla and tissue segmentation in native MR datasets. In [43], an implicit shape
+registration method combined with a multiple graph technique
+is presented for cortex segmentation in CT images. The authors
+report a mean Dice coefficient of 90.5 after the last refinement
+method in their approach, which is difficult to compare with our
+results due to different imaging modalities. Mean dice values for
+segmented cortex (0.821 and 0.816 for right and left renal cortex, respectively) are better than for segmented medulla tissue
+(0.749 and 0.736 for right and left medulla).
+
+Fig. 15. Relative errors related to left (red) and right (blue) parenchyma
+volume (one-stepped variant).
+
+Fig. 16. Relative errors related to left (red) and right (blue) cortex thickness
+(one-stepped variant).
+
+Furthermore, we tested our framework with the one-stepped
+variant separately (see Section IV-E). We removed the modules
+for cortex shape recognition and cortex probability map generation. The framework starts with ITCP shape segmentation and
+computes results for the same test subjects (see Tables III, IV
+and Figs. 15, 16).
+VI. DISCUSSION AND CONCLUSION
+In this paper, a fully automated framework for renal
+parenchyma segmentation extended by automated renal tissue
+and medulla segmentation is presented to allow renal tissue volumetry for an epidemiological study. The framework uses characteristic cortex shapes but provides alternative segmentation
+
+2350
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 10, OCTOBER 2015
+
+using characteristic parenchyma shapes if characteristic cortex
+shapes cannot be segmented. This alternative provides the
+automated framework enough flexibility for application in
+epidemiological studies.
+ITCP shape recognition is more robust against blurring effects (e.g., partial volume effects) than ITCC shape recognition,
+since segmentation is performed in water-saturated images that
+show low inner-parenchymal MR-intensity differences but have
+more contrast to nonparenchymal (e.g., renal pelvis) tissue.
+On the other hand, ITCP regions cover a broader MR-intensity
+range that frequently leads to more enhanced nonparenchymal
+regions in parenchyma probability maps than in ITCC-based
+cortex probability maps. Hence, ITCP-based parenchyma
+probability maps can be more disadvantageous for following
+segmentation steps and volumetric analysis of cortex and
+medulla tissue than ITCC-based probability map generation.
+Consequently, we provide ITCC-based segmentation in cortex
+probability maps a higher priority in our framework than
+ITCP-based segmentation in parenchyma probability maps.
+Furthermore, we could show that the two-stepped-variant using
+a subsequent combination of ITCC- and ITCP-segmentation
+outperforms the one-stepped variant, which only incorporates
+ITCP regions. The two-stepped variant provides better chances
+to recognize at least one of both forms successfully to continue
+with the following segmentation steps.
+The proposed methods using recognition of characteristic renal tissue parts allows generation of subject-specific tissue probability maps. Value ranges and distributions of MR-intensities
+taken from a training set of different subjects are not subject specific due to intra- and intersubject MR-intensity differences of renal tissue. Hence, probability maps generated
+by supervised machine learning strategies and incorporating
+MR-intensity samples of a set of different training subjects
+frequently highlight also nonparenchymal tissue of the individual subject. The proposed subject-specific probability map
+computation techniques offer great potential to highlight individual properties of feature distributions. Moreover, we illustrated that subject-specific tissue probability maps are superior
+to subject-unspecific probability maps that were generated with
+a set of different training subjects. Instead of nonlinear machine
+learning methods, we use a fast linear discriminant reduction
+technique to incorporate important information of all available
+MR-weightings. These explained and new segmentation concepts contribute to clearly enhanced parenchyma segmentation
+results compared with the results of [33].
+Furthermore, we use 3-D prior-shape knowledge of the analyzed tissue types and combine our shape-based segmentation
+methods with individual 2-D shape features. 3-D prior-shape
+knowledge is used to support more exact tissue delineation
+in subject-specific tissue probability maps. The framework is
+extended to segment automatically renal medulla and cortex
+tissue for further volumetric tissue analysis. Inside segmented
+parenchyma regions more exact delineation between cortex and
+medulla is performed using an adapted fuzzy c-means clustering
+method. In the two-stepped segmentation part of the framework,
+cortex and medulla probability values are used as initialization
+for the final fuzzy c-means clustering technique. The clustering
+
+technique refines initial probability-based estimations of cortex
+and medulla tissue to find exact delineation between the two
+tissue types. In the one-stepped framework part, fuzzy c-means
+is initialized with the same membership values for the two
+classes to delineate inner-parenchymal borders.
+We observe better segmentation results for cortex than for the
+medulla tissue. Since outer cortex delineation functions well
+by using our proposed techniques, medulla tissue is located
+between renal cortex and renal pelvis tissue. Partial volume
+effects can increase fuzziness of at both tissue frontiers resulting in worsened automated medulla delineation at both tissue
+type frontiers and reduced medulla segmentation quality. On
+the other hand, manual medulla training can be difficult, since
+technical challenges including fuzzy tissue frontiers can also
+complicate manual segmentation for medical experts. This can
+lead to higher inter- and intraobserver variability influencing
+Dice values between automated and manual delineated tissue
+regions. Automated cortex and medulla segmentation results
+are strongly influenced by automated parenchyma segmentation results. Automated parenchyma delineation is the basis for
+the following cortex and medulla segmentation steps and worsens directly cortex and medulla segmentation results in case of
+erroneously segmented parenchyma regions.
+The study is not limited for application in epidemiological
+studies and can be adapted for clinical practice. However, varying image material of different MR scanner types and vendors
+has to be taken into consideration. Hence, the proposed method
+might not be applicable directly for image material of other MR
+scanning systems and vendors so that single modules of our
+proposed framework should be modified to provide successful
+segmentations. Though, we expect similar performance at devices from the same vendor at same field strength. If shapes
+in other clinical routines are clearly different from our trained
+shapes, then prior-shape knowledge must be trained especially
+for this application. Moreover, if MR-intensities of renal and adjacent nonrenal tissue are strongly different from MR-intensities
+in our used MR volume data, then the relevant modules should
+be adapted.
+
+REFERENCES
+[1] G. Chen et al., “An improved level set for liver segmentation and perfusion
+analysis in MRIs,” IEEE Trans. Inf. Technol. Biomed., vol. 3, no. 1, pp.
+94–103, Jan. 2009.
+[2] O. Gloger et al., “A fully automatic three-step liver segmentation method
+on LDA-based probability maps for multiple contrast MR images,” Magn.
+Resonance Imag., vol. 28, no. 6, pp. 882–897, 2010.
+[3] X. Zhang et al., “Automatic liver segmentation using a statistical shape
+model with optimal surface detection,” IEEE Trans. Biomed. Eng., vol.
+57, no. 10, pp. 2622–2626, Oct. 2010.
+[4] R. A. Heckemann et al., “Automatic anatomical brain MRI segmentation
+combining label propagation and decision fusion,” NeuroImage., vol. 33,
+no. 1, pp. 115–126, 2006.
+[5] M. G. Linguraru et al., “Automated segmentation and quantification of
+liver and spleen from CT images using normalized probabilistic atlases
+and enhancement estimation,” Med. phys., vol. 37, no. 2, pp. 771–783,
+2010.
+[6] M. Freiman et al., “Non-parametric iterative model constraint graph mincut for automatic kidney segmentation,” in Medical Image Computing
+and Computer-Assisted Intervention. Berlin, Germany: Springer, 2010,
+pp. 73–80.
+
+GLOGER et al.: FULLY AUTOMATED RENAL TISSUE VOLUMETRY IN MR VOLUME DATA USING PRIOR-SHAPE-BASED SEGMENTATION
+
+[7] G. In Hyuck et al., “Relationship among total kidney volume, renal
+function and age,” J. Urology, vol. 187, no. 1, pp. 344–349, 2012.
+[8] G. Bernhard et al., “Normal kidney size and its influencing factors-a 64slice MDCT study of 1.040 asymptomatic patients,” BMC Urology, vol.
+9, no. 1, p. 19–32, 2009.
+[9] K. H. Nam et al., “Feasibility of measuring 3-dimensional renal parenchymal volume to predict postnatal renal function in near-term fetuses with
+congenital hydronephrosis a preliminary study,” J. Ultrasound Med., vol.
+31, no. 6, pp. 955–962, 2012.
+[10] A. B. Saxena et al., “Preoperative renal volumes as a predictor of graft
+function in living donor transplantation,” Amer. J. Kidney Diseases., vol.
+44, no. 5, pp. 877–885, 2004.
+[11] Y. Motoyo et al., “Renal measurements on CT angiograms: Correlation
+with graft function at living donor renal transplantation,” Radiology, vol.
+265, no. 1, pp. 151–157, 2012.
+[12] C. M. Hugen et al., “Size does matter: Donor renal volume predicts
+recipient function following live donor renal transplantation,” J. Urology.,
+vol. 185, no. 2, pp. 605–609, 2011.
+[13] C. Mounier-Vehier et al., “Cortical thickness: An early morphological marker of atherosclerotic renal disease,” Kidney Int., vol. 61, no. 2,
+pp. 591–598, 2002.
+[14] A. R. Chade et al., “Kidney in early atherosclerosis,” Hypertension, vol.
+45, no. 6, pp. 1042–1049, 2005.
+[15] D.-Y. Kim and J-W. Park. “Computer-aided detection of kidney tumor
+on abdominal computed tomography scans,” Acta Radiologica., vol. 45,
+no. 7, pp. 791–795, Nov. 2004.
+[16] D.-T. Lin et al., “Computer-aided kidney segmentation on abdominal CT
+images,” IEEE Trans. Inf. Technol. Biomed., vol. 10, no. 1, pp. 59–65, Jan.
+2006.
+[17] S. Pizer et al., “Deformable m-reps for 3D medical image segmentation,”
+Int. J. Comput. Vis., vol. 55, no. 2–3, pp. 85–106, 2003.
+[18] M. Rao et al., “Comparison of human and automatic segmentations of
+kidneys from CT images,” Int. J. Radiation Oncol. Physics., vol. 61, no.
+3, pp. 954–960, 2005.
+[19] B. Tsagaan et al., “Segmentation of kidney by using a deformable
+model,” in Proc. Int. Conf. Image Process., Thessaloniki, Greece,
+Oct. 7–10, 2001, pp. 1059–1062.
+[20] M. Spiegel et al., “Segmentation of kidneys using a new active shape
+model generation technique based on non-rigid image registration,” Comp.
+Med. Imag. Graph., vo. 33, no. 1, pp. 29–39, 2009.
+[21] T. Kohlberger et al., “Organ segmentation with level sets using local shape and appearance priors,” in Medical Image Computing and
+Computer-Assisted Intervention, G.-Z. Yang, D. Hawkes, D. Rueckert, A. Noble, and C. Taylor, Eds. London, U.K.: Springer. 2009,
+pp. 34–42.
+[22] M. G. Linguraru et al., “Multiorgan segmentation from multi-phase abdominal CT via 4D graphs using enhancement, shape and location optimization,” in Medical Image Computing and Computer-Assisted Intervention (Lecture Notes in Computer Science), J. Tea, Ed. Berlin, Germany:
+Springer, 2010, pp. 89–96.
+[23] Y. Sun et al., “Kidney segmentation in MRI sequences using temporal
+dynamics,” in Proc. IEEE Int. Symp. Biomed. Imag., Washington, D.C.,
+USA, Nov. 7, 2002, pp. 98–101.
+[24] Y. Sun et al., “Subpixel registration in renal perfusion MR image sequences,” in Proc. IEEE Int. Symp. Biomed. Imag, 2004, pp. 700–703.
+[25] T. Song et al., “Integrated four dimensional registration and segmentation of dynamic renal MR images,” in Medical Image Computing and
+Computer-Assisted Intervention (Lecture Notes in Computer Science).
+Berlin, Germany: Springer, 2006, pp. 758–765.
+
+2351
+
+[26] S.-E. Yuksel et al., “A kidney segmentation framework for dynamic
+contrast enhanced magnetic resonance imaging,” J. Vibration Control,
+vol. 13, no. 9–10, pp. 1505–1516, 2007.
+[27] A. M. Ali et al., “Graph cuts framework for kidney segmentation with
+prior shape constraints,” in Proc. Med. Image Comput. Comput.-Assist.
+Interv., Brisbane, Australia, 2007, pp. 384–392.
+[28] F. G. Zöllner et al., “Assessment of 3D DCE-MRI of the kidneys using
+non-rigid image registration and segmentation of voxel time courses,”
+Comput. Med. Imag. Graph., vol. 33, no. 3, pp. 171–181, 2009.
+[29] L. Sheng et al., “Wavelet-based segmentation of renal compartments
+in DCE-MRI of human kidney: Initial results in patients and healthy
+volunteers,” Comput. Med. Imag. Graph., vol. 36, no. 2. pp. 108–118,
+2012.
+[30] B. Chevaillier et al., “Functional semi-automated segmentation of renal
+DCE-MRI sequences using a growing neural gas algorithm,” presented at
+the 16th Eur. Signal Processing Conf., Lausanne, Switzerland, 2008.
+[31] E. Hodneland et al., “Segmentation-driven image registration-Application
+to 4D DCE-MRI recordings of the moving kidneys,” IEEE Trans. Image
+Process., vol. 23, no. 5, pp. 2392–2404, 2014.
+[32] H. Akbari and B. Fei. “Automatic 3D segmentation of the kidney in MR
+images using wavelet feature extraction and probability shape model,”
+Proc. SPIE, vol. 8314, 13 pages, 2012.
+[33] O. Gloger et al., “Prior shape level set segmentation on multistep
+generated probability maps of MR datasets for fully automatic kidney
+parenchyma volumcetry,” IEEE Trans. Med. Imag., vol. 31, no. 2, pp.
+312–325, Feb. 2012.
+[34] F.G. Zöllner et al., “Assessment of kidney volumes from MRI: Acquisition
+and segmentation techniques,” Amer. J. Roentgenol., vol. 199, no. 5, pp.
+1060–1069, 2012.
+[35] H. Völzke, “Cohort profile: The study of health in pomerania,” Int. J.
+Epidemiol., vol. 39 no. 4, pp. 294–307, 2010.
+[36] H. K. Hussain et al., “Hepatic fat fraction: MR imaging for quantitative measurement and display early experience,” Radiology., vol. 237,
+pp. 1048–1055, 2005.
+[37] C. Zahn and R. Roskies, “Fourier descriptors for plane closed curves,”
+IEEE Trans. Comput., vol. C-21, no. 3, pp. 269–281, Mar. 1972.
+[38] A. Folkers and H. Samet, “Content-based image retrieval using Fourier
+descriptors on a logo database,” in Proc. IEEE Int. Conf. Pattern Recog.,
+Quebec City, Canada, 2002, pp. 521–524.
+[39] D. Cremers et al., “Kernel density estimation and intrinsic alignment for
+shape priors in level set segmentation,” Int. J. Comput. Vis., vol. 69, no. 3,
+pp. 335–351, 2006.
+[40] R. T. Whitaker and X. Xue, “Variable-conductance, level-set curvature
+for image denoising,” in Proc. Int. Conf. Image Process., Thessaloniki,
+Greece, 2001, pp. 142–145.
+[41] T. Chan, L. Vese, “Active contours without edges,” IEEE Trans. Imag.
+Process., vol. 10, no. 2, pp. 266–277, Feb. 2001.
+[42] R. Fisher, “The statistical utilization of multiple measurements,” Ann.
+Eugenics, vol. 8, pp. 376–386, 1938.
+[43] Li. Xiuli et al., “Automatic renal cortex segmentation using implicit shape
+registration and novel multiple surfaces graph search,” IEEE Trans. Med.
+Imag., vol. 31, no. 10, 1849–1860, Oct. 2012.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

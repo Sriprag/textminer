@@ -1,0 +1,975 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+1293
+
+Regulatory Elements in Low-Methylated Regions
+Predict Directional Change of Gene Expression
+Hong Hu, Student Member, IEEE, Jingting Xu, and Yang Dai
+
+Abstract—Recent studies on methylomes obtained from the
+whole genome bisulfite sequencing (WGBS) indicate that lowmethylated regions (LMRs) are related to potential active distal
+regulatory regions such as enhancers in mammalian genomes. To
+investigate the potential effect of regulatory elements in LMRs on
+gene expression, we proposed penalized logistic regression models
+to predict the directional change of differentially expressed genes
+using predicted transcription factor binding sites (TFBSs) in LMRs
+that are distinctive between two cell types. We evaluated our models on four cell types where the WGBS and RNA-seq data were
+available. The average area under the ROC curve (AUC) from the
+tenfold cross validation was computed over the six pairs of cell
+types in each model. The models using TFBSs in LMRs in intergenic or genebody region are more predictive (AUC 0.71 and 0.66,
+respectively) compared with the one using TFBSs from promoter
+regions alone (AUC 0.62). When using a model that combines TFBSs in LMRs from both intergenic and genebody regions, the best
+prediction was obtained (AUC 0.78). Our models are capable of
+identifying subsets of LMRs that are significantly enriched for the
+ChIP-seq binding sites of the insulator protein CTCF and p300
+co-activator and other transcription factors. Our framework provides further evidence of putative distal regulatory elements from
+LMRs located in intergenic and genebody regions.
+Index Terms—Gene expression, low-methylated region (LMR),
+penalized logistic regression, transcription factor binding site.
+
+I. INTRODUCTION
+HE application of the whole genome bisulfite sequencing (WGBS) technology has led to the identification
+of low-methylated regions (LMRs) in methylomes of mammalian genomes [1], [2]. LMRs reside in CpG-poor regions
+with an average methylation level of 30% and occur mostly
+distal to the promoters. They appear to be active distal regulatory regions since these regions are enriched for chromatin features such as DNase I hypersensitivity, high H3K4
+monomethylation signal relative to H3K4 trimethylation, and
+the presence of p300 histone acetyltransferase [1], which
+are indicators of enhancers [3]. Validation on the insulator protein CTCF and the transcription repressor REST using techniques of chromatin immunoprecipitation with massively DNA sequencing (ChIP-seq) showed high occupancy
+at LMRs and the binding initiates local demethylation [1]. It
+was reported that the LMR formation significantly correlates
+
+T
+
+Manuscript received December 17, 2014; revised April 17, 2015; accepted
+May 3, 2015. Date of publication May 11, 2015; date of current version July
+23, 2015.
+The authors are with the Department of Bioengineering (MC563), University of Illinois at Chicago, Chicago, IL 60612 USA (e-mail: hhu4@uic.edu;
+jxu43@uic.edu; yangdai@uic.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2015.2431640
+
+with increased expression of the nearest genes and remethylation of LMRs accompanies reduced expression [1], [4].
+In addition, in a mouse genome, cell-type-specific LMRs were
+shown to be enriched for motifs of transcription factors (TFs)
+with unique functions in the cell-type and 20% of the methylation levels of LMRs can be explained by a set of enriched TF
+binding motifs in the LMRs [1].
+These previous findings suggest that LMRs, a unique DNA
+methylation feature, can be used to detect distal active regulatory regions (e.g., enhancers) from which the most predictive
+TFBSs to the gene expression change can be identified. However, it is unclear: 1) To what extent the TFBSs in distal LMRs
+are associated with gene expression change? 2) Are TFBSs in
+LMRs in genebody and intergenic regions associated with gene
+expression change at the same level? and 3) Can gene expression change be better predicted if TFBSs in distal LMRs and
+TFBSs in promoter regions are combined?
+To answer these questions, a large-scale genomewide TF
+binding experimental study using ChIP-seq technology would
+be a powerful approach. However, it is not always feasible since
+not all involving TFs are known a priori and some TFs may
+not have suitable antibodies for immunoprecipitation. Therefore, computational approaches for the prediction of TFBSs in
+LMRs are valuable and necessary. We have proposed a penalized logistic regression model to predict expression change for
+differentially expressed (DE) genes based on similarity scores
+of the TFBSs identified from the cell-type-specific LMRs in intergenic and genebody regions between two cell types [5]. Using
+the WGBS and RNA-seq data profiled on the adipose-derived
+stem cells (ADS) and induced pluripotent stem cells (iPSC) of
+the ADS cells (ADS-iPSC) [6], our preliminary analysis has
+demonstrated considerable potential of the model’s ability in
+identifying the most predictive TFBSs in LMRs for gene expression change [5].
+In this study, we extend our analysis by proposing a new
+model that facilitates the identification of potential interaction
+between TFs bound to LMRs in different genomic regions. We
+perform a systematic comparison of the models by including
+data from two additional cell types: human embryonic stem cell
+(H1) and adipocytes derived from the ADS cells (ADS-adipose)
+[6], [7].
+II. MATERIALS AND MODELS
+The proposed penalized logistic regression models utilize information from a subset of DE genes with cell-type-specific
+LMRs between two cell types and TFBSs in LMRs and promoters of these DE genes. In this section, we first describe the
+procedures for identifying LMRs from the methylomes and DE
+
+2168-2194 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1294
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+genes from RNA-seq data. Then, we provide details on the detection of TFBSs and the construction of the penalized logistic
+regression models.
+A. Detection of Cell-Type-Specific LMRs
+The methylation data for the four cell types (ADS, ADSadipose, ADS-iPSC, and H1) were downloaded from the Salk
+Institute Website (http://neomorph.salk.edu/ips_methylomes/
+data.html) [6]. The data represent information on methylcytosines in each profiled cell type and were processed from the
+WGBS data generated from MethylC-seq through the alignment of the bisulfite converted reads and the quantification of
+the methylation level for individual Cytosines (C) in the genome.
+The methylation percentage for each C is defined as the ratio of
+the number of alignments with C (methylated), over the number
+of alignments with either C (methylated) or G (unmethylated).
+This quantification provides the methylome for a profiled cell
+sample. More details on the procedure of processing methylation raw reads data can be found in [6].
+Each methylome was lifted to the UCSC hg19 assembly
+using liftover [8]. LMRs were detected using the package
+MethylSeekR [2] with the recommended parameters. CpGs overlapping with SNPs were removed from further analysis [9]. As
+required by MethylSeekR, partially methylated domains were
+removed from some cell types where distributions of α-values
+were bimodal [2].
+The identified LMRs were associated with the nearest genes
+using ChIPpeakAnno [10]. Specifically, each LMR was associated with the closet Transcription Start Site (TSS) of a gene
+defined by RefSeq [11]. To investigate the regulatory effect of
+TF binding in different genomic regions, the human genome was
+further divided into three genomic regions: 1) promoter, which
+are regions 2000 bp upstream and 500 bp downstream of TSS;
+2) genebody, which are regions 500 bp downstream of TSS to
+the Transcription Termination Site (TTS); 3) intergenic regions,
+which are regions not falling into categories 1 and 2. Each LMR
+was associated with the closest region using the distance to the
+center of the LMR.
+To investigate the regulatory effect of LMRs on gene expression directional change between a pair of cell types, cell-typespecific or differential LMRs (named as dLMRs) were defined
+for each cell-type pair. Therefore, LMRs from distinct cell types
+that overlap were removed from further consideration. In addition, in each cell-type pair, nonoverlap LMRs from distinct cell
+types but are associated with the same gene were also removed.
+The dLMRs identify a set of genes that are only associated with
+LMRs from one cell type, but not both. For the subsequent study,
+a dLMR set was prepared for each of the six cell-type pairs.
+B. Identification of DE Genes
+The RNA-seq data were downloaded from the Salk Institute
+Website mentioned previously. They include data of two replicates for each cell type. Since the number of replicates is small,
+the package NOISeq was used for the identification of DE genes
+between two cell types [12]. Briefly, short read counts for genes
+were converted into Reads Per Kilobases transcript per million
+
+reads mapped (RPKM), and genes with RPKM < 1 were filtered from further analysis. The NOISeq empirically models the
+noise in count data and is reasonably robust against the choice
+of standard deviation. A gene is identified as DE when probability p ≥ 0.8 given the log ratio and the difference of expression
+levels between the two cell types comparing to these values in
+background noise [12].
+C. Identification of TFBSs
+The 117 nonredundant Homo sapiens position weight matrices (PWMs) from the JASPAR database [13] (ver. 2014) were
+used to predict TFBSs in individual dLMRs and promoters of
+DE genes. The choice of nonredundant PWMs eliminates the
+complications where multiple PWMs may represent a TF, or a
+PWM represents multiple TFs. Therefore, in the remainder of
+the paper, PWMs and TFs are used interchangeably.
+The PWM of a TF is usually derived from a set of aligned
+sequences bound by a TF obtained from literature. It is commonly used to represent a motif in the sequences. The matrix
+has one row for each nucleotide ATGC and has one column for
+each position in the motif. Each entry in one row represents the
+log-likelihood for the corresponding nucleotide at the position
+in the motif [14]. For a given DNA sequence S, one can slide a
+window with motif length along S to find if each subsequence
+si (i.e., potential TFBS) covered by the window is similar to the
+motif represented by the PWM. To do so, a similarity score for si
+is calculated, which is defined as the sum of the log-likelihoods
+corresponding to the nucleotides in si .
+The statistically significant TFBSs for a PWM in a dLMR
+sequence were determined based on an empirical distribution of
+similarity scores of the PWM for a set of randomly generated sequences. More specifically, the frequencies of ATGC were first
+calculated from all identified LMRs in a cell type. Then, the frequencies were used to generate random background sequences
+with a zero-order Markov model for each cell type. The PWMs
+were used to scan the random sequences to obtain an empirical
+distribution of similarity scores for the corresponding TFBSs.
+The significant TFBSs for the PWM in a dLMR were determined based on a prescribed threshold for p-values adjusted by
+the Bonferroni procedure for multiple tests.
+As our focus is on dLMRs in distal regions, the PWM scanning was performed on those associated with genebody or intergenic regions. The entire promoters were also analyzed for significant TFBSs using random background sequences generated
+based on the ATGC frequencies estimated from precompiled human genome background in PWMEnrich.Hsapiens.background.
+The prediction of TFBSs was carried out using PWMEnrich
+[15]. To generate the empirical distributions, 1000 random sequences of 1000 bp long were simulated. The threshold for the
+adjusted p-values was 0.05.
+If multiple TFBSs were detected as significant for a single
+PWM in a dLMR/promoter sequence, then the average of the
+similarity scores of all the TFBSs in that region was taken as
+the similarity score for the PWM. In the remainder of the paper,
+when the TFBS similarity score of a PWM in a region is referred,
+it means the average similarity score of the TFBSs in the region.
+
+HU et al.: REGULATORY ELEMENTS IN LOW-METHYLATED REGIONS PREDICT DIRECTIONAL CHANGE OF GENE EXPRESSION
+
+If a PWM does not have any significant TFBS, the similarity
+score is 0.
+D. Models
+Penalized logistic regression models were constructed
+to evaluate the association of the TFBSs identified in
+dLMRs/promoters with the directional change of expression for
+DE genes observed between two cell types. We took a subset
+of DE genes that are associated with at least one dLMR in both
+genebody and intergenic regions for our modeling. Two models
+were proposed.
+Model A: RegionMax: This model was built to assess whether
+TFBSs from different regulatory regions (intergenic dLMRs,
+genebody dLMRs or promoters) are associated with gene expression changes at the same level. Specifically, we considered
+the following seven submodels for a cell-type pair.
+1) I : intergenic dLMRs.
+2) B: genebody dLMRs.
+3) P: promoters.
+4) B+I: genebody and intergenic dLMRs.
+5) P+I: intergenic dLMRs and promoters.
+6) P+B: genebody dLMRs and promoters.
+7) P+B+I: all regions together.
+For each submodel, a gene was assigned a vector of similarity
+scores for PWMs based on the scanning procedure for TFBSs
+described above. More precisely, let xij denote the similarity
+score of TFBSs of PWM j for each gene j. If a submodel only
+involves a single region R ∈ {P, I, B}, then xij = xR
+ij , where
+xR
+is
+the
+similarity
+score
+of
+PWM
+j
+in
+region
+R.
+If
+a
+submodel
+ij
+involves more than one region R, then xij = maxR ∈R {xR
+ij }.
+Therefore, the information on TFBSs in each submodel can be
+organized into a matrix X of size Ng × NTF , where Ng is the
+number of the DE genes and NTF the number of the PWMs.
+The size of the matrix X is identical for all submodels. In
+addition, denote yi = 1 if gene i is up-regulated and yi = 0 if
+downregulated with the reference cell-type pair.
+Now, we can model the gene expression labels by using the
+logistic regression model as follows:
+P r(y = 1|x)
+= β0 + xβ
+log
+P r(y = 0|x)
+
+(1)
+
+where x is one of the row vectors in matrix X; β is a column
+vector of coefficients. The logistic regression coefficients are
+typically estimated by the maximum likelihood method from a
+set of observed points (xi , yi ) [16]:
+(β0 , β) =
+
+Ng
+
+
+{yi (β0 + xi β) − log(1 + exp(β0 + xi β))}
+
+i=1
+
+(2)
+where  is the binomial log-likelihood.
+Model B: SubRegionMax: In Model B, we consider submodels with regions that are identical to those for Model A. The difference is in the assignment of the similarity score for each submodel. Since submodels 1–3 involve single regions, matrices X
+are identical to those in Model A. For submodels involving two
+regions, we keep both similarity scores from the two regions. For
+
+1295
+
+I
+example, xij = [xB
+ij xij ] for submodel 4. Therefore, matrices X
+have 2NTF columns for submodels 4–6. Likewise in submodel
+I
+7 xij = [xPij xB
+ij xij ], implying matrix X has 3NTF columns.
+Submodels 4–7 can potentially select multiple genomic regions
+for one TF that regulates gene expression change.
+Penalized logistic regression model: Since it is likely that
+not all PWMs are informative, we used the penalized logistic
+regression models by minimizing the following object function:
+λ
+|βj |
+(3)
+L(β0 , β, λ) = −(β0 , β) +
+2 j
+
+where λ is a positive constant that needs to be determined. We
+trained each submodel using the R package glmnet [17] based
+on the tenfold cross-validation procedure with the criterion of
+maximizing the area under the ROC curve (AUC).
+E. Enrichment Analysis of LMRs for p300 Binding
+The LMRs detected from H1 cells were analyzed for enrichment of the p300 protein binding sites, which are only available
+for this cell type. The ChIP-seq peaks of the p300 binding sites
+were reprocessed from the raw data retrieved from the Gene
+Expression Omnibus (#GSM929092) [18]. The p300 ChIP-seq
+peaks are of 1 bp in length (the maximum peak). They were
+extended to regions of 250 bp on both sides. The p300 binding sites were lifted to the UCSC hg19 assembly, so they can
+be compared with LMRs [8]. The significance of overlaps of
+LMRs with the p300 binding sites was evaluated by using a
+background distribution of the overlaps from sets of randomly
+shuffled p300 binding sites across the genome. Since 65% of the
+p300 binding sites occurred in intergenic region, 20% in genebody region, and 15% in gene promoter regions, the shuffled
+p300 binding sites were kept in consistent with this distribution.
+Ten thousand random sets of simulated binding sites were generated. The fraction of times that a random set has a number of
+overlaps with the LMRs larger than that of with the true p300
+binding sites was defined as the enrichment p-value.
+III. RESULTS
+Our analysis used the WGBS and RNA-seq data reported for
+the four cell types: ADS, ADS-adipose, ADS-iPSC, and H1 [6]
+as described in the previous section.
+A. dLMRs and DE Genes for Model Evaluation
+Using MethylSeekR [2], LMRs were first identified for each
+cell type and were associated with their closest genes annotated by RefSeq IDs and one of the three genomic categories
+mentioned above. Table I provides the LMR distributions for
+individual cell types. It can be seen that most of the LMRs fall
+in genebody and intergenic regions, while less than 8% of the
+LMRs are located in promoters for all cell types.
+More detailed distributions of the LMRs relative to the TSSs
+of their associated genes are shown in Fig. 1. It can be observed
+that large proportions of the LMRs are located in regions more
+than 10 kb away from the TSSs. Specifically, about 15% of
+the LMRs detected from H1 significantly overlapped (p-value
+
+1296
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+TABLE I
+NUMBER OF LMRS AND THEIR GENOMIC LOCATIONS
+Cell-type
+ADS
+ADS-adipose
+ADS-iPSC
+H1
+
+TABLE II
+NUMBERS OF DLMRS ASSOCIATED WITH DIFFERENT GENOMIC REGIONS
+
+total
+
+promoter (%)
+
+genebody (%)
+
+intergenic (%)
+
+Cell-type Pair
+
+57 838
+59 537
+32 022
+29 138
+
+2555 (4.4)
+2592 (4.4)
+2127 (6.7)
+2129 (7.3)
+
+15 405 (26.6)
+15 956 (26.8)
+7491 (23.4)
+6357 (21.8)
+
+39 878 (68.9)
+40 989 (68.8)
+22 404 (70.0)
+20 652 (70.0)
+
+ADS versus ADS-adipose
+ADS versus ADS-iPSC
+ADS versus H1
+ADS-adipose versus ADS-iPSC
+ADS-adipose versus H1
+ADS-iPSC versus H1
+
+promoter
+
+genebody
+
+intergenic
+
+691
+1795
+1971
+1829
+2019
+1355
+
+2976
+6290
+6756
+6676
+6992
+2809
+
+7809
+16 130
+1 7606
+17 084
+18 508
+7700
+
+TABLE III
+NUMBERS OF THE DE GENES IDENTIFIED IN THE INDIVIDUAL CELL-TYPE
+PAIRS*
+Cell-type Pair
+ADS versus ADS-adipose
+ADS versus ADS-iPSC
+ADS versus H1
+ADS-adipose versus ADS-iPSC
+ADS-adipose versus H1
+ADS-iPSC versus H1
+
+DE
+
+DE-dLMR
+
+Up
+
+Down
+
+3188
+2007
+2047
+2642
+4388
+1259
+
+260
+265
+263
+240
+360
+79
+
+231
+229
+189
+98
+77
+17
+
+29
+36
+74
+142
+283
+62
+
+*
+The second column indicates the number of the DE genes identified from the
+RNA-seq data; the third column represents the number of the DE genes that
+have at least one dLMR in the intergenic and genebody regions; the last two
+columns are the numbers of genes up- or downregulated relative to the first
+cell type listed in the first column.
+
+Fig. 1.
+
+Distribution of LMRs to their associated genes.
+
+Fig. 2.
+
+Boxplots of LMR size (top) and GC content (bottom).
+
+Following the procedure described previously, we identified
+the dLMRs. Recall that dLMRs were defined for each cell-type
+pair and a gene is only linked to the dLMRs detected from a
+single cell type but not both. Table II summarizes the numbers
+of the dLMRs in individual genomic regions for each cell-type
+pair. The percentages of dLMRs in promoter, genebody, and
+intergenic regions are 7.8%, 25.6%, and 66.7%, respectively.
+As our interest is in distal LMRs, for the rest of the analysis,
+we removed promoter LMRs from the model evaluation as they
+only comprise of a small percentage.
+From the identified DE genes for each of the six cell-type
+pairs using RNA-seq data, we retained those with at least one
+dLMR in both intergenic and genebody regions (DE-dLMR)
+for the model evaluation. On average, 10% of the DE genes are
+associated with some distal dLMRs (see Table III).
+B. Performance of the Models
+
+< 10−4 ) with the p300 binding sites. This result together with
+the fact that LMRs are also enriched for the DNase I hypersensitive sites and other epigenetic marks [6] further suggest that
+some of the distal LMRs are potential enhancers.
+Fig. 2 shows the boxplots for the sizes and GC contents of
+the LMRs. The results confirmed that the LMRs are CpG poor,
+and a large proportion of them locates in intergenic as well as
+genebody regions. It can also be observed that the CG content is
+similar over different genomic regions for a cell type. However,
+it presents some variations among different cell types, suggesting that a cell-type-specific ATGC distribution for generating
+random background sequences for TFBSs is beneficial.
+
+Based on the analysis procedure, a set of the DE genes (DEdLMRs) for a pair of cell types was assembled. Each gene
+in the set is upregulated in one cell type and is linked to at
+least one dLMR in its genebody and intergenic region detected
+from its methylome. The effect of regulatory elements (e.g.,
+TFBSs) in the dLMRs and in its promoters was assessed using
+the penalized logistic regression models described previously.
+We trained each submodel using the tenfold cross-validation
+procedure to identify the best value for the parameter λ. The
+medians of the cross-validated AUC values over 100 runs at the
+best λ are shown in Fig. 3.
+Table IV summarizes the averages of the median AUC values
+over the six pairs of the cell types for the submodels in Models A
+
+HU et al.: REGULATORY ELEMENTS IN LOW-METHYLATED REGIONS PREDICT DIRECTIONAL CHANGE OF GENE EXPRESSION
+
+Fig. 3. Average AUC values for each submodel. (Top) Model A: RegionMax.
+(Bottom) Model B: SubRegionMax.
+
+TABLE IV
+AVERAGE OF MEDIAN AUC VALUES FOR EACH SUBMODELS OF MODELS
+A AND B
+
+Model A
+Model B
+
+I*
+
+B*
+
+P*
+
+B+I
+
+P+I
+
+P+B
+
+P+B+I
+
+0.71
+–
+
+0.66
+–
+
+0.62
+–
+
+0.78
+0.73
+
+0.69
+0.72
+
+0.61
+0.65
+
+0.74
+0.72
+
+*
+Submodels (I, B, and P) based on single regions result in identical AUC
+values for Models A and B.
+
+and B. Submodel I had the highest AUC values (0.71) among all
+submodels using TFBSs from a single region, while submodel
+P had the lowest AUC values (0.62). Among the submodels
+using two regions, submodel B+I reached the best AUC values
+(0.78 and 0.73). The results are statistically significant compared
+with submodels with single region in all cell-type pairs tested in
+Model A, while in Model B, 73% of the cell-type pairs tested are
+significant (p-value < 0.01). Finally, the submodel P+I+B had
+declined AUC values compare to those of the submodel B+I.
+To evaluate whether our results were obtained by chance,
+we generated 100 datasets by randomly assigning dLMRs for
+each cell-type pair and evaluated the selected submodels P, I,
+B, and B+I in Models A and B. Our result revealed that out of
+the 30 models compared, 25 showed that AUC values from the
+original datasets are highly significant (p-value < 0.01) over
+those from the random datasets. This outcome demonstrated
+that our findings are not due by chance.
+As also observed in Fig. 3, out of the three cell-type pairs,
+ADS-iPSC versus H1 for the two pluripotent stem cell types
+showed a different pattern of model performance. For example,
+submodel P had an AUC value (0.70), which is considerably
+higher than that of submodel I (0.54), but lower than that of
+
+1297
+
+submodel B (0.74). Our results show that with the exception
+of the ADS-iPSC versus H1 pair, the TFBSs in promoters are
+not as informative as those from the dLMRs in the intergenic
+or genebody region. The TFBSs in intergenic dLMRs along are
+the most informative regulatory elements in prediction of the
+gene expression directional change.
+We further asked if the lower performance of submodel P
+is because that the subsets of the DE genes with dLMRs may
+have distinct promoter features comparing with the entire set of
+the DE genes. To provide a baseline prediction of submodel P,
+we computed the AUC values for all the DE genes identified
+from the RNA-seq data along (the numbers are listed in the
+second column in Table III). The average AUC value over all
+the cell-type pairs is only 0.62, which suggests that TF binding
+in promoters is generally insufficient to explain the expression
+directional change. Therefore, for the DE-dLMR genes our computational analysis demonstrated that TFBSs obtained from the
+dLMRs indeed contribute to a better prediction of gene expression change. These results further confirm that dLMRs are distal
+active regulatory regions [1], [2] and suggest that our models
+could be used to uncover the potential TF regulatory elements
+in the regions.
+Although we designed submodels 4–7 in Model B so that the
+most informative TFBSs for the same PWM can be selected automatically from intergenic, genebody, or promoters. However,
+they did not display improved performance.
+C. Biological Relevance of Our Models
+In our analysis, a subset of PWMs and their TFBSs strongly
+associated with gene expression change can be selected by identifying a stable set of nonzero β coefficients in the proposed
+models. Using the best λ that was determined for each submodel, we repeated 100 times to generated 100 sets of β and
+calculated the median of β values for each variable. Those variables with absolute median values above the threshold 10−5
+were retained. The corresponding TFBSs have been detected in
+more than half of the 100 runs and, therefore, are considered
+the most informative variables selected by the model. Following
+this procedure, we identified the significant TF-target gene pairs
+in Model A or the TF-target gene pairs with identified binding
+genomic regions in Model B.
+To examine biological relevance of the detected TFBSs,
+we focused on the results for the cell-type pairs between
+H1 and the three cell types using Model B, as the ChIPseq data for some of the TFs are available for the H1 celltype. In total, 68 PWMs were selected by the seven submodels of Model B. The ChIP-seq experimental data for the 13
+out of the 68 TFs were retrieved from the ENCODE website
+(http://genome.ucsc.edu/ENCODE/). The TFBSs detected by
+our models in H1 were compared with the experimentally observed TF binding regions for overlaps. The selected TFs and
+their TFBSs locations are listed in Table V. We observe a substantial number of overlaps between model predicted TFBSs
+and the ChIP-seq TF binding regions. We selected a few TFs to
+evaluate the biological relevance.
+The CCCTC-binding factor (CTCF) is a highly conserved
+zinc finger protein and it functions as an insulator by blocking
+
+1298
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+TABLE V
+NUMBER OF TFBSS IN H1 CELL TYPE SELECTED BY MODEL B AND THE
+OVERLAPS WITH THE CHIP-SEQ DATA*
+TF
+EGR1
+BRCA1
+CTCF
+MAX
+JUND
+YY1
+SP1
+CEBP-beta
+FOSL1
+
+RXRA
+SP2
+SRF
+REST
+
+Model detected (region)
+
+overlaps with ChIP-seq
+
+159 (P)
+14 (I)
+9 (P)
+37 (B)
+29 (I)
+4 (P)
+7 (I)
+13 (P)
+10 (I)
+33 (P)
+3 (B)
+12 (I)
+5 (B)
+2 (P)
+14 (P)
+15 (B)
+7 (I)
+13 ( I)
+
+51
+0
+5
+31
+21
+4
+2
+11
+2
+13
+1
+0
+0
+0
+0
+0
+0
+0
+
+*
+The TFBSs identified from all the submodels were combined together.
+
+Fig. 4. LMRs where CTCF were selected by Model B and the CTCF binding
+peaks detected from the ChIP-seq data for the H1 cell-type. Four example
+locations on Chromosomes 1, 3, 4, and 5 are shown.
+
+most important DNA-bounding factors bridging genome topology and function in the distal LMRs.
+A large number of overlaps was also observed for early growth
+response protein 1 (EGR1); out of 159 promoter TFBSs, 51 are
+overlapped with those from the ChIP-seq sites in H1 (Fisher’s
+exact test p-value < 10−15 ). This large overlap in the promoters
+seems to be related to the fact that the ChIP-seq data in H1
+display a much higher percentage (52%) binding sites in promoters than in intergenic (34%) and genebody (14%). EGR1
+has been shown to interact with CCAAT/enhancer-binding protein beta (CEBP-beta) and lead to the transcriptional activation
+of the human low density lipoprotein receptor gene [20]. We
+also find three predicted CEBP-beta binding sites in genebody
+region and one of them overlaps with the ChIP-seq site. CEBPbeta can bind as a homodimer to certain DNA regulatory regions
+or form heterodimers with the related proteins CEBP-alpha or
+CEBP-gamma. The TF is important in the regulation of genes
+involved in immune and inflammatory responses and has been
+shown to bind to the IL-1 response element in the IL-6 gene, as
+well as to regulatory regions of several acute-phase and cytokine
+genes. This TF can bind the promoter and upstream element and
+stimulate the expression of the collagen type I gene. Our result
+suggests the potential to capture interacting TFs in different
+locations for gene regulation.
+The TFBSs of the ubiquitously distributed TF Yin Yang 1
+(YY1) were found in the promoters in the ADS-iPSC versus
+H1 cell-type pair. Out of 13 promoter TFBSs detected, 11 are
+overlapped with the ChIP-seq detected sites (Fisher’s exact test
+p-value < 10−9 ). YY1 may direct histone deacetylases and histone acetyltransferases to a promoter in order to activate or
+repress the promoter, thus implicating histone modification in
+the function of YY1 [21]. YY1 has been shown to be a master regulator of development, essential for early embryogenesis
+and adult tissue formation in mouse embryonic stem cells [22].
+Taking together, our proposed models can detected some of the
+most important TFs and other DNA-bounding factors in distal
+LMRs regions as well as in promoters.
+IV. DISCUSSION AND CONCLUSION
+
+enhancer activity and as a transcription activator by bringing regulatory elements such as enhancers and promoters in close proximity [19]. Our models have identified numerous CTCF binding
+sites in each cell-type pair. For example, in analyzing the ADS
+versus H1 cell-type pair, 10 and 29 CTCF binding sites were
+detected from genebody and intergenic regions, respectively, in
+H1. Out of these TFBSs, 8 and 21 are found overlapped with
+those detected from the ChIP-seq, respectively. Similarly, for
+the ADS-iPSC versus H1 cell-type pair, 31 out of the 37 model
+detected CTCF binding sites in genebody region are verified
+from the ChIP-seq data. These numbers show that our model
+was able to select LMRs that are significantly enriched for the
+experimentally observed TFBSs of CTCF (Fisher’s exact test
+p-value < 10−8 ). Fig. 4 shows the locations of the four dLMRs
+with CTCF binding sites detected from the models and the ChIPseq binding peaks on the UCSC Genome Browser. These results
+demonstrated that our models can effectively identify one of the
+
+Gene expression in mammalian genomes is epigenetically
+regulated by a combination of histone modifications and methylation of CpG dinucleotides. LMRs have been implicated as active distal regulatory regions [6], [7], [23]. However, it has not
+been examined in-depth for the regulatory effect of regulatory
+elements, such as TFBSs in LMRs on gene expression. In this
+work we have developed penalized logistic regression models
+to evaluate in silico the regulatory potential of TFBSs in LMRs
+located in distal intergenic and genebody regions. Our analysis
+focused on two questions. 1) How well can TFBSs in LMRs
+in distal regions predict gene expression directional change?
+2) Can improved prediction be obtained if TFBSs in promoters
+of genes are included in addition? Our computational analysis
+on the 4 cell types (ADS, ADS-adipose, ADS-iPSC, and H1)
+demonstrated that the models using TFBSs in LMRs located
+in intergenic and/or genebody are more predictive for gene expression changes than the models using TFBSs from promoter
+
+HU et al.: REGULATORY ELEMENTS IN LOW-METHYLATED REGIONS PREDICT DIRECTIONAL CHANGE OF GENE EXPRESSION
+
+region alone. Our result is consistent with the findings that genebody methylation is a stronger indicator of expression change
+than promotor methylation from a recent work [24]. Furthermore, adding promoter TFBSs did not improve the prediction,
+highlighting the importance of regulatory elements in distal region in controlling cell-type-specific gene expression. It should
+be noted that we only used the 117 nonredundant PWMs for
+TFBSs analysis in this study and they may be biased in terms
+of the TF involvement in distal regulatory regions. Therefore,
+our results may be affected if a larger set of PWMs were used.
+In addition, we have excluded DE genes that are assigned with
+nonoverlapping LMRs from different cell types. Examining how
+those LMRs affect genes expression is important as well.
+It is also interesting to observe that for genes associated with
+genebody LMRs, the expression level is inversely correlated
+with the methylation level. This result is different from what has
+been reported from some of other studies that genebody methylation has a positive correlation with gene expression level [25],
+for example, a direct evidence for a causal relationship between
+genebody demethylation and downregulation of the gene in a
+recent work [25]. These seeming contradictory results highlight
+the fact that genebody methylation or methylation in general
+may have a more complex involvement in gene regulation [26].
+The LMRs are one of the methylation features that can be
+detected from a DNA methylome of a cell-type obtained from
+the WGBS. Since they are associated with CpG poor regions,
+genes with CpG islands in promoters are usually lack of LMRs.
+Our current work has focused on the evaluation of regulatory
+elements in distal LMRs for the DE genes that are associated
+with exclusive cell-type-specific LMRs (about 10% of the total
+DE genes). In contrast, for the remaining 90% of the DE genes
+that lack cell-type-specific LMRs, the TFBSs in the promotor
+regions alone are not sufficient to explain the gene expression
+changes as shown from our analysis. Therefore, other types of
+epigenetic marks are needed for the identification of distal regulatory regions and the regulatory elements. Researchers have
+developed approaches for the characterization of methylation
+changes between two cell types based on the concept of differentially methylated regions (DMRs) [7], [27]. For example,
+it was found that the nonpromotor DMRs cover more genomic
+regions where gene expression change can be related [6], [7]. A
+recent work has revealed a diverse set of patterns of methylation
+level that are strongly associated gene expression [28] using a
+more sophisticated analysis of methylation change in windows
+of various size (up to 25 kb) around the TSSs of genes. LMRs
+and DMRs are methylation features identified based on different
+analysis strategies. Therefore, cell-type-specific LMRs considered in our study can be different from the DMRs explored in
+other work. DMRs can be some regions that are hypomethylated
+in both cell types but the level could be significantly different,
+while this type of DMRs are not cell-type-specific LMRs. Therefore, the DMRs could represent a different type of distal active
+regulatory regions that cannot be captured by the LMRs, and
+vice versa. Combining the information from cell-type-specific
+LMRs and DMRs may lead to a better understanding of regulatory role of methylation in gene regulation [29].
+
+1299
+
+The identification of distal regulatory regions such as enhancers is one of the major challenges in gene regulation study.
+Enhancers are present in nucleosome-free regions that have a
+high rate of histone replacement and sensitive to enzymes that digest DNAs. The ChIP-seq-based experimental techniques have
+been utilized for the detection of these types of epigenetic marks
+for chromatin structure and histone modification [30]. The approach is powerful; however, the histone modification patterns
+and chromatin structure are far from sufficient for the detection
+of active enhancers [31]. This is because these nucleosomebased methods do not exclusively detect enhancers but also
+identify promoters, TSSs, and other regulatory elements such as
+insulators. Computational methods for prediction of enhancers
+have been developed based on the use of experimental validated enhancers or putative genomic regions bound by p300
+protein in addition to the DNase I hypersensitive sites [18],
+[32]. Evidence of distal regulatory sites detected from the analysis of DNA methylation provides another source of potential
+enhancers [23], [25], [29]. The integration of data from chromatin structure, chromosome conformation capture [33], [34],
+histone modification, and DNA methylation for accurate enhancer prediction would be a future direction.
+REFERENCES
+[1] M. B. Stadler, R. Murr, L. Burger, R. Ivanek, F. Lienert, A. Scholer,
+C. Wirbelauer, E. J. Oakeley, D. Gaidatzis, V. K. Tiwari, and D. Schubeler,
+“DNA-binding factors shape the mouse methylome at distal regulatory
+regions,” Nature, vol. 480, no. 7378, pp. 490–495, Dec. 22, 2011.
+[2] L. Burger, D. Gaidatzis, D. Schubeler, and M. B. Stadler, “Identification
+of active regulatory regions from DNA methylation data,” Nucleic Acids
+Res, vol. 41, no. 16, p. e155, Sep., 2013.
+[3] N. D. Heintzman, G. C. Hon, R. D. Hawkins, P. Kheradpour, A. Stark,
+L. F. Harp, Z. Ye, L. K. Lee, R. K. Stuart, C. W. Ching, K. A. Ching,
+J. E. Antosiewicz-Bourget, H. Liu, X. Zhang, R. D. Green,
+V. V. Lobanenkov, R. Stewart, J. A. Thomson, G. E. Crawford, M. Kellis,
+and B. Ren, “Histone modifications at human enhancers reflect global celltype-specific gene expression,” Nature, vol. 459, no. 7243, pp. 108–112,
+May 7, 2009.
+[4] A. Feldmann, R. Ivanek, R. Murr, D. Gaidatzis, L. Burger, and
+D. Schubeler, “Transcription factor occupancy can mediate active turnover
+of DNA methylation at regulatory regions,” PLoS Genet, vol. 9, no. 12,
+p. e1003994, 2013.
+[5] H. Hong and D. Yang, “Exploring regulatory elements in low-methylated
+regions for gene expression prediction,” in Proc. IEEE Eng. Med. Biol.
+Soc., 2014, pp. 4763–4766.
+[6] R. Lister, M. Pelizzola, Y. S. Kida, R. D. Hawkins, J. R. Nery, G. Hon,
+J. Antosiewicz-Bourget, R. O’Malley, R. Castanon, S. Klugman,
+M. Downes, R. Yu, R. Stewart, B. Ren, J. A. Thomson, R. M. Evans,
+and J. R. Ecker, “Hotspots of aberrant epigenomic reprogramming in human induced pluripotent stem cells,” Nature, vol. 471, no. 7336, pp. 68–73,
+Mar. 3, 2011.
+[7] R. Lister, M. Pelizzola, R. H. Dowen, R. D. Hawkins, G. Hon,
+J. Tonti-Filippini, J. R. Nery, L. Lee, Z. Ye, Q. M. Ngo, L. Edsall,
+J. Antosiewicz-Bourget, R. Stewart, V. Ruotti, A. H. Millar, J. A. Thomson,
+B. Ren, and J. R. Ecker, “Human DNA methylomes at base resolution
+show widespread epigenomic differences,” Nature, vol. 462, no. 7271,
+pp. 315–322, Nov. 19, 2009.
+[8] B. Rhead, D. Karolchik, R. M. Kuhn, A. S. Hinrichs, A. S. Zweig,
+P. A. Fujita, M. Diekhans, K. E. Smith, K. R. Rosenbloom, B. J. Raney,
+A. Pohl, M. Pheasant, L. R. Meyer, K. Learned, F. Hsu, J. Hillman-Jackson,
+R. A. Harte, B. Giardine, T. R. Dreszer, H. Clawson, G. P. Barber,
+D. Haussler, and W. J. Kent, “The UCSC Genome Browser database:
+update 2010,” Nucleic Acids Res, vol. 38, no. Database issue,
+pp. D613–D619, Jan. 2010.
+[9] H. Pages, SNPlocs.Hsapiens.dbSNP.20120608: SNP Locations for Homo
+Sapiens (dbSNP Build 137), R Package Version 0.99.9, 2014.
+
+1300
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+[10] L. Zhu, C. Gazin, N. Lawson, H. Pages, S. Lin, D. Lapointe, and
+M. Green, “ChIPpeakAnno: A Bioconductor package to annotate ChIPseq and ChIP-chip data,” BMC Bioinformat., vol. 11, p. 237, 2010.
+[11] K. D. Pruitt, T. Tatusova, and D. R. Maglott, “NCBI reference sequences
+(RefSeq): A curated non-redundant sequence database of genomes, transcripts and proteins,” Nucleic Acids Res, vol. 35, no. Database issue,
+pp. D61–D65, Jan., 2007.
+[12] S. Tarazona, F. Garca-Alcalde, J. Dopazo, A. Ferrer, and A. Conesa,
+“Differential expression in RNA-seq: A matter of depth,” Genome Res.,
+vol. 21, no. 12, pp. 2213–2223, Dec. 2011.
+[13] A. Mathelier, X. Zhao, A. W. Zhang, F. Parcy, R. Worsley-Hunt,
+D. J. Arenillas, S. Buchman, C.-Y. Chen, A. Chou, H. Ienasescu, J. Lim,
+C. Shyr, G. Tan, M. Zhou, B. Lenhard, A. Sandelin, and W. W. Wasserman,
+“JASPAR 2014: an extensively expanded and updated open-access
+database of transcription factor binding profiles,” Nucleic Acids Res.,
+vol. 42, no. Database issue, pp. D142–D147, Jan., 2014.
+[14] G. D. Stormo, “DNA binding sites: Representation and discovery,” Bioinformatics, vol. 16, no. 1, pp. 16–23, 2000
+[15] R. Stojnic and D. Diez, PWMEnrich: PWM Enrichment Analysis R Package Version 2.6.2, 2013.
+[16] P. McCullagh and J. Nelder, Generalized Linear Models. London, U.K.:
+Chapman & Hall/CRC, 1989.
+[17] J. Friedman, T. Hastie, and R. Tibshirani, “Regularization paths for generalized linear models via coordinate descent,” J. Statist. Softw, vol. 33,
+no. 1, pp. 1–22, 2010.
+[18] N. Rajagopal, W. Xie, Y. Li, U. Wagner, W. Wang, J. Stamatoyannopoulos,
+J. Ernst, M. Kellis, and B. Ren, “RFECS: A random-forest based algorithm
+for enhancer identification from chromatin state,” PLoS Comput. Biol.,
+vol. 9, no. 3, p. e1002968, 2013.
+[19] C. T. Ong and V. G. Corces, “CTCF: an architectural protein bridging genome topology and function,” Nat. Rev. Genet., vol. 15, no. 4,
+pp. 234–246, Apr., 2014.
+[20] F. Zhang, M. Lin, P. Abidi, G. Thiel, and J. Liu, “Specific interaction of
+Egr1 and c/EBPbeta leads to the transcriptional activation of the human
+low density lipoprotein receptor gene,” J. Biol. Chem., vol. 278, no. 45,
+pp. 44246–44254, Nov. 7, 2003.
+[21] W. Zhu, A. C. Lossie, S. A. Camper, and D. L. Gumucio, “Chromosomal
+localization of the transcription factor YY1 in the mouse and human,”
+Mamm. Genome, vol. 5, no. 4, pp. 234–236, Apr. 1994.
+[22] P. Vella, I. Barozzi, A. Cuomo, T. Bonaldi, and D. Pasini, “Yin Yang 1
+extends the Myc-related transcription factors network in embryonic stem
+cells,” Nucleic Acids Res., vol. 40, no. 8, pp. 3403–3418, Apr. 2012.
+[23] A. Blattler, L. Yao, H. Witt, Y. Guo, C. Nicolet, B. Berman, and P. Farnham,
+“Global loss of DNA methylation uncovers intronic enhancers in genes
+showing expression changes,” Genome Biol., vol. 15, no. 9, p. 469, Sep.
+20, 2014.
+[24] S. Lou, H.-M. Lee, H. Qin, J.-W. Li, Z. Gao, X. Liu, L. Chan, V. K. L. Lam,
+W.-Y. So, Y. Wang, S. Lok, J. Wang, R. Ma, S. Tsui, J. Chan, T.-F. Chan,
+and K. Yip, “Whole-genome bisulfite sequencing of multiple individuals
+reveals complementary roles of promoter and gene body methylation in
+transcriptional regulation,” Genome Biol., vol. 15, no. 7, p. 408, 2014.
+[25] X. Yang, H. Han, D. D. De Carvalho, F. D. Lay, P. A. Jones, and G. Liang,
+“Gene body methylation can alter gene expression and is a therapeutic
+target in cancer,” Cancer Cell, vol. 26, no. 4, pp. 577–590, Oct. 13, 2014.
+[26] T. Baubec and D. Schubeler, “Genomic patterns and context specific
+interpretation of DNA methylation,” Curr. Opin. Genet. Dev., vol. 25,
+pp. 85–92, Apr. 2014.
+[27] K. D. Hansen, W. Timp, H. C. Bravo, S. Sabunciyan, B. Langmead,
+O. G. McDonald, B. Wen, H. Wu, Y. Liu, D. Diep, E. Briem, K. Zhang,
+R. A. Irizarry, and A. P. Feinberg, “Increased methylation variation in
+epigenetic domains across cancer types,” Nat. Genet., vol. 43, no. 8,
+pp. 768–775, Aug. 2011.
+[28] N. D. Vanderkraats, J. F. Hiken, K. F. Decker, and J. R. Edwards, “Discovering high-resolution patterns of differential DNA methylation that
+correlate with gene expression changes,” Nucleic Acids Res., vol. 41,
+no. 14, pp. 6816–6827, Aug., 2013.
+
+[29] D. Aran, S. Sabato, and A. Hellman, “DNA methylation of distal regulatory
+sites characterizes dysregulation of cancer genes,” Genome Biol., vol. 14,
+no. 3, p. R21, 2013.
+[30] X. Dong, M. C. Greven, A. Kundaje, S. Djebali, J. B. Brown, C. Cheng,
+T. R. Gingeras, M. Gerstein, R. Guigo, E. Birney, and Z. Weng, “Modeling
+gene expression using chromatin features in various cellular contexts,”
+Genome Biol., vol. 13, no. 9, p. R53, 2012.
+[31] C. Wang, M. Q. Zhang, and Z. Zhang, “Computational identification of
+active enhancers in model organisms,” Genomics Proteomics Bioinformatics, vol. 11, no. 3, pp. 142–150, Jun. 2013.
+[32] G. D. Erwin, N. Oksenberg, R. M. Truty, D. Kostka, K. K. Murphy,
+N. Ahituv, K. S. Pollard, and J. A. Capra, “Integrating Diverse Datasets
+Improves Developmental Enhancer Prediction,” PLoS Comput. Biol.,
+vol. 10, no. 6, p. e1003677, Jun., 2014.
+[33] J. Dekker, “The three ‘C’ s of chromosome conformation capture: controls,
+controls, controls,” Nat. Methods, vol. 3, no. 1, pp. 17–21, Jan., 2006.
+[34] J. Marsman and J. A. Horsfield, “Long distance relationships: Enhancerpromoter communication and dynamic gene transcription,” Biochim. Biophys. Acta, vol. 1819, nos. 11/12, pp. 1217–1227, Nov./Dec. 2012.
+
+Hong Hu (S’14) is working toward the Master’s degree in statistics and the Ph.D. degree in bioinformatics at the University of Illinois at Chicago, Chicago,
+IL, USA.
+His research interests include next-generation sequencing and microarray data analysis, transcriptional regulation study, machine learning, and statistical modeling in computational biology.
+
+Jingting Xu received the B.S. degree in applied mathematics from the East China University of Science
+and Technology, Shanghai, China, in 2003, and the
+M.S. degree in applied statistics from Loyola University Chicago, Chicago, IL, USA, in 2011. She is
+currently working toward the Ph.D. degree in bioinformatics at the University of Illinois at Chicago,
+Chicago.
+Her research interests include machine learning,
+data mining, algorithm design, and statistical modeling in computational genomics.
+
+Yang Dai received the Ph.D. degree in management science and engineering from the University
+of Tsukuba, Tsukuba, Japan, in 1991.
+She was a Research Associate and an Assistant
+Professor at the Department of Management Science,
+Kobe University of Commerce, from 1991 to 1997.
+From 1997 to 2001, she was an Assistant Professor
+at the Department of Mathematical and Computing
+Sciences, Tokyo Institute of Technology. Since 2001,
+she has been on the faculty of Department of Bioengineering, University of Illinois at Chicago, Chicago,
+IL, USA. Her recent research interests include the analysis of gene expression
+and pathways, inference of biological network, and data analysis on large-scale
+functional genomic data. She has published more than 90 peer-reviewed papers
+in journals and conference proceedings.
+
+

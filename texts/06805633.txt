@@ -1,0 +1,1048 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 11, NOVEMBER 2014
+
+2659
+
+A Head Impact Detection System Using SVM
+Classification and Proximity Sensing
+in an Instrumented Mouthguard
+Lyndia C. Wu, Livia Zarnescu, Vaibhav Nangia, Bruce Cam, and David B. Camarillo∗ , Member, IEEE
+
+Abstract—Injury from blunt head impacts causes acute neurological deficits and may lead to chronic neurodegeneration. A
+head impact detection device can serve both as a research tool
+for studying head injury mechanisms and a clinical tool for realtime trauma screening. The simplest approach is an acceleration
+thresholding algorithm, which may falsely detect high-acceleration
+spurious events such as manual manipulation of the device. We
+designed a head impact detection system that distinguishes head
+impacts from nonimpacts through two subsystems. First, we use
+infrared proximity sensing to determine if the mouthguard is worn
+on the teeth to filter out all off-teeth events. Second, on-teeth, nonimpact events are rejected using a support vector machine classifier trained on frequency domain features of linear acceleration
+and rotational velocity. The remaining events are classified as head
+impacts. In a controlled laboratory evaluation, the present system
+performed substantially better than a 10-g acceleration threshold
+in head impact detection (98% sensitivity, 99.99% specificity, 99%
+accuracy, and 99.98% precision, compared to 92% sensitivity, 58%
+specificity, 65% accuracy, and 37% precision). Once adapted for
+field deployment by training and validation with field data, this system has the potential to effectively detect head trauma in sports,
+military service, and other high-risk activities.
+Index Terms—Impact detection, infrared proximity sensing,
+support vector machines (SVMs), traumatic brain injury.
+
+I. INTRODUCTION
+LUNT head impacts in sports, military service, and other
+activities can cause traumatic brain injury [1]–[4]. Repeated trauma is shown to increase the likelihood of subsequent
+injury [5] and lead to chronic neurodegeneration [6]–[8]. To
+prevent repeat injury, legislative efforts such as the Lystedt Law
+require youth athletes be removed from play if suspected of
+sustaining head trauma [9]. However, such legislations cannot
+be fully enforced due to injury underreporting in sports [10].
+A more objective method of injury screening may be head im-
+
+B
+
+Manuscript received December 19, 2013; revised April 15, 2014; accepted
+April 16, 2014. Date of publication April 25, 2014; date of current version
+October 16, 2014. Date of publication; date of current version. This work
+was supported by the National Institutes of Health (NIH) National Institute
+of Biomedical Imaging and Bioengineering (NIBIB) 3R21EB01761101S1 and
+David and Lucile Packard Foundation 38454. Asterisk indicates corresponding
+author.
+L. C. Wu and L. Zarnescu are with the Department of Bioengineering, Stanford University, Stanford, CA 94305 USA (e-mail: lyndiacw@stanford.edu;
+liviaz@stanford.edu).
+V. Nangia and B. Cam are with the Department of Mechanical Engineering,
+Stanford University, Stanford, CA 94305 USA (e-mail: vnangia@stanford.edu;
+bcam@stanford.edu).
+∗ D. B. Camarillo is with the Department of Bioengineering, Stanford University, Stanford, CA 94305 USA (e-mail: dcamarillo@stanford.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org
+Digital Object Identifier 10.1109/TBME.2014.2320153
+
+pact monitoring. Previous research found statistically significant
+correlation between the number of head impacts and the resulting neurophysiological deficit [11]. In football players, a greater
+number of head impacts with high impact kinematics were more
+likely to lead to concussions [12]. Furthermore, repeated subconcussive impacts have also been associated with blood-brain
+barrier disruption and diffusion tensor imaging changes, indicating elevated risks for cognitive deficits [13]. Thus, technologies
+for detecting and recording head impacts may not only serve as
+research tools to help investigate head injury mechanisms, but
+also as clinical tools for on-field injury screening.
+The head impact telemetry (HIT) system [14]–[16], which
+achieves inertial sensing through helmet-embedded accelerometers, has been used to record and characterize head impact
+kinematics in youth and collegiate populations across multiple
+sports [17]–[20]. Injury tolerance findings based on HIT system
+data [21], [22] confirm the potential of such head impact measurement technology to be used for injury prediction. However,
+helmet-mounted sensing systems such as the HIT system may
+dislocate from the head in some impact conditions, causing measurement error [23]. In addition, impact detection performance
+of these systems has not been reported. As a low-cost alternative,
+instrumented mouthguards [24] are well suited for head impact
+detection since they can be custom-fit to tightly couple to the
+upper jaw and directly measure skull kinematics. In this paper,
+we present the design and evaluate the performance of a head
+impact detection system that uses an instrumented mouthguard.
+A first-order simple impact detection algorithm is to record all
+events above a predefined linear acceleration threshold. However, this approach may falsely detect many spurious highacceleration nonimpact events (see Fig. 1). For example, some
+nonimpacts could be generated by manual manipulation of the
+device, and some could come from device placement or removal. These misclassified events will skew conclusions when
+studying head injury mechanisms and raise false positives when
+screening for head trauma. In a head impact detection system,
+we want most head impacts detected (high sensitivity) with few
+nonimpact false positive events (high precision). Due to frequent incidence of nonimpact events from normal motions on
+the field, using a linear acceleration threshold will likely detect a
+large number of false positives and have poor precision in head
+impact detection. Increasing the acceleration threshold could
+help improve precision but will sacrifice sensitivity.
+We need to better distinguish between nonimpact events
+and head impacts for improved sensitivity and precision in head
+impact detection. Since the mouthguard only measures head
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+2660
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 11, NOVEMBER 2014
+
+Fig. 1. Head impacts and nonimpact events registered by the instrumented
+mouthguard. On the field, both head impacts (left column) and nonimpact events
+involving spurious mouthguard activities (center and right columns) may trigger
+event registration on an instrumented mouthguard. Some nonimpact events are
+generated when the mouthguard is not worn on the teeth (center column) and
+some when it is worn (right column).
+
+motion when coupled to the teeth, events where the mouthguard
+is not worn should be rejected. When the mouthguard is worn,
+differences in dynamic signature may be used to distinguish
+between head impacts and nonimpact events. With these design considerations, we hypothesize that a classification system
+combining mouthguard proximity detection and signal classification will have better sensitivity and precision in head impact
+detection compared to simple acceleration thresholding.
+II. METHODS
+Our head impact detection system distinguishes head impacts from nonimpacts through two classification subsystems
+[see Fig. 2(a)]. First, we use infrared (IR) proximity sensing to
+determine if the mouthguard is worn on the teeth. All off-teeth
+events are filtered out at this step. Second, on-teeth, nonimpact
+events are rejected using a support vector machine (SVM) classifier trained on frequency-domain features of linear acceleration
+and rotational velocity. The remaining events are classified as
+head impacts.
+A. Instrument Design
+Signals used in the classification system are collected using
+an instrumented mouthguard [see Fig. 2(b), left]. A tight fit
+is achieved by forming ethylene vinyl acetate (EVA) material
+around a dental mold with a mouthguard pressure former (Great
+Lakes Orthodontics, Tonawanda, NY, USA). Each mouthguard
+contains a sensor board and a battery sealed between two layers
+of EVA material. For kinematic and proximity sensing, the sensor board [see Fig. 2(b), right] is equipped with a three-axis high
+range accelerometer (ST H3LIS331), a three-axis high range gyroscope (Invensense ITG-3500A), and a digital proximity sensing module packaged with an infrared emitter–receiver pair for
+near-field proximity sensing (AMS TMD2771). In addition, a
+microprocessor (ST STM32L151) and a flash memory chip (ST
+M25P16) allow wireless processing and recording. Kinematic
+accuracy of this instrumented mouthguard has been validated in
+lab using an anthropomorphic test device [24].
+
+Fig. 2. Impact detection system illustration and instrumented mouthguard
+design. The head impact detection system contains two subsystems (A). First
+the proximity signal is used to filter out events where the mouthguard is not
+worn on the teeth. The remaining events are passed through the support vector
+machine (SVM) classifier trained to distinguish between head impacts and nonimpacts. Proximity and kinematic signals are measured using an instrumented
+mouthguard (B).
+
+To screen for potential head impacts, the mouthguard records
+all events with linear acceleration exceeding 7 g. This triggering acceleration threshold is tuned to be lower than published
+systems with 10–15 g thresholds [25], [26] to decrease the likelihood of missing events of interest. Linear acceleration and rotational velocity samples are obtained for 10 ms pretrigger and
+90 ms posttrigger, with accelerometer sampling rate of 900–
+1000 Hz and gyroscope sampling rate of 800–900 Hz. A 10-bit
+resolution IR reading is obtained at the end of the 100-ms kinematic recording for each registered event.
+B. IR Proximity Sensing and SVM Classifier Design
+Signals collected by the proximity and kinematic sensors are
+used as inputs to the two classification subsystems. To optimize
+the system for head impact detection, we designed and trained
+each subsystem in a controlled laboratory setting.
+1) Proximity Sensing Optimized to Detect Mouthguard
+Dislocation: Optical and capacitive proximity sensors have
+been widely employed to sense relative positioning of objects
+such as mobile phones and the user’s hand [27] or robots and
+
+WU et al.: HEAD IMPACT DETECTION SYSTEM USING SVM CLASSIFICATION AND PROXIMITY SENSING
+
+2661
+
+TABLE I
+TYPES AND NUMBERS OF LAB-RECONSTRUCTED EVENTS
+
+Fig. 3. In vitro proximity characterization. The proximity output versus distance relationship was characterized in two dimensions: movement of the sensor
+in (A) the buccal direction and that in (B) the occlusal direction.
+
+obstacles [28]. For our impact detection system, we tuned an IR
+proximity sensor to help reject off-teeth nonimpact events.
+With the IR proximity module configured for near-field detection, we characterized in vitro sensing behavior by unittesting a sensor component. We used a synthetic-resin composite tooth model that has matching optical properties as human
+teeth (Puche Dental Lab, Torrance, CA, USA). Since a mouthguard can move perpendicular or parallel to the tooth surface,
+we measured sensor output in one perpendicular direction and
+one parallel direction: away from the tooth surface (buccal) and
+toward the bite plane (occlusal). To simulate 1-D motion of the
+sensor in each direction, we attached the sensor to a linear actuator (Firgelli Technologies L12-50-100-12-P) to move away from
+a stationary tooth in steps of 0.5 mm (see Fig. 3). Movement
+in the buccal direction was measured from the surface of the
+tooth to the surface of the sensor, and movement in the occlusal
+direction was from the bottom of the tooth to the bottom of the
+sensor package. To investigate effects of EVA material, we varied material thickness between the sensor and the mouthguard
+from 0 to 3 mm. Based on sensor response characteristics, we
+chose the sensor position and material thickness that allowed the
+embedded proximity sensor to detect mouthguard dislocation.
+After unit-testing the sensor component, we built a full mouthguard to characterize in vivo sensing behavior and determine an
+on-teeth/off-teeth threshold. A human subject performed a range
+of on-teeth and off-teeth events with a mouthguard. On-teeth
+events included talking, shouting, biting, and chewing; off-teeth
+events included mouthguard manual manipulation, dropping,
+and helmet insertion. The proximity readings from on-teeth and
+off-teeth events were each fit to a normal distribution. From these
+distributions, a proximity threshold was chosen to maximize the
+likelihood of detecting all on-teeth events while rejecting all offteeth events.
+The chosen on-teeth/off-teeth proximity threshold was verified by measuring the corresponding amount of in vivo mouthguard dislocation. In this experiment, the subject was asked to
+put on and take off the mouthguard while mouthguard movement
+was tracked using the Ascension 3-D guidance trakSTAR system (Ascension Technology Corporation, Shelburne, VT, USA).
+We used two small six degree-of-freedom electromagnetic sensors with one sensor fixed on the mouthguard and the other on
+the subject’s head. The change in distance between these two
+markers was tracked and recorded as the mouthguard dislocation
+distance. Proximity readings were obtained continuously during
+mouthguard movement and time-synchronized with the tracked
+
+Event Class
+
+Description
+
+Number Simulated
+
+Event Number
+
+Head Impact
+
+Front
+Front Boss
+Rear Boss
+Rear
+Front Face Guard
+
+16
+32
+32
+32
+16
+128
+84
+
+—
+—
+—
+—
+—
+
+169
+
+85–253
+
+136
+
+254–389
+
+136
+
+390–525
+
+84
+
+526–609
+
+89
+
+610–698
+
+72
+770
+
+699–770
+
+Total
+Spurious
+Nonimpact
+Event
+
+Total
+
+Manual manipulation
+(out-of-mouth) or
+striking mouthguard
+against object
+Off-teeth biting or
+chewing
+Dropping mouthguard on
+the ground
+Inserting mouthguard
+into helmet
+Putting on/taking off
+mouthguard
+On-teeth biting or
+chewing
+Shouting, talking, suction
+
+1–84
+
+distances. To control for error, we conducted the experiment in a
+metal-free environment and characterized the Ascension system
+to have approximately 1-mm offset error in our measurement
+range (less than previously reported [29]), which we accounted
+for in all distance measurements.
+2) SVM Classifier Trained to Reject Nonimpacts: The SVM
+method is a well-established statistical pattern recognition
+method [30]. SVM classifiers have been shown to be effective at
+recognizing human motion [31]–[34]. We trained an SVM classifier with frequency-domain features of linear and rotational
+motion to help distinguish between head impacts and nonimpact events.
+For training the SVM classifier and evaluating overall system
+performance, a labeled dataset containing both head impacts
+and nonimpact events simulating field conditions was obtained.
+Head impacts were reconstructed using a spring-driven impactor
+and a dummy headform mounted on a flexible Hybrid III neck
+(Humanetics Innovative Solutions, Plymouth, MI, USA), which
+was anchored at the base of the neck [see Fig. 4(a)]. The impactor
+piston head was made of ultrahigh molecular weight polyethylene, with a diameter of 127 mm and a radius-of-curvature of
+72 mm. Impacts at five different orientations and eight velocities
+ranging from 2.1–8.5 m/s were reconstructed [24] (see Table I).
+An instrumented mouthguard firmly clamped onto the upper jaw
+of the headform recorded the reconstructed head impacts. For
+nonimpact reconstruction [see Fig. 4(b)], we observed videos of
+multiple football practices and a game to identify a comprehensive set of nonimpact sources (see Table I). Two subjects wore
+instrumented mouthguards and simulated all types of nonimpacts.
+The lab-reconstructed events were partitioned into a training
+portion for training the SVM classifier, and a testing portion to
+evaluate overall system performance. Raw data included x, y, z
+linear acceleration and rotational velocity. From these data, we
+extracted frequency-domain features rather than time domain
+features, since impact and nonimpact events were expected to
+
+2662
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 11, NOVEMBER 2014
+
+x, y, and z were interpolated to a common frequency vector due
+to different sampling rates in different chips. The common frequency vector contained 100 frequencies evenly spaced between
+15 and 400 Hz for linear acceleration and 50 frequencies evenly
+spaced between 15 and 180 Hz for rotational velocity. PSD
+magnitudes were concatenated into a 150-element preliminary
+feature vector containing both linear acceleration and rotational
+velocity PSD magnitude vectors for each event [see Fig. 4(c),
+bottom].
+From the preliminary feature vector, a subset of features
+that optimized classifier performance was chosen. First, features were selected to minimize misclassification of events in
+the training data. Feature selection was performed using information from training data only to avoid bias. The Pearson
+correlation coefficients between all 150 features in the preliminary feature vector and the class labels (impact or nonimpact)
+were calculated for events in training data [35]. Features were
+selected in a sequential process, starting with those that have
+high correlation to the class labels but low correlation to other
+already selected features. This selected subset of features was
+used to train an SVM classifier with a radial basis function
+kernel. In order to find the best SVM decision boundary, the
+“patternsearch” function in the MATLAB optimization toolbox
+was used to minimize the misclassification rate within the training data. A decision boundary was chosen to have sensitivity
+>95% and also to maximize the F-measure (harmonic mean of
+sensitivity and precision) [36].
+C. System Evaluation
+
+Fig. 4. Impact and nonimpact data acquisition and processing. Impacts were
+simulated with a spring-driven impactor (A) and nonimpact events were simulated with human subjects (B). In (C), we illustrate the kinematic data processing
+method. From the raw data, the power spectral density (PSD) magnitude was
+used to construct a 150-element-long preliminary feature vector for each event.
+The sample traces shown are from an impact event.
+
+involve orders-of-magnitude differences in colliding masses and
+therefore different dynamics. Thus, we computed power spectral density (PSD) features from the raw kinematic data [see
+Fig. 4(c)]. PSD magnitudes of the signals were calculated between 15 and 400 Hz. A total of 15 Hz was the minimum
+frequency chosen due to the limited time window for data sampling, and 400 Hz was the maximum since it was below the
+Nyquist frequency for all raw data vectors. The accelerometer
+chip has a bandwidth of 500 Hz, which encompasses the full
+PSD range. For the gyroscope chip, the bandwidth is 184 Hz for
+the chosen sampling rate, and PSD above this frequency was
+discarded.
+All of the PSD information was combined into a single preliminary feature vector for SVM training. The PSD vectors in
+
+We evaluated the performance of the combined classification
+system on a testing partition of lab-reconstructed data. In order to
+measure system performance, we used our classification system
+to classify events in the testing data as either impacts or nonimpacts, and compared our predictions to a priori labeled ground
+truth information. First, events in the testing data with proximity readings below the on-teeth/off-teeth proximity threshold
+were rejected as off-teeth nonimpact events, while events with
+proximity readings above the threshold remained unclassified
+as potential impacts. The same features used for SVM training
+were then extracted from the unclassified events, and classified
+using the SVM decision boundary determined during training.
+After classification, the numbers of true positives (TP), false
+positives (FP), true negatives (TN), and false negatives (FN)
+were calculated. We computed sensitivity, precision, specificity,
+and accuracy as the classification performance measures, which
+are defined below:
+TP
+TP + FN
+TP
+precision =
+TP + FP
+TN
+specificity =
+TN + FP
+TP + TN
+accuracy =
+.
+TP + FP + TN + FN
+sensitivity =
+
+(1)
+(2)
+(3)
+(4)
+
+WU et al.: HEAD IMPACT DETECTION SYSTEM USING SVM CLASSIFICATION AND PROXIMITY SENSING
+
+The main measures used to evaluate system performance were
+sensitivity and precision. Sensitivity is important since the impact detection system should not reject head impact events. Precision is also an important factor since we do not want to classify
+nonimpact events as head impacts and detect a large number of
+false positives. In fact, precision is preferred over specificity as
+a performance measure, since we expect a large number of true
+negatives on the field, which can give high specificity even with
+a substantial amount of false positives. Furthermore, since sensitivity and precision vary based on decision threshold, the area
+under the ROC curve was also used as a measure of classifier
+performance [37], [38].
+Because there is variability in data partitioning, we conducted
+100 Monte Carlo simulations [39] of 5-fold cross validation [40]
+to obtain an unbiased estimate of our classification system’s
+average performance. At the beginning of each cross-validation
+cycle, the set of all impact and nonimpact events was randomly
+partitioned into five approximately equal portions. For each
+pass of the cross validation, four portions were used to perform
+feature selection and SVM classifier training, and the remaining
+portion was used to evaluate classification performance. The
+sensitivity, precision, specificity, accuracy, and area under the
+ROC curve were recorded for each pass of the cross validation
+and averaged at the end of all simulations to estimate the true
+performance of the classification system.
+To compare our system with simple acceleration thresholding and verify how each classification subsystem helped, we
+evaluated the performance of four classification methods.
+1) Peak linear acceleration thresholding. In this classification
+method, all events with peak linear acceleration magnitude
+greater than a predetermined threshold (10 g) are classified
+as impacts.
+2) Peak linear acceleration thresholding (10 g) with the proximity classification subsystem, to show value of proximity
+sensing.
+3) Classification using an SVM classifier only, to demonstrate its standalone performance.
+4) Combined SVM and proximity classification to show
+overall performance.
+All human subject experiments have been approved by the
+Stanford Institutional Review Board (IRB 21304), and informed
+consent was obtained from the subjects.
+III. RESULTS
+A. IR Proximity Sensing and SVM Classifier Design
+1) Sensor Positioning in Mouthguard and On-Teeth
+Threshold Choice: In vitro IR proximity sensor output monotonically decreases with increasing buccal or occlusal movement
+from a tooth (see Fig. 5). Thus, by embedding a sensor in the
+mouthguard to face the teeth, we can use the IR signal drop
+to detect mouthguard dislocation. The transparent mouthguard
+material thickness between sensor and teeth was chosen to be 2
+mm, since thicker material led to increased signal backscattering and much higher output at large displacements (see Fig. 5,
+yellow). Also, for teeth protection, we did not choose material
+thinner than 2 mm to maintain sufficient overall mouthguard
+thickness with two layers of material [41].
+
+2663
+
+Fig. 5. In vitro proximity sensor characterization. Proximity output with respect to (A) buccal movement of the sensor and (B) occlusal movement of the
+sensor are shown with different thicknesses of EVA medium material. Three
+trials were performed for each material thickness and error bars show 95% confidence intervals. Pressure-forming led to thinning of EVA material and post-form
+thicknesses are displayed in brackets. We chose 2 mm as the optimal material
+thickness to maximize output range and provide sufficient thickness for teeth
+protection. Sensor position inside the mouthguard was optimized to account for
+the saturation bands.
+
+Even when configured with the lowest available emitter signal
+strength for near-field sensing, the sensor saturated at close proximity to a tooth in both the occlusal and buccal directions (see
+Fig. 5, saturation bands). In these saturation regions, changes
+in displacement are not detected by the sensor. With the chosen
+2-mm material thickness, we cannot fully avoid the 6-mm saturation band in the buccal direction [see Fig. 5(a)]. However,
+we can avoid the 1-mm occlusal saturation band [see Fig. 5(b)]
+by offsetting the edge of the sensor package 1 mm below the
+edge of the tooth, so any movement in the occlusal direction
+should cause a drop in proximity output. All mouthguards used
+in subsequent in vivo experiments were constructed with the
+2-mm material thickness and 1-mm offset in sensor position.
+Fig. 6 shows in vivo experimental results to determine and
+verify an on-teeth/off-teeth threshold. On-teeth and off-teeth
+IR proximity output distributions are shown in Fig. 6(a). We
+chose a threshold at five standard deviations below the on-teeth
+mean (normalized proximity value = 0.81), which corresponds
+to a probability of misclassifying 1 in 3 million on-teeth events.
+This threshold is also 29 standard deviations above the off-teeth
+mean, which maximizes the rejection of off-teeth events. At the
+same time, we can reject the majority of events that may have IR
+output between the on-teeth and off-teeth distributions, such as
+
+2664
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 11, NOVEMBER 2014
+
+Fig. 6. In vivo proximity sensor characterization. On-teeth and off-teeth proximity output values are fit to normal distributions (A). We chose a threshold of
+0.81 to maximize rejection of off-teeth and transition events while minimizing
+the misclassification of on-teeth events. Proximity output with respect to mouthguard distance off-teeth (B) was used to verify the threshold. The plot displays
+average output from 5 take-off and 5 put-on trials, with error bars showing
+standard deviation in distances corresponding to each proximity value.
+
+transition events during which the mouthguard is put on or taken
+off the teeth. The average in vivo mouthguard off-teeth distance
+corresponding to the chosen threshold is 3.7 mm ± 2.2 mm
+standard deviation [see Fig. 6(b)]. The standard deviation may
+have resulted from slightly different 3-D mouthguard trajectories in each trial. Considering that maxillary (upper) teeth are
+5–10 mm tall [42], this off-teeth distance is less than a tooth
+length.
+1) SVM Feature Selection: Features were ranked using our
+sequential feature selection process, with the top features having
+high correlations to the class labels and low correlations to one
+another. The optimal number of features was chosen by monitoring classification performance while varying the number of
+features used [see Fig. 7(a)]. We chose an optimal set of eight
+features (see Table II) to minimize false positive rate, although
+anywhere from 6–11 features produced nearly the same result.
+Feature values had log-normal distributions, with median and
+interquartile range (IQR) shown in Table II. The highest ranked
+features had very different values between impacts and nonimpacts, while lower rank features had more overlap [see Fig. 7(b)].
+On average, impacts had much higher linear acceleration PSD
+magnitudes at low frequencies (features 1 and 2) than nonimpacts, with very little overlap between the interquartile ranges.
+
+Fig. 7. Feature selection for optimal classification performance. (A) Optimal
+number of features was chosen to minimize the number of false positives.
+The exact features chosen are listed in Table II. (B) Shows feature values of
+the optimal set of eight features ordered by feature rank. The lines display the
+median value for each feature, and the error bars represent the upper and lower
+quartiles. The y-axis is shown in log scale because values have approximately
+log-normal distributions.
+
+TABLE II
+OPTIMAL FEATURE SET FOR CLASSIFICATION
+Data Type
+
+Frequency
+(Hz)
+
+Feature
+Rank
+
+Median Value,
+Impacts (IQR)
+
+Median Value,
+Nonimpacts (IQR)
+
+Linear
+Acceleration
+
+15
+50
+132
+190
+302
+345
+15
+58
+
+1
+2
+7
+8
+6
+5
+3
+4
+
+4.75 (3.15)
+2.33 (2.00)
+0.79 (0.69)
+0.61 (0.83)
+0.57 (0.67)
+0.58 (0.61)
+3.95 (2.90)
+0.58 (0.34)
+
+0.67 (0.91)
+0.78 (1.10)
+0.58 (0.90)
+0.50 (0.76)
+0.40 (0.69)
+0.37 (0.65)
+2.11 (2.76)
+0.85 (1.19)
+
+Rotational
+Velocity
+
+Similar trends were observed in rotational velocity features at
+low frequencies (features 3 and 4). Although there is very little
+difference between the linear acceleration PSD magnitudes of
+impacts and nonimpacts at high frequencies (features 5–8), the
+slight differences in feature values further helped to distinguish
+between the two types of events. Over the 100 Monte Carlo
+
+WU et al.: HEAD IMPACT DETECTION SYSTEM USING SVM CLASSIFICATION AND PROXIMITY SENSING
+
+2665
+
+these on-teeth nonimpact and transition events. In fact, SVM
+had good standalone performance that was much improved over
+thresholding (see Table III). However, SVM alone misclassified
+off-teeth events such as inserting the mouthguard into a helmet
+or dropping the mouthguard. Therefore, combining the two
+classification subsystems maximized the rejection of nonimpact
+events by allowing the strength of each subsystem to overcome
+the weakness of the other. The combined system misclassified
+only a few high-acceleration on-teeth biting and chewing events.
+IV. DISCUSSION
+
+Fig. 8. Misclassified events. The distribution of misclassified events is displayed by category to illustrate the effectiveness of each type of classifier. Simple
+acceleration thresholding misclassified many more events in all categories than
+other classifiers. The IR proximity subsystem rejected all off-teeth events, and
+the SVM classifier rejected the majority of on-teeth events and transition events.
+The combined classifier occasionally misclassified on-teeth biting events.
+
+Although some design details of impact detection algorithms
+have been presented in patents [43], performance of these algorithms has not been reported. Our paper is the first to present
+a complete head impact detection system design and its evaluation. In a controlled laboratory setting, the present system
+demonstrated substantially improved performance over acceleration thresholding. The greatest amount of improvement was
+in classification precision, which increased from 37% to near
+100% (see Table III), due to a much lower number of false positive events. The proximity subsystem helped eliminate off-teeth
+false positives, while the SVM subsystem rejected the majority
+of on-teeth false positives.
+A. IR Proximity Sensing
+
+simulations with 5-fold cross validation, we found feature selection to be fairly consistent. The features presented in Table II
+were chosen 90% of the time, and any feature variations stayed
+within a few hertz of these values.
+B. System Performance
+In our laboratory evaluation of classifiers, 10 g linear acceleration thresholding had 92% sensitivity, with poor precision
+(37%), specificity (58%), and accuracy (65%) (see Table III),
+since a large number of nonimpacts were misclassified as impacts. Adding IR proximity to linear acceleration thresholding
+resulted in substantially improved performance. Sensitivity remained the same (92%), but precision was much higher (92%),
+because this classifier could reject off-teeth nonimpacts. SVM
+classification alone also performed much better than the 10-g
+linear acceleration threshold, at 98% sensitivity and 97% precision. Combining SVM with proximity improved the classification performance to 98% sensitivity and 99.98% precision. If
+the sensitivity was lowered to 96%, no nonimpact events were
+misclassified.
+The distribution of misclassified events pooled over 100
+Monte Carlo simulations is shown in Fig. 8. Simple acceleration thresholding had more misclassifications than others, with
+false positives relatively evenly distributed across all types of
+nonimpact events. The IR proximity subsystem successfully
+rejected all off-teeth nonimpacts. But this subsystem was not
+designed to recognize on-teeth nonimpacts. It also had trouble
+with some transition events, since IR was only sampled once
+per event, which did not capture the full duration of the event.
+Adding the SVM subsystem helped to reject the majority of
+
+The unique IR scattering and reflective properties of human
+teeth allow the use of IR proximity sensing to detect mouthguard
+dislocation. IR sensing of a regular opaque surface does not have
+monotonically decreasing signal with increasing distance. There
+is low IR output at close proximity, due to insufficient distance
+between the sensor and the surface to allow the emitted IR light
+to be reflected/scattered to the detector. On the other hand, human teeth have unique optical properties [44], [45]. Even at
+close proximity, IR signal can penetrate through the tissue and
+backscatter to the detector. Thus, IR proximity sensing worked
+well for detecting the presence of teeth next to the sensor in
+the mouthguard tray. We also characterized the effects of EVA,
+a biocompatible material safe for oral applications [46], as a
+medium material between the sensor and the teeth. We found
+that if the material is thin enough, it does not significantly interfere with the IR signal. To extend this technology to other
+applications, wearable devices may use IR proximity sensing to
+detect device fixation onto tissue, and EVA is a good biocompatible medium material if the sensor cannot sit directly next to
+tissue.
+B. SVM Signal Classification
+SVM training revealed that low frequency components (15–
+60 Hz) were the most helpful in classification (see Table II).
+Most of the impacts had significantly higher PSD magnitudes
+than nonimpacts at these low frequencies [see Fig. 7(b)]. During
+impacts, the mouthguard was tightly coupled to a helmeted head
+mounted on a flexible neck [24]. During nonimpacts, however,
+the mouthguard was mainly moving on its own and interacting with stiffer objects (e.g., helmet/ground). If we approximate
+
+2666
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 11, NOVEMBER 2014
+
+TABLE III
+EVALUATION OF HEAD IMPACT CLASSIFICATION SYSTEM
+
+Sensitivity
+Precision
+Specificity
+Accuracy
+Area Under ROC
+
+10 g Threshold Only
+
+10 g Threshold + Proximity
+
+SVM Alone
+
+SVM + Proximity
+
+0.92
+0.37
+0.58
+0.65
+0.780 (0.031)
+
+0.92
+0.93
+0.96
+0.94
+0.979 (0.005)
+
+0.98
+0.97
+0.99
+0.99
+0.998 (0.001)
+
+0.98
+0.9998
+0.9999
+0.99
+1 (0.000)
+
+the events using a simple spring-mass system,
+ the natural frequency of the system is proportional to k/m, where k is
+stiffness and m is mass. With much higher masses of colliding
+objects and lower stiffness of a flexible neck, the head impacts
+are expected to have lower natural frequency than nonimpacts,
+which may explain the PSD magnitude differences at low frequencies. In fact, we were limited by our data sampling time
+window (100 ms) to obtain even lower frequency information,
+which may help further improve classifier performance. One
+other difference between the two classes of events is that nonimpacts generally had lower PSD magnitudes than impacts at
+all frequencies, since a mouthguard moving on its own resulted
+in lower signal power than a spring-driven piston impacting a
+dummy headform. These differences in PSD shapes may have
+allowed the SVM classifier to distinguish between most impacts
+and nonimpacts.
+Some of the nonimpacts misclassified by SVM alone, such as
+dropping the mouthguard, had large linear acceleration and rotational velocity, with high PSD magnitudes at both low and high
+frequencies. In contrast to these false positives, we did not see
+high PSD at low frequencies for most dropping events that were
+correctly classified. This difference in dynamics may arise from
+different orientations of the device as it hit the ground, if mouthguard stiffness is directionally dependent. Furthermore, the
+dynamics may depend on the sensor location relative to the contact location. In addition to the off-teeth false positives, on-teeth
+biting and chewing events misclassified by the combined system
+also had high PSD magnitudes across the entire frequency spectrum. The low-frequency components in these events may have
+come from chewing or grinding of the mouthguard away from
+the sensor location. In summary, the misclassified nonimpacts
+may have PSD features more similar to head impacts than nonimpacts with low signal power. Fortunately, with the combined
+system, off-teeth nonimpacts are reliably rejected by proximity
+sensing, and on-teeth nonimpacts with high signal power are
+rare due to the limited range of on-teeth motion.
+
+C. Limitations and Future Work
+Since we reconstructed impacts and nonimpacts in a controlled laboratory setting, this dataset does not contain a comprehensive set of field conditions. Impact and nonimpact features
+may have greater variability on the field, and the laboratoryoptimized classifier will likely have decreased performance in
+classifying field data. Thus, it may be necessary to train and
+optimize the system using field data prior to field deployment.
+
+On the field, we may expect more varied impact dynamics
+than our lab reconstruction. Due to limitations of the springloaded impactor, we could not reconstruct noncentroidal impacts, whiplash of the head and neck, or initial rotation prior
+to impact. Also, the lowest impact velocity in our reconstruction was 2.1 m/s, while a substantial portion of field impacts
+could have lower velocity [47]. Another variable is that the
+mouthguards may not be rigidly attached on the teeth during
+head impacts on the field, while our lab reconstruction had the
+mouthguard firmly clamped. This could be investigated by using IR proximity sensing to confirm mouthguard fixation on
+the field. These limitations in impact reconstruction could lead
+to simplified dynamics in our laboratory dataset, and result in
+changes in selected features if the system was trained on field
+data. In the reconstructed head impacts, we saw dominant lowfrequency modes. Although similar low-frequency components
+were observed in preliminary field data, additional field data are
+required to isolate dominant human head impact modes from
+any noise in the laboratory impactor-headform system (e.g., due
+to the dynamics of the Hybrid III neck or the shape and material
+of the impactor piston head.)
+In addition to variations in impact dynamics, there may be
+more nonimpacts on the field depending on the specific subject
+or field conditions, in which case classification precision may
+decrease with the current decision boundary. To optimize for
+precision, we can adjust the decision boundary according to the
+relative weighting of events when training with field data. Also,
+it is likely that certain players may generate a much greater
+number of off-teeth nonimpact events on the field. So even
+though the IR proximity subsystem did not significantly improve
+precision from SVM alone in our lab evaluation (from 0.97 to
+1, Table III), it will be essential on the field to ensure high
+precision.
+For field deployment, we may optimize for either sensitivity
+or precision by adjusting the decision boundary of our classification subsystems. A system with perfect sensitivity does
+not miss any head impacts, which is ideal for clinical use as a
+trauma screening device. For head injury mechanism research,
+classification precision may be more important, since we need
+to correlate head kinematics with cognitive function changes,
+and false positive events could lead to erroneous conclusions.
+Considering that the present system already demonstrates high
+sensitivity and precision, we can aim to optimize for sensitivity, sacrifice some precision, and reject the remaining false
+positives by verifying events through video. In practice, poor
+precision of the acceleration thresholding algorithm leads to a
+large number of false positives. In order to extract head impacts,
+
+WU et al.: HEAD IMPACT DETECTION SYSTEM USING SVM CLASSIFICATION AND PROXIMITY SENSING
+
+recorded events need to be manually verified by reviewing game
+or practice videos, such as what was done in a study by Daniel
+et al. [17]. Although video verification ensures fidelity of data
+by substantially enhancing accuracy, it is a lengthy and tedious
+task given a large number of subjects and data collection events.
+Our system has the potential to eliminate the need for video
+verification once adapted for the field.
+Future field adaptation and deployment of the head impact
+detection system is aided by the simplicity of the design. Implementing the IR proximity subsystem only required the addition of a small low-power IR proximity sensing module to
+existing hardware, and reliable rejection of off-teeth events was
+achieved by applying a predefined threshold on one IR sample
+per recorded event. The SVM classifier, once trained on field
+data to obtain a suitable decision boundary, will be computationally inexpensive to apply since it only involves dot-product
+operations [30] on the PSD features, which can also be efficiently computed [48]. Therefore, both classification subsystems are readily built into data postprocessing algorithms or
+incorporated into the current embedded system for real-time
+classification.
+V. CONCLUSION
+In a controlled laboratory setting, a novel head impact detection system had substantially improved performance over
+acceleration thresholding. IR proximity sensing helped to reliably reject events where the device was not fixated to the teeth,
+and SVM classification helped reject most of the remaining
+nonimpact events. Since more complex impact and nonimpact
+conditions are expected on the field, we anticipate the necessity to train and validate the system using field data to optimize
+field performance. Once adapted for field deployment, this system has the potential to more sensitively and precisely capture
+head impacts for blunt head injury research. It also has clinical
+potential to be incorporated into on-field screening devices for
+real-time identification of head trauma.
+ACKNOWLEDGMENTS
+The authors would like to thank the Stanford Department of
+Athletics for their support in this research. A patent application
+has been filed for the technology described in this paper and will
+be assigned to Stanford University [49]. Royalties gained from
+any intellectual property granted for this work will be shared
+among the inventors, the department, and the school, according
+to Stanford’s technology licensing policies.
+REFERENCES
+[1] A. Ommaya, L. Thibault, and F. A. Bandak, “Mechanisms of impact head
+injury,” Int. J. Impact Eng., vol. 15, no. 4, pp. 535–560, 1994.
+[2] J. P. Kelly, “Concussion in sports: Guidelines for the prevention of catastrophic outcome,” J. Amer. Med. Assoc., vol. 266, no. 20, p. 2867,
+Nov. 1991.
+[3] B. D. Jordan, “Acute and chronic brain injury in United States national
+team soccer players,” Amer. J. Sport Med., vol. 24, no. 5, pp. 704–705,
+1996.
+[4] C. W. Hoge, D. McGurk, J. L. Thomas, A. L. Cox, C. C. Engel, and C. A.
+Castro, “Mild traumatic brain injury in U.S. soldiers returning from Iraq,”
+New Engl. J. Med., vol. 358, no. 5, pp. 453–463, 2008.
+
+2667
+
+[5] S. Abrahams, S. Mc Fie, J. Patricios, M. Posthumus, and A. V. September, “Risk factors for sports concussion: An evidence-based systematic
+review,” Brit. J. Sport Med., vol. 48, no. 2, pp. 91–97, 2014.
+[6] S. T. DeKosky, K. Blennow, M. D. Ikonomovic, and S. Gandy, “Acute
+and chronic traumatic encephalopathies: Pathogenesis and biomarkers,”
+Nat. Rev. Neurol., vol. 9, no. 4, pp. 192–200, Apr. 2013.
+[7] C. M. Baugh, J. M. Stamm, D. O. Riley, B. E. Gavett, M. E. Shenton,
+A. Lin, C. J. Nowinski, R. C. Cantu, A. C. McKee, and R. A. Stern,
+“Chronic traumatic encephalopathy: Neurodegeneration following repetitive concussive and subconcussive brain trauma,” Brain Imag. Behav.,
+vol. 6, pp. 244–254, May. 2012.
+[8] K. M. Guskiewicz, M. McCrea, S. W. Marshall, R. C. Cantu, C. Randolph,
+W. Barr, J. A. Onate, and J. P. Kelly, “Cumulative effects associated with
+recurrent concussion in collegiate football players: The NCAA Concussion Study.” J. Amer. Med. Assoc., vol. 290, no. 19, pp. 2549–2555,
+Nov. 2003.
+[9] Revised Code of Washington 28A.600.190, “Youth sports, concussion and
+head injury guidelines, injured athlete restrictions (Zackery Lystedt law),”
+2009.
+[10] I. J. S. Williamson and D. Goodman, “Converging evidence for the underreporting of concussions in youth ice hockey,” Brit. J. Sport Med., vol. 40,
+no. 2, pp. 128–132, Feb. 2006.
+[11] E. L. Breedlove, M. Robinson, T. M. Talavage, K. E. Morigaki, U. Yoruk,
+K. O’Keefe, J. King, L. J. Leverenz, J. W. Gilger, and E. A. Nauman,
+“Biomechanical correlates of symptomatic and asymptomatic neurophysiological impairment in high school football,” J. Biomech., vol. 45, pp.
+1–8, Feb. 2012.
+[12] J. G. Beckwith, R. M. Greenwald, J. J. Chu, J. J. Crisco,
+S. Rowson, S. M. Duma, S. P. Broglio, T. W. McAllister, K. M. Guskiewicz,
+J. P. Mihalik, S. Anderson, B. Schnebel, P. G. Brolinson, and M. W. Collins,
+“Head impact exposure sustained by football players on days of diagnosed
+concussion,” Med. Sci. Sports Exerc., vol. 45, no. 4, pp. 737–746, Apr.
+2013.
+[13] N. Marchi, J. J. Bazarian, V. Puvenna, M. Janigro, C. Ghosh, J. Zhong,
+T. Zhu, E. Blackman, D. Stewart, J. Ellis, R. Butler, and D. Janigro, “Consequences of repeated blood-brain barrier disruption in football players,”
+PLOS ONE, vol. 8, no. 3, p. e56805, Mar. 2013.
+[14] S. M. Duma, S. J. Manoogian, W. R. Bussone, P. G. Brolinson, M. W.
+Goforth, J. J. Donnenwerth, R. M. Greenwald, J. J. Chu, and J. J. Crisco,
+“Analysis of real-time head accelerations in collegiate football players,”
+Clin. J. Sport Med., vol. 15, no. 1, pp. 3–8, Jan. 2005.
+[15] S. Rowson, J. G. Beckwith, J. J. Chu, D. S. Leonard, R. M. Greenwald, and
+S. M. Duma, “A six degree of freedom head acceleration measurement
+device for use in football,” J. Appl. Biomech., vol. 27, no. 1, pp. 8–14,
+Feb. 2011.
+[16] M. A. Allison, Y. U. N. S. Kang, J. H. B. Iv, M. R. Maltese, and K. B.
+Arbogast, “Validation of a helmet-based system to measure head impact
+biomechanics in ice hockey,” Med. Sci. Sports Exerc., vol. 46, no. 1, pp.
+115–123, 2014.
+[17] R. W. Daniel, S. Rowson, and S. M. Duma, “Head impact exposure in
+youth football,” Ann. Biomed. Eng., vol. 40, no. 4, pp. 976–981, Apr.
+2012.
+[18] J. J. Crisco, B. J. Wilcox, J. G. Beckwith, J. J. Chu, A.-C. Duhaime,
+S. Rowson, S. M. Duma, A. C. Maerlender, T. W. McAllister, and
+R. M. Greenwald, “Head impact exposure in collegiate football players.”
+J. Biomech., vol. 44, no. 15, pp. 2673–2678, Oct. 2011.
+[19] N. Reed, T. Taha, M. Keightley, C. Duggan, J. Cubos, J. Baker, B. Faught,
+M. Mcpherson, and W. Montelpare, “Measurement of head impacts in
+youth ice hockey players,” Int. J. Sports Med., vol. 31, pp. 826–833, 2010.
+[20] J. T. Gwin, J. J. Chu, T. A. McAllister, R. M. Greenwald, R. Greenwald,
+A. Ashare, and S. W. Dean, “In situ measures of head impact acceleration
+in NCAA Division I Mens Ice Hockey: Implications for ASTM F1045
+and other ice hockey helmet standards,” J. ASTM Int., vol. 6, no. 6, pp.
+1–10, 2009.
+[21] S. Rowson and S. M. Duma, “Brain injury prediction: Assessing the
+combined probability of concussion using linear and rotational head acceleration,” Ann. Biomed. Eng., vol. 41, pp. 873–882, Jan. 2013.
+[22] J. R. Funk, S. Rowson, R. W. Daniel, and S. M. Duma, “Validation of
+concussion risk curves for collegiate football players derived from HITS
+data,” Ann. Biomed. Eng., vol. 40, no. 1, pp. 79–89, 2012.
+[23] R. Jadischke, D. C. Viano, N. Dau, A. I. King, and J. McCarthy, “On
+the accuracy of the head impact telemetry (HIT) system used in football
+helmets,” J. Biomech., vol. 46, no. 13, pp. 2310–5, Sep. 2013.
+[24] D. B. Camarillo, P. B. Shull, J. Mattson, R. Shultz, and D. Garza, “An
+instrumented mouthguard for measuring linear and angular head impact
+
+2668
+
+[25]
+[26]
+
+[27]
+[28]
+[29]
+
+[30]
+[31]
+[32]
+[33]
+
+[34]
+[35]
+[36]
+[37]
+[38]
+[39]
+[40]
+[41]
+[42]
+[43]
+[44]
+[45]
+[46]
+[47]
+[48]
+[49]
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 11, NOVEMBER 2014
+
+kinematics in American football,” Ann. Biomed. Eng., vol. 41, pp. 1939–
+1949, Apr. 2013.
+S. Rowson, G. Brolinson, M. Goforth, D. Dietter, and S. M. Duma, “Linear and angular head acceleration measurements in collegiate football.”
+J. Biomech. Eng., vol. 131, no. 6, pp. 061016-1061016-7, Jun. 2009.
+S. Rowson, S. M. Duma, J. G. Beckwith, J. J. Chu, R. M. Greenwald,
+J. J. Crisco, P. G. Brolinson, A.-C. Duhaime, T. W. McAllister, and A. C.
+Maerlender, “Rotational head kinematics in football impacts: An injury
+risk function for concussion,” Ann. Biomed. Eng., vol. 40, no. 1, pp. 1–13,
+Jan. 2012.
+K. Hinckley, J. Pierce, M. Sinclair, and E. Horvitz, “Sensing techniques
+for mobile interaction,” in Proc. 13th Annu. ACM Symp. User Interface
+Softw. Technol., 2000, pp. 91–100.
+G. Benet, F. Blanes, J. E. Simó, and P. Pérez, “Using infrared sensors for
+distance measurement in mobile robots,” Robot. Auton. Syst., vol. 40, no.
+4, pp. 255–266, 2002.
+J. B. Hummel, M. R. Bax, M. L. Figl, Y. Kang, C. Maurer, Jr, W. W.
+Birkfellner, H. Bergmann, and R. Shahidi, “Design and application of an
+assessment protocol for electromagnetic tracking systems,” Med. Phys.,
+vol. 32, pp. 2371–2379, 2005.
+C. Cortes and V. Vapnik, “Support-vector networks,” Mach. Learn., vol.
+20, no. 3, pp. 273–297, Sep. 1995.
+C. Schuldt, I. Laptev, and B. Caputo, “Recognizing human actions: A local
+SVM approach,” in Proc. 17th Int. Conf. Pattern Recog., vol. 3, 2004, pp.
+32–36.
+N. Ravi, N. Dandekar, P. Mysore, and M. L. Littman, “Activity recognition
+from accelerometer data,” in Proc. 17th Conf. Innovative Appl. Artif.
+Intell., 2005, pp. 1541–1546.
+Shuangquan Wang, Jie Yang, Ningjiang Chen, Xin Chen, and Qinfeng
+Zhang, “Human activity recognition with user-free accelerometers in the
+sensor networks,” in Proc. Int. Conf. Neural Netw. Brain, vol. 2, 2005, pp.
+1212–1217.
+Youngwook Kim and Hao Ling, “Human activity classification based on
+micro-Doppler signatures using a support vector machine,” IEEE Trans.
+Geosci. Remote, vol. 47, no. 5, pp. 1328–1337, May 2009.
+I. Guyon and A. Elisseeff, “An introduction to variable and feature selection,” J. Mach. Learn. Res., vol. 3, pp. 1157–1182, 2003.
+T. Fawcett, “ROC graphs: Notes and practical considerations for researchers,” Mach. Learn., vol. 31, pp. 1–38, 2004.
+C. E. Metz, “Basic principles of ROC analysis,” vol. 8, no. 4, pp. 283–298,
+1978.
+T. Fawcett, “An introduction to ROC analysis,” Pattern Recogn. Lett., vol.
+27, no. 8, pp. 861–874, Jun. 2006.
+Q.-S. Xu and Y.-Z. Liang, “Monte Carlo cross validation,” Chemometr.
+Intell. Lab., vol. 56, no. 1, pp. 1–11, 2001.
+S. Geisser, “The predictive sample reuse method with applications,”
+J. Amer. Stat. Assoc., vol. 70, no. 350, pp. 320–328, 1975.
+B. Westerman, P. M. Stringfellow, and J. A. Eccleston, “EVA mouthguards: How thick should they be?,” Dental Traumatol., vol. 18, no. 1, pp.
+24–27, 2002.
+P. Magne, G. O. Gallucci, and U. C. Belser, “Anatomic crown width/length
+ratios of unworn and worn maxillary teeth in white subjects,” J. Prosthet.
+Dent., vol. 89, no. 5, pp. 453–461, May 2003.
+R. M. Greenwald and J. J. Chu, “Power management of a system for
+measuring the acceleration of a body part,” U.S. Patent 11/031 970, Aug.
+2005.
+D. Fried, R. E. Glena, J. D. Featherstone, and W. Seka, “Nature of light
+scattering in dental enamel and dentin at visible and near-infrared wavelengths,” Appl. Opt., vol. 34, no. 7, pp. 1278–1285, Mar. 1995.
+A. Joiner, “Tooth colour: A review of the literature,” J. Dent., vol. 32, pp.
+3–12, 2004.
+R. Langer, H. Brem, and D. Tapper, “Biocompatibility of polymeric delivery systems for macromolecules,” J. Biomed. Mater. Res., vol. 15, no.
+2, pp. 267–277, 1981.
+S. Rowson and S. M. Duma, “Development of the star evaluation system
+for football helmets: integrating player head impact exposure and risk of
+concussion,” Ann. Biomed. Eng., vol. 39, no. 8, pp. 2130–2140, 2011.
+G. Asada, M. Dong, T. Lin, F. Newberg, G. Pottie, W. Kaiser, and
+H. Marcy, “Wireless integrated network sensors: Low power systems on
+a chip,” in Proc. 24th Eur. Solid-State Circuits Conf., 1998, pp. 9–16.
+B. Cam, D. B. Camarillo, and L. C. Wu, “Device for detecting on-body
+impacts,” U.S. Patent 14/199 716, 2014.
+
+Lyndia C. Wu received the B.A.Sc. degree in engineering science with a biomedical engineering major
+from the University of Toronto, ON, Canada, in 2012.
+She is currently working toward the Ph.D. degree in
+bioengineering at Stanford University, CA, USA.
+Her research interests include medical devices,
+with past projects ranging from MEMS design,
+MRI imaging coil development, and radiotherapy ergonomics. Her Ph.D. research focuses on investigating mild traumatic brain injury mechanisms, and developing translational tools to aid in accurate and
+objective diagnosis.
+
+Livia Zarnescu received the B.Sc. degree in optical
+engineering and mathematics from the University of
+Arizona, Tucson, AZ, USA, in 2010, and the M.S.
+degree in bioengineering from Stanford University,
+Stanford, CA, USA, in 2012. She is currently working toward the Ph.D. degree in the Department of
+Bioengineering, Stanford University, Stanford, CA,
+USA.
+Her research interests include cell mechanics, microscopy, machine learning, and bioinformatics with
+applications to developmental biology.
+
+Vaibhav Nangia received the B.E. degree in mechanical engineering from PEC University of Technology, Chandigarh, India, in 2011, and the M.S. degree
+in mechanical engineering from Stanford University,
+Stanford, CA, USA, in 2013 with a focus in mechatronics.
+His previous work includes surgical robotics as
+well as noninvasive medical device development for
+patients with gait disorders. As a part of his Ph.D.
+research at Stanford, he is interested in using his electromechanical design skills to continue to help build
+smart medical devices that make people’s lives better.
+
+Bruce Cam received the B.Sc. degree in mechanical
+engineering with a biomechanics minor from the University of Florida, FL, USA, in 2012. He is currently
+working toward the M.Sc. degree in mechanical engineering at Stanford University, Stanford, CA, USA.
+He has previously performed research on the neural control of hemiparetic gait, and his interests include dynamics, biomechanics, and medical devices.
+
+David B. Camarillo (M’08) received the undergraduate degree in mechanical and aerospace engineering from Princeton University, Princeton, NJ, USA,
+and the Ph.D. degree in mechanical engineering from
+Stanford University, Stanford, CA, USA.
+He is currently an Assistant Professor of bioengineering at Stanford University. Both his graduate
+work and industry experience with Intuitive Surgical and Hansen Medical were in the area of surgical robotics. He performed his postdoctoral research
+in biophysics at the University of California, San
+Francisco, CA, USA, in 2011. He is an expert in instrumentation and biomechanics whose research interests include medical technology design as it applies
+to mild traumatic brain injury, in vivo microscopy for infertility, and flexible
+robotics for cardiovascular therapy. He directs a National Institute of Health
+(NIH) funded laboratory working to solve these problems.
+
+

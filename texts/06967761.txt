@@ -1,0 +1,728 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+1151
+
+Automatic Optic Disc Detection in OCT Slices
+via Low-Rank Reconstruction
+Huazhu Fu∗ , Dong Xu, Stephen Lin, Damon Wing Kee Wong, and Jiang Liu
+
+Abstract—Optic disc measurements provide useful diagnostic
+information as they have correlations with certain eye diseases. In
+this paper, we provide an automatic method for detecting the optic
+disc in a single OCT slice. Our method is developed from the observation that the retinal pigment epithelium (RPE) which bounds the
+optic disc has a low-rank appearance structure that differs from
+areas within the disc. To detect the disc, our method acquires from
+the OCT image an RPE appearance model that is specific to the individual and imaging conditions, by learning a low-rank dictionary
+from image areas known to be part of the RPE according to priors
+on ocular anatomy. The edge of the RPE, where the optic disc is
+located, is then found by traversing the retinal layer containing the
+RPE, reconstructing local appearance with the low-rank model,
+and detecting the point at which appearance starts to deviate (i.e.,
+increased reconstruction error). To aid in this detection, we also
+introduce a geometrical constraint called the distance bias that accounts for the smooth shape of the RPE. Experiments demonstrate
+that our method outperforms other OCT techniques in localizing
+the optic disc and estimating disc width. Moreover, we also show
+the potential usage of our method on optic disc area detection in
+3-D OCT volumes.
+Index Terms—Layer segmentation, optic disc detection, optical
+coherence tomography (OCT).
+
+I. INTRODUCTION
+HE location where ganglion cell axons exit in the eye to
+form the optic nerve is called the optic disc [1], [2]. Since
+the measurement of the optic disc is important for many medical
+applications such as glaucoma screening [3] and large exudative lesion analysis [4], there has been much recent effort on
+automatically detecting the optic disc in ocular images. Many
+existing optic disc detection methods focus on segmenting the
+optic disc region in fundus images [5]–[8]. For example, Xu
+et al. [9] employed the deformable model technique through
+minimization of an energy function to detect the disc. Cheng
+et al. [8] considered optic disc detection as a superpixel classification problem based on center-surround statistics. The method
+of Morales et al. [10] extracted the optic disc contour based on
+
+T
+
+Manuscript received May 31, 2014; revised August 5, 2014 and October 10,
+2014; accepted October 28, 2014. Date of publication November 26, 2014; date
+of current version March 17, 2015. This work was supported by the Singapore
+A*STAR SERC under Grant 112-148-0003. Asterisk indicates corresponding
+author.
+∗ H. Fu is with the School of Computer Engineering, Nanyang Technological
+University, 639798 Singapore, Singapore (e-mail: hzfu@ntu.edu.sg).
+D. Xu is with the School of Computer Engineering, Nanyang Technological
+University.
+S. Lin is with Microsoft Research.
+D. W. K. Wong and J. Liu are with the iMED Ocular Imaging Program, Institute for Infocomm Research, Agency for Science, Technology and Research.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2375184
+
+Fig. 1. Optic nerve head structure in a cropped OCT slice. The red curve
+denotes the ILM boundary. The boundary points of the optic disc, marked by
+blue points, are located at the endpoints of the RPE layer. ILM: Inner limiting
+membrane. OPL: Outer plexiform layer. RPE: Retinal pigment epithelium fused
+with Bruch’s membrane and choriocapillaris. HRC: Hyper reflective complex.
+
+mathematical morphology and principal components analysis.
+However, a major problem of these methods is that they easily
+fail when the optic disc does not have a distinct color in the
+fundus image.
+A relatively new imaging technique called optical coherence tomography (OCT) provides a clearer view of intraretinal
+morphology and enables noninvasive depth-resolved functional
+imaging of the retina [11]. In an OCT slice, the boundary of the
+optic disc appears at the end of the retinal pigment epithelium
+(RPE) [12]–[14], as shown in Fig. 1. Some OCT-based optic disc
+detection methods operate on 3-D OCT volumes [15]–[19]. For
+example, Lee et al. [18] extracted intraretinal surfaces from
+3-D OCT volumes, and classifies the optic disc, cup, and neuroretinal rim using a k-NN classifier. Miri et al. [19] provided
+a multimodal pixel-classification approach to segment the optic
+disc by combining information from stereo fundus images and
+an OCT volume. However, acquisition of numerous OCT slices
+for 3-D reconstruction is susceptible to misalignment error due
+to eye movement. Although 3-D volume scanning acquisition
+is becoming more common with advances in OCT technology,
+examination of a single B-scan for optic disc detection remains
+an important problem in practice for routine clinical applications. In the state-of-the-art method for optic disc detection
+from a single OCT slice, Boyer et al. [20] extracted Hadamard
+transform features along a retinal layer containing the RPE, and
+grouped the features into two clusters to identify the optic disc
+endpoints. However, feature-based clustering can be sensitive
+to appearance variations due to noise and blood vessel shadows in the OCT image. Moreover, the method in [20] does not
+take advantage of the smooth geometric structure of the RPE in
+localizing the optic disc endpoints.
+In this paper, we present a general technique for optic disc
+detection in a single OCT slice via low-rank reconstruction.
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1152
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+Fig. 2. Illustration of our approach. (a) Our method first segments the retinal layers and divides the region into a training region and a candidate region. The red
+and cyan curves denote the boundaries of ILM layer and the segmented RPE layer, respectively. (b) Then the low-rank dictionary is learned from the training data.
+(c) We next reconstruct the layer appearance at points along the candidate region, and output the reconstruction error curves based on intensity and LBP features
+as well as the distance bias curve. (d) Finally, the optic disc boundary points are detected by combining these three error curves.
+
+Based on retinal structure priors, we divide the pixels along the
+RPE layer boundary into training data and optic disc edge candidates. A low-rank dictionary is learned from the training data
+to reconstruct candidate pixels, and the reconstruction error is
+used to identify the beginning of the optic disc. The main contributions of this paper are as follows: 1) We present an optic disc
+detection method via low-rank reconstruction, where learning
+of the low-rank dictionary is beneficial for handling noise and
+vessel shadows in OCT slices. 2) The reconstruction process
+does not rely on prelabeled training samples. The training data
+is extracted from the single given OCT slice itself using retinal
+structure priors. 3) A geometrical constraint that accounts for the
+smooth shape of the RPE, called the distance bias, is provided
+to improve accuracy. 4) Our method not only obtains encouraging performance in localizing the optic disc and estimating disc
+width from a single OCT slice, but also has potential for optic
+disc area detection in 3-D OCT volumes.
+II. OUR APPROACH
+Our method first segments the retinal layer boundaries containing the inner limiting membrane (ILM) and RPE. As shown
+in the framework of our method in Fig. 2, the segmented layer
+boundary (cyan dashed curve) not only includes the RPE but
+also extends into the optic disc. The segmented boundary is
+then divided into two parts: A training region for learning a
+low-rank appearance model of the RPE, and a candidate region along which the optic disc boundary will be searched. The
+training and candidate regions are divided according to structural priors for the optic nerve head (ONH), which indicate parts
+of the layer that are certain to belong to the RPE. In the training region, a low-rank dictionary based on intensity features
+and local binary patterns (LBP) is learned for vertical slices
+along the RPE. The dictionary is then used to reconstruct layer
+appearance at points along the candidate region, with the reconstruction errors recorded as error curves. In addition, an error
+curve is constructed based on distance bias, which represents
+deviations from the smooth geometrical structure extrapolated
+from the known RPE pixels in the training region (blue solid
+curve). From a combination of these error curves, the optic disc
+boundary points are detected.
+
+The OCT slices in our paper are obtained by using a TOPCON
+DRI OCT-1 Atlantis swept source OCT imaging device, which
+has a depth resolution of 8 μm/pixel and lateral resolution of
+10 μm/pixel. A slice consists of 1024 A-scans (columns) each
+with 992 pixels.
+A. Retinal Layer Boundary Segmentation
+While there exist methods for extracting multiple retinal layers from OCT slices [21]–[23], only the RPE and ILM layer
+boundaries are needed in our paper. These two layers have specific characteristics that distinguish them from the surrounding
+areas and layers. We can, thus, employ a fast and simple method
+to extract the ILM and RPE layer boundaries from an OCT slice.
+1) ILM Layer Boundary Segmentation: The ILM is defined
+as the boundary between the retina and the vitreous body, which
+is the first boundary in the OCT slice as shown in Fig. 1. After
+reducing the speckle noise of the OCT slice with a 2-D Gaussian
+filter, we threshold the OCT slice by using Otsu’s method [24], as
+shown in Fig. 3(b). Then, the topmost binary edge is selected as
+the ILM layer, as indicated by the red boundary in Fig. 3(d). The
+lowest point on the ILM layer boundary is used to approximately
+localize the ONH center.
+2) RPE Layer Boundary Segmentation: In general, the two
+strongest gradient edges in the vertical direction of each column
+of the OCT slice corresponds to the ILM (upper) and RPE
+(lower) layer boundaries, as shown in Fig. 3(c). After extracting
+the ILM layer boundary, we can take the strongest gradient edge
+below the ILM layer as the RPE layer boundary. To elevate the
+robustness of the RPE layer boundary segmentation, our method
+employs three steps. First, a 2-D Gaussian filter is used to reduce
+speckle noise in the OCT slice. Then, we select one point in each
+column of the OCT slice that is below the ILM layer and has the
+strongest positive vertical gradient. Finally, we connect these
+points as the RPE layer boundary, and employ a 1-D median
+filter [25] to smooth its vertical position in each column. Note
+that the extracted RPE layer extends across the entire OCT
+slice, including the non-RPE part, as shown by the cyan curve
+in Fig. 3(d). Thus, we will use the extracted RPE layer boundary
+as a starting point along which we will identify the true endpoint
+of the RPE, and hence locate the boundary of the optic disc.
+
+FU et al.: AUTOMATIC OPTIC DISC DETECTION IN OCT SLICES VIA LOW-RANK RECONSTRUCTION
+
+1153
+
+Fig. 4(b) shows the corrected OCT slice, where the lowest ILM
+point is located in the ONH.
+
+B. Low-Rank Dictionary Learning
+
+Fig. 3. Layer boundary segmentation. (a) Input OCT slice. (b) Thresholded
+OCT slice. (c) Vertical gradient map. (d) ILM (red curve) and RPE (cyan curve)
+layer boundaries segmentation result.
+
+Fig. 4. ONH-centered OCT slice preprocessing, where the red curve denotes
+the detected ILM layer boundary. (a) Original OCT slice may exhibit a sloping
+retina, such that the lowest ILM point (blue arrow) deviates from the ONH.
+Points A and B are the endpoints of the ILM layer boundary in the OCT slice,
+and the dashed yellow line connecting the endpoints A and B denotes the plane
+of the ILM layer. The solid yellow line indicates a horizontal line, and θ is
+the angle of inclination. (b) After preprocessing, the plane of the ILM layer is
+horizontal, and the lowest ILM point is located in the ONH.
+
+3) ONH Localization: In our method, the ONH is employed
+as a landmark to define the training region and the candidate
+region. Generally, the lowest point on the ILM layer boundary
+could be used to locate the ONH. However, some OCT slices
+may exhibit serious sloping of the retina, such that the lowest
+ILM point is not in the ONH, as shown in Fig. 4(a). For these
+OCT slices, we employ a preprocessing step to correct this
+sloping. First, we compute the inclination angle θ of the retina
+in the OCT slice from the edge points of the ILM layer, e.g.,
+points A and B in Fig. 4(a). Then, the corrected coordinate (x̂, ŷ)
+for the point at (x, y) is obtained through a rotation with a fixed
+y value
+(x̂, ŷ) = (y tan(θ) + x, y) .
+
+(1)
+
+The optic disc boundary points are defined as the left/right
+endpoints of the RPE, which are detected separately in our
+paper. It has been observed that the regions along the RPE
+layer boundary, including the OPL and hyper reflective complex
+(HRC) as shown in Fig. 1, have a consistent retinal structure that
+includes multiple surrounding bands, while the regions beyond
+the RPE endpoints are different [26]. This observation motivates
+our use of low-rank reconstruction for detecting RPE endpoints.
+Toward this end, we construct a low-rank dictionary from the
+training region to model the RPE appearance, and then use the
+low-rank dictionary to detect the optic disc point in the candidate
+region based on changes in low-rank reconstruction error.
+To divide the segmented layer into the training and candidate
+regions, we make use of prior knowledge that the optic disc is
+approximately centered at the ONH and has a vertical and horizontal diameter of about 1.92 ± 0.29 mm and 1.76 ± 0.31 mm
+[27], [28]. Based on this, we define a loose candidate region
+as having a 360-pixel width (corresponding to about 2.8 mm)
+centered horizontally on the lowest ILM point. The remaining
+part of the segmented layer is taken as the training region. We
+denote the width of the training region as M , which is also called
+dictionary size in this work. As the training data is derived from
+the input image itself, the learned model is specifically tailored
+to the individual and the imaging apparatus used to capture the
+OCT image. A set of labeled training images is not required.
+We extract appearance features along each pixel of the training region, and arrange them into a feature matrix Xt . Because
+of the consistent retinal structure along the RPE layer boundary, the feature matrix Xt can be decomposed into a low-rank
+matrix D and sparse errors E1 by using the recent work robust
+principal components analysis (RPCA) [29]:
+{D̂, Ê1 } = arg min D∗ + λ1 E1 1
+D ,E 1
+
+s.t. Xt = D + E1
+
+(2)
+
+where  · ∗ denotes the nuclear norm,  · 1 denotes the 1
+norm, and Xt is the feature matrix which is decomposed into
+the low-rank dictionary D and sparse error matrix E1 . The
+optimal solution {D̂, Ê1 } can be solved by using the inexact
+augmented Lagrange multiplier (inexact ALM) [31] algorithm
+in [29].
+
+C. Low-Rank Reconstruction
+With the learned low-rank dictionary D̂, the feature matrix
+of the candidate region will be reconstructed to obtain the reconstruction error. Based on the low-rank representation (LRR)
+[30], we seek a low-rank reconstruction coefficient matrix Ẑ and
+the corresponding reconstruction error matrix Ê2 , by solving the
+
+1154
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+Fig. 5. Features and distance bias. (a) LBP window (red box) and distance bias (yellow bars). The red, cyan and blue curves denote the ILM layer boundary, the
+segmented RPE layer boundary and the fitted curve for calculating distance bias, respectively. (b) Intensity feature matrix. (c) Distance bias curve of (a).
+
+following problem
+{Ẑ, Ê2 } = arg min Z∗ + λ2 E2 2,1
+Z,E 2
+
+s.t. Xc = D̂Z + E2
+
+(3)
+
+where Xc denotes the feature matrix of the candidate region,
+which is represented as the sum of D̂Z and E2 . Moreover,
+minimizing E2 2,1 encourages column-sparsity in E2 , where
+ · 2,1 is the 2,1 norm used in [30]. The underlying assumption
+here is that image corruptions are sample-specific, some data
+(i.e., columns in Xc ) are corrupted by vessel shadows. The
+optimal solution {Ẑ, Ê2 } can be obtained by using the inexact
+ALM algorithm in [30].
+To normalize Ê2 , we rescale Ê2 as Ê2 = Ê2 /Xc F , where
+ · F denotes the Frobenius norm [32]. After that, we generate
+the reconstruction error curve by calculating the 2 norm of each
+column of Ê2 . In this error curve, the points from the RPE are
+expected to have low-value errors, since those points are ideally
+well-reconstructed. In contrast, the points outside the RPE tend
+to have high errors.
+D. Features and Distance Bias
+Technically, any feature could be employed in our method to
+describe pixels in the RPE layer. However, features whose range
+can cover the OPL and HRC are preferable, since the OPL and
+HRC are stable and consistent along the RPE layer and are thus
+helpful for determining the endpoint of the RPE layer. In our
+method, we employ two types of features: intensity values and
+LBP [33]. The intensity values are specifically a vector of pixel
+intensities in the OCT image from 20 rows below each point
+on the segmented boundary to 60 rows above it. Together, the
+intensity vectors form an intensity feature matrix, illustrated in
+Fig. 5(b). The second feature, LBP, is widely-used for many
+applications. In this paper, we use a 10 × 5 block within a 80 ×
+10 window around each extracted RPE layer boundary point,
+with the boundary located 25% from the bottom as shown within
+the red box in Fig. 5(a). The extracted LBP feature vectors are
+collected into an LBP feature matrix.
+Moreover, we also introduce a geometrical constraint called
+distance bias in our method. The RPE is identified as a smooth,
+convex surface composed of a single layer of hexagonal cells that
+help to maintain the integrity of the barrier between the choroid
+
+and the retina [34]. We empirically found that the smooth shape
+of the RPE can be well approximated by a quadratic curve. A
+quadratic curve is, thus, fitted to the RPE layer boundary by
+linear least squares in the training region and used to constrain
+the endpoint position in the candidate region. Based on this constraint, we define distance bias as the vertical distance between
+the fitted curve and the RPE layer boundary in the candidate region, as illustrated in Fig. 5(a) by yellow bars. From the distance
+bias, we obtain a geometrical error curve, as shown in Fig. 5(c).
+E. Optic Disc Localization
+The error curves for intensity, LBP, and distance bias are
+combined by normalizing the curves and computing their sum.
+By treating the three factors separately until now, the issue of
+normalizing different features within a single-feature matrix has
+been avoided. In the aggregated error curve, points that belong
+to the RPE layer should have low error, while other points within
+the optic disc will have higher errors. The optic disc point should
+lie between the corresponding two parts of the segmented layer.
+To identify this point, we fit a sigmoid function to the error curve
+and use its midpoint to locate the optic disc boundary as shown
+in Fig. 2(d). We have found this approach to give an accurate
+estimate of the optic disc position.
+III. EXPERIMENTS
+For testing our method, we collect OCT slices centered at
+the ONH from 20 normal persons, four of whom were selected
+randomly for recapture of their OCT slices after a long time
+interval (more than six months). This dataset, thus, consists of
+48 OCT slices in total. These slices were captured by using
+the 2-D imaging protocol, at 1024 × 992 image resolution and
+with a depth resolution of 8 μm/pixel and lateral resolution of
+10 μm/pixel. A trained labeler marked the ground-truth optic
+disc points manually in each of the images, and two experts
+examined the ground-truth labelings for quality control. We set
+the parameter λ1 = 0.35 in RPCA, the parameter λ2 = 0.45 in
+LRR, and the dictionary size M = 140 as the default parameters
+for all the experiments.
+Our evaluation employs two error metrics. The first is the
+distance error in terms of image columns between the detected
+optic disc and the groundtruth: md = |Cd − Cgt |, where Cd and
+
+FU et al.: AUTOMATIC OPTIC DISC DETECTION IN OCT SLICES VIA LOW-RANK RECONSTRUCTION
+
+TABLE I
+PERFORMANCES (AVERAGE ± STANDARD DEVIATIONS)
+OF VARIOUS OPTIC DISC DETECTION METHODS
+m d (pixel)
+
+m w (%)
+
+Baseline 2-D
+Boyer et al. [20]
+
+25.8 ± 23.1
+20.7 ± 19.8
+
+19.2 ± 16.4
+18.0 ± 14.0
+
+Intensity
+LBP
+Distance bias
+Intensity + LBP
+Intensity+ Distance
+LBP + Distance
+w/o Dictionary
+Our method
+
+22.2 ± 20.8
+24.4 ± 17.7
+21.4 ± 18.4
+18.6 ± 17.7
+16.1 ± 14.5
+14.8 ± 12.9
+18.1 ± 15.9
+12.4 ± 12.1
+
+14.7 ± 12.8
+20.5 ± 14.2
+18.3 ± 12.2
+12.2 ± 9.7
+11.2 ± 9.1
+8.9 ± 7.6
+12.7 ± 10.7
+7.9 ± 8.4
+
+Cgt denote the column coordinates of the detected and groundtruth optic disc. The second measure is the width error ratio:
+mw = |Wd − Wgt |/Wgt , where Wd and Wgt denote the detected
+and ground-truth optic disc widths.
+A. Optic Disc Detection Performance
+We evaluate the optic disc detection performance of our
+method through comparisons to simplified versions of our
+method with only a subset of the features and to other techniques: 1) each of the three features alone (“intensity”, “LBP”,
+and “distance bias”), where the final localization curve is generated by using only one error curve; 2) a combination of only two
+features (“intensity + LBP”, “intensity + distance”, and “LBP
++ distance”); 3) our full method without dictionary learning
+(“w/o Dictionary”) i.e., we directly use the candidate data itself
+as a self-expressive dictionary [30] for the LRR in (3); 4) the
+existing method for optic disc detection in a single OCT slice
+(“Boyer et al. [20]”); 5) a baseline method that detects the optic
+disc based on the average intensity of the RPE layer boundary
+(“Baseline 2-D”), which takes advantage of the fairly large contrast that appears at the endpoint of the RPE layer. Table I shows
+the performances (average ± standard deviations) of the various
+optic disc detection methods.
+In Table I, it can be seen that the combination of intensity
+and LBP (“intensity + LBP”) generally outperforms each of
+the features individually. Adding the distance bias feature to
+LBP leads to an improvement of about 12% in the term of
+width error ratio mw , which indicates the benefit of accounting
+for distance bias. In Table 1, the results of our method without
+dictionary learning (w/o Dictionary”) are also reported, in which
+the candidate data itself serves as the dictionary for the LRR.
+Since the candidate data contains regions both with and without
+the RPE layer, the dictionary learned from it does not have the
+low-rank property. As a result, the reconstruction error provides
+only a weak indicator of the endpoint of the RPE layer. The lowrank dictionary learning step in the proposed method makes the
+reconstruction more robust and effective by removing spurious
+outliers such as heavy noise and vessel shadows from the OCT
+slice. This is different from the baseline techniques “Boyer et al.
+[20]” and “Baseline 2-D”, which directly cluster pixels via the
+extracted features that can be distorted by outlier elements.
+
+1155
+
+Fig. 6 displays some detection results, where the red, green,
+and yellow lines indicate our results, those of “Boyer et al. [20]”
+and the groundtruth, respectively. Our method generally outperforms “Boyer et al. [20]”. In the figure, the blue dashed lines
+mark the RPE layer segmented according to Gaussian filter responses. The segmentations include the RPE as well as non-RPE
+extensions into the optic disc. In many cases, the geometrical
+constraint from distance bias provides a useful detection cue.
+However, for some cases, non-RPE points in the layer may satisfy the distance bias constraint. Our detection relies more on
+intensity and LBP features in these cases.
+We performed our experiments using a PC with a 3.2 GHz
+CPU and 16 GB RAM. The code is implemented in MATLAB without optimization. Fig. 7 shows the computation time
+(in seconds) of our entire method (red curve) and of its main
+steps including feature extraction (green), dictionary learning
+via RPCA (blue), and reconstruction via LRR (black). Feature
+extraction and dictionary learning require the most computation
+in our method. The computation time of the dictionary learning
+procedure increases consistently with the dictionary size M .
+Typically, our method takes about 50 s for an OCT slice of the
+image resolution 1024 × 992.
+B. Optic Disc Area Detection in the OCT Volume
+Although we focus on optic disc detection from a single OCT
+slice, our method can be extended to handle an OCT volume.
+For a 3-D OCT volume, we first find the OCT slices that cross
+the ONH, determined by the height of the ILM layer within
+the training region as shown in Fig. 8(a). We employ a height
+threshold t (t = 100 in our experiment) to select the OCT slices,
+and then detect the optic disc in each single OCT slice by using
+our method. Finally, a fitted ellipse [35] is computed as the disc
+boundary on the OCT fundus image, as shown in Fig. 8(c).
+For testing our method on OCT volumes, we collect seven
+OCT volumes (each of 992 × 512 × 512 resolution) by using
+the 3-D imaging protocol. The ground-truth optic disc boundary
+of a 3-D OCT volume is obtained by first manually labeling the
+optic disc points in each ONH-centered slice in the same manner
+as that for 2-D OCT slice labeling (with a trained labeler and
+two experts for quality control). These labeled points are then fit
+with an ellipse to generate the ground-truth optic disc boundary.
+We compare our method with four other techniques. The first
+two, namely “Boyer et al. [20]” and “Baseline 2-D”, use the detection methods for single OCT slices and then fit an ellipse to
+the detected points to find the detected optic disc area in the 3-D
+OCT volume, similar to our method. The third method is based
+on Lee et al. [18], which operates on 3-D OCT volumes. Note
+that Lee et al. [18] involves kNN classification, which is not
+applicable to our unsupervised setting without labeled training
+data. Thus, we modify the last step in Lee et al. [18] to make
+it unsupervised. We extract the RPE surface from the 3-D OCT
+volume and flatten the surface. Then a binary clustering method
+is applied based on the features (e.g., intensity and gradient features) extracted from the RPE surface to determine the optic
+disc region. We refer to this modification of Lee et al. [18] as
+“Baseline 3-D”. The fourth baseline method is our implementation of Ishikawa et al. [17], which detects the optic disc area in
+
+1156
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+Fig. 6. Optic disc detection results of different methods (only a rectangular region around the ONH is shown). The cyan dashed curve denotes the segmented
+RPE layer boundary, and the red, green and yellow lines indicate the detection locations for our method, Boyer et al. [20], and the groundtruth, respectively.
+
+Fig. 7.
+
+Computation times with respect to different dictionary sizes.
+
+TABLE II
+PERFORMANCES (AVERAGE ± STANDARD DEVIATIONS) OF VARIOUS
+OPTIC DISC DETECTION METHODS ON 3-D OCT VOLUMES.
+
+Baseline 2-D
+Boyer et al. [20]
+Ishikawa et al. [17]
+Baseline 3-D
+Our method
+
+m 1 (%)
+
+m 2 (%)
+
+22.6 ± 12.3
+20.1 ± 9.6
+21.9 ± 11.6
+19.7 ± 10.6
+16.2 ± 6.6
+
+20.2 ± 16.1
+17.9 ± 10.4
+18.3 ± 15.4
+16.5 ± 9.9
+12.6 ± 7.9
+
+a 3-D OCT volume by using the modified active contour model
+[5].
+For OCT volumes, we employ two evaluation criteria to measure disc region detection accuracy. The first measure is the
+∩R GT )
+nonoverlap ratio: m1 = 1 − Area(R
+Area(R ∪R GT ) , where R and RGT denote the detected optic disc region and the ground-truth ellipse,
+respectively. The second measure is the relative absolute area
+)−Area(R GT )|
+. Table II shows the perdifference: m2 = |Area(R
+Area(R GT )
+formances (average ± standard deviations) of our method and
+other methods, and Fig. 9 displays the optic disc detection results on an OCT volume, where the top row is the disc area
+detection results on the OCT fundus images and the bottom row
+shows the corresponding OCT slice results. The red, green, blue,
+and yellow lines indicate the detection results from our method,
+
+Ishikawa et al. [17], “Baseline 3-D” and the groundtruth, respectively.
+The “Baseline 2-D” method does not work well, since poor
+performance on single OCT slices leads to distorted disc regions.
+“Boyer et al. [20]” and “Ishikawa et al. [17]” obtain similar
+performance. “Baseline 3-D” generates stable and regular disc
+regions, but it depends on accurate OCT surface flattening to
+reduce the influence of fore–aft eye movement. Furthermore,
+it tends to produce the results with smaller disc sizes than the
+groundtruth, such as the blue curves in the third column of Fig. 9.
+In contrast, by taking the advantages of processing single OCT
+slices, our method detects the endpoints of the RPE layer more
+accurately and outperforms the existing methods. Moreover, in
+contrast to a single OCT slice, an OCT volume with a fitted
+ellipse essentially provides a smooth neighborhood constraint,
+which is beneficial for removing outliers introduced by disc
+detection errors on a small number of OCT slices.
+C. Discussion
+In this paper, we present a technique for optic disc detection without also addressing the problem of optic cup detection,
+though it is also needed for computing the cup-to-disc ratio,
+the most commonly used clinical feature in glaucoma diagnosis. While investigating optic cup detection in a similar fashion
+would be an interesting and important study, optic disc detection nevertheless remains an important problem itself as it
+is often used to support other detection and assessment tasks.
+Fully/semiautomated quantitative disc assessment using ocular
+imaging devices (for fundus images and OCT volumes) usually starts with detecting the optic disc margin [13]. The optic
+disc margin also provides a fundamental landmark for detecting
+other retinal parts. For example, optic cup detection is generally
+performed based on an assumption that optic cup is only within
+the disc area [7], [8]. Typically in an OCT slice, the optic cup
+diameter is defined as the length of the line that connects the
+outermost borders of the cup at the level of 150 μm above the
+optic disc reference line [1], [12]. Thus, optic disc detection is
+essential for accurate optic cup detection.
+
+FU et al.: AUTOMATIC OPTIC DISC DETECTION IN OCT SLICES VIA LOW-RANK RECONSTRUCTION
+
+1157
+
+Fig. 8. Optic disc detection in 3-D OCT volumes. (a) In a 3-D OCT volume, OCT slices containing the ONH (bottom-left) have a larger ILM height within the
+training region than the other slices (upper-left). (b) The OCT fundus image generated by averaging intensity values of each A-scan. (c) Our optic disc detection
+result, where the blue points are the detected disc from individual OCT slices, and the red line is the fitted ellipse.
+
+Fig. 9. Optic disc detection results on OCT volumes (only a rectangular region around the ONH is shown). The top row shows disc area detection results on
+OCT fundus images, and the bottom row displays the corresponding OCT slice results on the ONH. The red, green, blue, and yellow lines indicate the detection
+results of our method, Ishikawa et al. [17], Baseline 3-D, and the groundtruth, respectively.
+
+A limitation of our paper is that experiments on glaucoma
+patients were not included. We note, however, that for some
+retinal diseases such as glaucoma, the early changes in the optic
+disc are subtle [36], [37], such that the structure prior for dividing
+the training and candidate regions in our method remain valid.
+Though we did not provide an evaluation of glaucoma diagnosis,
+our disc detection method outperforms the other methods by
+nearly 10% in width accuracy for 2-D OCT slices, and by about
+3.5% in area accuracy for 3-D OCT volumes.
+Another limitation is in dealing with peripapillary atrophy.
+Because of the surrounding structure/tissue changes of the layer
+representing the RPE-choriocapillaris complex [38], [39], the
+RPE endpoints may be detected erroneously at the margin of
+the peripapillary atrophy with our technique. This challenging
+problem would also lead to failure of other optic disc detection
+methods. How to deal with peripapillary atrophy is an important
+direction for future work.
+IV. CONCLUSION
+In this paper, we have proposed a method for detecting the
+optic disc in a single OCT slice. Our method takes advantage of
+
+the low-rank appearance structure and smooth shape variation
+along the RPE to identify the RPE endpoints that bound the
+optic disc. The low-rank dictionary discovers the intrinsic appearance structure of the RPE layer from training data that may
+contain outlier elements such as heavy noise and vessel shadows. Through a combination of low-rank reconstruction errors
+and a prior on RPE shape, the transition from RPE to optic disc
+can be detected with high accuracy in comparison to the current
+state-of-the-art methods. Moreover, our approach can also be
+employed to handle 3-D OCT volumes, for which promising
+results are also achieved.
+
+REFERENCES
+[1] A. Manassakorn et al., “Comparison of retinal nerve fiber layer thickness
+and optic disk algorithms with optical coherence tomography to detect
+glaucoma,” Amer. J. Ophthalmol., vol. 141, no. 1, pp. 105–115, 2006.
+[2] B. Chauhan and C. Burgoyne, “From clinical examination of the optic
+disc to clinical assessment of the optic nerve head: A paradigm change,”
+Amer. J. Ophthalmol., vol. 156, no. 2, pp. 218–227, 2013.
+[3] S. Yousefi et al., “Glaucoma progression detection using structural retinal
+nerve fiber layer measurements and functional visual field points,” IEEE
+Trans. Biomed. Eng., vol. 61, no. 4, pp. 1143–1154, Apr. 2014.
+
+1158
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+[4] M. Foracchia et al., “Detection of optic disc in retinal images by means of
+a geometrical model of vessel structure,” IEEE Trans. Med. Imag., vol. 23,
+no. 10, pp. 1189–1195, Oct. 2004.
+[5] J. Xu et al., “Automated optic disk boundary detection by modified active
+contour model,” IEEE Trans. Biomed. Eng., vol. 54, no. 3, pp. 473–482,
+Mar. 2007.
+[6] Y. Zheng et al., “Optic disc and cup segmentation from color fundus
+photograph using graph cut with priors,” in Proc. Med. Imag. Comput.
+Comput. Assist. Intervent., 2013, pp. 75–82.
+[7] Y. Xu et al., “Reconstruction-based optic cup localization for glaucoma
+screening,” in Proc. Med. Imag. Comput. Comput. Assist. Intervent., 2013,
+pp. 445–452.
+[8] J. Cheng et al., “Superpixel classification based optic disc and optic cup
+segmentation for glaucoma screening,” IEEE Trans. Med. Imag., vol. 32,
+no. 6, pp. 1019–1032, Jun. 2013.
+[9] J. Xu et al., “Optic disk feature extraction via modified deformable model
+technique for glaucoma analysis,” Pattern Recog., vol. 40, no. 7, pp. 2063–
+2076, 2007.
+[10] S. Morales et al., “Automatic detection of optic disc based on PCA
+and mathematical morphology,” IEEE Trans. Med. Imag., vol. 32, no. 4,
+pp. 786–796, Apr. 2013.
+[11] W. Drexler and J. G. Fujimoto, “State-of-the-art retinal optical coherence
+tomography,” Prog. Retinal Eye Res., vol. 27, no. 1, pp. 45–88, 2008.
+[12] G. Jaffe and J. Caprioli, “Optical coherence tomography to detect and
+manage retinal disease and glaucoma,” Amer. J. Ophthalmol., vol. 137,
+no. 1, pp. 156–169, 2004.
+[13] A. Manassakorn et al., “Comparison of optic disc margin identified by
+color disc photography and high-speed ultrahigh-resolution optical coherence tomography,” Arch. Ophthalmol., vol. 126, no. 1, pp. 58–64, 2008.
+[14] A. Reis et al., “Influence of clinically invisible, but optical coherence tomography detected, optic disc margin anatomy on neuroretinal rim evaluation,” Invest Ophthalmol. Visual Sci., vol. 53, no. 4, pp. 1852–1860,
+2012.
+[15] M. Abràmoff et al., “Automated segmentation of the cup and rim from
+spectral domain OCT of the optic nerve head,” Invest. Ophthalmol. Visual
+Sci., vol. 50, no. 12, pp. 5778–5784, 2009.
+[16] Z. Hu et al., “Automated segmentation of neural canal opening and optic
+cup in 3D spectral optical coherence tomography volumes of the optic
+nerve head,” Invest. Ophthalmol. Visual Sci., vol. 51, no. 11, pp. 5708–
+5717, 2010.
+[17] H. Ishikawa et al., “Automated assessment of optic nerve head with
+spectral domain optical coherence tomography,”, U.S. Patent 7 992 999,
+Aug. 9, 2011.
+[18] K. Lee et al., “Segmentation of the optic disc in 3-D OCT scans of the
+optic nerve head,” IEEE Trans. Med. Imag., vol. 29, no. 1, pp. 159–168,
+Jan. 2010.
+[19] M. Miri et al., “Multimodal segmentation of optic disc and cup from stereo
+fundus and SD-OCT images,” Proc. SPIE, Soc. Photo-Opt. Instrum. Eng.,
+vol. 8669, Mar. 2013, pp. 1–8 .
+[20] K. Boyer et al., “Automatic recovery of the optic nerve head geometry in
+optical coherence tomography,” IEEE Trans. Med. Imag., vol. 25, no. 5,
+pp. 553–570, May 2006.
+[21] S. Lu et al., “Automated layer segmentation of optical coherence tomography images,” IEEE Trans. Biomed. Eng., vol. 57, no. 10, pp. 2605–2608,
+Oct. 2010.
+
+[22] P. Dufour et al., “Graph-based multi-surface segmentation of OCT data
+using trained hard and soft constraints,” IEEE Trans. Med. Imag., vol. 32,
+no. 3, pp. 531–543, Mar. 2013.
+[23] Y. Zheng et al., “A generative model for oct retinal layer segmentation by
+integrating graph-based multi-surface searching and image registration,”
+in Proc. Med. Imag. Comput. Comput. Assist. Intervent., 2013, pp. 428–
+435.
+[24] N. Otsu, “A threshold selection method from gray-level histograms,” IEEE
+Trans. Syst., Man Cybern., vol. SMCA-9, no. 1, pp. 62–66, Jan. 1979.
+[25] W. Pratt, Digital Image Processing. New York, NY, USA: Wiley, 1978.
+[26] R. Spaide and C. Curcio, “Anatomical correlates to the bands seen in
+the outer retina by optical coherence tomography: Literature review and
+model,” Retina, vol. 31, no. 8, pp. 1609–1619, 2011.
+[27] J. Jonas et al., “Optic disc, cup and neuroretinal rim size, configuration
+and correlations in normal eyes,” Invest. Ophthalmol. Visual Sci., vol. 29,
+no. 7, pp. 1151–1158, 1988.
+[28] H. Quigley et al., “The size and shape of the optic disc in normal human
+eyes,” Arch. Ophthalmol., vol. 108, no. 1, pp. 51–57, 1990.
+[29] E. J. Candès et al., “Robust principal component analysis?” J. ACM,
+vol. 58, no. 3, pp. 1–37, 2011.
+[30] G. Liu et al., “Robust recovery of subspace structures by low-rank representation,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 35, no. 1, pp.
+171–84, Jan. 2013.
+[31] Z. Lin et al., “The augmented lagrange multiplier method for exact
+recovery of corrupted low-rank matrices,” arXiv, pp. 1–23, 2010.
+[32] G. Golub and C. V. Loan, Matrix Computations. Baltimore, MD, USA:
+The Johns Hopkins Univ. Press, 1996.
+[33] T. Ojala et al., “Multiresolution gray-scale and rotation invariant texture
+classification with local binary patterns,” IEEE Trans. Pattern Anal. Mach.
+Intell., vol. 24, no. 7, pp. 971–987, Jul. 2002.
+[34] S. John et al., “Choice of cell source in cell-based therapies for retinal
+damage due to age-related macular degeneration: A review,” J. Ophthalmol., vol. 2013, pp. 1–9, 2013.
+[35] A. Fitzgibbon et al., “Direct least square fitting of ellipses,” IEEE Trans.
+Pattern Anal. Mach. Intell., vol. 21, no. 5, pp. 476–480, May 1999.
+[36] D. Broadway et al., “Optic disk appearances in primary open-angle glaucoma,” Survey Ophthalmol., vol. 43, pp. 223–243, 1999.
+[37] M. Fingeret et al., “Five rules to evaluate the optic disc and retinal nerve
+fiber layer for glaucoma,” Optometry, J. Amer. Optometric Assoc., vol. 76,
+no. 11, pp. 661–668, 2005.
+[38] J. Jonas et al., “Glaucomatous parapapillary atrophy: Occurrence and
+correlations,” Arch. Ophthalmol., vol. 110, no. 2, pp. 214–222, 1992.
+[39] V. Manjunath, et al., “Analysis of peripapillary atrophy using spectral
+domain optical coherence tomography,” Ophthalmology, vol. 118, no. 3,
+pp. 531–536, 2011.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

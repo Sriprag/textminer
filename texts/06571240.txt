@@ -1,0 +1,1466 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+41
+
+Multichannel Electrophysiological Spike Sorting via
+Joint Dictionary Learning and Mixture Modeling
+David E. Carlson, Joshua T. Vogelstein, Qisong Wu, Wenzhao Lian, Mingyuan Zhou, Colin R. Stoetzner,
+Daryl Kipke, Douglas Weber, David B. Dunson, and Lawrence Carin∗
+
+Abstract—We propose a methodology for joint feature learning
+and clustering of multichannel extracellular electrophysiological
+data, across multiple recording periods for action potential detection and classification (sorting). Our methodology improves over
+the previous state of the art principally in four ways. First, via sharing information across channels, we can better distinguish between
+single-unit spikes and artifacts. Second, our proposed “focused
+mixture model” (FMM) deals with units appearing, disappearing,
+or reappearing over multiple recording days, an important consideration for any chronic experiment. Third, by jointly learning
+features and clusters, we improve performance over previous attempts that proceeded via a two-stage learning process. Fourth, by
+directly modeling spike rate, we improve the detection of sparsely
+firing neurons. Moreover, our Bayesian methodology seamlessly
+handles missing data. We present the state-of-the-art performance
+without requiring manually tuning hyperparameters, considering
+both a public dataset with partial ground truth and a new experimental dataset.
+Index Terms—Bayesian, clustering, Dirichlet process, spike
+sorting.
+
+I. INTRODUCTION
+PIKE sorting of extracellular electrophysiological data is
+an important problem in contemporary neuroscience, with
+applications ranging from brain–machine interfaces [22] to neural coding [24] and beyond. Despite a rich history of work in
+this area [11], [34], room for improvement remains for auto-
+
+S
+
+Manuscript received October 29, 2012; revised March 22, 2013 and June 15,
+2013; accepted July 22, 2013. Date of publication July 30, 2013; date of current
+version December 16, 2013. This work was supported by the Defense Advanced
+Research Projects Agency (DARPA) under the HIST program, managed by Dr.
+Jack Judy. Asterisk indicates corresponding author.
+D. E. Carlson, Q. Wu, W. Lian, and M. Zhou are with the Department of
+Electrical and Computer Engineering, Duke University, Durham, NC 27708
+USA (e-mail: dec18@duke.edu; wuqisong@gmail.com; wl89@duke.edu).
+J. T. Vogelstein is with the Department of Electrical and Computer Engineering, Duke University, Durham, NC 27708 USA, and also with the Department of Statistical Science, Duke University, Durham, NC 27708 USA (e-mail:
+jovo@stat.duke.edu).
+C. R. Stoetzner and D. Kipke are with the Department of Biomedical Engineering, University of Michigan, Ann Arbor, MI 48109 USA (e-mail: stoetzco@
+umich.edu; dkipke@umich.edu).
+D. Weber is with the Department of Biomedical Engineering, University of
+Pittsburgh, Pittsburgh, PA 15213 USA (e-mail: djw50@pitt.edu).
+D. B. Dunson is with the Department of Statistical Science, Duke University,
+Durham, NC 27708 USA (e-mail: dunson@duke.edu).
+∗ L. Carin is with the Department of Electrical and Computer Engineering,
+Duke University, Durham, NC 27708 USA (e-mail: lcarin@duke.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2275751
+
+matic methods. In particular, we are interested in sorting spikes
+from multichannel longitudinal data, where longitudinal data
+potentially consists of many experiments conducted on the same
+animal over weeks or months.
+Here, we propose a Bayesian generative model and associated inference procedure. Perhaps the most important and advance in our present study, over the previous art, is our joint
+feature learning and the clustering strategy. More specifically,
+standard pipelines for processing extracellular electrophysiology data consist of the following steps:1) filter the raw sensor
+readings; 2) perform thresholding to “detect” the spikes; 3) map
+each detected spike to a feature vector; and then 4) cluster the
+feature vectors [21]. Our primary conceptual contribution to
+spike sorting methodologies is a novel unification of steps 3)
+and 4) that utilizes all available data in such a way as to satisfy
+all of the the aforementioned criteria. This joint dictionary learning and clustering approach improves results even for a single
+channel and a single recording experiment (i.e., not longitudinal data). Additional localized recording channels improve the
+performance of our methodology by incorporating more information. More recordings allow us to track dynamics of firing
+over time.
+Although a comprehensive survey of previous spike sorting methods is beyond the scope of this paper, later we provide a summary of previous work as relevant to the previously
+listed goals. Perhaps those methods that are most similar to ours
+include a number of recent Bayesian methods for spike sorting [9], [14]. One can think of our method as a direct extension
+of theirs with a number of enhancements. Most importantly, we
+learn features for clustering, rather than simply using principal
+components. We also incorporate multiple electrodes, assume a
+more appropriate prior over the number of clusters, and address
+longitudinal data.
+Other popular methods utilize principal components analysis
+(PCA) [21] or wavelets [20] to find low-dimensional representations of waveforms for subsequent clustering. These methods
+typically require some manual tuning, for example, to choose
+the number of retained principal components. Moreover, these
+methods do not naturally handle missing data well. Finally,
+these methods choose low-dimensional embeddings for reconstruction and are not necessarily appropriate for downstream
+clustering.
+Calabrese and Paniski [8] recently proposed a mixture of
+Kalman filters (MoK) model to explicitly deal with slow changes
+in the waveform shape. This approach also models the spike
+rate (and even refractory period), but it does not address our
+other desiderata, perhaps most importantly, utilizing multiple
+
+0018-9294 © 2013 IEEE
+
+42
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+electrodes or longitudinal data. It would be interesting to extend
+that work to utilize learned time-varying dictionaries rather than
+principal components.
+Finally, several recently proposed methods address sparsely
+firing neurons [2], [23]. By directly incorporating firing rate
+into our model and inference algorithm (see Section II-C), our
+approach outperforms previous methods even in the absence of
+manual tuning (see Section III-E).
+The remainder of the manuscript is organized as follows.
+Section II begins with a conceptual description of our model
+followed by mathematical details and experimental methods for
+new data. Section III begins by comparing the performance of
+our approach to several other previous state-of-the-art methods,
+and then highlights the utility of a number of additional features
+that our method includes. Section IV summarizes and provides
+some potential future directions. The Appendix provides details of the relationships between our method and other related
+Bayesian models or methodologies.
+
+II. MODELS AND ANALYSIS
+A. Model Concept
+Our generative model derives from the knowledge of the properties of electrophysiology signals. Specifically, we assume that
+each waveform can be represented as a sparse superposition of
+several dictionary elements, or features. Rather than presupposing a particular form of those features (e.g., wavelets), we learn
+features from the data. Importantly, we learn these features for
+the specific task at hand: spike sorting (i.e., clustering). This is
+in contrast to other popular feature learning approaches, such as
+principal component analysis (PCA) or independent component
+analysis (ICA), which learn features to optimize a different objective function (for example, minimizing reconstruction error).
+Dictionary learning has been demonstrated as a powerful idea,
+with demonstrably good performance in a number of applications [38]. Moreover, statistical guarantees associated with such
+approaches are beginning to be understood [25]. Section II-B
+provides mathematical details for our Bayesian dictionary learning assumptions.
+We jointly perform dictionary learning and clustering for the
+analysis of multiple spikes. The generative model requires a
+prior on the number of clusters. Regardless of the number of
+putative spikes detected, the number of different single units
+one could conceivably discriminate from a single electrode is
+upper bounded due to the conductive properties of the tissue.
+Thus, it is undesirable to employ Bayesian nonparametric methods [4] that enable the number of clusters (each cluster associated with a single-unit event) to increase in an unbounded
+manner as the number of threshold crossings increases. We develop a new prior to address this issue, which we refer to as a
+“focused mixture model” (FMM). The proposed prior is also
+appropriate for chronic recordings, in which single units may
+appear for a subset of the recording days, but also disappear and
+reappear intermittently. Sections II-C and II-D provide mathematical details for the general mixture modeling case, and our
+specific FMM assumptions.
+
+We are also interested in multichannel recordings. When we
+have multiple channels that are within close proximity to one
+another, we can “borrow statistical strength” across the channels to improve clustering accuracy. Moreover, we can ascertain
+that certain movement or other artifacts—which would appear
+to be spikes if only observing a single channel—are clearly not
+spikes from a single neuron, as evidenced by the fact that they
+are observed simultaneously across all the channels, which is
+implausible for a single neuron. While it is possible that different
+neurons may fire simultaneously and be observed coincidentally
+across multiple sensor channels, we have found that this type
+of observed data are more likely associated with animal motion, and artifacts from the recording setup (based on recorded
+video of the animal). We employ the multiple-channel analysis
+to distinguish single-neuron events from artifacts due to animal movement (inferred based on the electrophysiological data
+alone, without having to view all of the data).
+Finally, we explicitly model the spike rate of each cluster.
+This can help address refractory issues, and perhaps more importantly, enables us to detect sparsely firing neurons with high
+accuracy.
+Because our model is fully Bayesian, we can readily impute
+missing data. Moreover, by placing relatively diffused but informed hyperpriors on our model, our approach does not require
+any manual tuning. And by reformulating our priors, we can derive (local) conjugacy which admits efficient Gibbs sampling.
+Section II-E provides details on these computations. In some
+settings, a neuroscientist may want to tune some parameters, to
+test hypotheses and impose prior knowledge about the experiment; we also show how this may be done in Section III-D.
+B. Bayesian Dictionary Learning
+Consider electrophysiological data measured over a prescribed time interval. Specifically, let Xij ∈ RT ×N represent
+the jth signal observed during interval i (each j indexes a
+threshold crossing within a time interval i). The data are assumed recorded on each of N channels, from an N -element
+sensor array, and there are T time points associated with each
+detected spike waveform (the signals are aligned with respect
+to the peak energy of all the channels). In tetrode arrays [12],
+and related devices like those considered below, a single-unit
+event (action potential of a neuron) may be recorded on multiple
+adjacent channels, and, therefore, it is of interest to process the
+N signals associated with Xij jointly; the joint analysis of all
+N signals is also useful for longitudinal analysis, discussed in
+Section III.
+To constitute data Xij , we assume that threshold-based detection (or a related method) is performed on data measured from
+each of the N sensor channels. When a signal is detected on
+any of the channels, coincident data are also extracted from all
+N channels, within a window of (discretized) length T centered
+at the spikes’ energy peak average over all channels. On some
+of the channels data may be associated with a single-unit event,
+and on other channels the data may represent background noise.
+Both types of data (signal and noise) are modeled jointly, as
+discussed later.
+
+CARLSON et al.: MULTICHANNEL ELECTROPHYSIOLOGICAL SPIKE SORTING VIA JOINT DICTIONARY LEARNING
+
+Following [9], we employ dictionary learning to model each
+Xij ; however, unlike [9] we jointly employ dictionary learning
+to all N channels in Xij (rather than separately to each of the
+channels). The data are represented as
+Xij = DΛSij + Eij
+
+(1)
+
+where D ∈ RT ×K represents a dictionary with K dictionary
+elements (columns), Λ ∈ RK ×K is a diagonal matrix with
+sparse diagonal elements, Sij ∈ RK ×N represents the dictionary weights (factor scores), and Eij ∈ RT ×N represents residual/noise. Let D = (d1 , . . . , dK ) and E = (e1 , . . . , eN ), with
+dk , en ∈ RT . We impose priors
+
+
+1
+dk ∼ N 0, IT , en ∼ N (0, diag(η1−1 , . . . , ηT−1 )) (2)
+T
+where IT is the T × T dimensional identity matrix and ηt ∈ R
+for all t.
+We wish to impose that each column of Xij lives in a linear
+subspace, with dimension and composition to be inferred. The
+composition of the subspace is defined by a selected subset of the
+columns of D, and that subset is defined by the nonzero elements
+in the diagonal of Λ = diag(λ), with λ = (λ1 , . . . , λK )T and
+λk ∈ R for all k. We impose λk ∼ νδ0 + (1 − ν)N+ (0, α0−1 ),
+with ν ∼ Beta(a0 , b0 ) and δ0 a unit measure concentrated at
+zero. The hyperparameters a0 , b0 ∈ R are set to encourage
+sparse λ, and N+ (·) represents a normal distribution truncated
+to be nonnegative. Diffused gamma priors are placed on {ηt }
+and α0 .
+Concerning the model priors, the assumption dk ∼
+N (0, T1 IT ) is consistent with a conventional 2 regularization on the dictionary elements. Similarly, the assumption
+en ∼ N (0, diag(η1−1 , . . . , ηT−1 )) corresponds to an 2 fit of the
+data to the model, with a weighting on the norm as a function
+of the sample point (in time) of the signal. We also considered
+using a more general noise model, with en ∼ N (0, Σ). These
+priors are typically employed in dictionary learning; see [38]
+for a discussion of the connection between such priors and
+optimization-based dictionary learning.
+C. Mixture Modeling
+A mixture model is imposed for the dictionary weights Sij =
+(sij 1 , . . . , sij N ), with sij n ∈ RK ; sij n defines the weights on
+the dictionary elements for the data associated with the nth
+channel (nth column) in Xij . Specifically,
+sij n ∼ N (μz i j n , Ω−1
+z i j n ),
+
+zij ∼
+
+M
+
+
+(i)
+πm
+δm
+
+(3)
+
+m =1
+
+(μm n , Ωm n ) ∼ G0 (μ0 , β0 , W0 , ν0 )
+
+(4)
+
+where G0 is a normal-Wishart distribution with μ0 a K dimension vector of zeros, β0 = 1, W0 is a K dimensional
+(i)
+identity matrix, and ν0 = K. The other parameters: πm >
+M
+(i)
+0, m =1 πm = 1, and {sij n }n =1,N are all associated with
+cluster zij ; zij ∈ {1, . . . , M } is an indicator variable defining
+with which cluster Xij is associated, and M is a user-specified
+upper bound on the total number of clusters possible.
+
+43
+
+The use of the Gaussian model in (3) is convenient, as it
+simplifies computational inference, and the normal-Wishart distribution G0 is selected because it is the conjugate prior for a
+normal distribution. The key novelty we wish to address in
+this paper concerns design of the mixture probability vector
+(i)
+(i)
+π (i) = (π1 , . . . , πM )T .
+D. Focused Mixture Model
+The vector π (i) defines the probability with which each of the
+M mixture components are employed for data recording interval
+i. We wish to place a prior probability distribution on π (i) ,
+and to infer an associated posterior distribution based upon the
+(i)
+observed data. Let bm be a binary variable indicating whether
+(i)
+interval i uses mixture component m. Let φ̂m correspond to
+the relative probability of including mixture component m in
+interval i, which is related to the firing rate of the single-unit
+corresponding to this cluster during that interval. Given this, the
+probability of cluster m in interval i is
+(i)
+=
+πm
+
+1 (i) (i)
+b φ̂
+Z m m
+
+(5)
+
+
+(i) (i)
+where Z = M
+m  =1 bm  φ̂m  is the normalizing constant to ensure
+
+(i)
+that m πm = 1. To finalize this parameterization, we further
+(i)
+(i)
+assume the following priors on bm and φ̂n :
+(i)
+
+φ̂m ∼ Ga(φm , pi /(1 − pi ))
+φm ∼ Ga(γ0 , 1), pi ∼ Beta(a0 , b0 )
+
+(6)
+
+b(i)
+m ∼ Bern(νm )
+νm ∼ Beta(α/M, 1), γ0 ∼ Ga(c0 , 1/d0 )
+
+(7)
+
+where Ga(·) denotes the gamma distribution, and Bern(·) the
+Bernoulli distribution. Note that {φm , νm }m =1,M are shared
+across all intervals i, and it is in this manner we achieve joint
+clustering across all time intervals. The reasons for the choices
+of these various priors is discussed in Section V-B, when making connections to related models. For example, the choice
+(i)
+bm ∼ Bern(νm ) with νm ∼ Beta(α/M, 1) is motivated by the
+connection to the Indian buffet process [16] as M → ∞.
+We refer to this as a FMM because the νm defines the probability with which cluster m is observed, and via the prior in
+(7) the model only “focuses” on a small number of clusters,
+those with large νm . Further, as discussed below, the parameter
+φm controls the firing rate of neuron/cluster m, and that is also
+modeled. Concerning models to which we compare, when the
+(i)
+πm are modeled via a Dirichlet process (DP) [4], and the matrix
+of multichannel data are modeled jointly, we refer to the model
+as matrix DP (MDP). If a DP is employed separately on each
+channel the results are simply termed DP. The hierarchical DP
+(i)
+model in [9] for πm the model is referred to as HDP.
+E. Computations
+The posterior distribution of model parameters is approximated via Gibbs sampling. Most of the update equations for
+the model are relatively standard due to the conjugacy of
+
+44
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+consecutive distributions in the hierarchical model; these “standard” updates are not repeated here (see [9]). Perhaps the most
+important update equation is for φm , as we found this to be a
+critical component of the success of our inference. To perform
+such sampling, we utilize the following lemma.
+Lemma 2.1: Denote s(n, j) as the Sterling numbers of the first
+kind [19] and F (n, j) = (−1)n +j s(n, j)/n! as their normalized
+and unsigned representations, with F (0, 0) = 1, F (n, 0) = 0 if
+n
+F (n, j) +
+n > 0, F (n, j) = 0 if j > n and F (n + 1, j) = n +1
+1
+F
+(n,
+j
+−
+1)
+if
+1
+≤
+j
+≤
+n.
+Assuming
+n
+∼
+NegBin(φ,
+p) is
+n +1
+a negative binomial distributed random variable, and it is augmented into a compound Poisson representation [3] as
+n=
+
+
+
+
+ul , ul ∼ Log(p),  ∼ Pois(−φ ln(1 − p))
+
+(8)
+
+l=1
+
+where Log(p) is the logarithmic distribution [3] with probability
+generating function G(z) = ln(1 − pz)/ln(1 − p), |z| < p−1 ,
+then we have
+
+n
+
+F (n, j  )φj
+Pr( = j|n, φ) = Rφ (n, j) = F (n, j)φj
+j  =1
+
+(9)
+for j = 0, 1, . . . , n.
+The proof is provided in the Appendix.
+Let the total set of data measured during interval i be reprei
+sented D i = {Xij }M
+j =1 , where Mi is the total number of events
+during interval i. Let n∗im represent the number of data samples
+in D i that are apportioned to cluster m ∈ {1, . . . , M } = S,
+
+∗
+= M
+with Mi 
+m =1 nim . To sample φm , since p(φm |
+
+p, n·m ) ∝ i:b ( i ) =1 NegBin(n∗im ; φm , pi )Ga(φm ; γ0 , 1) (see
+m
+Appendix IV-B for details), using Lemma 2.1, we can first
+sample a latent count variable im for each n∗im as
+Pr(im = l|n∗im , φm ) = Rφ m (n∗im , l), l = 0, . . . , n∗im . (10)
+Since im ∼ Pois(−φm ln(1 − pi )), using the conjugacy between the gamma and Poisson distributions, we have
+φm |{im , b(i)
+m , pi } ∼
+⎛
+
+Ga ⎝γ0 +
+im ,
+(i)
+
+i:b m =1
+
+⎞
+1−
+
+
+
+1
+
+(i)
+i:b m =1
+
+ln(1 − pi )
+
+⎠ . (11)
+
+
+Notice that marginalizing out φm in m := i:b ( i ) =1 im ∼
+m
+
+Pois(−φm i:b ( i ) =1 ln(1 − pi )) results in m ∼ NegBin(γ0 ,
+m
+
+p̃m ), ∼ p̃m =
+
+−
+
+
+
+1−
+
+(i)
+
+i
+i
+
+b m ln(1−p i )
+(i)
+
+b m ln(1−p i )
+
+, therefore, we can use the same
+
+data augmentation technique by sampling a latent count ˜m for
+m and then sampling γ0 using the gamma Poisson conjugacy
+as
+Pr(˜m = l|m , γ0 ) = Rγ 0 (m , l), ∼ l = 0, · · · , m
+
+
+
+1
+
+.
+γ0 |{˜m , b(i)
+˜m ,
+m , pi } ∼ Γ c0 +
+d0 − m ln(1 − p̃m )
+m
+(12)
+
+(i)
+
+(i)
+
+Another important parameter is bm . Since bm can only
+(i)
+be zero if n∗im = 0 and when n∗im = 0, Pr(bm = 1|−) ∝
+(i)
+NegBin(0; φm , pi )πm and Pr(bm = 0|−) ∝ (1 − πm ), we
+have
+∗
+b(i)
+m |πm , nim , φm , pi ∼
+
+
+Bernoulli δ(n∗im = 0)
+
+πm (1 − pi )φ m
+πm (1 − pi )φ m + (1 − πm )
+
++ δ(n∗im > 0) .
+
+A large pi thus indicates a large variance-to-mean ratio on
+(i)
+n∗im and Mi . Note that when bm = 0, the observed zero count
+∗
+nim = 0 is no longer explained by n∗im ∼ NegBin(rm , pi ), this
+satisfies the intuition that the underlying beta-Bernoulli process
+is governing whether a cluster would be used or not, and once
+it is activated, it is rm and pi that control how much it would be
+used.
+F. Data Acquisition and Preprocessing
+In this study, we use two datasets, the popular “hc-1” dataset1
+and a new dataset based upon experiments we have performed
+with freely moving rats (institutional review board approvals
+were obtained). These data will be made available to the research
+community. Six animals were used in this study. Each animal
+was trained, under food restriction (15 g/animal/day, standard
+hard chow), on a simple lever-press-and-hold task until performance stabilized and then taken in for surgery. Each animal
+was implanted with four different silicon microelectrodes (NeuroNexus Technologies; Ann Arbor, MI; custom design) in the
+forelimb region of the primary or supplementary motor cortex.
+Each electrode contains up to 16 independent recording sites,
+with variations in device footprint and recording site position
+[e.g., Fig. 3(a)]. Electrophysiological data were measured during 1-h periods on eight consecutive days, starting on the day
+after implant (data were collected for additional days, but the
+signal quality degraded after 8 days, as discussed below). The
+recordings were conducted in a high walled observation chamber under freely behaving conditions. Note that nearby sensors
+are close enough to record the signal of a single or small group
+of neurons, termed a single-unit event. However, in the device
+in Fig. 3(a), all the eight sensors in a line are too far separated
+to simultaneously record a single-unit event on all eight.
+The data were bandpass filtered (0.3–3 kHz), and then all
+signals 3.5 times the standard deviation of the background signal were deemed detections. The peak of the detection was
+placed in the center of a 1.3-ms window, which corresponds to
+T = 40 samples at the recording rate. The signal Xij ∈ RT ×N
+corresponds to the data measured simultaneously across all N
+channels within this window. Here N = 8, with a concentration
+on the data measured from the 8 channels of the zoomed-in
+Fig. 3(a).
+1 available
+
+from http://crcns.org/data-sets/hc/hc-1
+
+CARLSON et al.: MULTICHANNEL ELECTROPHYSIOLOGICAL SPIKE SORTING VIA JOINT DICTIONARY LEARNING
+
+45
+
+G. Evaluation Criteria
+We use several different criteria to evaluate the performance
+of the competing methodologies. Let Fp and Fn denote the
+total number of false positives and negatives for a given neuron,
+respectively, and let #w denote the total number of detected
+waveforms. We define
+
+
+Fp + F n
+Accuracy = 1 −
+× 100%.
+(13)
+#w
+For synthetic missing data, as in Section III-C, we compute the
+relative recovery error (RRE):
+
+
+
+
+X − X̂ 
+× 100%
+(14)
+RRE =
+
+X
+
+where X is the true waveform, X̂ is the estimated waveform,
+and 
+·
+ indicates the L2 or Frobenius norm depending on context. When adding noise, we compute the signal-to-noise ratio
+(SNR) as in [26]:
+SNR =
+
+A
+2 SDnoise
+
+(15)
+
+where A denotes the peak-to-peak voltage difference of the
+mean waveform and SDnoise is the standard deviation of the
+noise. The noise level is estimated by mean absolute deviation.
+To simulate a lower SNR in the sparse spiking experiments,
+we took background signals from the dataset where no spiking
+occurred and scale them by α and add them to our detected
+spikes; this gives a total noise variance of σ 2 (1 + α2 ), and we
+set the SNR to 2.5 and 1.5 for these experiments.
+III. RESULTS
+For these experiments, we used a truncation level of K = 40
+dictionary elements, and the number of mixture components
+was truncated to M = 20 (these truncation levels are upper
+bounds, and within the analysis a subset of the possible dictionary elements and mixture components are utilized). In
+dictionary learning, the gamma priors for {ηt } and α0 were
+set as Ga(10−6 , 10−6 ). In the context of the FMM, we set
+a0 = b0 = 1, c0 = 0.1, and d0 = 0.1. Prior Ga(10−6 , 10−6 )
+was placed on parameter α related to the Indian Buffet Process (see Appendix IV-B for details). None of these parameters
+have been tuned, and many related settings yield similar results.
+In all examples, we ran 6000 Gibbs samples, with the first 3000
+discarded as burn-in (however, typically high-quality results are
+inferred with far fewer samples, offering the potential for computational acceleration).
+A. Real Data With Partial Ground Truth
+We first consider publicly available dataset hc-1. These data
+consist of both extracellular recordings and an intracellular
+recording from a nearby neuron in the hippocampus of an anesthetized rat [17]. Intracellular recordings give clean signals on
+a spike train from a specific neuron, providing accurate spike
+times for that neuron. Thus, if we detect a spike in a nearby
+extracellular recording within a close time period (< 0.5ms)
+
+Fig. 1. Accuracy of the various methods on d533101 data [17]. All abbreviations are explained in the main text (Section III-A). Note that dictionary learning
+dominates performance over principal components. Moreover, modeling multiple channels (as in MDP and FMM) dominates performance over operating on
+each channel separately.
+
+to an intracellular spike, we assume that the spike detected in
+the extracellular recording corresponds to the known neuron’s
+spikes.
+We considered the widely used data d533101 and the same
+preprocessing from [8]. These data consist of 4-channel extracellular recordings and one-channel intracellular recording. We
+used 2491 detected spikes and 786 of those spikes came from
+the known neuron. The accuracy of cluster results based on multiple methods are shown in Fig. 1. We consider several different
+clustering schemes and two different strategies for learning lowdimensional representations of the data. Specifically, we learn
+low-dimensional representations using either: dictionary learning (DL) or the first two principal components (PCs) of the
+matrix consisting of the concatenated waveforms. For the multichannel data, we stack each waveform matrix to yield a vector,
+and concatenate stacked waveforms to obtain the data matrix
+upon which PCA is run. Given this representation, we consider
+several different clustering strategies: 1) matrix Dirichlet process (MDP), which implements a DP on the Xij matrices, as
+opposed to previous DP approaches on vectors [9], [14]; 2)
+FMM (as described above); 3) hierarchical DP (HDP) [9]; 4)
+independent DP (the HDP and independent DP are from [9]); 5)
+mixture of Kalman filters (MoK) [8]; 6) Gaussian mixture models (GMM) [7]; and 7) K-means (KMEANS) [21]. Although we
+do not consider all pairwise comparisons, we do consider many
+options. Note that all of the DL approaches are novel. It should
+be clear from Fig. 1 that dictionary learning enhances the performance over principal components for each clustering approach.
+Specifically, all DL-based methods outperform all PC-based
+methods. Moreover, sharing information across channels, as in
+MDP and FMM (both novel methodologies), seems to further
+improve the performance. The ordering of the algorithms is essentially unchanged upon using a different number of mixture
+components or a different number of principal components.
+In Fig. 2, we visualize the waveforms in the first two principle
+components for comparison. In Fig. 2(a), we show ground truth
+to compare to the results we get by clustering from the K-means
+algorithm shown in Fig. 2(b) and the clustering from the GMM
+shown in Fig. 2(c). We observe that both K-means and GMM
+work well, but due to the constrained feature space they incorrectly classify some spikes (marked by arrows). However, the
+
+46
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+Fig. 2. Clustering results shown in the 2 PC space of the various methods on d533101 data [17]. All abbreviations are explained in the main text
+(Section III-A). “Known neuron” denotes waveforms associated with the neuron from the cell with the intracellular recording, and “Unknown neuron” refers
+to all other detected waveforms. Note that all methods are shown in the first two
+PCs for visualization, but that the FMM-DL shown in (d) is jointly learning the
+feature space and clustering.
+
+proposed model, shown in Fig. 2(d), which incorporates dictionary learning with spike sorting, infers an appropriate feature
+space (not shown) and more effectively clusters the neurons.
+Note that in Figs. 1 and 2, in the context of PCA features, we
+considered the two principal components (similar results were
+obtained with the three principal components); when we considered the 20 principal components, for comparison, the results
+deteriorated, presumably because the higher order components
+correspond to noise. An advantage of the proposed approach is
+that we model the noise explicitly, via the residual Eij in (1);
+with PCA the signal and noise are not explicitly distinguished.
+B. Longitudinal Analysis of Electrophysiological Data
+Fig. 3(a) shows the recording probe used for the analysis of
+the rat motor cortex data. Fig. 3(b) shows assignments of data to
+each of the possible clusters, for data measured across the 8 days,
+as computed by the proposed model (for example, for the first
+three days, two clusters were inferred). Results are shown for
+the maximum-likelihood collection sample. As a comparison to
+FMM-DL, we also considered the nonfocused mixture model
+(NFMM-DL) methodology discussed in Section V-B, with the
+b(i) set to all ones (in both cases we employ the same form
+of dictionary learning, as in Section II-B). From Fig. 3(c), it is
+observed that on held-out data the FMM-DL yields improved
+results relative to the NFMM-DL.
+In fact, the proposed model was developed specifically to
+address the problem of multiday longitudinal analysis of electrophysiological data, as a consequence of observed limitations
+of HDP [which are only partially illuminated by Fig. 3(c)].
+Specifically, while the focused nature of the FMM-DL allows
+
+Fig. 3. Longitudinal data analysis of the rat motor cortex data. (a) Schematic
+of the neural recording array that was placed in the rat motor cortex. The
+red numbers identify the sensors, and a zoom-in of the bottom-eight sensors
+is shown. The sensors are ordered by the order of the read-out pads, at left.
+The presented data are for sensors numbered 1 to 8, corresponding to the
+zoomed-in region. (b) From the maximum-likelihood collection sample, the
+apportionment of data among mixture components (clusters). Results are shown
+for 45 s recording periods, on each of 8 days. For example, D-4 reflects data on
+day 4. Note that while the truncation level is such that there are 20 candidate
+clusters (vertical axis in (b)), only an inferred subset of clusters are actually used
+on any given day. (c) Predictive likelihood of held-out data. The horizontal axis
+represents the fraction of data held out during training. FMM-DL dominates
+NFMM-DL on these data.
+
+learning of specialized clusters that occur over limited days,
+the “non-focused” HDP-DL tends to merge similar but distinct
+clusters. This yields HDP results that are characterized by fewer
+total clusters, and by cluster characteristics that are less revealing of detailed neural processes. The patterns of observed neural
+
+CARLSON et al.: MULTICHANNEL ELECTROPHYSIOLOGICAL SPIKE SORTING VIA JOINT DICTIONARY LEARNING
+
+activity may shift over a period of days due to many reasons,
+including cell death, tissue encapsulation, or device movement;
+this shift necessitates the FMM-DL’s ability to focus on subtle
+but important differences in the data properties over days. This
+ability to infer subtly different clusters is related to the focused
+topic model’s ability [35] to discern distinct topics that differ
+in subtle ways. The study of large quantities of data (8 days)
+makes the ability to distinguish subtle differences in clusters
+more challenging (the DP-DL-based model works well when
+observing data from one recording session, like in Fig. 1, but
+the analysis of multiple days of data is challenging for HDP).
+Note from Fig. 3(b) that the number of detected signals is
+different for different recording days, despite the fact that the
+recording period reflective of these data (45 s) is the same for
+all days. This highlights the need to allow modeling of different
+firing rates, as in our model but not emphasized in these results.
+Among the parameters inferred by the model are approximate posterior distributions on the number of clusters across
+all days, and on the required number of dictionary elements.
+These approximate posteriors are shown in Fig. 4(a) and (b),
+and Fig. 4(c) shows example dictionary elements. Although not
+shown for brevity, the {pi } had posterior means in excess of 0.9.
+To better represent insight that is garnered from the model,
+Fig. 5 depicts the inferred properties of three of the clusters,
+from Day 4 [D-4 in Fig. 3(b)]. Shown are the mean signal for
+the 8 channels in the respective cluster [for the 8 channels at the
+bottom of Fig. 3(a)], and the error bars represent one standard
+deviation, as defined by the estimated posterior. Note that the
+cluster in the top row of Fig. 5 corresponds to a localized singleunit event, presumably from a neuron (or a coordinated small
+group of neurons) near the sensors associated with channels 7
+and 8. The cluster in the middle row of Fig. 5 similarly corresponds to a single-unit event situated near the sensors associated
+with channels 3 and 6. Note the proximity of sensors 7 and 8,
+and sensors 3 and 6, from Fig. 3(a). The HDP model uncovered
+the cluster in the top row of Fig. 5, but not that in the middle
+row of Fig. 5 (not shown).
+Note the bottom row of Fig. 5, in which the mean signal
+across all 8 channels is approximately the same (HDP also
+found related clusters of this type). This cluster is deemed to
+not be associated with a single-unit event, as the sensors are too
+physically distant across the array for the signal to be observed
+simultaneously on all sensors from a single neuron. This class
+of signals is deemed associated with an artifact or some global
+phenomena, (possibly) due to movement of the device within
+the brain, and/or because of charges that build up in the device
+and manifest signals with animal motion (by examining separate
+video recordings, such electrophysiological data occurred when
+the animal constituted significant and abrupt movement, such as
+head hitting the sides of the cage, or during grooming). Note that
+in the top two rows of Fig. 5, the error bars are relatively tight
+with respect to the strong signals in the set of eight, while the
+error bars in Fig. 5(c) are more pronounced (the mean curves
+look smooth, but this is based upon averaging thousands of
+signals).
+In addition to recording the electrophysiological data, video
+was recorded of the rat throughout the experiment. Robust PCA
+
+47
+
+Fig. 4. Posteriors and dictionaries from rat motor cortex data (the same data
+as in Fig. 3).(a) Approximate posterior distribution on the number of global
+clusters (mixture components). (b) Approximate posterior distribution of the
+number of dictionary elements. (c) Examples of inferred dictionary elements;
+amplitudes of dictionary elements are unit less.
+
+[36] was used to quantify the change in the video from frameto-frame, with high change associated with large motion by
+the animal (this automation is useful because 1 h of data are
+collected on each day; direct human viewing is tedious and
+unnecessary). On Day 4, the model infers that in periods of
+high animal activity, 20% to 40% of the detected signals are
+due to single-unit events (depending on which portion of data
+are considered); during periods of relative rest 40% to 70% of
+detected signals are due to single-unit events. This suggests that
+animal motion causes signal artifacts, as discussed in Section I
+In these studies, the total fraction of single-unit events, even
+when at rest, diminishes with increasing number of days from
+sensor implant; this may be reflective of changes in the system
+due to the glial immune response of the brain [6], [27]. The discerning ability of the proposed FMM-DL to distinguish subtly
+different signals, and analysis of data over multiple days, has
+played an important role in this analysis. Further, longitudinal
+
+48
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+Fig. 5. Example clusters inferred for data on the bottom 8 channels of Fig. 3(a).
+(a) and (b) Example of single-unit events. (c) Example of a cluster not attributed
+to a single-unit-event. The 8 signals are ordered from left to right consistent with
+the numbering of the 8 channels at the bottom of Fig. 3(a). The black curves
+represent the mean, and the error bars are one standard deviation.
+
+analyses like that in Fig. 5 were the principal reason for modeling the data on all N = 8 channels jointly (the ability to distinguish single-unit events from anomalies is predicated on this
+multichannel analysis).
+C. Handling Missing Data
+The quantity of data acquired by a neural recording system
+is enormous, and therefore in many systems one first performs
+spike detection (for example, based on a threshold), and then
+a signal is extracted about each detection (a temporal window
+is placed around the peak of a given detection). This step is
+often imperfect, and significant portions of many of the spikes
+may be missing due to the windowed signal extraction (and
+the missing data are not retainable, as the original data are
+discarded). Conventional feature-extraction methods typically
+cannot be applied to such temporally clipped signals.
+Returning to (1), this implies that some columns of the data
+Xij may have missing entries. Conditioned on D, Λ, Sij , and
+(η1 , . . . , ηT ), we have Xij ∼ N (DΛSij , diag(η1−1 , . . . , ηT−1 ).
+The missing entries of Xij may be treated as random variables,
+and they are integrated out analytically within the Gaussian
+likelihood function. Therefore, for the case of missing data in
+Xij , we simply evaluate (1) at the points of Xij for which
+data are observed. The columns of the dictionary D of course
+have support over the entire signal, and therefore given the
+inferred Sij (in the presence of missing data), one may impute
+the missing components of Xij via DΛSij . As long as, across
+all Xij , the same part of the signal is not clipped away (lost)
+for all observed spikes, by jointly processing all of the retained
+data (all spikes) we may infer D, and hence infer missing data.
+In practice, we are less interested in observing the imputed missing parts of Xij than we are in simply clustering the data, in the presence of missing data. By evaluating Xij ∼ N (DΛSij , diag(η1−1 , . . . , ηT−1 )) only at points for
+
+Fig. 6. Our generative model elegantly addresses missing data. (a) Example
+of a clipped waveform from the publicly available data (blue), original waveform (gray), and recovery waveform (black); the error bars reflect one standard
+deviation from the posterior distribution on the underlying signal. (b) Relative
+errors (with respect to the mean estimated signal). Note that we only show part
+of the waveform for visualization purposes.
+
+which data are observed, and via the mixture model in (4), we
+directly infer the desired clustering, in the presence of missing
+data (even if we are not explicitly interested in subsequently
+examining the imputed values of the missing data).
+To examine the ability of the model to perform clustering
+in the presence of missing data, we reconsider the publicly
+available data from Section III-A. For the first 10% of the spike
+signals (300 spike waveforms), we impose that a fraction of the
+beginning and end of the spike is absent. The original signals are
+of length T = 40 samples. As a demonstration, for the “clipped”
+signals, the first 10 and the last 16 samples of the signals are
+missing. A clipped waveform example is shown in Fig. 6(a);
+we compare the mean estimation of the signal, and the error
+bars reflect one standard deviation from the full posterior on the
+signal. In the context of the analysis, we processed all of the data
+as before, but now with these “damaged”/clipped signals. We
+observed that 94.11% of the nondamaged signals were clustered
+properly (for the one neuron for which we had truth), and 92.33%
+of the damaged signals were sorted properly. The recovered
+signal in Fig. 6(a) is typical, and is meant to give a sense of
+the accuracy of the recovered missing signal. The ability of the
+model to perform spike sorting in the presence of substantial
+missing data is a key attribute of the dictionary-learning-based
+framework.
+D. Model Tuning
+As constituted in Section II, the model is essentially parameter
+free. All of the hyperparameters are set in a relatively diffused
+manner (see the discussion at the beginning of Section III),
+
+CARLSON et al.: MULTICHANNEL ELECTROPHYSIOLOGICAL SPIKE SORTING VIA JOINT DICTIONARY LEARNING
+
+49
+
+and therefore the variability in the observed data is associated
+with the variability in the underlying signal (and that variability
+is captured via the dictionary elements). Since the clustering is
+performed on the dictionary usage, if ω0 is large we expect an
+increasing number of clusters, with these clusters capturing the
+greater diversity/variability in the underlying signal. By contrast, if ω0 is relatively small, more of the signal is attributed
+to noise Eij , and the signal components modeled via the dictionary are less variable (variability is attributed to noise, not
+signal). Hence, as ω0 diminishes in size we would expect fewer
+clusters. This phenomenon is observed in the example in Fig. 7,
+with this representative of behavior we have observed in a large
+set of experiments on the rat motor cortex data.
+
+E. Sparsely Firing Neurons
+
+Fig. 7. Effect of manually tuning ω 0 to obtain a different number of features
+for the rat motor cortex data. (a) Waveforms projected down onto two learned
+features based on cluster result with ω 0 = 10 6 , the number of inferred clusters
+is two. (b) Same as (a) with ω 0 = 10 8 ; the number of inferred clusters is seven.
+
+and the model infers the number of clusters and their composition with no parameter tuning required. Thus, our code runs
+“out-of-the-box” to yield state-of-the-art accuracy on the dataset
+that we tested. And yet, an expert experimentalist could desire
+different clustering results, further improving the performance.
+Because our inference methodology is based on a biophysical
+model, all of the hyperparameters have natural and intuitive interpretations. Therefore, adjusting the performance is relatively
+intuitive. Although all of the results presented previously were
+manifested without any model tuning, we now discuss how one
+may constitute a single “knob” (parameter) that a neuroscientist
+may “turn” to examine different kinds of results.
+In Section II-B, the variance of additive noise (e1 , . . . , en )
+are controlled by the covariance diag(η1−1 , . . . , ηT−1 ). If we set
+diag(η1−1 , . . . , ηT−1 ) = ω0−1 IT , then parameter ω0 may be tuned
+to control the variability (diversity) of spikes. The cluster diversity encouraged by setting different values of ω0 in turn
+manifests different numbers of clusters, which a neuroscientist
+may adjust as desired. As an example, we consider the publicly
+available data from Section III-A, and clusterings (color coded)
+are shown for two settings of ω0 in Fig. 7. In this figure, each
+spike is depicted in a 2-D learned feature space, taking two arbitrary features (because features are not inherently ordered); this
+is simply for display purposes, as here feature learning is done
+via dictionary learning, and in general more than two dictionary
+components are utilized to represent a given waveform.
+The value of ω0 defines how much of a given signal is associated with noise Eij , and how much is attributed to the term
+DΛSij characterized by a summation of dictionary elements
+(see (1)). If ω0 is large, then the noise contribution to the signal
+is small (because the noise variance is imposed to be small),
+
+Recently, several manuscripts have directly addressed spike
+sorting in the present of sparsely firing neurons [2], [23]. We
+operationally define a sparsely firing neuron as a neuron whose
+spike count has significantly fewer spikes than the other isolated
+neurons. Based on reviewer recommendations, we assessed the
+performance of FMM-DL in such regimes utilizing the following synthetic data. First, we extracted spike waveforms from
+four clusters from the new dataset discussed in Section II-F.
+We excluded all waveforms that did not clearly separate [see
+Fig. 8(a1)] to obtain clear clustering criteria [see Fig. 8(a2)].
+There were 2592, 148, 506, and 64 spikes in the first, second, third, and fourth cluster, respectively. Then, we added real
+noise—as described in Section II-G—to each waveform at two
+different levels to obtain increasingly noisy and less-well separated clusters [see Fig. 8(b1), (b2), (c1), and (c2)]. We applied
+FMM-DL, Wave-clus [23] and Wave-clus “forced” (in which we
+hand tune the parameters to obtain optimal results) and ISOMAP
+dominant sets [2] to all three SNR regimes to assess our relative
+performance with the following results.
+The third column of Fig. 8 shows the posterior estimate of
+the number of clusters for each of the three scenarios. As long
+as SNR is relatively good, for example, higher than 2 in this
+simulation, the posterior number of clusters inferred by FMMDL correctly has its maximum at four clusters. Similarly, for the
+good and moderate SNR regimes, the confusion matrix is essentially a diagonal matrix, indicating that FMM-DL assigns spikes
+to the correct cluster. Only in the poor SNR regime (SNR=1.5),
+does the posterior move away from the truth. This occurs because Unit 1 becomes oversegmented, as depicted in (c2). (c4)
+shows that only this unit struggles with assignment issues, suggestive of the possibility of a posthoc correction if desired.
+Fig. 9(a) compares the performance of FMM-DL to previously proposed methods. Even after fine-tuning the Wave-clus
+method to obtain its optimal performance on these data, FMMDL yields a better accuracy. In addition to obtaining better pointestimates of spiking, via our Bayesian generative model, we
+also obtain posteriors over all random variables of our model,
+including number of spikes per unit. Fig. 9(b) and (c) shows
+such posteriors, which may be used by the experimentalist to
+assess data quality.
+
+50
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+Fig. 8. Sparse firing results on synthetic data based on the Pittsburgh dataset. The three rows correspond to three different (SNR levels: (a) 1, (b) 1.5, and
+(c) 2.5. The four columns correspond to: (1) cluster results of spike waveforms with colors representing different clusters, (2) plots of learned features based on
+cluster result, (3) approximate posterior distribution of cluster numbers, and (4) confusion matrix heatmap. Note that we accurately recover all the sparsely spiking
+neurons except the sparsest one in the noisiest regime. (a) Original spikes. (b) SNR = 2.5. (c) SNR = 1.5.
+
+Fig. 9. Performance analysis in the sparsely firing neuron case on synthetic data based on the Pittsburgh dataset. (a) Accuracy comparisons based on the
+cluster results under the various SNR. (b) Approximate posterior distributions of error rate for FMM-DL in the different SNR levels. (c) Approximate posterior
+distributions of spike waveform number for the unit 2, unit 3. and unit 4 under the various SNR regimes.
+
+F. Computational Requirements
+The software used for the tests in this paper were written in (nonoptimized) MATLAB, and therefore computational
+efficiency has not been a focus. The principal motivating focus of this study concerned the interpretation of longitudinal
+spike waveforms, as discussed in Section III-B, for which the
+computation speed is desirable, but there is not a need for realtime processing (for example, for a prosthetic). Nevertheless, to
+give a sense of the computational load for the model, it takes
+about 20 s for each Gibbs sample, when considering analysis
+of 170,800 spikes across N = 8 channels; computations were
+performed on a PC, specifically a Lenevo T420 (CPU is an
+Intel(R) Core (TM) i7 M620 with 4 GB RAM). Significant
+computational acceleration may be manifested by coding in C,
+
+and via development of online methods for Bayesian inference
+(for example, see [32]). In the context of such online Bayesian
+learning one typically employs approximate variational Bayes
+inference rather than Gibbs sampling, which typically manifests
+significant acceleration [32].
+IV. DISCUSSION
+A. Summary
+A new FMM has been developed, motivated by real-world
+studies with longitudinal electrophysiological data, for which
+traditional methods like the hierarchical Dirichlet process have
+proven inadequate. In addition to performing “focused” clustering, the model jointly performs feature learning, via dictionary
+
+CARLSON et al.: MULTICHANNEL ELECTROPHYSIOLOGICAL SPIKE SORTING VIA JOINT DICTIONARY LEARNING
+
+learning, which significantly improves performance over principal components. We explicitly model the count of signals within
+a recording period by pi . The rate of neuron firing constitutes
+a primary information source [10], and therefore it is desirable
+that it be modeled. This rate is controlled here by a parameter
+(i)
+φm , and this was allowed to be unique for each recording period
+i.
+B. Future Directions
+In future research one may constitute a mixture model on
+(i)
+φm , with each mixture component reflective of a latent neural
+(firing) state; one may also explicitly model the time dependence
+(i)
+of φm , as in the mixture of Kalmans work [8]. The inference
+of this state could be important for decoding neural signals and
+controlling external devices or muscles. In future work, one
+may also wish to explicitly account for covariates associated
+with animal activity [31], which may be linked to the firing rate
+we model here (we may regress pi to observed covariates).
+In the context of modeling and analyzing electrophysiological data, recent work on clustering models has accounted for
+refractory-time violations [8], [9], [14], which occur when two
+or more spikes that are sufficiently proximate are improperly
+associated with the same cluster/neuron (which is impossible
+physiologically due to the refractory time delay required for the
+same neuron to reemit a spike). The methods developed in [9]
+and [14], may be extended to the class of mixture models developed previously. We have not done so for two reasons: 1) in
+the context of everything else that is modeled here (joint feature
+learning, clustering, and count modeling), the refractory-timedelay issue is a relatively minor issue in practice; and 2) perhaps
+more importantly, an important issue is that not all components
+of electrophysiological data are spike related (which are associated with refractory-time issues). As demonstrated in Section III,
+a key component of the proposed method is that it allows us to
+distinguish single-unit (spike) events from other phenomena.
+Perhaps the most important feature of spike sorting methods
+that we have not explicitly included in this model is “overlapping spikes” [1], [5], [13], [18], [30], [33], [37]. The preliminary
+analysis of our model in this regime (not shown), inspired by reviewer comments, demonstrated to us that while the FMM-DL
+as written is insufficient to address this issue, a minor modification to FMM-DL will enable “demixing” overlapping spikes. We
+are currently pursuing this avenue. Neuronal bursting—which
+can change the waveform shape of a neuron—is yet another
+possible avenue for future work.
+APPENDIX
+A. Connection to Bayesian Nonparametric Models
+The use of nonparametric Bayesian methods like the Dirichlet
+process (DP) [9], [14] removes some of the ad hoc character
+of classical clustering methods, but there are other limitations
+within the context of electrophysiological data analysis. The DP
+and related models are characterized by a scale parameter α > 0,
+and the number of clusters grows as O(α log S) [28], with S
+the number of data samples. This growth without limit in the
+
+51
+
+number of clusters with increasing data is undesirable in the
+context of electrophysiological data, for which there are a finite
+set of processes responsible for the observed data. Further, when
+jointly performing mixture modeling across multiple tasks, the
+hierarchical Dirichlet process (HDP) [29] shares all mixture
+components, which may undermine inference of subtly different
+clusters.
+In this paper, we integrate dictionary learning and clustering for analysis of electrophysiological data, as in [9] and [15].
+However, as an alternative to utilizing a method like DP or
+HDP [9], [14] for clustering, we develop a new hierarchical
+clustering model in which the number of clusters is modeled
+explicitly; this implies that we model the number of underlying neurons—or clusters—separately from the firing rate, with
+the latter controlling the total number of observations. This is
+done by integrating the Indian buffet process (IBP) [16] with the
+Dirichlet distribution, similar to [35], but with unique characteristics. The IBP is a model that may be used to learn features
+representative of data, and each potential feature is a “dish”
+at a “buffet”; each data sample (here a neuronal spike) selects
+which features from the “buffet” are most appropriate for its
+representation. The Dirichlet distribution is used for clustering
+data, and therefore here we jointly perform feature learning and
+clustering, by integrating the IBP with the Dirichlet distribution. The proposed framework explicitly models the quantity of
+data (for example, spikes) measured within a given recording
+interval. To our knowledge, this is the first time the firing rate
+of electrophysiological data is modeled jointly with clustering
+and jointly with feature/dictionary learning. The model demonstrates state-of-the-art clustering performance on publicly available data. Further, concerning distinguishing single-unit-events,
+we demonstrate how this may be achieved using the FMM-DL
+method, considering new measured (experimental) electrophysiological data.
+B. Relationship to Dirichlet Priors
+A typical prior for π (i) is a symmetric Dirichlet distribution
+[15],
+π (i) ∼ Dir(α̃0 /M, . . . , α̃0 /M ).
+
+(16)
+
+In the limit, M → ∞, this reduces to a draw from a Dirichlet
+process [9], [14], represented π (i) ∼ DP(α̃0 G0 ), with G0 the
+“base” distribution defined in (4). Rather than drawing each π (i)
+independently from DP(α̃0 G0 ), we may consider the hierarchical Dirichlet process (HDP) [29] as
+π (i) ∼ DP(α̃1 G), G ∼ DP(α̃0 G0 )
+
+(17)
+
+The HDP methodology imposes that the {π (i) } share the same
+set of “atoms” {μm n , Ωm n }, implying a sharing of the different types of clusters across the time intervals i at which data
+are collected. A detailed discussion of the HDP formulation is
+provided in [9].
+These models have limitations in that the inferred number of
+clusters grows with observed data (here the clusters are ideally
+connected to neurons, the number of which will not necessarily grow with longer samples). Further, the above clustering
+
+52
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+model assumes the number of samples is given, and hence is
+not modeled (the information-rich firing rate is not modeled).
+Next we develop a framework that yields hierarchical clustering
+like HDP, but the number of clusters and the data count (for
+example, spike rate) are modeled explicitly.
+C. Other Formulations of the FMM
+
+(i)
+
+Let the total set of data measured during interval i be reprei
+sented D i = {Xij }M
+j =1 , where Mi is the total number of events
+during interval i. In the experiments below, a “recording interval” corresponds to a day on which data were recorded for an
+hour (data are collected separately on a sequence of days), and
+i
+the set {Xij }M
+j =1 defines all signals that exceeded a threshold
+during that recording period. In addition to modeling Mi , we
+wish to infer the number of distinct clusters Ci characteristic
+of D i , and the relative fraction (probability) with which the Mi
+observations are apportioned to the Ci clusters.
+Let n∗im represent the number of data samples in D i that
+are apportioned to cluster m ∈ {1, . . . , M } = S, with Mi =
+M
+∗
+m =1 nim . The set Si ⊂ S, with Ci = |Si |, defines the active
+set of clusters for representation of D i , and therefore M serves
+as an upper bound (n∗im = 0 for m ∈ S \ Si ).
+(i) (i)
+(i)
+We impose n∗im ∼ Poisson(bm φ̂m ) with the priors for bm
+(i)
+(i)
+and φ̂m given in (6) and (7). Note that n∗im = 0 when bm = 0,
+(i)
+(i)
+and therefore b(i) = (b1 , . . . , bM )T defines indicator variables
+identifying the active subset of clusters Si for representation of
+(i)
+(i)
+D i . Marginalizing out φ̂m , n∗im ∼ NegBin(bm φm , pi ). This
+emphasizes another motivation for the form of the prior: the
+negative binomial modeling of the counts (firing rate) is more
+flexible than a Poisson model, as it allows the mean and variance
+on the number of counts to be different (they are the same for a
+Poisson model).
+While the aforementioned methodology yields a generative
+process for the number n∗im of elements of D i apportioned to
+cluster m, it is desirable to explicitly associate each member of
+D i with one of the clusters (to know not just how many members
+of D i are apportioned to a given cluster, but also which data
+are associated with a given cluster). Toward this end, consider
+the alternative equivalent generative process for {n∗im }m =1,M
+(see Lemma 4.1 in [39] for a proof of equivalence): first draw
+
+(i) (i)
+Mi ∼ Poisson( M
+m =1 bm φ̂m ), and then
+(n∗i1 , . . . , n∗iM ) ∼ Mult(Mi ; π1 , . . . , πM )
+(i)
+
+(i)
+(i)
+πm
+= b(i)
+m φ̂m /
+
+M
+
+
+(i) (i)
+
+bm  φ̂m 
+
+(i)
+
+(18)
+(19)
+
+m  =1
+(i)
+
+(i)
+
+with 1(·) equal to one if the argument is true, and zero otherwise.
+The probability vector π (i) defined in (19) is now used within
+the mixture model in (4).
+(i)
+As a consequence of the manner in which φ̂m is drawn in
+(i)
+(6), and the definition of π in (19), for any pi ∈ (0, 1), the
+proposed model imposes
+
+with φ̂m , {φm }, {bm }, and {pi } constituted as in (6)–(7). Note
+
+(i)
+that we have Mi ∼ NegBin( M
+m =1 bm φm , pi ) by marginaliz(i)
+ing out φ̂m .
+(i)
+Rather than drawing (n∗i1 , . . . , n∗iM ) ∼ Mult(Mi ; π1 , . . . ,
+(i)
+πM ), for each of the Mi data we may draw indicator variables
+
+(i)
+zij ∼ M
+m =1 πm δm , where δm is a unit measure concentrated
+at the point m. Variable zij assigns data sample j ∈ {1, . . . , Mi }
+ i
+to one of the M possible clusters, and n∗im = M
+j =1 1(zij = m),
+
+(i)
+
+π (i) ∼ Dir(b1 φ1 , . . . , bM φM )
+
+(20)
+
+D. Additional Connections to Other Bayesian Models
+Equation (20) demonstrates that the proposed model is a generalization of (16). Considering the limit M → ∞, and upon
+marginalizing out the {νm }, the binary vectors {b(i) } are drawn
+from the Indian buffet process (IBP), denoted b(i) ∼ IBP(α).
+The number of nonzero components in each b(i) is drawn from
+Poisson(α), and therefore for finite α the number of nonzero
+components in b(i) is finite, even when M → ∞. Consequently
+(i)
+(i)
+Dir(b1 φ1 , . . . , bM φM ) is well defined even when M → ∞
+since, with probability one, there are only a finite number
+(i)
+(i)
+of nonzero parameters in (b1 φ1 , . . . , bM φM ). This model is
+closely related to the compound IBP Dirichlet (CID) process
+developed in [35], with the following differences.
+Previously, we have explicitly derived the relationship between the negative binomial distribution and the CID, and
+with this understanding we recognize the importance of pi ;
+the CID assumes pi = 1/2, but there is no theoretical justifica
+(i) (i)
+tion for this. Note that Mi ∼ NegBin( M
+m =1 bm φm , pi ). The
+M
+(i)
+mean of Mi is ( m =1 bm φm )pi /(1 − pi ), and the variance is
+M
+(i)
+( m =1 bm φm )pi /(1 − pi )2 . If pi is fixed to be 1/2 as in [35],
+this implies that we believe that the variance is two times the
+mean, and the mean and variance of Mi are the same for all
+
+intervals i and i for which b(i) = b(i ) . However, in the context
+of electrophysiological data, the rate at which neurons fire plays
+an important role in information content [10]. Therefore, there
+are many cases for which intervals i and i may be characterized
+
+by firing of the same neurons (i.e., b(i) = b(i ) ) but with very
+different rates (Mi = Mi  ). The modeling flexibility imposed by
+inferring pi therefore plays an important practical role for modeling electrophysiological data, and likely for other clustering
+problems of this type.
+To make a connection between the proposed model and the
+HDP, motivated by (6)–(7), consider φ̄ = (φ̄1 , . . . , φ̄M ) ∼
+Dir(γ , . . . , γ0 ), which corresponds to (φ1 , . . . , φM )/
+M 0
+of the vector
+m  =1 φm  . From φ̄, we yield a normalized form
+φ = (φ1 , . . . , φM ). The normalization constant M
+m =1 φm is
+lost after drawing φ̄; however, because φm ∼ Ga(γ0 , 1), we
+may consider drawing α̃1 ∼ Ga(M γ0 , 1), and approximating
+φ ≈ α̃1 φ̄. With this approximation for φ, π (i) may be drawn
+(i)
+(i)
+approximately as π (i) ∼ Dir(α̃1 b1 φ̄1 , . . . , α̃1 bM φ̄M ). This
+yields a simplified and approximate hierarchy
+π (i) ∼ Dir(α̃1 (b(i)  φ̄))
+φ̄ = (φ̄1 , . . . , φ̄M ) ∼ Dir(γ0 , . . . , γ0 ), α̃1 ∼ Ga(M γ0 , 1) (21)
+with b(i) ∼ IBP(α) and  representing a pointwise/Hadamard
+product. If we consider γ0 = α̂0 /M , and the limit M →
+
+CARLSON et al.: MULTICHANNEL ELECTROPHYSIOLOGICAL SPIKE SORTING VIA JOINT DICTIONARY LEARNING
+
+∞, with b(i) all ones, this corresponds to the HDP, with
+α̂1 ∼ Ga(α̂0 , 1). We call such a model the NFMM. Therefore, the proposed model is intimately related to the HDP,
+with three differences: 1) pi is not restricted to be 1/2, which
+adds flexibility when modeling counts; 2) rather than drawing φ̄ and the normalization constant α̃1 separately, as in
+the HDP, in the proposed model φ is drawn directly via
+φm ∼ Ga(γ0 , 1), with an explicit link to the count of observa
+(i)
+tions Mi ∼ NegBin( M
+m =1 bm φm , pi ); and 3) the binary vectors b(i) “focus” the model on a sparse subset of the mixture
+components, while in general, within the HDP, all mixture components have nonzero probability of occurrence for all tasks i.
+As demonstrated in Section III, this focusing nature of the proposed model is important in the context of electrophysiological
+data.
+E. Proof of Lemma 3.1
+
+
+Proof: Denote wj = jl=1 ul , j = 1, . . . , m. Since wj is
+the summation of j iid Log(p) distributed random variables,
+the probability generating function of wj can be expressed as
+GW j (z) = [ln(1 − pz)/ln(1 − p)]j , |z| < p−1 , thus we have
+(m )
+
+Pr(wj = m) = GW j (0)/m! =
+
+dm
+[ln(1 − pz)/ln(1 − p)]j
+dz m
+
+= (−1)m pj j!s(m, j)/[ln(1 − p)]j
+
+where we use the property that [ln(1 + x)]j = j! ∞
+n =j
+[19]. Therefore, we have
+
+(22)
+s(n ,j )x n
+n!
+
+Pr( = j|−) ∝ Pr(wj = n)Pois(j; −r ln(1 − p))
+∝ (−1)n +j s(n, j)/n!rj = F (n, j)rj .
+
+(23)
+
+
+The values F (n, j) can be iteratively calculated and each row
+sums to one, e.g., the third to fifth rows are
+⎛
+⎞
+2/3!
+3/3!
+1/3!
+0
+0
+0 ···
+⎜
+⎟
+1/4!
+0
+0 ···⎠.
+⎝ 6/4! 11/4! 6/4!
+24/5!
+
+50/5!
+
+35/5!
+
+10/5!
+
+1/5!
+
+0 ···
+
+To ensure numerical stability when φ > 1, we may also iteratively calculate the values of Rφ (n, j).
+ACKNOWLEDGMENT
+The findings and opinions in this paper are those of the authors
+alone.
+REFERENCES
+[1] D. A. Adamos, N. A. Laskaris, E. K. Kosmidis, and G. Theophilidis,
+“NASS: An empirical approach to spike sorting with overlap resolution
+based on a hybrid noise-assisted methodology,” J. Neurosci. Methods,
+vol. 190, no. 1, pp. 129–142, 2010.
+[2] D. A. Adamos, N. A. Laskaris, E. K. Kosmidis, and G. Theophilidis, “In
+quest of the missing neuron: Spike sorting based on dominant-sets clustering,” Comput. Methods Progr. Biomed., vol. 107, no. 1, pp. 28–35,
+2012.
+[3] F. J. Anscombe, “The statistical analysis of insect counts based on the
+negative binomial distribution,” Biometrics, vol. 5, no. 2, pp. 165–173,
+1949.
+
+53
+
+[4] C. Antoniak, “Mixtures of Dirichlet processes with applications to
+Bayesian nonparametric problems,” Ann. Statist., vol. 2, pp. 1152–1174,
+1974.
+[5] I. Bar-Gad, Y. Ritov, E. Vaadia, and H. Bergman, “Failure in identification of overlapping spikes from multiple neuron activity causes artificial correlations,” J. Neurosci. Methods, vol. 107, no. 1–2, pp. 1–13,
+2001.
+[6] R. Biran, D. C. Martin, and P. A. Tresco, “Neuronal cell loss accompanies
+the brain tissue response to chronically implanted silicon microelectrode
+arrays,” Exp. Neurol., vol. 195, pp. 115–126, 2005.
+[7] C. M. Bishop, Pattern Recognition and Machine Learning. New York,
+NY, USA: Springer-Verlag, 2006.
+[8] A. Calabrese and L. Paniski, “Kalman filter mixture model for spike
+sorting of non-stationary data,” J. Neurosci. Methods, vol. 196, pp. 159–
+169, 2011.
+[9] B. Chen, D. E. Carlson, and L. Carin, “On the analysis of multi-channel
+neural spike data,” in Proc. Adv. Neural Inform. Process. Syst., 2011,
+vol. 24, pp. 936–944.
+[10] J. P. Donoghue, A. Nurmikko, M. Black, and L. R. Hochberg, “Assistive
+technology and robotic control using mortor cortex ensemble-based neural interface systems in humans with tetraplegia,” J. Physiol., vol. 579,
+pp. 603–611, 2007.
+[11] G. T. Einevoll, F. Franke, E. Hagen, C. Pouzat, and K. D. Harris, “Towards
+reliable spike-train recordings from thousands of neurons with multielectrodes,” Curr. Opin. Neurobiol., vol. 22, no. 1, pp. 11–17, 2012.
+[12] A. A. Emondi, S. P. Rebrik, A. V. Kurgansky, and K. D. Miller, “Tracking neurons recorded from tetrodes across time,” J. Neurosci. Methods,
+vol. 135, pp. 95–105, 2004.
+[13] F. Franke, M. Natora, C. Boucsein, M. H. J. Munk, and K. Obermayer,
+“An online spike detection and spike classification algorithm capable of
+instantaneous resolution of overlapping spikes,” J. Comput. Neurosci.,
+vol. 29, no. 1–2, pp. 127–148, 2010.
+[14] J. Gasthaus, F. Wood, D. Gorur, and Y. W. Teh, “Dependent Dirichlet
+process spike sorting,” in Proc. Adv. Neural Inf. Process. Syst., 2009, pp.
+497–504
+[15] D. Gorur, C. Rasmussen, A. Tolias, F. Sinz, and N. Logothetis, “Modelling
+spikes with mixtures of factor analysers,” Pattern Recognit., vol. 3175,
+pp. 391–398, 2004.
+[16] T. L. Griffiths and Z. Ghahramani, “Infinite latent feature models and the
+Indian buffet process,” in Proc. Adv. Neural Inf. Process. Syst., 2005,
+pp. 475–482.
+[17] D. A. Henze, Z. Borhegyi, J. Csicsvari, A. Mamiya, K. D. Harris, and
+G. Buzsaki, “Intracellular features predicted by extracellular recordings
+in the hippocampus in vivo,” J. Neurophysiol., vol. 84, pp. 390–400, 2000.
+[18] J. A. Herbst, S. Gammeter, D. Ferrero, and R. H. R. Hahnloser, “Spike
+sorting with hidden Markov models,” J. Neurosci. Methods, vol. 174,
+no. 1, pp. 126–134, 2008.
+[19] N. L. Johnson, A. W. Kemp, and S. Kotz, Univariate Discrete Distributions. New York, NY, USA: Wiley, 2005.
+[20] J. C. Letelier and P. P. Weber, “Spike sorting based on discrete wavelet
+transform coefficients,” J. Neurosci. Methods, vol. 101, pp. 93–106, 2000.
+[21] M. S. Lewicki, “A review of methods for spike sorting: The detection and
+classification of neural action potentials,” Netw.: Comput. Neural Syst.,
+vol. 9, pp. 53–68, 1998.
+[22] M. A. L. Nicolelis and M. A. Lebedev, “Principles of neural ensemble
+physiology underlying the operation of brain–machine interfaces,” Nature
+Rev. Neurosci., vol. 10, no. 7, pp. 530–540, 2009.
+[23] C. Pedreira, Z. J. Martinez, M. J. Ison, and R. Q. Quiroga, “How many
+neurons can we see with current spike sorting algorithms?,” J. Neurosci.
+Methods, vol. 211, no. 1, pp. 58–65, 2012.
+[24] F. D. Rieke, R. Warland, D. R. V. Steveninck, and W. Bialek, Spikes:
+Exploring the Neural Code. vol. 20, Cambridge, MA, USA: MIT Press,
+1997.
+[25] D. A. Spielman, H. Wang, and J. Wright, “Exact recovery of sparsely-used
+dictionaries,” Comput. Res. Reposit., 2012
+[26] S. Suner, M. R. Fellows, C. Vargas-Irwin, G. K. Nakata, and
+J. P. Donoghue, “Reliability of signals from a chronically implanted,
+silicon-based electrode array in non-human primate primary motor cortex,” IEEE Trans. Neural Syst. Rehabil. Eng., vol. 13, no. 4, pp. 524–541,
+Dec. 2005.
+[27] D. H. Szarowski, M. D. Andersen, S. Retterer, A. J. Spence, M. Isaacson,
+H. G. Craighead, J. N. Turner, and W. Shain, “Brain responses to micromachined silicon devices,” Brain Res., vol. 983, pp. 23–25, 2003.
+[28] Y. W. Teh, “Dirichlet processes, and ” i, Encyclopedia of Machine Learning. New York, NY, USA: Springer-Verlag, 2010.
+
+54
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 1, JANUARY 2014
+
+[29] Y. W. Teh, M. I. Jordan, M. J. Beal, and D. M. Blei, “Hierarchical dirichlet
+processes,” J. Amer. Statist. Assoc., vol. 101, pp. 1566–1581, 2006.
+[30] C. Vargas-Irwin and J. P. Donoghue, “Automated spike sorting using density grid contour clustering and subtractive waveform decomposition,” J.
+Neurosci. Methods, vol. 164, no. 1, pp. 1–18, 2007.
+[31] V. Ventura, “Automatic spike sorting using tuning information,” Neural
+Comput., vol. 21, pp. 2466–2501, 2009.
+[32] C. Wang, J. Paisley, and D. Blei, “Online variational inference for the
+hierarchical Dirichlet process,” presented at the 14th Int. Conf. Artificial
+Intelligence and Statistics, Ft. Lauderdale, FL, USA, 2011
+[33] X. Wang and A. McCallum, “Topics over time: A non-Markov continuoustime model of topical trends,” in Proc. 12th ACM SIGKDD Int. Conf.
+Knowl. Discov. Data Mining, 2006, pp. 424–433.
+[34] B. C. Wheeler, “Multi-unit neural spike sorting,” Ann. Biomed. Eng.,
+vol. 19, no. 5, 1991.
+[35] S. Williamson, C. Wang, K. A. Heller, and D. M. Blei, “The IBP compound Dirichlet process and its application to focused topic modeling,” in
+Proc. Int. Conf. Mach. Learn., 2010.
+
+[36] J. Wright, Y. Peng, Y. Ma, A. Ganesh, and S. Rao, “Robust principal component analysis: Exact recovery of corrupted low-rank matrices by convex
+optimization,” in Proc. Adv. Neural Inf. Process. Syst, 2009, pp. 2080–
+2088.
+[37] J. Zhang, Z. Ghahramani, and Y. Yang, “A probabilistic model for online
+document clustering with application to novelty detection,” in Proc. Adv.
+Neural Inf. Process. Syst., 2004, pp. 1617–1624.
+[38] M. Zhou, H. Chen, J. Paisley, L. Ren, L. Li, Z. Xing, D. B. Dunson,
+G. Sapiro, and L. Carin, “Nonparametric Bayesian dictionary learning for
+analysis of noisy and incomplete images,” IEEE Trans. Image Process.,
+vol. 21, no. 1, pp. 130–144, Jan. 2012.
+[39] M. Zhou, L. A. Hannah, D. B. Dunson, and L. Carin, “Beta-negative
+binomial process and Poisson factor analysis,” in Proc. Artif. Intell. Statist.,
+2012.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

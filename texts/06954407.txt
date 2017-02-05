@@ -1,0 +1,1609 @@
+268
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+Volume Preserved Mass–Spring Model with Novel
+Constraints for Soft Tissue Deformation
+Yuping Duan, Member, IEEE, Weimin Huang, Member, IEEE, Huibin Chang, Wenyu Chen,
+Jiayin Zhou, Member, IEEE, Soo Kng Teo, Yi Su, Chee Kong Chui, Member, IEEE, and Stephen Chang
+
+Abstract—An interactive surgical simulation system needs to
+meet three main requirements, speed, accuracy, and stability. In
+this paper, we present a stable and accurate method for animating
+mass–spring systems in real time. An integration scheme derived
+from explicit integration is used to obtain interactive realistic animation for a multiobject environment. We explore a predictor–
+corrector approach by correcting the estimation of the explicit
+integration in a poststep process. We introduce novel constraints
+on positions into the mass–spring model (MSM) to model the nonlinearity and preserve volume for the realistic simulation of the
+incompressibility. We verify the proposed MSM by comparing
+its deformations with the reference deformations of the nonlinear
+finite-element method. Moreover, experiments on porcine organs
+are designed for the evaluation of the multiobject deformation. Using a pair of freshly harvested porcine liver and gallbladder, the
+real organ deformations are acquired by computed tomography
+and used as the reference ground truth. Compared to the porcine
+model, our model achieves a 1.502 mm mean absolute error measured at landmark locations for cases with small deformation (the
+largest deformation is 49.109 mm) and a 3.639 mm mean absolute
+error for cases with large deformation (the largest deformation is
+83.137 mm). The changes of volume for the two deformations are
+limited to 0.030% and 0.057%, respectively. Finally, an implementation in a virtual reality environment for laparoscopic cholecystectomy demonstrates that our model is capable to simulate
+large deformation and preserve volume in real-time calculations.
+Index Terms—Mass–spring system, physical-based modeling,
+position-based constraint, virtual reality, volume preservation, surgical simulation.
+
+I. INTRODUCTION
+
+W
+
+ITH the development of simulation techniques, training within a proficiency-based virtual reality curriculum
+
+Manuscript received July 29, 2014; revised October 2, 2014; accepted November 7, 2014. Date of publication November 12, 2014; date of current version
+December 31, 2015. This work was supported by research grant 102-1480009
+from BEP A*STAR, Singapore.
+Y. Duan, W. Huangˆ, and J. Zhou are with the Neural and Biomedical Technology Department, Institute for Infocomm Research, A*STAR, Singapore
+138632, Singapore (e-mail: duany@i2r.a-star.edu.sg; wmhuang@i2r.a-star.edu.
+sg; jzhou@i2r.a-star.edu.sg).
+H. Chang is with the Department of Mathematical Sciences, Tianjin Normal
+University, Tianjin 300387, China (e-mail: changhuibin@gmail.com).
+W. Chen is with the Visual Computing Department, Institute for Infocomm
+Research, A*STAR, Singapore 138632, Singapore (e-mail: chenw@i2r.a-star.
+edu.sg).
+S. K. Teo and Y. Su are with the Computing Science Department, Institute of
+High Performance Computing, A*STAR, Singapore 138632, Singapore (e-mail:
+teosk@ihpc.a-star.edu.sg; suyi@ihpc.a-star.edu.sg).
+C. K. Chui is with the Department of Mechanical Engineering, National
+University of Singapore, Singapore 119077, Singapore (e-mail: mpecck@nus.
+edu.sg).
+S. Chang is with the National University Hospital, Singapore 119074,
+Singapore (e-mail: surv7@nus.edu.sg).
+ˆCorresponding author: wmhuang@i2r.a-star.edu.sg
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2370059
+
+becomes an increasingly relevant alternative to traditional training methods, which has been implemented for many surgeries
+such as bone and joint surgery [1], laparoscopic cholecystectomy [2], aesthetic plastic surgery [3], and lung related surgeries [4]. Elastic deformation models have been greatly studied
+in the last two decades [5]–[7] for the surgery simulation. The
+two main approaches to modeling the mechanical behavior of
+deformable objects in interactive virtual environment are the
+finite-element methods (FEMs) and the mass–spring models
+(MSMs).
+The FEM is based on the continuum constitutive equations
+that govern the elastic behavior of deformable objects. In order
+to use the FEM, the object is viewed as a continuously connected volume and modeled by partial differential equations
+(PDEs). The FEM is used to convert a PDE into a set of algebraic equations that can be solved numerically. One of the
+most popular simplifications applied to the FEM is to use a linear PDE based on the linear elasticity (linear strain is used in
+Hooke’s law) [8], [9]. Since linear elasticity models are stable
+and computationally cheap, they are popular for the real-time
+simulation. However, the linear elastic behavior is only valid
+for small deformations and highly inaccurate for large deformations and rotations. Müller et al. [10] extracted the rotational part
+from the deformation and used a linear model in the nonrotated
+space. The method is severely limited in the types of materials
+it can approximate. Irving et al. [11] presented an algorithm
+for finite-element simulation to handle arbitrarily large deformations robustly, but the method is not intended to be used in
+interactive applications. The total Lagrangian explicit dynamics
+algorithm was implemented in the FEM combined with explicit
+time integration to handle geometric and material linearity [12],
+which allows for the precomputation of most spatial derivatives
+[13]. However, it requires more computer memory and is difficult to handle topology changes such as cutting and tearing
+operations.
+To account for large deformation and rotations, a geometrically nonlinear FEM approach can be utilized at the expense of
+greatly increased computational costs. This is due to the fact that
+the finite strain tensor contains an additional quadratic product
+of the displacement gradient, as compared to the small strain
+tensor used for geometrically linear situations. To account for
+this nonlinearity, there is a need to reform the global stiffness
+matrix iteratively in the solution process, thereby resulting in
+increased computational time. In addition, if material nonlinearity is also considered in the FEM formulation, the number
+of iterations required for numerical convergence of the solution
+can also be greatly increased. These observations limit the usage
+of nonlinear FEM for real-time surgical simulations [14], [15].
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+DUAN et al.: VOLUME PRESERVED MASS–SPRING MODEL WITH NOVEL CONSTRAINTS FOR SOFT TISSUE DEFORMATION
+
+The MSMs are discrete models, which consist of point masses
+connected together by a network of massless elastic springs.
+Compared to continuum-based simulations, MSMs follow the
+internal restitution forces that try to restore the shape to the
+equilibrium stage when the objects are deformed by external
+forces. Generally, they have mathematical formulations computationally efficient and able to handle large deformations and
+topological changes with ease due to the discrete construction.
+Delingette et al. [16] studied the advantages of the tensor–mass
+and spring–mass models in cutting and large displacement simulation. However, unlike the FEM, which is built based on the
+elasticity theory, the MSMs depend on the construction of the
+spring network and it is difficult to obtain appropriate parameters such as spring stiffness. Lloyd et al. [17] proposed a new
+method to derive analytical expressions of the spring parameters for several mesh topologies from an isotropic linear elastic
+reference model.
+Another drawback of the MSMs is that there is no guarantee
+that the mechanical properties of the deformable objects can be
+correctly modeled such as nonlinear elasticity and volume conservation. Since springs are modeled with linear elasticity, the
+elongation is proportional to the force applied, which may result
+in implausibly large deformation. Provot [18] was among the
+first to use the inverse dynamic method to limit strain by iterating through all edges of a cloth mesh and projecting the adjacent
+points of overstretched edges. The same projection method was
+also used as the postsolver to model the nonlinearity of materials in [19] and [20]. Later in [21], the constraint techniques
+were intensively studied in position-based dynamics, which directly manipulates the position of the simulated bodies based on
+geometric constraints on position.
+In the literature, both explicit integration methods [22], [23]
+and implicit integration methods [24], [25] were explored for
+solving the ordinary differential equation emerging from the
+MSM. Implicit approaches are unconditionally stable and larger
+time steps can be taken in computation. However, the numerical
+dissipation of implicit methods can become dominant for large
+time steps and the accuracy of the solution deteriorates when
+large time steps are used in low-order schemes [19]. Compared
+to implicit methods, explicit methods are easier to achieve interactive frame rates since only a few dozen mathematical operations per point are required in the computation. The bottleneck
+of using explicit approaches is that they are only conditionally
+stable.
+Other techniques also have been used to compute the deformations. Horton et al. [26] proposed a meshless method based on
+the total Lagrangian formulation for computing deformation of
+very soft tissue. Since the method uses the explicit time integration, small time steps are necessary to stabilize the simulation,
+which may be problematic for real-time simulations. The boundary element method (BEM) [27] computes the deformation by
+numerically solving the boundary integration on a surface mesh.
+Based on the assumption of isotropic linear elasticity, BEM may
+cause unrealistic simulation for large deformations as shown in
+[28]. The meshless shape matching model [29] computes deformations based on geometry shapes, which is unconditionally
+stable but fails in sparsely sampled regions. The oriented par-
+
+269
+
+ticles [30] in connection with shape matching allows to create
+complex dynamic objects with only a small number of simulation particles. However, the physical behavior of the oriented
+particle method is dependent on the mesh geometry and does
+not converge to a certain solution with mesh refinement as models based on continuum mechanics. And volume conservation
+is still an issue for oriented particles method, which limits its
+usage in medical simulation.
+In this study, we present a soft tissue simulator that uses a
+tetrahedral mass–spring formulation to calculate soft tissue deformation, where the model parameters are selected according
+to soft tissue properties. Our system is designed based on the
+explicit time integration in a predictor–corrector structure. We
+estimate an approximation of the explicit integration to predict
+the next position and correct the approximation to ensure various physical invariants using position-based constraints. Since
+volume preservation is essential for realistic modeling of soft yet
+solid tissues, we introduce constraints on the length and direction of the springs to realize conservation of volume. Moreover,
+such inverse dynamics process also help to mimic nonlinear behavior of the proposed MSM. Numerous tests on both cubical
+model and soft tissue simulations are presented to demonstrate
+our simulation system is accurate, stable, and able to handle
+large deformations.
+As the attempt to develop a stable and accurate physical engine for surgery simulation and training, we extend our preliminary work reported in [31] and conclude the contributions of
+this study as follows:
+1) we propose an MSM with novel constraints that allows to
+handle large deformations with nonlinear elasticity for a
+multiobject system;
+2) incompressibility is modeled based on the constraints,
+which help the MSM well control the volume change of
+soft tissues in the simulation;
+3) comparisons of the proposed MSM with not only the nonlinear FEM but also the CT based ex vivo porcine liver are
+conducted to illustrate its accuracy;
+4) a fast and robust mass–spring simulator for tetrahedral
+models is developed, where meshes of ten thousands of
+elements can be executed on a CPU in real time.
+II. POSITION-BASED MASS–SPRING SYSTEM
+Suppose an MSM is composed of a set of point masses N
+and a set of massless springs E. For any point mass xi ∈ N ,
+i = 1, . . . , n, there is a mass mi ∈ R and a force acting on
+the point f i ∈ R3 . The force f i is computed due to its spring
+connections with its neighbors, along with external forces. The
+geometric state of all point masses is simply x ∈ R3n and f ∈
+R3n . The relation between the acceleration and force can be
+described by Newton’s Law of motion as follows:
+M ẍ = f
+
+(1)
+
+where M is a 3n × 3n diagonal mass matrix and ẍ is the second
+derivative of the position with respect to time.
+The algorithm proposed in this study is sketched as follows:
+1. for all vertices i initialize xi , v i and mi
+
+270
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+2. loop
+3. do position-based attachment
+4. for all vertices i do pi ← xi + v i Δt + f i Δt2 /mi
+5. for all vertices i do v i ← (pi − xi )/Δt
+6. loop Constraint Iterations times
+7.
+project Constraints (Cstretch , Ccom press , Cdirection )
+8. endloop
+9. for all vertices i do xi ← pi
+10. endloop.
+Although the Verlet integration is used in steps 4 and 5, the
+scheme is unconditionally stable. Because the integration steps
+5 and 9 move the vertices to a physically valid configuration pi
+rather than extrapolating blindly into the future. Similar to the
+work [21], the only possible instability is whether valid positions
+can be obtained through the constraint projection. Therefore,
+the instability does not depend on the time step Δt but on the
+Gauss–Seidel method for solving the constraints.
+A. Attachments
+In order to accurately move point masses of soft tissues along
+with the interacted rigid instruments, we use the displacementdriven attachment. The main advantage of a displacement-driven
+approach is its controllability, which can efficiently avoid the
+overshooting problems in the force-based approach.
+Let us define A ⊂ N as the set of point masses that are
+selected and attached to certain positions. The position of a
+point xi ∈ A is updated in each iteration as follows:
+
+
+xi ← xi + P (xi ) − P 0 (xi ) /r
+(2)
+where P 0 (xi ) and P (xi ) are the initial and objective position
+of the point mass xi and r is the number of iterations.
+B. Forces
+The force used to update the position in the integration step
+4 is the total force of the gravity, the spring force, the damping
+force, and the contact force.
+1) Gravity: The force of gravity is acting on every point
+mass in the system, which is defined as
+f g (xi ) = mi g
+
+(3)
+
+where g = 9.8 N/kg is the gravitational acceleration.
+2) Spring Forces: Springs are modeled with linear elasticity.
+The force acting on mass i generated by the spring connecting
+i and j is in direct proportion to the extension of the spring.
+Therefore, according to Hooke’s Law, the spring force is defined
+as follows:
+xj − xi
+0
+(4)
+f si = k(i,j ) (|xj − xi | − l(i,j
+)) ·
+|xj − xi |
+0
+where k(i,j ) is the stiffness of spring (i, j) and l(i,j
+) is the rest
+length of spring (i, j).
+3) Damping Forces: Due to imperfect elasticity of physical
+bodies, energy dissipation occurs during the deformation. We
+use spring damping to represent the viscous force, which has
+the form
+
+f di = d(i,j ) (v j − v i )
+
+where d(i,j ) is the damping constant of spring (i, j). However,
+for 3D models, this force would quickly damp out rotations as
+well. Therefore, similar to [32], we define the damping force
+using the behavior function (|xj − xi |) as follows:
+f di = d(i,j )
+
+(v j − v i ) · (xj − xi ) xj − xi
+·
+.
+|xj − xi |
+|xj − xi |
+
+(5)
+
+4) Contact Forces: The gallbladder is connected to the lower
+surface of the liver at the gallbladder fossa by connecting tissues.
+When external forces are applied to the liver or gallbladder, there
+will be contact forces generated in the connecting surface of the
+liver and gallbladder. Similar to [33] and simulation open framework architecture (SOFA) [34], we use the repulsive springs to
+generate contact forces between the liver and gallbladder.
+The process of generating the repulsive springs can be
+sketched as: First, the connecting area are manually identified
+based on clinician’s input in the digital models. For each point
+in the connecting surface of the gallbladder, we use the proximity method to determine the point to point connections when
+points on the connecting surface of the liver are close enough.
+Then, the repulsive springs are created in between these pairs
+of points, which are with high stiffness in order to prevent the
+collision in the simulation. The contact forces can be regarded
+as the resultant forces of the spring forces and damping forces
+of repulsive springs.
+C. Deformable Constraints
+We use constraints to correct the position of point masses after
+the integration steps 4 and 5. Novel constraints are proposed
+on both spring length and direction. For a constraint function
+C(p), we use the nonlinear Gauss–Seidel method to update the
+position similar to [21]. Given p, we intend to find a correction
+Δp that satisfies
+C(p + Δp) ≈ C(p) + ∇p C(p) · Δp = 0.
+
+(6)
+
+By restricting Δp on the direction of ∇p C(p), it yields the
+following formula for the correction Δp
+Δp = λ∇p C(p)
+
+(7)
+
+where λ is a scalar. The correction of an individual point pi is
+given as follows:
+Δpi = − 
+
+C(p)
+∇pi C(p).
+|∇pj C(p)|2
+
+(8)
+
+j
+
+Therefore, the update of the position in the step 7 based on the
+constraint C(p) is given as
+pi ← pi + Δpi .
+
+(9)
+
+1) Spring Length Correction: It is well known that when a
+concentration of large forces occurs in a small region of soft tissues, the simulation result of an MSM will fall into the problem
+of local deformation (“superelastic” effect) [18].
+We design a pair of constraints that are imposed on the spring
+length based on the deformation ratio given by τ = |l − l0 |/l0 .
+To identify the influence of the stretch and compression in the
+
+DUAN et al.: VOLUME PRESERVED MASS–SPRING MODEL WITH NOVEL CONSTRAINTS FOR SOFT TISSUE DEFORMATION
+
+271
+
+Fig. 2. Deformation of the MSM without and with the overcompressing constraint by applying the same force: (a) initial position; (b) deformation without
+constraint; (c) deformation with the overcompressing constraint.
+Fig. 1. Deformation of the MSM without and with the overstretching constraint: (a) initial position; (b) “superelastic” effect; (c) deformation with the
+overstretching constraint.
+
+deformation, different deformation ratios are used for the overstretching compensation and overcompression compensation.
+a) Overstretching Compensation: We set a critical stretch
+ratio τs to the springs to protect the spring from being stretched
+too much. More specifically, when the length of the spring exceeds lm ax = (1 + τs )l0 , the constraint is applied to correct the
+spring back to (1 + τs )l0 . We define the overstretching correction to be a inequality constraint as follows:
+Cstretch (pi , pj ) = (1 + τs )l0 − |pi − pj | ≥ 0.
+
+(10)
+
+Fig. 3. Deformation of the MSM without and with the spring direction correction by applying the same force: (a) deformation without constraint; (b)–(d)
+deformation with the spring direction correction.
+
+computed based on (8) as follows:
+1
+pi − pj
+Δpi = − Ccom press (pi , pj ) ·
+2
+|pi − pj |
+
+If the aforementioned inequality constraint is not satisfied,
+we compute the corrections on the point pi and pj along the
+gradient of Cstretch . The formulae of the correction term Δpi
+and Δpj are given as follows:
+Δpi =
+
+1
+pi − pj
+Cstretch (pi , pj ) ·
+2
+|pi − pj |
+
+1
+pi − pj
+.
+Δpj = − Cstretch (pi , pj ) ·
+2
+|pi − pj |
+To test the ability of the overstretching constraint, the stretching experiment is carried out for the rectangle mesh model. The
+rectangle model is modeled by a mesh composed of 9 × 9 point
+masses. We consider the case that the mesh is hanging by two
+corners and subject to the gravity. Fig. 1(a) shows the initial position of the rectangle mesh model. The resulting deformation
+computed by Verlet integration is shown in Fig. 1(b). It is clear
+that the elongation of the springs connecting the two corners is
+much higher than all the other springs. In Fig. 1(c), we compute
+the deformation by applying the overstretching constraint by
+setting τs = 0.1.
+b) Overcompressing Compensation: On the other hand,
+as long as the length of the spring is less than (1 − τc )l0 , τc is the
+critical compression ratio, we use another constraint to move the
+spring back to (1 − τc )l0 . The constraint for overcompressing
+is defined as
+Ccom press (pi , pj ) = |pi − pj | − (1 − τc )l0 ≥ 0.
+
+(11)
+
+The method to compute the update from (11) is similar to
+the overstretching constraint by computing its gradient. The
+correction on the point pi and pj from the constraint (11) is
+
+Δpj =
+
+1
+pi − pj
+Ccom press (pi , pj ) ·
+.
+2
+|pi − pj |
+
+We carry out an experiment to demonstrate the effect of
+the overcompressing constraint on a rectangle mesh shown in
+Fig. 2(a). We fix the mesh along the top boundary and deform
+the middle point of the bottom boundary by an external force.
+The resulting deformation computed by Verlet integration is
+shown in Fig. 2(b). In Fig. 2(c), we compute the deformation by
+applying the overcompressing constraint by setting τc = 0.1.
+2) Spring Direction Correction: One limitation of MSMs is
+the difficulty to represent objects with sharp edges. Therefore,
+we define another constraint on the spring direction to guarantee
+that the direction of the spring is within a critical rotation angle θ
+in certain iterations. More specifically, we define the constraint
+on the spring direction as follows:
+
+
+(pj − pi ) · (p0j − p0i )
+≥0
+Cdirection (pi , pj ) = θ − acos
+|pj − pi ||p0j − p0i |
+(12)
+p0i
+
+where denotes the previous state of the system, whose initial
+value is the initial position of vertices of the mesh and is updated
+every certain number of iterations to the current position.
+Similarly, we use an example to illustrate the performance of
+the spring direction correction on the same rectangular mesh.
+We fix the mesh on the bottom and deform the middle point of
+the top by an external force. The resulting deformation without
+any constraint is shown in Fig. 3(a). The effect of the spring
+direction correction are demonstrated by Fig. 3(b)–(d), which
+
+272
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+TABLE I
+TOTAL VOLUME, CHANGE OF TOTAL VOLUME (CTV), MEAN VOLUME AND
+CHANGE OF MEAN VOLUME (CMV) OF CUBICAL MODEL
+
+Fig. 4. Tests description. The points on the bottom face are fixed and the
+points on the red edge are subject to either external forces or displacement.
+
+τ s =τ c =
+
+∞
+
+0
+
+0.05
+
+0.1
+
+0.2
+
+0.5
+
+Total Vol.
+CTV
+Mean Vol.
+CMV
+
+130.81
+4.65%
+1.047
+4.70%
+
+125.65
+0.52%
+1.005
+0.50%
+
+124.55
+0.36%
+0.996
+0.40%
+
+127.43
+1.94%
+1.019
+1.90%
+
+129.75
+3.80%
+1.038
+3.80%
+
+130.64
+4.51%
+1.045
+4.50%
+
+Fig. 5. Deformation of the MSM with and without the constraints. (a) result
+without constraints; (b) result with τ s = τ c = 0.1, θ = π3 ; (c) result with τ s =
+τ c = 0.2, θ = π3 ; (d) result with τ s = τ c = 0.5, θ = π3 .
+π
+are obtained using different value of θ from θ = π3 to θ = 12
+.
+The value of θ is selected based on the tradeoff between the
+overdeformation and overrigidity. Therefore, we usually set θ
+to θ = π3 in the numerical implementations.
+Remarks: In [35] and[36], the following constraint on each
+individual tetrahedron is used to achieve the conservation of
+total volume
+
+1
+C(p1 , p2 , p3 , p4 ) = (p2 −p1 ) × (p3 −p1 ) ·(p4 −p1 )−V0
+6
+where p1 , p2 , p3 , and p4 are the four corners of the tetrahedron and V0 is the rest volume. Instead of the constraint on
+tetrahedrons, we realize the volume conservation based on the
+spring length correction (10) and (11), which are demonstrated
+by numerical examples in Sections III and V.
+
+III. STUDY THE BEHAVIOR OF CONSTRAINED MSMS
+We perform tests on a 125-mm3 cubical model made up of 125
+cubes of size 1 mm3 (each cube is composed of five tetrahedral
+elements). In all the tests, the bottom face has been kept fixed
+and the points on the red edge of Fig. 4 are subject to either
+forces or displacement, denoted by Acub e .
+A. Volume Preservation
+In order to test the performance of the constraints, we use
+different deformation ratios in a force-driven MSM, i.e., τs =
+τc = 0, 0.05, 0.1, 0.2, 0.5, and compare the results with the
+one without any constraint, which can also be regarded as τs =
+∞ and τc = ∞. For all cases, we apply the external force of
+(0, 100, 100) to Acub e . Selected visual results are displayed in
+superimposed images with the cubical model at the rest status in
+Fig. 5. The results show that the constrained MSM converges to
+Fig. 5(a), i.e., the one without any constraint, when deformation
+ratios go to τs → ∞, τc → ∞.
+An important measurement of the simulation quality is the
+final volume of the MSM. Given the initial volume being
+
+Fig. 6.
+
+Volume of the elements of the MSM.
+
+125 mm3 , we compute the total volume and volume change
+rate of the results for different constraints, which are listed in
+Table I. To demonstrate the volume preservation can be also
+observed locally, we calculate the mean volume of the cubical
+element and the mean volume change rate in Table I. In addition, the boxplot of the volume of cubical elements is shown
+in Fig. 6. The experiment demonstrates that the constraints can
+help to preserve the volume of the mesh model and the volume
+conservation can be obtained both globally and locally when
+deformation ratios are suitable such as τs = τc = 0.05 for the
+cubical model.
+B. Convergence
+We use the cubical model to show that the displacementdriven method can accurately substitute for the force-driven
+method in the simulation. First, we deform the cubical model
+by applying the external force of (0, 100, 100) to Acub e . When
+the force-driven method converges, we record the final position
+of the points under external forces denoted by (x
+ , y 
+ , z 
+ ). In
+the displacement-driven method, the points Acub e are displaced
+from their initial position (x, y, z) to the new fixed final position
+(x
+ , y 
+ , z 
+ ). We use different number of iterations, which is r in
+(2), to realize the displacement-driven MSM. Fig. 7 shows the
+results of r = 100, r = 1 000, and r = 10 000 in superimposed
+images, which illustrate that the displacement-driven method is
+able to approximate results of the force-driven method.
+Furthermore, to quantitatively compare the results, we compute the absolute error of the results from the displacementdriven method and the results from the force-driven method
+shown in Fig. 8. The volume of each cubical element is also
+displayed for both approaches by the boxplot in Fig. 8, which
+shows that the change of the volume behaves similarly in both
+
+DUAN et al.: VOLUME PRESERVED MASS–SPRING MODEL WITH NOVEL CONSTRAINTS FOR SOFT TISSUE DEFORMATION
+
+273
+
+TABLE II
+ANALYSIS OF THE REACTION FORCE OF POSITION-BASED SIMULATION
+External force
+(0,100,100)
+(0,200,200)
+(0,300,300)
+(0,400,400)
+(0,500,500)
+
+Mean reaction force
+(−0.337,−100.654,−100.398)
+(−0.257, −199.462,−200.819)
+(−0.028,−297.264,−300.744)
+(0.271, −401.143, −400.61)
+(−0.092, −495.937,−501.807)
+
+Ind. angle
+◦
+
+0.15
+0.20 ◦
+0.33 ◦
+0.05 ◦
+0.33 ◦
+
+R.E. on force
+0.52%
+0.07%
+0.33%
+0.21%
+0.22%
+
+Fig. 7. Visual comparisons of the force-driven method (green wire frame)
+and displacement-driven method (red wire mesh). In the displacement-driven
+approach, the parameters are chosen as τ s = τ c = 0 and θ = π3 .
+
+Fig. 8. Comparison of the displacement-driven approach and the force-driven
+approach.
+
+Fig. 9. Force–displacement curves of the constrained MSMs. The y-axis is
+the force magnitude of the force vector.
+
+methods. We can observe that the results of the displacementdriven method is able to approximate the force-driven method
+very well, especially when the iteration is large enough such as
+r = 1 000.
+C. Analysis of the Reaction Forces
+We perform tensile tests on the same cubical model in
+order to measure the influence of the constraints to the
+force–displacement response. First, we implement the forcedriven method and apply the external forces of (0, 100, 100)–
+(0, 500, 500) to all points of Acub e . The force–displacement
+curve of the force-driven MSM without constraints is plotted by the green curve in Fig. 9, which is plotted based
+on the average displacement of Acub e . To identify the influence of the deformable constraints in the force–displacement
+
+Fig. 10. Analysis of the reaction forces of our displacement-driven MSM:
+(a) relative errors of the external forces and reaction forces, and (b) induced
+angles of the external forces and reaction forces.
+
+response, we apply the spring length correction in the forcedriven method and increase the deformation ratios from τs =
+τc = 0 to τs = τc = 1. The obtained force–displacement curves
+are plotted by the blue curves in Fig. 9. We can see that the
+deformable constraints introduce nonlinearity into the force–
+displacement response, which helps the MSM be able to model a
+material with nonlinear elasticity. In addition, as the deformation
+ratios increase (e.g., τs = τc = 1), the curve of the constrained
+MSM converges to the curve of the MSM without constraints.
+As our MSM is developed for surgical simulation, one important aspect of the simulation system is to realize the haptic feedback. Therefore, we analyze the reaction force of the
+displacement-driven MSM. Similar to the previous test, we use
+the position (x
+ , y 
+ , z 
+ ) obtained from the force-driven method
+as the fixed final position for the displacement-driven method.
+We fix the number of iteration to be r = 1000 for moving the attached points Acub e . We analyze the internal forces on the points
+of Acub e in the displacement-driven method. Table II presents
+the measurement results including the given external forces in
+the force-driven approach (external force), the obtained mean
+reaction forces in the displacement-driven approach (mean reaction force), the induced angles (Ind. angle) and relative errors
+(R.E. on force) between the given external forces and the obtained reaction forces. We also display the boxplot of the induced
+angles and relative errors in Fig. 10. It is shown that the reaction
+force computed from our displacement-driven MSM is able to
+provide an accurate haptic feedback in the surgical simulation.
+Haptic actuation is not discussed here as it is beyond the scope
+of this paper.
+In conclusion, we can make the following observations from
+the example of the cubical model:
+
+274
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+r with tight constraints on spring length, e.g., when τs , τc <
+0.1, the volume can be well preserved by the proposed
+MSM;
+r the displacement-driven MSM can accurately deform the
+soft objects as the traditional force-driven method;
+r the deformable constraints can introduce additional nonlinearity into MSMs and the reaction forces from our
+displacement-driven MSM is able to provide an accurate
+haptic feedback as the force-driven MSM.
+
+Fig. 11. Liver experiments setup. The blue points in (b) denote the Marker
+1 − 8 in (a).
+
+IV. MODEL INITIALIZATION
+In soft tissue simulation, the mesh models are not uniform.
+Based on different structures of tetrahedral models, we assign
+the parameters in the MSM accordingly.
+A. Point Masses
+
+to compute the damping constant
+d(i,j )
+
+
+2 k(i,j ) (mi + mj )
+=
+.
+l0
+
+(15)
+
+V. EXPERIMENTS AND RESULTS
+
+Assume the mass of a tetrahedron is equally divided among
+its vertices. The mass mi of point mass i is estimated as
+mi =
+
+ 1
+ρVj
+4
+
+(13)
+
+∀j ∈Ti
+
+where Ti is the set of tetrahedrons that contain point i, Vj is the
+initial volume of tetrahedron j and ρ is the tissue density. In our
+experiments, the mass density of the liver and bile (gallbladder)
+is 1 060 kg/m3 [37] and 1000 kg/m3 [38], respectively.
+B. Spring Stiffness
+The parameterization of spring stiffness provides certain
+stress–strain relationship of soft tissues. In [17], a formula was
+established to compute spring stiffness for a regular tetrahedron
+with unique spring length based on an isotropic elastic material
+with Young’s modulus E. For our irregular tetrahedral formulation, we calculate an equivalent edge length lt from the volume
+1
+for each tetrahedron element t, i.e., lt = (Vt √122 ) 3 .
+According to [17], we compute spring stiffness for body
+springs from
+√
+ 2 2
+k(i,j ) =
+lt E
+(14)
+25
+t∈T( i , j )
+
+where T(i,j ) is the set of tetrahedrons that contain the edge
+(i, j). For our experiments, the Young’s modulus for the liver
+and gallbladder are E = 3.5 kPa [39] and E = 1.5 kPa [38],
+respectively. On the other hand, we use stiff springs as repulsive
+springs due to their function in preventing collision. In our
+simulation, we simply give the stiffness for repulsive springs as
+the largest spring stiffness of body springs computed by (14).
+C. Spring Damping
+In [40], the authors have given the formula to calculate the
+damping constant to ensure behavioral consistency for different
+and combined resolution. For the spring connecting point mass
+mi and mj with the rest length l0 , we use the following formula
+
+In this section, we implement the proposed method in
+C++ and render the system using OpenGL on an Intel(R)
+Core(TM) i7-2600 CPU at 3.40 GHz. All the experiments are
+displacement-driven simulation with a time step of 10 ms, i.e.,
+Δt = 0.01. The number of iteration is fixed to 20 iteration for
+the spring length constraint and 10 iteration for the spring direction constraint. The parameters τs , τc , and θ may vary from
+experiments to experiments, we provide the values in the individual experiment. More specifically, the proposed MSM has
+been evaluated in the following ways:
+r we analyze its accuracy by comparing it with the nonlinear
+FEM on an irregular tetrahedral model generated from a
+porcine liver;
+r we illustrate its performance for a multiobject system by
+implementing it on the porcine liver with the gallbladder;
+r we illustrate its viability for surgical simulation environment by using a setup involving a human liver and biliary
+system with the interaction of virtual instruments.
+A. Comparison of the MSM and FEM
+To setup the comparison of our MSM and FEM simulation,
+we use a mesh model generated from a scanned porcine liver in
+Fig. 11, which consists of 26 280 tetrahedral elements.
+Similar to [41], we define the following two types of point
+masses in the liver experiments.
+a) Fixed Points: All points that will not be moved during the
+simulation are defined as fixed points. We use Markers
+9 − 12 in Fig. 11(a), which are long pins, to indicate the
+location of the fixed points. More specifically, all the green
+points in Fig. 11(b) are set to be fixed and are not allowed
+to move during the simulation.
+b) Free Points: All other liver points are free points, the
+movement of which are completely determined by the
+computational models. We randomly select eight free
+points as the markers from the top surface of the liver,
+where deformation happens severely in the experiments.
+1) Evaluation Criteria: To compare the simulation results
+of our MSM and FEM, the absolute error of estimated meshes
+
+DUAN et al.: VOLUME PRESERVED MASS–SPRING MODEL WITH NOVEL CONSTRAINTS FOR SOFT TISSUE DEFORMATION
+
+275
+
+TABLE III
+PERFORMANCE ANALYSIS OF LIVER EXPERIMENTS
+Small deformation
+Marker Index
+
+Fig. 12. Two deformation states of the liver model. The blue point masses
+denote the attachment points for the position-based simulations.
+
+for each marker is computed as follows:
+	 SM
+	
+	
+− xFEM
+i = 	xM
+i
+i
+
+(16)
+
+where xi denotes the position of the ith marker.
+In addition, we also compute the Hausdorff distance [42]
+between the computational meshes from the MSM and FEM to
+indicate the overall accuracy of the MSM simulation. For any
+point mass x ∈ N M SM , we define the Hausdorff distance as the
+minimum distance to the nearest point in N FEM as
+H(x, N FEM ) =
+
+min {d(x, y)}
+
+y∈N F E M
+
+∀x ∈ N M SM
+
+(17)
+
+where d(x, y) denotes the absolute distance between the point
+x and y.
+2) Simulation Results: We compare the results of the MSM
+with the nonlinear FEM simulation using FEBio [43]. To model
+the hyperelastic liver tissue, we use the Neo–Hookean type material model, which has nonlinear stress–strain behavior, but
+reduces to the classical linear elasticity model for small strains
+and small rotations. The strain-energy potential function for the
+Neo–Hookean model is given by
+1
+μ
+(I1 − 3) + (J − 1)2
+(18)
+2
+d
+where μ is the initial shear modulus, d is the material incompressibility parameter, J is the volume ratio, and I1 is an invariant of the Cauchy–Green deformation tensor. According to [44]
+and [45], most soft tissues (considered as roughly incompressible materials) have a Poisson ratio in between ν = 0.45 and
+0.49. To model the incompressibility of porcine liver tissue, we
+assume Poisson ratio ν = 0.49 and Young’s modulus E = 3.5
+kPa [39] for the FEM simulation.
+The deformations of the MSM and FEM are calculated directly from the applied displacements. We select 15 point masses
+from the surface of the liver model to be the attachment points
+and subject the liver to small and large deformation, as shown
+in Fig. 12. The same attachment points and fixed points are used
+for the MSM and FEM simulation. Therefore, the deformation
+occurring at the attachment points is the same for both FEM and
+MSM, which are 52.145 and 78.217 mm for the small and large
+deformation, respectively.
+Our MSM is built up using the parameters calculated according to Section IV. We use τs = 0.012, τc = 0, and θ = π3 in
+the simulation. We record in Table III: 1) the estimated distance
+between the initial undeformed mesh and the deformed mesh
+using an FEM, 2) the estimated distance between the initial
+undeformed mesh and the deformed mesh using our proposed
+MSM, and 3) the absolute distance between the estimated positions of each marker in the FEM and our proposed MSM.
+
+1
+2
+3
+4
+5
+6
+7
+8
+Mean error on markers
+
+FEM dist
+
+MSM dist
+
+i
+
+27.622
+30.717
+15.251
+12.369
+11.996
+3.997
+4.560
+3.910
+–
+
+26.596
+27.205
+14.086
+10.453
+5.343
+3.268
+2.548
+2.456
+–
+
+3.248
+3.892
+2.122
+4.193
+6.781
+1.373
+2.561
+2.297
+3.308
+
+Large deformation
+Marker Index
+1
+2
+3
+4
+5
+6
+7
+8
+Mean error on markers
+
+FEM dist
+
+MSM dist
+
+i
+
+44.561
+46.297
+29.033
+22.602
+19.075
+8.211
+6.117
+6.437
+–
+
+42.449
+40.716
+28.050
+19.537
+10.668
+7.494
+2.320
+3.544
+–
+
+4.231
+5.828
+1.881
+5.228
+8.641
+1.062
+3.848
+2.986
+4.213
+
+The unit of the distance is millimeter.
+
+Ψ=
+
+Fig. 13. Deformed states (side view and top view) of the liver lobe resulting
+from FEM (red mesh) and MSM (green mesh) simulations.
+
+It is shown in Table III that the mean error on the markers is
+3.308 and 4.213 mm for small and large deformation, respectively. In addition, the total volume of the liver lobe has changed
+0.028% and 0.020% in the MSM simulation for small and large
+deformation, respectively. On the other hand, the volume has
+changed 0.059% and 0.044% in the FEM simulation for small
+and large deformation, respectively. Therefore, the proposed
+MSM can yield results with good accuracy and well preserve
+volumes during the simulation.
+The visual comparison of the results from our proposed MSM
+and the FEM is shown in superimposed images in Fig. 13,
+which give a qualitative idea of the accuracy of the MSM. To
+provide a quantitative comparison, we compute the Hausdorff
+
+276
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+TABLE V
+PERFORMANCE ANALYSIS OF DIFFERENT MESH RESOLUTIONS
+Max HD
+
+Fig. 14. Performance comparison between the proposed MSM and FEM simulations in terms of HD and AD for (a) small deformation and (b) large deformation.
+
+TABLE IV
+PERFORMANCE ANALYSIS OF DIFFERENT DEFORMATION RATIOS
+τs
+0
+0.01
+0.02
+0.01
+0.012
+0.02
+0
+0
+
+τc
+
+i
+
+Mean HD
+
+Mean AD
+
+VD
+
+0
+0.01
+0.02
+0
+0
+0
+0.01
+0.02
+
+3.845
+4.170
+4.372
+4.116
+4.213
+4.455
+3.853
+3.855
+
+2.124
+2.521
+2.123
+2.635
+2.187
+2.211
+2.128
+2.123
+
+3.276
+3.789
+3.295
+3.758
+3.348
+3.417
+3.196
+3.185
+
+−0.892%
+−1.031%
+−1.085%
+−0.219%
+−0.020%
++0.428%
+−1.633%
+−2.377%
+
+distance (HD) and absolute distance (AD) of all free points
+including both superficial and internal point masses. Fig. 14
+shows the Hausdorff distance and absolute distance between the
+MSM and FEM simulation in a boxplot for the small and large
+deformation, respectively. The corresponding mean Hausdorff
+distance and mean absolute distance is 1.746 and 2.420 mm for
+small deformation, while 2.187 and 3.348 mm, respectively, for
+large deformation.
+The following observations can be made about the proposed
+method:
+r the comparison between the proposed MSM and FEM simulation shows that the MSM can achieve results with good
+accuracy;
+r the MSM is able to model the incompressibility in deformable solids by enforcing volume preservation over
+point masses instead of individual tetrahedra.
+3) Different Deformation Ratios: The simulation results are
+affected by the choice of the stretch ratio τs , compression ratio
+τc and rotation angle θ. Due to the incompressibility of liver
+tissue, it is reasonable to specify τs and τc such that their values
+are not be too big. Thus, we test the value of τs and τc on the
+liver lobe with large deformation. In Table IV, we record 1) the
+mean absolute error on the landmarks (i ); 2) the mean HD for
+all the free points; 3) the mean AD for all the free points, and 4)
+the volume difference (VD) for different deformation ratios. In
+Table IV, we use “-” to denote decrease in volume as compared
+to the original volume and “+” to denote increase in volume as
+compared to the original volume. We observe that VD increases
+from negative to positive when τs increases from τs = 0.01 to
+
+Mean HD
+
+VD
+
+Element No
+
+FEM
+
+MSM
+
+FEM
+
+MSM
+
+FEM
+
+MSM
+
+1,437
+3,407
+8,203
+14,308
+
+6.922
+9.595
+8.079
+8.983
+
+10.404
+11.560
+9.806
+8.791
+
+2.700
+3.596
+2.293
+2.254
+
+3.232
+3.033
+2.910
+2.323
+
+0.922%
+0.713%
+0.597%
+0.061%
+
+0.026%
+0.036%
+0.023%
+0.023%
+
+τs = 0.02. Therefore, we set τs = 0.012 in order to obtain a VD
+close to zero.
+From the test performed on the proposed MSM using different
+choices of parameters, we can make the following observations:
+r both mean HD and mean AD have not changed significantly with different deformation ratios;
+r the deformation ratios affect the volume difference. The
+larger the stretch ratio, the more increase in the volume,
+while the larger the compression ratio, the more decrease
+in the volume. Since the stretch ratio and compression ratio
+can be tuned independently, we can choose proper τs and
+τc to achieve the volume preservation. For incompressible
+tissues like the liver, it is advisable to set small values for
+both τs and τc , especially, the value of τc cannot be too
+large. Therefore, we used τs = 0.012 and τc = 0 for the
+liver simulation shown in Fig. 13.
+4) Different Mesh Resolutions: To test the accuracy of the
+proposed MSM at different resolution, we generate another four
+mesh models to represent the porcine liver, which contain 1 437
+elements, 3 407 elements, 8 203 elements, and 14 308 elements.
+With large deformation, the MSM results are compared to the
+FEM reference deformation, computed with the highest resolution (i.e., the mesh model of 26 280 elements). In Table V, we
+list the maximum Hausdorff distance (Max HD), mean Hausdorff distance (Mean HD) of free points and the change of the
+total volume (VD). Table V shows that, in most cases, both Max
+HD and Mean HD of the MSM simulation are larger than the
+FEM simulation, but the difference in the Mean HD between the
+FEM and MSM deformation decreases as the mesh resolution
+increases. On the other hand, it is also observed that the change
+of volume of the MSM simulation stays at small quantities for
+all tested resolutions.
+Therefore, we can make the following conclusions from the
+test using different mesh resolutions:
+r the proposed MSM can be applied to mesh models of different resolutions by configuring the physical parameters according to (13)–(15). In particular,
+the MSM preserves the volume very well at different
+resolutions.
+B. Comparison of the MSM and Porcine Model
+We use a newly harvested porcine liver with the gallbladder to
+setup the multiobject porcine model (PM). The PM is deformed
+by pulling the liver using a stick hanged by a cotton thread.
+
+DUAN et al.: VOLUME PRESERVED MASS–SPRING MODEL WITH NOVEL CONSTRAINTS FOR SOFT TISSUE DEFORMATION
+
+277
+
+TABLE VI
+PERFORMANCE ANALYSIS OF LIVER AND GALLBLADDER EXPERIMENTS
+Small deformation
+Marker Index
+
+Fig. 15. Liver and gallbladder experiments setup. From left to right are the
+rest state, small deformation and large deformation, respectively.
+
+1
+2
+3
+4
+5
+6
+7
+Mean error on markers
+
+CT distance
+
+MSM distance
+
+i
+
+27.369
+14.179
+12.166
+10.542
+5.256
+6.099
+2.293
+–
+
+27.853
+14.706
+11.369
+10.766
+5.798
+5.665
+2.400
+–
+
+2.633
+1.288
+2.093
+0.896
+1.464
+1.485
+0.654
+1.502
+
+Large deformation
+Marker Index
+
+Fig. 16. Tetrahedral model for the liver and gallbladder. The green points are
+the fixed points and blue points are the Markers 1 − 7.
+
+1
+2
+3
+4
+5
+6
+7
+Mean error on markers
+
+CT distance
+
+MSM distance
+
+i
+
+61.800
+41.014
+28.016
+30.215
+17.971
+6.765
+2.664
+–
+
+61.206
+37.623
+31.378
+28.091
+16.616
+4.814
+2.645
+–
+
+4.387
+3.558
+3.884
+2.646
+4.875
+3.730
+2.391
+3.639
+
+The unit of the distance is millimeter.
+
+Fig. 17. Repulsive springs and body springs. In the figure, yellow springs
+denote the repulsive springs and black lines denote the body springs.
+
+Before deforming the liver and gallbladder, we put ten markers
+(including marker 1 − 7 as the representatives for the free points
+and marker 8 − 10 as the representatives for the fixed points)
+on the liver as Fig. 15(a). Two deformations are captured by CT
+scan as shown in Fig. 15(b) and (c), respectively. We simulate
+both deformations using the proposed MSM and compare them
+with the CT scans.
+We use a tetrahedral model of 12 958 elements to represent
+the liver and a tetrahedral model of 5 423 elements to represent
+the gallbladder. Since the surface area of the liver is much larger
+than the gallbladder, the mesh model of the liver is relatively
+sparser. In order to balance the points in the contact surface
+for generating the repulsive springs, we implement the adaptive
+technique on the mesh model of the liver to make the contact
+surface denser as shown in Fig. 16.
+In addition to the fixed points and free points, we introduce
+two more kinds of points for the multiobject experiment.
+c) Attachment points: The liver and gallbladder system deforms according to the displacement of a pulling stick
+underneath the liver lower surface through a cotton thread
+(see Fig. 15(b)). To mimic the displacement of the stick,
+attachment points along the stick are manually selected
+(i.e., the blue points shown in Fig. 17) and the final position of these points are obtained based on the position of
+the pulling stick (tool) in the experiment.
+
+d) Joint points: To generate the repulsive springs between
+the liver and gallbladder, we select the points on the
+gallbladder that are in contact with the liver and then find
+the joint points on the liver by the proximity method.
+In the MSM, the springs are categorized into two sets, i.e.,
+the springs connecting the liver and gallbladder are defined as
+repulsive springs; all the other springs representing 3D structures of the liver and gallbladder are defined as the body springs.
+We use Fig. 17 to illustrate the spring structure in the liver and
+gallbladder experiment. There are totally 400 repulsive springs
+in between the liver and gallbladder, for clarity, only some of
+them are plotted in Fig. 17.
+1) Evaluation Criteria: To compare the simulation results of
+the proposed MSM and the deformation of the PM, the following
+absolute error is computed for each marker:
+	 SM
+	
+	
+− xPM
+i = 	xM
+i
+i
+where xi denotes the position of the ith marker.
+2) Simulation Results: The proposed MSM is implemented
+for the liver and gallbladder system. For this two-stage experiments, the largest deformation occurs at the attachment points
+for both small and large deformation, which are 49.109 mm and
+83.137 mm, respectively. The parameters are set as τs = 0.012,
+τc = 0, and θ = π3 for both deformations. In Table VI, we record
+1) the distance between the rest and deformed state from CT
+scans, 2) the distance between the initial and deformed meshes
+using MSM simulation, and 3) the absolute error between the
+position of each marker in the reference CT scans and MSM
+simulation. The simulation results are shown in Fig. 18. Compared to the rest state, the change of total volume for small and
+large deformation are 0.030% and 0.057%, respectively.
+In order to better demonstrate the performance of the proposed MSM, we also present the final deformed states of the
+
+278
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+TABLE VII
+TIME COST AND CHANGE OF VOLUME FOR DIFFERENT MESH MODELS
+No. of Elements
+τs =
+Volume change (% )
+Time cost (ms)
+SOFA time (ms)
+
+1 016
+0.004
+0.747
+3.10
+8.33
+
+1 780
+0.006
+0.434
+4.80
+12.50
+
+3 353
+0.008
+0.536
+8.21
+20.00
+
+7 265
+0.01
+0.458
+16.24
+40.48
+
+15 946
+0.012
+0.432
+33.88
+93.45
+
+Fig. 18. Deformed states of the liver and gallbladder from the MSM. In the
+figures, the red and black mesh models represent the deformed liver and gallbladder while the pink and white mesh models represent the liver and gallbladder
+at the rest state (a) Small deformation (b) Large deformation.
+
+Fig. 20. Real-time manipulation of the liver and biliary system using the
+virtual instrument (a) Virtual tool and organs (b) Lifting the liver (c) Pulling the
+gallbladder (d) Poking the gallbladder.
+
+Fig. 19. Superimposed images of the deformed states of the MSM and real deformation from CT scans. In the figures, the red mesh represents the CT scanned
+deformation and the green mesh represents the final deformation obtained by
+the MSM (a) Small deformation (b) Large deformation.
+
+MSM and the CT scanned deformation in superimposed images
+shown in Fig. 19. It shows how the simulated deformation of
+the MSM approximates the real deformation of the liver tissue.
+From the test on the proposed MSM model in a multipleobject system, we can make the following observations:
+r the comparison between the proposed MSM simulation
+and porcine deformation illustrates that the MSM works
+well in approximating the real deformation;
+r the experiments demonstrate that our system can efficiently
+handle large deformations and is capable of handling the
+multiorgan simulation.
+C. Real-Time Interaction with Virtual Instruments
+The goal of surgical simulation research is to model and
+simulate deformable materials for applications requiring realtime interaction. Therefore, we conduct a set of experiments to
+evaluate the ability of our model for its application in surgical
+simulation.
+We generate mesh models of different resolutions to represent
+the liver and gallbladder system, which contain 1 016 elements,
+1 780 elements, 3 353 elements, 7 265 elements, and 15 946 elements in total, respectively. In our mass–spring system, we set
+
+τc = 0, θ = π3 , and τs is from τs = 0.002 to τs = 0.01. In Table VII, we present the stretch ratio (τs ), the average change of
+total volume and the average time cost (including both deformation and rendering) for different mesh models. Besides, we also
+test the same mesh models in SOFA, where the FEM computation of a time step of 10 ms using an Euler implicit integrator is
+used for all mesh models and the corresponding time costs are
+listed in Table VII. For the mesh model of 15 946 elements, our
+system only takes about 33.88 ms, while SOFA system requires
+around 93.45 ms on the same computer, which demonstrate that
+our system is fast and feasible for the real-time simulation for a
+large system. Moreover, it is shown that the volume can be well
+preserved in the simulation for all mesh models by our system.
+We capture some frames of the deformation sequence and
+display in Fig. 20. Using the position-based attachment, the deformation of soft organs can be easily and accurately controlled
+by the virtual instrument.
+VI. CONCLUSION AND DISCUSSION
+In this paper, we presented an explicit formulation of a mass–
+spring system with novel constraints to simulate deformation of
+soft tissue such as the liver and gallbladder. We incorporated
+incompressibility in the solid deformable tissues by enforcing
+volume preservation over point masses instead of individual
+tetrahedron, which is computationally beneficial. Moreover, the
+constraints introduce the nonlinearity to the MSM. We verified
+
+DUAN et al.: VOLUME PRESERVED MASS–SPRING MODEL WITH NOVEL CONSTRAINTS FOR SOFT TISSUE DEFORMATION
+
+the proposed MSM in two steps. First, we simulated the porcine
+liver deformation with the MSM and compared it with nonlinear FEM. Different mesh models and parameters were tested
+and the deformation of the MSM was always close to the FEM
+reference. Second, the MSM was applied to the porcine liver
+and gallbladder system. The simulation was directly compared
+with the real tissue deformation and good approximations were
+obtained for the multiobject system. Finally, a real-time simulation system was implemented based on the MSM. With incorporation of displacement-driven attachments, rigid instruments
+could accurately interact with the soft organs, which provided a
+reliable environment for surgical simulation.
+Being a geometric approach, our model has its limitations as
+well. Proper deformation ratios, i.e., stretch ratio τs and compression ratio τc , need to be set to achieve volume preservation
+and these parameters are mesh dependent. Also, the convergence
+of the constraints may not be ensured due to the Gauss–Seidel
+iteration. Fortunately, this does not cause problem in our case
+since the accurate convergence is not required.
+Although we have tested the reaction forces of the positionbased MSM, the comparison of the stresses in the tissue and
+forces at the attachment points computed using the MSM and
+FEM can be further studied. Another interesting research direction is to combine the developed computational model with
+in vivo studies using MR elastography (MRE) [46] to measure
+soft tissue parameters for setting up a patient-specific system for
+surgical planning. Last but not least, to cater to better computational responsiveness for surgical simulation, it is meaningful
+to use GPU techniques to speedup the MSM-based physical
+engine for more complex simulation systems.
+ACKNOWLEDGMENT
+The authors would like to thank the following people for
+their support and valuable comments: Dr. C. Lim and M. L.
+Tan for providing the tetrahedral models, T. Yang for haptic
+feedback and K. K. Toe for FEM simulation in SOFA. They
+would like also to thank the anonymous reviewers for their
+critical suggestions to improve the quality of the presentation.
+REFERENCES
+[1] M.-D. Tsai, and M.-S. Hsieh, “Volume manipulations for simulating bone
+and joint surgery,” IEEE Trans. Inform. Technol. Biomed., vol. 9, no. 1,
+pp. 139–149, Mar. 2005.
+[2] R. Aggarwal, P. Crochet, A. Dias, A. Misra, P. Ziprin, and A. Darzi,
+“Development of a virtual reality training curriculum for laparoscopic
+cholecystectomy,” Brit. J. Surg., vol. 96, no. 9, pp. 1086–1093, 2009.
+[3] J. Georgii, M. Eder, K. Burger, S. Klotz, F. Ferstl, L. Kovacs, and R.
+Westermann, “A computational tool for preoperative breast augmentation
+planning in aesthetic plastic surgery.” IEEE J. Biomed. Health Informat.,
+vol. 18, no. 3, pp. 907–919, May 2014.
+[4] A. P. Santhanam, F. G. Hamza-Lup, and J. P. Rolland, “Simulating 3-D
+lung dynamics using a programmable graphics processing unit,” IEEE
+Trans. Inform. Technol. Biomed., vol. 11, no. 5, pp. 497–506, Sep. 2007.
+[5] H. Delingette, “Toward realistic soft-tissue modeling in medical simulation,” Proc. IEEE, vol. 86, no. 3, pp. 512–523, Mar. 1998.
+[6] S. Cotin, H. Delingette, and N. Ayache, “Real-time elastic deformations
+of soft tissues for surgery simulation,” IEEE Trans. Visualization Comput.
+Graphics, vol. 5, no. 1, pp. 62–73, Jan.–Mar. 1999.
+
+279
+
+[7] U. Meier, O. Lopez, C. Monserrat, M. Juan, and M. Alcaniz, “Real-time
+deformable models for surgery simulation: a survey,” Comput. Methods
+Programs Biomed., vol. 77, no. 3, pp. 183–197, 2005.
+[8] M. Bro-Nielsen and S. Cotin, “Real-time volumetric deformable models
+for surgery simulation using finite elements and condensation,” Comput.
+Graphics Forum, vol. 15, no. 3, pp. 57–66, 1996.
+[9] G. Debunne, M. Desbrun, M.-P. Cani, and A. H. Barr, “Dynamic real-time
+deformations using space & time adaptive sampling,” in Proc. 28th Annu.
+Conf. Comput. Graphics Interactive Techn., 2001, pp. 31–36.
+[10] M. Müller and M. Gross, “Interactive virtual materials,” in Proc. Graphics
+Interface, 2004, pp. 239–246.
+[11] G. Irving, J. Teran, and R. Fedkiw, “Invertible finite elements
+for robust simulation of large deformation,” in Proc. ACM SIGGRAPH/Eurographics Symp. Comput. Animation, 2004, pp. 131–140.
+[12] K. Miller, G. Joldes, D. Lance, and A. Wittek, “Total Lagrangian explicit
+dynamics finite element algorithm for computing soft tissue deformation,”
+Commun. Numerical Methods Eng., vol. 23, no. 2, pp. 121–134, 2007.
+[13] K.-J. Bathe, Finite Element Procedures. Prentice Hall, Englewood, Cliffs,
+N. J. 1955.
+[14] H. Delingette and N. Ayache, “Soft tissue modeling for surgery simulation,” Handbook Numerical Anal., vol. 12, pp. 453–550, 2004.
+[15] B. Lee, D. C. Popescu, B. Joshi, and S. Ourselin, “Efficient topology modification and deformation for finite element models using condensation,”
+Stud. Health Technol. Informat., vol. 119, pp. 299–304, 2005.
+[16] H. Delingette, S. Cotin, and N. Ayache, “A hybrid elastic model allowing
+real-time cutting, deformations and force-feedback for surgery training
+and simulation,” in Proc. Comput. Animation, pp. 70–81, 1999.
+[17] B. Lloyd, G. Székely, and M. Harders, “Identification of spring parameters
+for deformable object simulation,” IEEE Trans. Vis. Comput. Graphics,
+vol. 13, no. 5, pp. 1081–1094, Sep./Oct. 2007.
+[18] X. Provot, “Deformation constraints in a mass-spring model to describe
+rigid cloth behaviour,” in Proc. Graphics Interface, 1995, pp. 147–155.
+[19] M. Desbrun, P. Schröder, and A. Barr, “Interactive animation of structured
+deformable objects,” in Proc. Graphics Interface, 1999, pp. 1–8.
+[20] R. Bridson, S. Marino, and R. Fedkiw, “Simulation of clothing with folds
+and wrinkles,” in Proc. ACM SIGGRAPH/Eurographics Symp. Comput.
+Animation, 2003, pp. 28–36.
+[21] M. Müller, B. Heidelberger, M. Hennix, and J. Ratcliff, “Position based
+dynamics,” J. Visual Commun. Image Representation, vol. 18, no. 2, pp.
+109–118, 2007.
+[22] D. E. Breen, D. H. House, and M. J. Wozny, “Predicting the drape of
+woven cloth using interacting particles,” in Proc. 21st Annu. Conf. Comput.
+Graphics Interactive Techn., 1994, pp. 365–372.
+[23] K.-S. Choi, H. Sun, and P.-A. Heng, “Interactive deformation of soft
+tissues with haptic feedback for medical learning.” IEEE Trans. Inform.
+Technol. Biomed., vol. 7, no. 4, pp. 358–363, 2003.
+[24] D. Baraff and A. Witkin, “Large steps in cloth simulation,” in Proc. 25th
+Annu. Conf. Comput. Graphics Interactive Techn., 1998, pp. 43–54.
+[25] Y. Duan, W. Huang, H. Chang, K. K. Toe, T. Yang, J. Zhou, J. Liu, S. K.
+Teo, C. W. Lim, Y. Su, C. K. Chui, and S. Chang, “Synchronous simulation
+for deformation of liver and gallbladder with stretch and compression
+compensation,” in Proc. Annu. Int. Conf. IEEE Eng. Med. Biol. Soc.,
+2013, pp. 4941–4944.
+[26] A. Horton, A. Wittek, G. R. Joldes, and K. Miller, “A meshless total
+Lagrangian explicit dynamics algorithm for surgical simulation,” Int. J.
+Numerical Methods Biomed. Eng., vol. 26, no. 8, pp. 977–998, 2010.
+[27] D. L. James and D. K. Pai, “Artdefo: accurate real time deformable objects,” in Proc. 26th Annu. Conf. Comput. Graphics Interactive Techn.,
+1999, pp. 65–72.
+[28] B. Zhu and L. Gu, “A hybrid deformable model for real-time surgical
+simulation,” Computerized Med. Imag. Graphics, vol. 36, no. 5, pp. 356–
+365, 2012.
+[29] M. Müller, B. Heidelberger, M. Teschner, and M. Gross, “Meshless deformations based on shape matching,” ACM Trans. Graphics, vol. 24, no.
+3, pp. 471–478, 2005.
+[30] M. Müller and N. Chentanez, “Solid simulation with oriented particles,”
+ACM Trans. Graphics, vol. 30, no. 4, pp. 92-1–92-9, 2011.
+[31] Y. Duan, W. Huang, H. Chang, W. Chen, K. K. Toe, J. Zhou, T. Yang, J.
+Liu, S. K. Teo, C. W. Lim, Y. Su, C. K. Chui, and S. Chang, “Modeling
+and simulation of soft tissue deformation,” in Abdominal Imaging: Computation and Clinical Applications. Berlin, Germany: Springer, 2013, pp.
+221–230.
+[32] A. Witkin and D. Baraff, “Physically based modeling particle system
+dynamics,” presented at the ACM SIGGRAPH, Los Angeles, CA, USA,
+2001.
+
+280
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+[33] R. Bridson, R. Fedkiw, and J. Anderson, “Robust treatment of collisions,
+contact and friction for cloth animation,” ACM Trans. Graphics, vol. 21,
+no. 3, pp. 594–603, 2002.
+[34] Simulation Open Framework Architecture (SOFA). (2010). [Online].
+Available: http://www.sofa-framework.org/.
+[35] R. Diziol, J. Bender, and D. Bayer, “Volume conserving simulation of
+deformable bodies,” in Proc. Eurographics 2009-Short Papers, 2009, pp.
+37–40.
+[36] J. Bender, M. Müller, M. A. Otaduy, M. Teschner, and M. Macklin,
+“A survey on position-based simulation methods in computer graphics,”
+Comput. Graphics Forum, vol. 33, no. 6, pp. 228–251, 2014.
+[37] R. Barauskas, A. Gulbinas, and G. Barauskas, “Investigation of radiofrequency ablation process in liver tissue by finite element modeling and
+experiment,” Medicina (Kaunas), vol. 43, no. 4, pp. 310–325, 2007.
+[38] W. Li, X. Luo, A. Johnson, N. Hill, N. Bird, and S. Chin, “One-dimensional
+models of the human biliary system,” J. Biomech. Eng., vol. 129, no. 2,
+pp. 164–173, 2007.
+[39] I. Peterlı́k, C. Duriez, and S. Cotin, “Modeling and real-time simulation
+of a vascularized liver tissue,” in Proc. Med. Image Comput. Comput.Assisted Intervention, 2012, pp. 50–57.
+[40] C. Paloc, F. Bello, R. Kitney, and A. Darzi, “Online multiresolution volumetric mass spring model for real time soft tissue deformation,” in Proc.
+Med. Image Comput. Comput.-Assisted Intervention, 2002, pp. 219–226.
+[41] W. Mollemans, F. Schutyser, J. Van Cleynenbreugel, and P. Suetens, “Fast
+soft tissue deformation with tetrahedral mass spring model for maxillofacial surgery planning systems,” in Proc. Med. Image Comput. Comput.Assisted Intervention, 2004, pp. 371–379.
+
+[42] D. P. Huttenlocher, G. A. Klanderman, and W. J. Rucklidge, “Comparing
+images using the Hausdorff distance,” IEEE Trans. Pattern Anal. Mach.
+Intell., vol. 15, no. 9, pp. 850–863, Sep. 1993.
+[43] S. A. Maas, B. J. Ellis, G. A. Ateshian, and J. A. Weiss, “Febio: Finite
+elements for biomechanics,” J. Biomech. Eng., vol. 134, no. 1, pp. 01100501–011005-10, 2012.
+[44] Y. C. Fung, Biomechanics: Mechanical Properties of Living Tissues. New
+York, NY, USA: Springer, 1981.
+[45] E. J. Chen, J. Novakofski, W. K. Jenkins, and W. D. O’Brien Jr, “Young’s
+modulus measurements of soft tissues with application to elasticity imaging,” IEEE Trans. Ultrason., Ferroelectr. Freq. Control, vol. 43, no. 1, pp.
+191–194, Jan. 1996.
+[46] P. Asbach, D. Klatt, U. Hamhaber, J. Braun, R. Somasundaram, B. Hamm,
+and I. Sack, “Assessment of liver viscoelasticity using multifrequency MR
+elastography,” Magnetic Resonance Med., vol. 60, no. 2, pp. 373–379,
+2008.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

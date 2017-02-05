@@ -1,0 +1,1103 @@
+288
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Automatic Measurement of Venous Pressure
+Using B-Mode Ultrasound
+Alessandro Crimi† , Member, IEEE, Maxim Makhinya† , Ulrich Baumann, Christoph Thalhammer,
+Gabor Szekely, Member, IEEE, and Orcun Goksel∗ , Member, IEEE
+
+Abstract—Central venous pressure (CVP) information is crucial
+in clinical situations, such as cardiac failure, intravascular volume
+overload, and sepsis. The measurement of CVP, however, requires
+the catheterization of vena cava through the subclavian or internal
+jugular veins, which is an impractical and costly procedure with
+related risk of complications. Peripheral venous pressure (PVP),
+which correlates with CVP under certain patient positioning, can
+be measured noninvasively using ultrasound via controlled compressions of a superficial vein. This paper presents an automatic
+system for acquiring such noninvasive measurements. Robust signal and image processing techniques developed for this purpose are
+introduced in this paper. The proposed standalone mobile platform
+collects images in real time from the display output of any ultrasound machine, meanwhile measuring the pressure on the skin
+underneath the ultrasound transducer via a liquid-filled pouch.
+The image and pressure data are synchronized through an automated temporal calibration procedure. During forearm compressions, blood vessels are detected and tracked in the images using
+robust geometric (ellipse) models, the parameters of which are used
+further in the model-based estimation of PVP. The proposed system was tested in 56 image sequences on 14 healthy volunteers,
+and was shown to achieve measurements with errors comparable
+to or lower than the interoperator variability of expert manual
+assessments.
+Index Terms—Venous blood pressure, real-time tracking, vessel
+segmentation, Star-Kalman, dynamic programming.
+
+I. INTRODUCTION
+ENTRAL venous pressure (CVP) measurement is a technique for monitoring hemodynamics in critically ill patients and during surgery, e.g., as indications of cardiac failure,
+intravascular volume overload, and sepsis. The current standard technique for CVP measurement is invasive, requiring the
+catheterization of a subclavian or internal jugular vein, with
+several potential complications, such as vessel rupture and increased rate of thrombosis [1]. An ultrasound-based noninvasive method for monitoring CVP without central venous access
+has been first proposed in [2] and been evaluated in [3] and
+[4]. This method relies on the correlation between peripheral
+
+C
+
+Manuscript received January 14, 2015; revised June 2, 2015; accepted June
+30, 2015. Date of publication July 13, 2015; date of current version January 16,
+2016. This work was supported by the Swiss Commission for Technology and
+Innovation (CTI). Asterisk indicates corresponding author.
+A. Crimi, M. Makhinya, and G. Szekely are with the ETH Zürich.
+U. Baumann is with the Münsingen Regional Hospital.
+C. Thalhammer is with the Zürich University Hospital.
+∗ O. Goksel is with the Computer Vision Lab, ETH Zürich, Zürich 8092,
+Switzerland (e-mail: ogoksel@ethz.ch).
+† A. Crimi and M. Makhinya contributed equally to this work.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2455953
+
+venous pressure (PVP) and CVP, which allows for indirect CVP
+assessment under certain conditions such as the peripheral vessel
+being positioned at heart level [5], [6]. A translucent membrane
+connected to a manometer is placed in front of an ultrasound
+transducer, while the operator gently presses on the skin over
+a superficial vein in the forearm. The operator reads the value
+on the manometer, while trying to keep the compression at a
+point where the vein is seen to barely collapse in the B-mode
+image, with the reading then being the subject’s venous pressure. Despite its noninvasiveness, practical difficulties with the
+aforementioned measurement procedure prevent a wide use of
+this promising measurement technique in daily clinical diagnostics. First, it requires an expert operator who can identify a
+potential vein and can keep the transducer in line with the vein
+during a slow controlled compression. Second, the operator has
+to determine a near-complete vein collapse and, by finely adjusting applied pressure, has to keep the vessel barely collapsed in
+the ultrasound image, while simultaneously taking a manometer reading such that the measurement is taken at the instant
+of collapse. Consequently, subjective and repeatable measurements are difficult, and agreement between observers can be
+relatively low. In this work, we introduce an automatic system
+for this purpose. This paper presents the signal and image processing techniques developed for robust automated noninvasive
+measurement of PVP.
+Vessel segmentation has been widely investigated in 3-D
+medical imaging modalities, e.g., MR/CT angiography and
+CT perfusion scans, using various analysis techniques, such
+as region growing, active-contours, and particle filtering [7].
+For our purposes, we focus here on methods for 2-D vessel
+segmentation and temporal tracking in real-time refresh rates.
+Vessel tracking in ultrasound has been studied in the literature
+for various applications, such as carotid plaque detection [8],
+image-servoing ultrasound robots [9], detection of deep vein
+thrombosis [10], and guiding jugular vein catheterization [11].
+Due to low signal-to-noise ratio of ultrasound imaging, several
+vessel tracking approaches in this modality facilitate geometrical vessel models [9]–[11]. We also follow this direction for
+venous pressure measurement.
+Star algorithm is a common method for the fast approximate
+segmentation of convex shapes. It was first introduced in [12]
+to track the heart ventricular boundary. This algorithm involves
+radial edge-detection along rays emanating from a point interior to the sought structure, where such seed point is iteratively
+reinitialized as the centroid of the extracted structure. In [9],
+this method was extended with a Kalman filter for the robust
+estimation of continuous radial vessel edge. This uses a rotating
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+CRIMI et al.: AUTOMATIC MEASUREMENT OF VENOUS PRESSURE USING B-MODE ULTRASOUND
+
+edge estimator, where the radius is the state of the filter, which is
+updated continually by the (noisy) radial edge estimates. Later in
+the context of diagnosing deep vein thrombosis in [10], a stateof-the-art robust tracking was achieved by using an ellipse as a
+geometric prior for blood vessels and by employing a Kalman
+filter with its state vector being the parametric representation
+of this elliptic prior. Vein had to be initialized manually in that
+work. Also, the tracking would often fail when the transducer
+is moved rapidly or the vessels are nearly/fully compressed; as
+demonstrated as well later in this paper in comparisons with
+our implementation of their work. Note that a fully collapsed
+vein, which does not have a cross section in the image, is very
+difficult, if not impossible, to identify even by the naked eye,
+let alone by a computer vision algorithm. Consequently, simple vessel tracking approaches do unavoidably shift to adjacent hypoechoic structures, when the actual vessel is collapsed.
+Nonetheless, with our proposed approach, it is possible to follow
+vessel location during sudden lateral transducer movements—
+even while the vein is fully collapsed—thanks to our adoption of
+the Lucas–Kanade method [13] for robust interframe global motion estimation. Furthermore, our interchangeable Star–Kalman
+and template matching framework allows us to track relatively
+small or nearly compressed veins. Note that tracking is especially important at the time of compression, which is also when
+PVP readings are taken.
+Our proposed system simultaneously collects ultrasound images and pressure readings, and it is devised as an add-on device
+for ultrasound machines. It detects veins in the images, tracks
+them over time, and estimates the corresponding pressure when
+a collapse occurs. Identifying a single moment of vessel collapse
+when the pressure should be read [14] can be highly error prone;
+therefore, in this study, we employ a novel vein-collapse model
+for pressure estimation. This is achieved by utilizing the entire
+sequence of vein compression in order to estimate the PVP from
+relative changes of the observed vein cross section (e.g., area
+or axial radius) and the measured pressure. As the vein should
+collapse monotonically with increased pressure, aggregating all
+observations throughout a sequence then yields a more robust
+estimate of the pressure at collapse. In this way, the detection is
+performed simultaneously to tracking and PVP measurement;
+and if a tracked object does not exhibit the expected behavior,
+then it is discarded or the measurement is reported to the user
+as an unreliable reading.
+Note that identifying veins in static images is a difficult process even for a human observer, not only because several other
+structures naturally look hypoechoic in forearm ultrasound images, but also due to the relatively degraded signal-to-noise ratio
+of the images by the pressure measuring pouch in the ultrasound
+path. By observing sonographers who perform venous pressure
+measurements, it was noted that they typically move the transducer axially to identify easily compressible structures—that
+are the veins. Inspired by this observation, we have developed a
+detection-by-tracking approach for identifying veins, also making use of the pressure values that are measured independently.
+First, a set of hypoechoic candidate structures resembling the
+shape of a vein (which is roughly elliptic) are detected via
+matching with elliptic templates. From those, the vein is de-
+
+289
+
+tected as the one fitting the above vein-collapse model—the area
+of which decreases with applied skin pressure. This is indeed
+similar to computer vision approaches for detecting people in
+video sequences, where among objects with human apperance
+the ones with human-like behavior are identified [15], [16].
+This vein-collapse model is not only used for automatic initialization, which eliminates the need for a manual vessel initialization in most cases, but it also helps to detect any false
+identification/tracking as explained earlier.
+In this study, we present a compact mobile platform that
+can attach to any ultrasound system externally to perform automatic noninvasive PVP measurements. Preliminary results of
+this study was presented in [14]. As we also later demonstrate in
+our comparisons, several novel contributions presented in this
+paper help to make the proposed method robust and superior.
+II. METHODS
+In an incoming stream of ultrasound images, our proposed
+system first detects potential vein candidates (see Section II-A).
+These candidates are tracked in the following frames using our
+customized Star–Kalman method with elliptic priors (see Section II-B), while any abrupt interframe motion is compensated
+using a Lucas–Kanade filter (see Section II-C). Using the pressure measurements on the skin, intravenous pressure is estimated
+per compression cycle via binning and model fitting to the collected noisy data (see Section II-D). Any initial candidates that
+do not follow the expected (compressible) venous behavior are
+discarded as false candidates (see Section II-E). These methods
+were implemented (see Section II-F) on a standalone mobile
+platform, which can attach to any ultrasound machine as an
+add-on, where a quick temporal and display calibration routine
+enables the adjustment to a particular ultrasound system (see
+Section II-G).
+A. Initialization
+Our methods are aimed to require minimal operator interaction, in order both to be less operator dependent and to necessitate a lower operator skill level for a wider user base.
+Accordingly, in our system, the vein is detected using an automatic scheme based on observations of physicians searching
+for veins. The method first selects a set of candidate (vein-like)
+structures, then tracks those while determining their “veinness”
+based on their compressional behavior; similar to detection-bytracking in the computer vision literature [16]. Often during the
+transducer placement process, the sonographers first move the
+transducer relatively quickly to ensure proper contact, to evenly
+spread ultrasound gel, and to attain the desired orientation and
+placement on the forearm; then they slow down to search for
+the vein. Accordingly, our candidate selection is performed on
+the first frame when both 1) the overall interframe motion is below a motion threshold tm , indicating the above probe placement
+stage has been completed, and 2) the pressure goes above a small
+pressure threshold tp , indicating the compression has started.
+Candidates are selected by template matching using normalized cross correlation (NCC) [17] between an image region of
+interest (ROI) and a set of ne binary ellipse templates. ROI
+
+290
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Algorithm 1 Vein candidate selection in the image
+1: for all rx ∈ [0.5, 4.5] mm do TEMPLATE GENERATION
+2:
+for all ry ≤ rx do
+3:
+Add_Binary_Ellipse_Template(rx , ry )
+4: while fi ← Get_Frame() do CANDIDATE SELECTION
+5:
+if Motion(fi , fi−1 ) < tm and pressure > tp then
+6:
+NCCtensor ← Match_All_Templates(fi )
+7:
+for l ← 1..ns do
+8:
+if Max(NCCtensor) > ts then
+9:
+sl ← Pick_Max(NCCtensor)
+10:
+NCCtensor ← Suppress(NCCtensor, sl )
+
+Fig. 2.
+
+Axis-aligned ellipse model for representing compressing veins.
+
+is already ensured as a criterion (tm ) to start the initialization
+procedure. However, such dropped frames were observed to
+be detrimental for vein tracking—in particular, during compressions that inherently have faster interframe motion and change of
+venous cross-sectional geometry. Therefore, we utilize a much
+faster method based on edge detection and model-based tracking
+as detailed in the next section.
+B. Vessel Tracking
+1) Ellipse Model: Similarly to [10], we employ an ellipse
+to approximate the cross section of the vein. Rotationally varying radius of an axis-aligned ellipse centered at the origin (cf.,
+Fig. 2) is given in polar coordinates as
+r(θ) = 
+
+Fig. 1. Sample initialization frame showing four selected candidates with
+NCC higher than ts = 0.5.
+
+extends from the bottom of the image to the pouch surface,
+found automatically in each frame using its bright reflection.
+ne was determined empirically based on the maximum possible
+ROI size and the computational capacity of the implementation
+platform. Each template contains a hypoechoic ellipse of different major/minor radii overlaid on a hyperechoic background of
+twice such radii. During template matching, nonmaxima suppression is applied where the higher NCC valued candidate
+is kept among any two overlapping ellipses—defined by their
+centers being closer than half the sum of their major semiaxes. Accordingly, a maximum number of ns candidates with
+scores higher than an NCC threshold of ts are kept as candidates {s1 , . . . , si } as summarized in pseudocode in Algorithm 1.
+These candidates are then all tracked until a compression is applied, subsequent to which (nonvein) outliers are removed using
+the statistical data collected during compression as described
+later in Section II-E. Figure 1 illustrates the candidates from a
+sample candidate selection stage.
+Template matching could in theory be carried out continuously as a vessel tracking approach, not only during initialization. However, this process is computationally demanding. In
+fact, NCC computation for all masks on our hardware takes
+up to 250 ms, which causes several next frames to be dropped
+from tracking. This is acceptable during candidate selection due
+to relatively small interframe motion, which as aforementioned
+
+rx ry
+rx2 cos2 (θ) + ry2 sin2 (θ)
+
+(1)
+
+for all eccentricity angles θ, where rx and ry are the semiaxes
+(radii) along corresponding axes. Accordingly, such ellipses at
+arbitrary locations can be represented by four parameters
+e = [cx , cy , rx , ry ]T
+
+(2)
+
+where cx and cy denote the coordinates of the ellipse center.
+In this work, we consider only axis-aligned ellipses for veins,
+since this constrained model provides a sufficient approximation for axially compressing veins, while reducing false-positive
+matches compared to those including rotations.
+2) Edge Detection: The ellipse representation ei in frame fi
+is found based on the ellipse ei−1 from the previous frame as
+follows. First, the estimates of potential vessel wall are identified using edge detection along rays emanating from previous
+vessel center (cx , cy )i−1 . For this, the ellipse circumference is
+discretized into nr rays at angles θ∈[0, 2π). Along each ray
+j∈{1, . . . , nr }, the image is then resampled from the expected
+ellipsoid center up to a fixed margin wr outside the expected
+edge ri−1 (θj ) at that given angle. The expected values are estimated from previous iteration ei−1 , also using (1). To find the
+vessel wall, this search window is correlated with an asymmetric
+binary edge profile that has zeros followed (at the sought edge)
+by ones corresponding to a fixed margin wb (e.g., [0 · · · 0111]).
+This models the vessel wall appearing in images as a set of hypoechoic pixels followed by a short hyperechoic edge, whereas
+after the wall the tissue may have arbitrary (hypo/hyperechoic)
+content depending on neighboring structures. Accordingly, a
+NCC value h(θj , ri (θj )) is obtained as an edge response at each
+angle/radius sample.
+
+CRIMI et al.: AUTOMATIC MEASUREMENT OF VENOUS PRESSURE USING B-MODE ULTRASOUND
+
+291
+
+discretized radius estimate at a given angle. Time index i is
+dropped here for convenience. Given all possible configurations
+Υ, finding the optimal path δ ∗ can be formulated with a smoothness penalty by the following minimization problem:
+δ ∗ = arg min
+δ ∈Υ
+
+Fig. 3. Wall extraction from n r = 60 rays. Gray values indicate edge likelihoods given by NCC edge detector discretized at given radii, where the blue
+points indicate infeasible and out-of-range locations. Each column on the left
+indicates a ray profile starting from the ellipse center in the image on the right.
+Green path is a sample wall extraction with smoothness constraints using dynamic programming (also shown in the image coordinates on the right). The
+red points are the samples that would have been picked without smoothness
+constraints.
+
+Even with the robust asymmetric profile above, a continuous vessel-wall profile cannot be ensured merely from edge
+responses. In [14], the best edge points along all rays θj were
+kept for iterative robust ellipse fitting. In [9], several (≈5) best
+edge candidates along each ray were input as r(θ) observations
+to a Kalman filter rotating around the ellipse repeatedly. Note
+that such candidate sampling is not a well-defined problem. Indeed, any n-best strategy leads to a hard decision that, if failed,
+no postprocessing can recover from.
+In this paper, we propose a dynamic programming approach
+that takes all edge estimates into account and finds a globally
+optimal solution for a vessel wall including smoothness constraints. For this, consider the problem in polar coordinates as
+in Fig. 3, in which a smooth path (e.g., the green path) from
+left edge to right edge is sought. Here, the columns represent
+nr rays emanating from vessel center, where pixel gray-values
+are edge responses h at given discrete radii. Blue points indicate
+infeasible/noncomputed values. The columns here are aligned
+at corresponding (expected) radii ri−1 (θj ). This alignment is
+instrumental in compensating for the periodic radius changes
+due to elliptic geometry, which otherwise would yield an (artificial) nonsmoothness effect in such polar coordinate frame.
+In other words, if the ellipse is unchanged (i.e., ei = ei−1 ),
+then the optimal profile shall be a line in this frame—not a sinusoidal pattern, if such alignment was not done. Maximum
+likelihood points along each ray based on correlation alone
+(without smoothness) are shown in Fig. 3 in red, when they
+are different from the optimal (smooth) solution in green. It
+is seen that simply picking the highest likelihood edge points
+without smoothing is not robust—especially for θ = { π2 , 3π
+2 },
+where the vessel wall is parallel to ultrasound propagation, and
+hence has poorer contrast.
+For a fast implementation with global optimality, we defined the problem as cost minimization with optimal substructure and solved via dynamic programming. In the discretized
+edge-response space h in Fig. 3, any wall configuration can
+be represented as δ={r[θ1 ], r[θ2 ], . . . , r[θn r ]}, where r[·] is the
+
+nr
+
+j =1
+
+f (θj , r[θj ]) +
+
+nr
+
+
+g (θj −1 , θj )
+
+(3)
+
+j =2
+
+where the first (unary) term is the data cost, from a point indexed
+in Fig. 3, such that
+
+∞,
+if h(x, y) is undeﬁned (“blue”)
+f (x, y) =
+−h(x, y), otherwise
+(4)
+and g is the discontinuity penalty of neighboring points as
+⎧
+0,
+if r[θj ] = r[θj −1 ]
+⎪
+⎪
+⎨
+if |r[θj ] − r[θj −1 ]| = 1
+g(x, y) = ,
+(5)
+⎪
+⎪
+⎩
+∞, otherwise
+which penalizes high curvature along vessel wall in polar coordinates.
+Using dynamic programming [18], (3) can be solved in linear
+O(nr wr +nr rx ) time. Specifically, in a first (e.g., left-to-right)
+pass, the cumulative minimum costs are stored on a grid (nodal
+graph) that is of same size as fi . Then, a backward traversal of
+minimum costs gives the optimum configuration δ ∗ —the green
+path in Fig. 3. Having identified the edge candidates as 2-D point
+locations in the image coordinate frame as in Fig. 3 (right), the
+ellipse parameters ei at frame fi are then found using a simple
+least-squares ellipse fit. This allows for the tracking of vessel
+movements and shape changes.
+3) Temporal Model: Without any temporal regularization of
+tracking, a single corrupted/noisy frame or misidentification
+above would jeopardize the tracking of all following frames.
+Since the transducer manipulation and the vessel compression
+are kinematic processes, Kalman filtering [19] is, hence, an ideal
+candidate for introducing temporal consistency in our tracking.
+Accordingly, we use the above ellipse-fit ei as a (noisy) observation of a Kalman filter represented by the following dynamic
+system:
+
+xi = Fxi−1 + ζi
+(6)
+ei = Hxi + ηi
+where xi = [e∗i ė∗i ] is the Kalman state vector comprising the
+ellipse parameters
+	 and their
+
+ velocities. A constant state transiI4 I4
+tion matrix F=
+was used, such that positions/radii are
+04 I4
+updated by their velocity. The measurement matrix H=[I4 04 ]
+relates internal state to observations. The terms ζi and ηi are
+the zero-mean white-noise assumed, respectively, in the process
+and the observations, for both of which the noise covariance
+matrices are internally updated during the filtering process. The
+filter state is updated using conventional Kalman prediction and
+correction operations, which yields the tracking result for current frame fi as the filtered ellipse e∗i —which is also used in
+Section II-B2 as ei−1 in the next iteration.
+
+292
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Fig. 4. Flowchart summarizing the steps of the tracking algorithm, where fi
+is the acquired image frame, ei the ellipse observation, and e∗i is the Kalmanfiltered ellipse state with its center (cx , cy ) and the vertical semiaxis ry .
+
+vessel tracking errors, we resort to a model of vessel compression to robustly estimate collapse pressure. Due to the nonmonotonicity, filtering out errors in the space of frames are not
+reliable. Also, operators often initially compress a vein rapidly,
+and later slowly as the point of collapse approaches. Therefore,
+we estimate PVP with a model in the space of pressure versus
+vessel cross section, which can be populated and updated from
+several observations during a compression. For instance, the
+readings in Fig. 5(d) are seen in Fig. 6(a) as the solid line. As
+the observations of pressure u from the sensor attached to the
+pouch and the ellipse area a from the ellipse tracker are received,
+these are statistically filtered by a binning operation. Basically,
+for a predefined set of pressure values (bins) uk , which is in this
+example { 14 , 34 , 54 , . . .} mbar, a running average mk and a count
+nk are kept and updated with each vessel area estimation a. For
+each reading, the nearest bin k=arg min|uk − u| is updated as
+k
+
+When the vessel is almost compressed and its cross section
+is relatively small, the ray sampling and edge detection above
+become poorly defined, with some rays not having sufficient
+samples for a robust edge detection. Also, the expected center
+from previous iteration may then easily fall outside the vessel
+for even small transducer movements and vein compressions.
+Therefore, when the axial ellipse radius ry is below a preset
+threshold tr , the tracking is switched to a template matching
+approach. Such tracking works similarly to the candidate selection operation in Section II-A; nevertheless, since the range
+of search radii for templates are now much smaller, it is thus,
+possible, to perform this at the acquisition frame rate.
+C. Motion Compensation
+During rapid (sometimes involuntary) motion of the transducer by the user, the scene may shift too abruptly for the
+vessel to be tracked accurately. Hence, for each frame, an additional motion compensation step is performed using the Lucas–
+Kanade method [13]. This estimates a robust globally affine (six
+parameter) transformation between frames fi−1 and fi using a
+least-squares fit to optical flow estimations at a regular grid of
+points seeded under the pouch area. From this transformation,
+interframe motion at previous vessel center is sampled, and then,
+used to correct (shift) (cx , cy )i−1 prior to the current frame vessel detection procedure in Section II-B2. This helps us to ensure
+the Star algorithm to be initialized within the vessel even during rapid transducer manipulation. Data flow among the vessel
+tracking and motion compensation components are shown in
+the block diagram in Fig. 4.
+D. Venous Pressure Estimation
+Fig. 5(a)–(c) depicts different frames of a tracked vessel,
+while it is being compressed. Note that the pressure applied
+by an operator, which leads the vein to collapse, may not always be strictly increasing due to hand/arm dynamics, tremor,
+or deliberate operator movements [see Fig. 5(d), in which the depicted frames are also marked]. Considering such nonmonotonic
+compressions, also complicated by potential measurement and
+
+mk ←
+
+mk ∗ nk + a
+nk + 1
+
+nk ← nk + 1
+
+(7)
+
+with ← being the assignment operator. Bin averages are shown
+in Fig. 6(a) as the dashed line, for the given simple example.
+Note that in many cases, the user may spend prolonged times
+in smaller sections of pressure/area ranges such as performing
+several half-complete compressions resulting in loops in such
+model space. These are nonetheless effectively smoothed by the
+above binning filter that statistically distills those observations.
+A polynomial model is then fitted to the binned pressure–
+area curves. Of different order of polynomials compared, linear
+and quadratic fits had the best estimation of (gold standard)
+operator readings on average—with higher worst-case errors
+with quadratic fitting. Therefore, we chose linear regression as
+our model for a more robust operation. The pressure at the vessel
+collapse is then inferred at the intersection of the model with
+the x-axis (i.e., a = 0), indicating the moment of vein collapse
+where intravenous pressure is overcome. Binned readings and
+their linear regression for three consecutive compressions are
+seen in Fig. 6(b) in comparison to the gold-standard reading of
+9 mbar by the operator.
+E. Outlier Removal
+The compression model above is also used for the identification of actual vein from the set of initial candidates in Section II-A. In contrast to other incompressible hypoechoic candidate structures, a vein shall compress when pressure is applied.
+Then, such a model can help identify veins, even when they are
+difficult to resolve from appearance alone. An example is seen
+in Fig. 6(c), where the correct vein is clearly recognized from its
+behavior (decrease in area) in response to applied pressure, even
+though its NCC score from template matching is not the highest. Accordingly, following initialization of candidate structures,
+all of those are tracked, while building separate pressure–area
+curves for each of them. Following a compression, the structure
+with minimum slope is recognized as the vein and the others are
+discarded from further tracking.
+
+CRIMI et al.: AUTOMATIC MEASUREMENT OF VENOUS PRESSURE USING B-MODE ULTRASOUND
+
+293
+
+Fig. 5. (a)–(c) Three frames during a vein compression, on which the center and circumference of our tracked ellipse representation are overlaid. (d) Temporal
+progression of corresponding pressure values.
+
+Fig. 6. (a) Sample pressure–area curve and its filtered version via binning. (b) Linear regression to binned values from three consecutive compressions. Vertical
+lines represent the independent gold-standard reading by a physician. (c) Area change of four candidate structures (seen in Fig. 1) with increasing pressure during a
+compression. The actual vein, which has the second highest NCC score from template matching, can still be identified correctly from its behavior (area reduction)
+in response to increasing pressure.
+
+Fig. 7. Proposed hardware consisting of a tablet computer, attached to a frame
+grabber and a manometer with a liquid-filled pouch.
+
+F. Implementation
+A hardware prototype of our system can be seen in
+Fig. 7. The methods introduced above have been implemented in C++ on a tablet computer (Microsoft Surface Pro 2)
+with Intel Core i5 dual-core processor with 4-GB memory.
+An external frame grabber (VCC-100XUSB-PRO, Vprime
+LLC, Beaverton, OR, USA) connected via USB3 interface
+is used to acquire high-resolution images from any connected ultrasound machine, through either S-video, video graphics array (VGA), or digital visual interface (DVI) output.
+
+The pressure measurement component consists of a flexible
+(silicone) membrane attached to a metal frame and filled with
+ultrasound-transparent liquid. Having tested several fillings,
+vegetable oils (olive oil, in the current setup) have been found to
+work best as they match the tissue acoustic impedance well and
+cause minimal attenuation. The liquid in the pouch is connected
+through a small opening to a pressure manometer circuit (Sensortechnics AG, Puchheim, Germany) inside the handle, which
+digitizes liquid pressure values relatively to the atmospheric
+pressure. Manometer readings are then sent to the computer via
+a USB circuitry (I2C-USB Module, Daventech Ltd., Attleborough, England) in the pouch handle.
+Thanks to the manometer being mounted on the handle, the
+relative pressure readings were unaffected from vertical movements of the hand-held component. Nevertheless, rotations of
+the pouch do affect the readings as they change the relative altitude of the manometer with respect to the silicone membrane.
+Therefore, before a series of measurements for each subject,
+once a satisfactory arm/vessel location is identified, the transducer is lifted off the skin keeping its orientation, and a zero
+calibration (pressure offset) is performed by touching on the
+pressure reading panel. The touch screen also allows the operator to remove measurements that are deemed to be unreliable
+or to override the vein location by touching at a visible vein on
+screen. Such override takes precedence over automatic initialization (see Section II-A) and outlier removal (see Section II-E)
+
+294
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Algorithm 2 Tracking and pressure estimation
+1: while fi ← Get_Frame() do
+2:
+if u < tp and candidates s ≡ {} then
+3:
+Go to CANDIDATE SELECTION in Algorithm 1
+4:
+if u < tp then
+5:
+PVP ← {}
+6:
+Reset_Bins(∀l∈s modell )
+7:
+(mx , my ) ← Estimate_Motion (fi−1 , fi )
+8:
+for all candidates sl do
+9:
+(cx , cy )i ← (cx , cy )i−1 + (mx , my )
+10:
+if ry < tr then
+11:
+ei ← Template_Matching (fi , e∗i−1 )
+12:
+else
+13:
+ei ← Star_Algorithm (fi , e∗i−1 )
+∗
+14:
+ei ← Update_Kalman_Filter(xi−1 , ei )
+15:
+mk ← Update_Bin(k ← u , a ← e∗i )
+16:
+if a < a40 and PVP ≡ {} then READ PRESSURE
+17:
+for all candidates sl do
+18:
+(modell , errorl ) ← Regression(ml,∀k )
+19:
+s∗ ← Best_Candidate(model∀l,slop e )
+20:
+PVP ← models ∗ |a=0
+21:
+s ← s∗
+REMOVE OTHER CANDIDATES
+operations above, and initiates our standard vessel tracking (see
+Section II-B) from template matching by few ellipses centered
+at that location touched.
+In the current implementation, ne = 35 templates are used to
+keep the initialization run under 250 ms. For our platform, ne
+was determined by testing different discretizations of a maximum range of [0.5, 4.5] mm minor and [0.5, 11.5] mm major
+axes, which cover a wide range of possible vein sizes.
+During tracking, the correlation of the estimated ellipse and
+the image are kept to indicate the confidence of the current tracking state. This tracking confidence is conveyed to the user by
+the color of tracking ellipse. Also, if user manipulation (global
+interframe motion) is fast, then a speed indicator warns the
+user. PVP values predicted from each compression cycle are
+displayed immediately in the interface. The above tracking metrics, in addition to other error conditions, such as the number
+of samples available for model fitting and any resulting fitting
+error, are used to infer a final measurement confidence value.
+A low confidence is indicated in the interface by coloring the
+immediate PVP estimate in red. The median of PVP estimates at
+any point is reported to the user as the consensus reading. Last
+six estimates with the highest confidence are kept on display for
+operator’s perusal. Algorithm 2 gives a simplified overview of
+major algorithmic steps; nonetheless, the implementation contains additional sanity checks and flow mechanisms.
+G. Spatial and Temporal Calibration
+Different ultrasound machines have different screen layouts.
+For the first use on a new system, a spatial calibration mode in
+our device enables the user to select the relevant image portion
+from full screen capture. Since the delays in the ultrasound display output and our image acquisition pipeline may vary, a tem-
+
+Fig. 8. Pressure and membrane displacement (a) before and (b) after temporal
+calibration.
+
+Fig. 9.
+
+Flowchart depicting the overall data flow and display components.
+
+poral calibration mode is also provided to ensure the synchronization between the acquired image frames and the manometer
+readings. Temporal calibration is performed by automatically
+detecting the pouch membrane displacement in each frame during a series of pushes against a hard surface. The system then
+analyzes the sequences of pressure values u(t) and membrane
+displacements d(t) over time, by computing their NCC [20] to
+identify the phase (delay) between them. Basically, if the crosspower spectrum is computed as the normalized Hadamard product of their discrete Fourier transforms, i.e., û◦d̂∗ , then the peak
+|û·d̂ |
+of its inverse Fourier transform yields the delay to synchronize
+the pressure values to images. Pressure and membrane displacement readings for a typical setup are demonstrated before and
+after temporal calibration in Fig. 8(a) and (b), respectively.
+In our device, a frame buffer and a pressure buffer were implemented to store corresponding information temporarily and
+send those to image processing algorithm as needed to ensure the
+access to the latest images with corresponding pressure. These
+buffers also allow us to record measurement sessions (without
+potential dropped frames), as well as to rerun such sessions at
+a later time (e.g., with an alternative processing algorithm) by
+simply pointing the buffers to load from a file. The data flow
+between the buffers, the processing, and the display components
+in the graphical user interface (GUI) are shown in Fig. 9.
+III. RESULTS
+A. Volunteer Study Setup
+A volunteer study was conducted in order to evaluate our
+vessel tracking and pressure measurement techniques. For this
+study, our device was connected externally via the frame grabber to a SonixTouch ultrasound machine (Ultrasonix, Richmond,
+
+CRIMI et al.: AUTOMATIC MEASUREMENT OF VENOUS PRESSURE USING B-MODE ULTRASOUND
+
+295
+
+Fig. 11. Pressure through a measurement cycle, which consists first of a
+conventional reading and then of our new automated measurement protocol.
+
+Fig. 10. Typical measurement setup with the proposed system connected to
+an ultrasound machine. The measurement pouch is held with the transducer.
+
+BC, Canada). For measurements, an L14-5/38 linear array transducer was used together with the hand-held pressure measuring
+component as seen in Fig. 10. Ultrasound imaging parameters
+were set for superficial vessel examination, with 10-MHz center
+frequency and 30-mm imaging depth with a single transmit focus and dynamic receive focusing. Following our manual screen
+calibration, images cropped to a 605 × 473 pixel2 ROI were collected at 30 frames/s from the frame grabber for the entire study.
+The temporal calibration yielded an image delay of 140 ms,
+which was compensated in the GUI and during automatic measurements. On the given tablet computer, our algorithms run at
+≈10 ms per frame on average, of which ≈3 ms is spent on motion estimation using a 12 × 12 point grid in the Lucas–Kanade
+method.
+Our study involved 15 healthy volunteers with a median age
+of 28 years old and with no history of cardiovascular diseases
+or hypertension. The volunteers were placed in supine position,
+setting the arm at heart level. For each volunteer, two physicians (called operators below) measured the venous pressure
+in a double-blind fashion—each operator twice on the right
+forearm at different loci ≈10 cm proximal to the wrist. This
+setting allowed us to assess intra and interobserver variability
+of manual pressure measurements. In one volunteer with very
+small vein cross section, neither operator could locate a superficial forearm vein around targeted location successfully for PVP
+measurement, and, hence, this volunteer was removed from the
+
+study. Accordingly, for the remaining 14 volunteers, we had
+56 image sequences (measurement cycles) in total to evaluate
+our proposed method. Before each measurement cycle, a zero
+adjustment of the pressure sensor was performed. The pressure
+profile from a sample measurement cycle is seen in Fig. 11, the
+acquisition of which is described below.
+In a first phase, the operator was asked to conduct a measurement using the current manual technique, called the conventional protocol in the figure. This commonly works such
+that the operator slowly compresses the vein to a bare collapse;
+then fine-tunes the applied pressure around that point, while
+trying to identify the mere instance of collapse in the images;
+and, once that is achieved, reads the pressure value (which is
+integrated in the GUI in our proposed system, in contrast to a
+separate manometer used in earlier studies). Usually, the operators iterate this process a couple of times to ensure a repeatable
+reading, which they then report as the noninvasive PVP of the
+subject. Thus, in our study, we had one such value per measurement cycle, which yielded 56 values in total that we used as the
+gold-standard PVP measurements for comparisons.
+In order to have a technique that can be applied repeatably
+and in a short, fixed time-frame by different physicians as well
+as other medical personnel such as trained nurses, we have devised a new measurement protocol—also suitable for automated
+measurements. As seen in Fig. 11 as the new protocol, the operator gently and repeatedly compresses the vein, without being
+concerned about identifying the instant of collapse. We asked
+them to apply three compressions, during which our algorithm
+tracked the vein; estimated readings using the pressure–area
+model; and, from their consensus, arrived at an automated PVP
+measurement for the sequence. Implementation parameters used
+in this study are as follows:
+tm
+2 mm/s
+
+tp
+
+ne
+
+ns
+
+ts
+
+nr
+
+wr
+
+wb
+
+1 mbar
+
+35
+
+5
+
+0.5
+
+60
+
+2 mm
+
+0.7 mm
+
+B. Evaluation of Vessel Tracking
+Vessel cross section throughout each acquired sequence was
+manually segmented separately by two trained annotators in a
+blinded fashion to assess interobserver variability of visual identification of vessels. The vessels are also tracked retrospectively
+in the recorded sequences by different versions of our algorithm. For the purposes of the following vessel tracking results,
+
+296
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Fig. 12. Per-frame evaluation metrics for three repeated compressions in a sample new-protocol sequence, where the skipped frames correspond to intervals
+when the vein is collapsed.
+
+comparisons among different runs are ensured by using the center of first-frame annotator segmentations as the (manual) initialization for tracking. Then, in each frame, the vessel identified by
+our tracking is compared to each manual segmentation using the
+following metrics: Dice similarity [21], Hausdorff distance [22],
+Euclidean distance between centroids, and area difference. Dice
+and Hausdorff scores are standard segmentation evaluation
+metrics that, respectively, measure the normalized overlap and
+the worst-case (farthest) border identification error. Additionally, we introduce the latter two metrics, which we purport to be
+more relevant for assessing vessel tracking in our application.
+Centroid distance tells how far our tracking may wander off
+from the vessel, which, if high, will result in the tracking losing
+the actual vessel. The last metric, area difference, aims to capture errors in estimating the vessel cross section, the vanishing
+of which indicates vein collapse, and any error therewith would
+directly affect our readings through the pressure–area model.
+The above metrics for individual frames of a sample sequence
+are shown in Fig. 12. The missing values correspond to frames
+where the vessel was fully collapsed, and thus, could not be
+segmented by the annotator. Note the metrics getting poorer
+near such singular points, just before and after compressions,
+due to small venous cross section. To evaluate our methods on
+all sequences, average metric values are computed as follows.
+1) Mean Dice Metric: For manual segmentation Si and automatic segmentation Ai in each frame fi , an average Dice over
+all n frames of a sequence is calculated as
+1  2 |Ai ∩ Si |
+.
+mD =
+n i=1 |Ai | + |Si |
+
+(8)
+
+2) Mean Hausdorff Distance: This is a measure of the
+longest distance between two subsets of points, i.e., mH,i =
+max{ sup inf d(pj , pk ), sup inf d(pj , pk )}, where d(pj ,
+p k ∈S i p j ∈A i
+
+pk ) is the Euclidean distance between points. The mean Hausdorff distance within a sequence is then
+1
+mH =
+mH,i .
+n i=1
+
+1 
+(xA i − xS i )2 + (yA i − yS i )2 .
+n i=1
+n
+
+mC =
+
+(10)
+
+4) Mean Normalized Area Difference: Similarly to the previous metric, this is computed from the perframe segmentation
+areas aS i and aA i as
+1  |aA i − aS i |
+.
+n i=1 max(∀i aS i )
+n
+
+mA =
+
+(11)
+
+The denominator is used to normalize by the maximum area of
+the ground-truth segmentation within that sequence.
+The distributions of the above tracking metrics for all 56 sequences are given in Fig. 13, which demonstrates the improvements from enabling different components of our proposed vessel tracking method (PM). Left-most results in each box plot
+were produced by using merely the Star edge detection with
+Kalman filtering. The following results demonstrate improvements gained from introducing additional template-based tracking, interframe motion compensation, and dynamic programming for ellipse fitting. Our PM by activating all components is
+then compared separately to the two manual annotators, A1 and
+A2, in Fig. 14. Correlation between vein annotations by these
+two annotators is also presented to demonstrate interobserver
+variability in this vein identification/tracking task.
+C. Evaluation of Pressure Measurement
+
+n
+
+p j ∈A i p k ∈S i
+
+error is then the mean Euclidean distance between those as
+
+n
+
+(9)
+
+3) Mean Centroid Distance: Centroids of cross sections are
+computed on fi as (xS i , yS i ) and (xA i , yA i ). Centroid tracking
+
+On each volunteer, each physician took two separate manual
+measurements—each time removing the transducer from the
+skin and replacing it on a potentially different location. They
+performed this by visually observing the manometer readings
+themselves (having zeroed the pressure offset) and reported the
+resulting (14 × 2 × 2=) 56 values with 0.5 mbar precision. Intraobserver variability of operators 1 and 2 for their consecutive
+readings (taken within few minutes) can be seen in Fig. 15(a)
+and (b). The operators were blinded to each other’s readings.
+The average of two consecutive readings was taken as that operator’s judgment of PVP for that volunteer. The comparison of
+those PVP judgments between operators is seen in Fig. 15(c) as
+interobserver variability. Root-mean-squared error (RMSE) for
+intraobserver measurements are 1.07 and 3.7 mbar, respectively,
+
+CRIMI et al.: AUTOMATIC MEASUREMENT OF VENOUS PRESSURE USING B-MODE ULTRASOUND
+
+297
+
+Fig. 13. Box plots presenting the given evaluation metrics for all sequences from the volunteer study. The results demonstrate incremental improvements
+gained from enabling each component of the PM. First, only the Star–Kalman is used, then template matching, next motion estimation (ME), and last dynamic
+programming (DP) components are enabled. The distributions include metrics from comparing automatic tracking to both manual annotators.
+
+Fig. 14.
+
+Box plots showing tracking evaluation by comparing the PM against ground-truth annotations from annotators A1 and A2.
+
+Fig. 15. (a) and (b) depict the intraobserver variability of operators 1 and 2, respectively, from two repeated measurements of each operator per volunteer. Taking
+the average of repeated measurements as the operator’s judgment per volunteer, (c) then shows the interobserver variability. (d) and (e) present the comparisons of
+physician assessments to automatic measurements for using the new and the conventional protocols, respectively.
+
+for operators 1 and 2. Interobserver variability has an RMSE of
+4.45 mbar.
+Our method returns one PVP estimate for each vessel compression, which is combined into a consensus automatic measurement using the median operator. We have compared these
+automatic measurements to gold-standard physician assessments, for both conventional and new protocol measurement
+sequences. If our algorithm detects a failure of tracking or
+pressure–area model, that reading is then removed from the
+consensus voting. If no reliable reading can be obtained, that
+measurement is reported as fail by the algorithm. With our new
+protocol, only one measurement out of 56 could not be acquired
+automatically, which corresponds to a 98.2% acquisition suc-
+
+cess. Fig. 15(d) shows the comparison of those 55 successful
+readings to physician assessments, which indicates a mean error
+of 3.13 mbar and an RMSE of 4.53 mbar, which is comparable
+to interoperator variability. We have repeated the evaluation also
+using the data from the conventional protocol, which decreased
+the measurement mean error to 1.76 mbar and the RMSE to
+3.15 mbar as seen in Fig. 15(e). However, the number of failed
+measurements increased to 4 (a reduced 92.6% success) due to
+the acquisition protocol not being optimal for the processing
+methodology. The compression sequences were recorded at the
+time of acquisition by the system (by a feature of the frame and
+pressure buffers) in order for us to test different methods and
+present comparative analyses in these figures.
+
+298
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+D. Usability and Interoperability
+Following the study, a brief questionnaire was filled by the
+participating physicians. The questions are given in the table
+below, with their answers collected in a 5-point Likert scale.
+
+Question
+Do you agree with the displayed automatic
+tracking of veins? (tracking correctness)
+System comfortable to use? (ergonomy/comfort)
+The unified interface with integrated ultrasound
+and measurement display comfortable? (GUI)
+
+Operator1
+
+Operator2
+
+agree
+
+agree
+
+agree
+agree
+
+agree
+strongly
+agree
+
+IV. DISCUSSION
+A novel automatic noninvasive method for measuring PVP
+using ultrasound image analysis has been proposed. This method
+can be used as a first-line estimation of CVP without requiring
+invasive techniques, such as in hospital emergency units for initial monitoring of incoming trauma patients. This is similar to
+the current use of arterial blood-pressure measurement devices,
+but brings in yet another source of diagnostic information as
+the venous pressure, which may, for instance, indicate internal
+bleeding. Note that achieving measurements from the image
+output of different ultrasound machines was a major challenge
+addressed by this study. Although this study was conducted on
+an Ultrasonix ultrasound machine, we have also tested our device for PVP measurements with other systems, such as Philips
+CX-50, iU22, and Epiq. Our contributions in this study are indeed twofolds: a novel technique for real-time vessel tracking,
+and a novel automatic method for estimating internal venous
+pressure from their collapse pattern.
+On the tracking side, our algorithm addresses the challenges
+regarding collapsing veins, which virtually disappear from the
+image. Also, several techniques that can successfully cope with
+reduced image quality due to the measurement pouch and external frame acquisition have been developed. Different methodological contributions introduced in this study have led to the
+presented state-of-the-art vessel tracking results. Fig. 13 demonstrates how the achieved tracking accuracy has benefited from
+each algorithmic proposal. It is seen that template-matching improves average Dice from 0.4 to 0.7, while also improving all
+other metrics significantly as smaller/collapsed veins can then be
+handled correctly. Motion estimation improves mainly the distance metrics (Hausdorff and centroid), by boosting finer level
+tracking (complicated by erratic movements), nevertheless, it
+also improves all metrics overall, since such motion sometimes
+leads to complete loss of tracking. With the proposed advanced
+vessel wall extraction, mainly the area metric is seen to be improved due to the higher accuracy extraction of the vessel wall,
+which also directly affects the pressure estimations. Note that
+the order of enabling the techniques was chosen both in the
+order they were developed chronologically and also to better
+highlight their benefit.
+Dice values, even for the interannotator comparison, may degrade substantially, in particular, during near-collapse phases,
+
+when a very small cross-section results in an unstable metric
+especially when segmented differently by the annotators. This
+is seen as the near-zero Dice values in Fig. 12(a). That is why we
+have proposed alternate metrics for evaluating the given vesseltracking task. In particular, normalized area difference (as an
+alternative to Dice overlap) quantifies the cross-sectional error,
+which would affect the pressure estimation through our collapse
+model in Section II-D. Note an example between frames 250
+and 300 in Fig. 12(a), where a cross-sectional inaccuracy that
+might affect pressure readings is observed clearly with the rise
+in normalized area metric, whereas it is barely discernible in
+Dice (a mere drop to 0.7 from 0.9, washed out by other effects).
+Similarly, in contrast to Hausdorff metric focusing on vessel
+boundary errors, which are less relevant to our specific application, centroid difference instead gives a localization error that is
+a surrogate for potential tracking loss—similarly to comparing
+centers of bounding boxes for tracking error in computer vision.
+Note that the veins of patients with circulatory problems may
+have different sizes than our volunteers’. This may require finetuning the parametrization for intensive-care applications.
+Doppler shift is a common ultrasound modality to image
+blood flow. However, it is not utilizable to detect veins in our
+scenario due to the minute flow velocities in the superficial
+veins, the cross-sectional view required, and the existence of
+large motions during compressions.
+Our vessel-wall solution in (3) does not enforce continuity
+between 0 and 2π, the left- and right-most columns. However,
+the addition of this constraint would have jeopardized the optimal substructure, and, hence, our rapid solution. Nevertheless,
+the top edge of the vessel, which corresponds to the left- and
+right-most columns, is often easily visible, and, thus, those are
+mostly defined unambiguously by edge response. This was, in
+fact, the motivation behind our choice of θ = 0 ray pointing
+upward—the side of wall with high contrast in ultrasound.
+Note that the forces on the skin will not necessarily generate a uniform stress through the tissue due to the geometry of
+the forearm and the structure of the tissue. Therefore, the assumption of the internal pouch pressure being equal (or close)
+to the venous blood pressure is only valid for superficial veins
+and for a transducer placement over those. This assumption
+was validated in earlier studies showing the feasibility of this
+measurement technique with manual application [2]–[4].
+Equipressure on intravenous vessel walls forces the vein to
+have a circular cross section, while both the skin tension and the
+external pressure applied in the vertical direction in the ultrasound image coordinates deform this circle into an ellipse with
+shorter vertical axis. Accordingly, we have considered only axisaligned ellipses with shorter vertical axis, i.e.. ry < rx , which
+successfully modeled all veins tested in this study. However,
+not all veins might necessarily be approximated with an ellipse;
+such as the veins in-between muscle and other tissue layers may
+have different cross sections. Nevertheless, superficial veins in
+the forearm, in particular, the cephalic vein near the wrist as
+used in this study, are found to be well approximated with an
+ellipse. Potentially, operation on veins with thrombosis may be
+limited and needs to be studied in the future. Nevertheless, we
+foresee that the existence of thromboses may be captured by our
+
+CRIMI et al.: AUTOMATIC MEASUREMENT OF VENOUS PRESSURE USING B-MODE ULTRASOUND
+
+pressure–area model. When the thrombosis is encountered, the
+cross section will stop decreasing with the increase in compression pressure. This can be incorporated in our vessel collapse
+model for pressure estimation; nevertheless, future experiments
+with synthetic models or patient data are needed to test this.
+With the proposed system, automatic readings can be performed quickly and repeatably by different operators. This could
+allow trained nurses to perform such measurements similarly to
+standard arterial blood pressure measurements. Although the
+measurement errors were lower with the conventional protocol,
+the number of measurements that could be taken successfully
+was lower compared to the proposed new protocol, which consists of repeated controlled compressions, that is simpler, easier,
+and repeatable by nonexpert operators. Note that, regardless of
+the protocol, over 92% of measurements were computed with
+less than 3.13-mbar average error. The compared gold-standard
+PVP values were the noninvasive readings by the physicians,
+which partially explains the spread in our comparisons (see
+Fig. 15) due to the intra and interoperator variability in such
+data. Ground-truth PVP readings would be independent measurements taken by an intravenous catheter. Such clinical study
+with invasive PVP measurements is planned next.
+V. CONCLUSION
+An automatic noninvasive technique for measuring PVP using
+ultrasound image processing has been presented. Our contributions in this work are a novel technique for real-time vessel
+tracking as well as a novel automatic method for estimating
+internal venous pressure from their collapse pattern. We have
+presented results from 14 volunteers, while automatic tracking
+was compared to vessel segmentations from two annotators, and
+the pressure measurements were compared to readings by two
+physicians. Results show excellent vessel tracking performance
+and satisfactory pressure estimation results, comparable to that
+of the interobserver variability. The proposed technique and device interface is easy to master and has the potential to perform
+repeatable user-independent automatic measurements.
+ACKNOWLEDGMENT
+The authors would like to thank Dr. Radu Timofte for his
+valuable discussions on dynamic programming.
+REFERENCES
+[1] J. Merrer et al., “Complications of femoral and subclavian venous catheterization in critically ill patients,” J. Amer. Med. Assoc., vol. 286, no. 6,
+pp. 700–707, 2001.
+
+299
+
+[2] U. A. Baumann et al., “Estimation of central venous pressure by ultrasound,” Resuscitation, vol. 64, no. 2, pp. 193–199, 2005.
+[3] C. Thalhammer et al., “Noninvasive central venous pressure measurement
+by controlled compression sonography at the forearm,” J. Amer. College
+Cardiol., vol. 50, no. 16, pp. 1584–1589, 2007.
+[4] C. Thalhammer et al., “Non-invasive central venous pressure measurement
+by compression ultrasound—A step into real life,” Resuscitation, vol. 80,
+no. 10, pp. 1130–1136, 2009.
+[5] D. Amar et al., “Correlation of peripheral venous pressure and central
+venous pressure in surgical patients,” J. Cardiothoracic Vasc. Anesthesia,
+vol. 15, no. 1, pp. 40–43, 2001.
+[6] R. Desjardins et al., “Can peripheral venous pressure be interchangeable
+with central venous pressure in patients undergoing cardiac surgery?”
+Intensive Care Med., vol. 30, no. 4, pp. 627–632, 2004.
+[7] D. Lesage et al., “A review of 3D vessel lumen segmentation techniques:
+Models, features and extraction schemes,” Med. Image Anal., vol. 13,
+no. 6, pp. 819–845, 2009.
+[8] E. Kyriacou et al., “A review of noninvasive ultrasound image processing
+methods in the analysis of carotid plaque morphology for the assessment of stroke risk,” IEEE Trans. Inf. Technol. Biomed., vol. 14, no. 4,
+pp. 1027–1038, Jul. 2010.
+[9] P. Abolmaesumi et al., “Image-guided control of a robot for medical
+ultrasound,” IEEE Trans. Robot. Autom., vol. 18, no. 1, pp. 11–23, Feb.
+2002.
+[10] J. Guerrero et al., “Real-time vessel segmentation and tracking for ultrasound imaging applications,” IEEE Trans. Med. Imag., vol. 26, no. 8,
+pp. 1079–1090, Aug. 2007.
+[11] D. Wang et al., “Fully automated common carotid artery and internal
+jugular vein identification and tracking using B-mode ultrasound,” IEEE
+Trans Biomed. Eng., vol. 56, no. 6, pp. 1691–1699, Jun. 2009.
+[12] N. Friedland and D. Adam, “Automatic ventricular cavity boundary detection from sequential ultrasound images using simulated annealing.” IEEE
+Trans Med. Imag., vol. 8, no. 4, pp. 344–353, Dec. 1989.
+[13] B. Lucas and T. Kanade, “An iterative image registration technique with
+an application to stereo vision,” in Proc. Imag Understand. Workshop,
+1981, pp. 121–130.
+[14] A. Crimi et al., “Vessel tracking for ultrasound-based venous pressure measurement,” in Proc. IEEE Int. Symp. Biomed. Imag., 2014,
+pp. 306–309.
+[15] B. Leibe et al., “Coupled detection and trajectory estimation for multiobject tracking,” presented at the 11th Int. Conf. Comput. Vis., Rio de
+Janeiro, Brazil, 2007.
+[16] M. Andriluka et al., “People-tracking-by-detection and people-detectionby-tracking,” in Proc. IEEE Conf. Comput. Vis. Pattern Recog., 2008,
+pp. 1–8.
+[17] J. Lewis, “Fast template matching,” in Proc. Conf. Can. Image Process.
+Pattern Recog. Soc., 1995, pp. 120–123.
+[18] R. Benenson et al., “Stixels estimation without depth map computation,”
+in Proc. IEEE Int. Conf. Comput. Vis. Workshops, 2011, pp. 2010–2017.
+[19] Y. Bar-Shaloom and T. E. Fortmann, Tracking and Data Association. New
+York, NY, USA: Academic, 1988.
+[20] H. Stone, “A fast direct Fourier-based algorithm for subpixel registration of images,” IEEE Trans. Geosci. Remote Sens., vol. 39, no. 10,
+pp. 2235–2242, Oct. 2001.
+[21] L. Dice, “Measures of the amount of ecologic association between
+species,” Ecology, vol. 26, pp. 297–302, 1945.
+[22] F. Hausdorff, Grundzuege der Mengenlehre. Berlin, Germany: de Gruyter,
+1914.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

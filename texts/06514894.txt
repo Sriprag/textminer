@@ -1,0 +1,772 @@
+862
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 4, JULY 2013
+
+A Robust Algorithm for Segmenting and Tracking
+Clustered Cells in Time-Lapse
+Fluorescent Microscopy
+Wojciech Tarnawski, Vartan Kurtcuoglu, Paweł Lorek, Marcin Bodych, Jan Rotter, Monika Muszkieta,
+Łukasz Piwowar, Dimos Poulikakos, Michał Majkowski, and Aldo Ferrari
+
+Abstract—We present herein a robust algorithm for cell tracking in a sequence of time-lapse 2-D fluorescent microscopy images.
+Tracking is performed automatically via a multiphase active contours algorithm adapted to the segmentation of clustered nuclei
+with obscure boundaries. An ellipse fitting method is applied to
+avoid problems typically associated with clustered, overlapping, or
+dying cells, and to obtain more accurate segmentation and tracking results. We provide quantitative validation of results obtained
+with this new algorithm by comparing them to the results obtained
+from the established CellProfiler, MTrack2 (plugin for Fiji), and
+LSetCellTracker software.
+Index Terms—Cell segmentation and tracking, ellipse fitting,
+fluorescent microscopy, multiphase active contours.
+
+I. INTRODUCTION
+HE ability of cells to change shape, divide, migrate, and
+undergo apoptosis in response to a specific stimuli is of
+paramount importance in cell biology. The study of cell and
+
+T
+
+Manuscript received December 13, 2011; revised October 24, 2012 and July
+2, 2012; accepted April 30, 2013. Date of publication May 13, 2013; date
+of current version June 27, 2013. The contribution of P. Lorek, M. Muszkieta and L. Piwowar is part of the project of the City of Wrocław, titled “Green
+Transfer”—academia-to-business knowledge transfer project co-financed by the
+European Union under the European Social Fund, under the Operational Programme Human Capital (OP HC): sub-measure 8.2.1. The work of W. Tarnawski
+was supported by the Swiss Federation’s Sciex-NMS program. The work of V.
+Kurtcuoglu was supported by the Swiss National Science Foundation through
+NCCR Kidney.CH. The work of P. Lorek was supported by NCN Research
+Grant UMO-2011/01/B/ST1/01305.
+W. Tarnawski is with the Chair of Systems and Computer Networks, Wrocław
+University of Technology, 50-370 Wrocław, Poland and also with Vratis Ltd.,
+54-424 Wrocław, Poland (e-mail: wojciech.tarnawski@pwr.wroc.pl).
+V. Kurtcuoglu is with The Interface Group, Institute of Physiology, University
+of Zurich, 8057 Zurich, Switzerland (e-mail: vartan.kurtcuoglu@uzh.ch).
+P. Lorek is with the Mathematical Institute, University of Wrocław, 50-384
+Wrocław, Poland (e-mail: Pawel.Lorek@math.uni.wroc.pl).
+M. Bodych and J. Rotter are with Vratis Ltd., 54-424 Wrocław, Poland
+(e-mail: jan.rotter@vratis.com; marcin.bodych@vratis.com).
+M. Muszkieta is with the Institute of Mathematics and Computer Science, Wrocław University of Technology, 50-370 Wrocław, Poland (e-mail:
+monika.muszkieta@pwr.wroc.pl).
+Ł Piwowar is with the Institute of Computer Science, University of Wrocław,
+50-383 Wrocław, Poland (e-mail: lpi@cs.uni.wroc.pl).
+D. Poulikakos and A. Ferrari are with the Laboratory of Thermodynamics in Emerging Technologies, ETH Zurich, 8092 Zurich, Switzerland (e-mail:
+dpoulikakos@ethz.ch; aldo.ferrari@ltnt.iet.mavt.ethz.ch).
+M. Majkowski is with the Laboratory of Cytobiochemistry, Faculty of
+Biotechnology, University of Wrocław, 51-148 Wrocław, Poland (e-mail:
+m.michal@ibmb.uni.wroc.pl).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2262233
+
+nuclear dynamics is crucial both to the understanding of tissue
+morphogenesis in development and to deciphering the complex
+events leading to the onset of neoplastic transformations.
+The monitoring of living cells with high spatial and temporal
+resolution is made possible by modern techniques in optical fluorescent microscopy which allow the parallel tracking of multiple
+cellular parameters over long periods of time (hours to days).
+Data obtained through high-throughput microscopy approaches
+contain a significant amount of information.
+The position of an individual cell over time can be individuated by addressing a fluorescent marker to its nucleus. Nuclear
+markers include fluorescent dyes [1] and proteins [2], yielding
+a bright signal limited to the nuclear compartment.
+In this paper, we address two main problems that appear in
+the automatic analysis of living cells in time-lapse 2-D fluorescent microscopy: 1) segmentation of highly clustered nuclei
+with surrounding cell compartments (e.g., cytoplasm); and 2)
+tracking over time to provide information on the cell cycle stage
+and its migration strategy [3] and the effects of the surrounding
+extracellular environment on cell activities. Main challenges are
+related to problems arising from overlapped and clustered nuclei
+which are difficult to split in 2-D imaging and by the nonuniform
+and noisy signal emitted by fluorescent markers. Moreover, the
+boundary between migrating or dividing cells in fluorescence
+microscopy is very often not visible and the only a priori knowledge useable to separate cells is the assumption that the shapes
+of the nuclei are similar to ellipses. In our approach, we strongly
+exploit this assumption to analyze image to obtain optimal segmentation of the nucleus or cytoplasm. It is opposite to other
+approaches in this field recently presented in [4] and [5]. In these
+papers, authors explore the color, gradient, or texture information for nucleus and cytoplasm/membrane segmentation in immunohistochemical tissue image. The approach presented in [4]
+aims at using color values for remerging of objects that were
+oversegmented by watershed. The color values are obtained via
+a color deconvolution technique. The method introduced in [5]
+models the cell borders based on image gradient information
+contained in regions associated with cell membranes. To overcome the common problem of cell overlapping and touching
+with nonuniform signals in fluorescent microscopy, we incorporate into our segmentation approach an ellipse fitting method
+based on [6], [7], and [8]. It enables us to preprocess every object tracked with active contour to obtain optimal segmentation
+at a single time point with much smaller sensitivity to changes
+of gradient or texture.
+
+2168-2194/$31.00 © 2013 IEEE
+
+TARNAWSKI et al.: ROBUST ALGORITHM FOR SEGMENTING AND TRACKING CLUSTERED CELLS IN TIME-LAPSE
+
+Generally, the existing approaches to solve the cell-tracking
+problem can be divided into two classes: segmentation-based
+tracking methods and model evolution approaches. The first
+and most common class is based on minimizing the distances
+between previously segmented nuclei in two successive frames
+according to earlier predefined criteria (see, e.g., [9] or [10]).
+In the second class, active contour models are widely used (see,
+e.g., [11]–[15] and latest [16], [17]). In these approaches, the
+contours of nuclei in the previous image frame are the initial
+positions for evolving the contours of nuclei in the current one.
+For general information on active contours models, we refer the
+reader to [18] and [19].
+Our approach to cell tracking is based on the multiphase active contour model, which in the context of image processing
+applications was first presented in [20]. The main advantage
+of this approach is the possibility of combining cell segmentation with tracking. Our extension includes the new method
+of segmentation assuming ellipse-like shapes of nuclei, that is
+combined with the evolution model represented by active contours. The proposed method is able to segment highly clustered
+and dividing objects (see, e.g., Fig. 2) frame-by-frame.
+An interesting approach for the same goal was proposed
+in [16], where a Radon-based method was used to separate
+touching objects. We have made a performance comparison of
+that method implemented in LSetCellTracker software [17] with
+our method. In addition, we provide comparisons with two open
+source programs widely used in biology: CellProfiler [21] and
+MTrack2 software [22], implemented as plugin for Fiji.
+We designate our main algorithm as robust for the following
+reasons. It works well with blurred images having poor signalto-noise ratio (SNR). Moreover, it allows us to segment nuclei
+with nonhomogeneous structure and changing light intensity.
+The proposed algorithm also handles possible difficulties in
+cell tracking. It detects the appearance of a new nucleus that
+may occur as a result of: 1) cell division; 2) separation of two
+initially overlapping nuclei; 3) appearance of a new nucleus in
+a frame. Furthermore, it detects the disappearance of nucleus
+that may be the result of: 1) leaving a frame and 2) the fading
+of the fluorescent marker (death). We note that our algorithm
+does not distinguish automatically between the cell division and
+separation of two initially overlapping nuclei. Both cases in this
+paper are within our parent–child definition.
+We tracked the migration and proliferation of HeLa-Kyoto
+cells expressing a histone H2BeGFP construct (H2BeGFP [2]),
+HeLa cells which expressed a histone H2B-mCherry and underwent cell division, and HeLa cells stained with Hoechst
+33258 dye. In addition, we used highly clustered human erythroleukemia line (HEL) cells to illustrate the segmentation abilities of the algorithm. To illustrate the variability of noise in the
+input data, we measured the SNR of all images. All input and
+resulting images, as well as the measured SNR can be found
+online [23].
+The paper is organized as follows. In Section II, we introduce
+the active contour algorithm for cell tracking in two successive
+microscopy images from a given image sequence, and present
+the modification of this algorithm to overcome problems in the
+segmentation of nuclei with obscure boundaries. In Section III,
+we present the ellipses fitting method that we use to improve
+
+863
+
+the accuracy of nuclei detection and address problems associated with cell overlap and division. In Section IV, we give short
+summary and propose the full algorithm for cell tracking. In Section V, we compare results obtained with our algorithm to those
+obtained with CellProfiler, MTrack2, and LSetCellTracker.
+II. MULTIPHASE ACTIVE CONTOURS MODEL
+Let Ω be a subset of R2 . Assume that two successive nuclei
+images are given. Let f s−1 : Ω → R be an image corresponding to time Ts−1 and f s : Ω → R be an image corresponding
+to time Ts , where Ts−1 < Ts and 0 < s < S. We denote by
+N the number of nuclei in the image f s−1 and by Cis−1 the
+approximate contour of the ith nucleus in the image f s−1 , for
+i = 1, . . . , N . Our aim is to find contours Cis of nuclei in the
+image f s given Cis−1 , i = 1, . . . , N . We note that a solution to
+this problem will, by itself, not allow us to determine cell division. Further steps are needed to yield the full cell-tracking
+algorithm.
+The active contour model that we consider in this section was
+originally introduced by Chan and Vese [24]. Its multiphase extension suitable for cell-tracking purposes was proposed by the
+same authors in [20] and taken up by others, e.g., in [11]–[17].
+Its extension to analysis of 3-D microscopy image sequences
+was shown in [16], and an efficient numerical method to solve
+the cell-tracking problem on 3-D active meshes was introduced
+in [25]. A similar model was proposed in [26] to detect cytoplasm contours.
+In the next part of this section, we briefly introduce the multiphase active contour model and propose some modifications
+that are used in our cell-tracking algorithm. In the general multiphase active contour model, it is assumed that the contour Cis
+of the ith nucleus in image f s is the zero level set of the function
+φsi : Ω → R which minimizes the functional
+ 
+N
+
+μ
+g(|∇f s |) δε (φi (x)) |∇φi (x)| dx
+Fε (φi ) =
+i=1
+
+
+
+Ω
+
+Hε (φi (x))(f s (x) − ci (φi ))2 dx
+
++ λo
+Ω
+
+
++ λb
+
+N
+
+
+(1 −Hε (φj (x)))(f s (x)−cb (φi ))2 dx
+
+Ω j =1,j = i
+
+
++ω
+
+N
+
+
+
+
+Hε (φi (x))Hε (φj (x)) dx .
+
+(1)
+
+Ω j =1,j = i
+
+In the aforementioned definition, μ, λo , λb , and ω are positive
+parameters, and Hε is a slightly regularized Heaviside function.
+Variables cb and ci are the averages of the image f s in Ω \
+s
+s
+s
+∪N
+i=1 in(Ci ) and in(Ci ), respectively, where in(Ci ) denotes
+s
+a region inside of the contour Ci . Finally, the function g is a
+typical edge-detector function (see, e.g., [26]).
+The role of the first three terms in the functional Fε is the
+same as the corresponding ones in the original model of Chan
+and Vese [24]. That is, the regularization term weighted by
+μ penalizes the length of a contour Cis , and terms weighted
+by λb and λo penalize the L2 norm of the difference between
+s
+s
+the average intensity of f s in Ω \ ∪N
+i=1 in(Ci ) and in(Ci ),
+
+864
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 4, JULY 2013
+
+Fig. 1. Nucleus segmentation results for nuclei with obscure boundaries using
+a) the standard multiphase active contour model and (b) the here proposed
+modified approach. The emphasized contours are the results of the respective
+active contour algorithm initialized with ellipses shown as smoothed white lines.
+
+respectively. Finally, the term weighted by the parameter ω
+penalizes the intersection of regions inside two contours.
+Minimizing the functional Fε with respect to φi results in the
+Euler–Lagrange equation for φsi with the associated Neumann
+boundary condition and initial condition. Next, parametrization by an artificial time t > 0 yields the evolution equation
+that is considered with the initial condition φsi (x, t = 0) =
+ψis (x; Cis−1 ) for all x ∈ Ω, where
+
+d(x, Cis−1 ),
+if x ∈ in(Cis−1 )
+ψis (x; Cis−1 ) :=
+−d(x, Cis−1 ), if x ∈ Ω \ in(Cis−1 ).
+(2)
+In the aforementioned definition, d(x, Cis−1 ) denotes the Euclidean distance of the point x to the contour Cis−1 . In order
+to obtain more stable results, we rescale all values of ψis by
+dividing them by the maximum of |ψis | over all x ∈ Ω.
+We propose to introduce some modification in the definition
+of the functional Fε to avoid problems with an inaccurate detection of nuclei boundaries in cases where they are not sufficiently
+sharp. This problem is illustrated in Fig. 1.
+The idea that we propose is based on a simple observation.
+The difference between the arithmetic average and standard
+deviation of image f s gray intensity inside the contour Cis is
+greater when it contains a nucleus with a blurred boundary than
+the case when it contains one with a sharp boundary. Therefore,
+we modify the second term in the definition of the functional
+Fε , scaling the average ci (φi ) by the factor
+pi (φi ) =
+
+2
+1 + ci (φi )/si (φi )
+
+where si (φi ) denotes the standard deviation of image f s gray
+intensity inside of the contour Cis−1 . The quantity pi is defined
+to be greater than 1 in the case of an object with blurred edges.
+This increases the force that moves the contour toward the perceived boundary. In Fig. 1, we compare the segmentation results
+obtained with the proposed modified version of the multiphase
+active contour algorithm to those obtained with its standard version as used in, e.g., [15] and [26]. The emphasized contours
+of nuclei shown in Fig. 1(a) were determined with the standard
+multiphase active contour model (1). In Fig. 1(b), the results of
+the modified method are also shown as emphasized contours,
+i.e., where the average ci (φi ) in the standard algorithm (1) was
+scaled with the factor pi (φi ). It is evident that the modified al-
+
+Fig. 2. Result of the WAFR algorithm applied to an image showing clustered
+HEL cells. The original image is shown in the top left corner, the larger image
+is inverted to improve visibility. The emphasized contours are obtained with the
+MMAC algorithm. The ellipses are the output of WAFR.
+
+gorithm yields superior results. We will refer to it henceforth as
+modified multiphase active contour (MMAC) algorithm.
+III. CELL SEGMENTATION BASED ON H-MINIMA TRANSFORM
+AND ELLIPSE FITTING
+In our full cell-tracking algorithm (described in Section IV),
+there is a need for a tool that can segment objects and, moreover,
+if it detects a cell division, will allow tracking of the parent–child
+relation.
+In this section, we describe such an algorithm. Although it
+was mainly designed for tracking purposes, it is also of interest
+as a stand-alone segmentation tool. The algorithm assumes that
+the objects to be tracked or segmented are of elliptical shape.
+The underlying idea is based on Jung and Kim [7]. With that
+algorithm, the tracking of parent–child relations is not possible,
+since it does not retain information on the relation of objects. In
+contrast, our algorithm segments each object separately, allowing us to track relations between objects. This further enables
+efficient parallelization and implementation on GPUs. Finally,
+we introduce weights that significantly improve segmentation
+results.
+Watershed is one of the most widely used algorithms for cell
+segmentation. However, it often yields oversegmentation. This
+is because regional minima are employed for segmenting objects
+directly. One of the remedies that suppresses undesired minima
+is H-minima transform (for a detailed description, see [27]
+or [7]), which is performed by
+Hh (γ) = Rε (γ + h),
+
+TARNAWSKI et al.: ROBUST ALGORITHM FOR SEGMENTING AND TRACKING CLUSTERED CELLS IN TIME-LAPSE
+
+865
+
+Fig. 3. Schematic diagram of the full tracking algorithm. A detailed description of the parts A–E is given in Section IV. Images are presented as negatives for
+better visualization. The images in the top-left and bottom-left corners represent the first input image from the sequence and the following images in the time
+sequence, respectively.
+
+where γ is the inverse distance map of an object, R and ε are
+the reconstruction and erosion operators, respectively, and h is a
+given depth. The key is to find the optimal h (typically, it is between 2 and 10). We propose instead of finding a global h for the
+entire image to determine it for each object separately. We assume from the very beginning that nuclei have elliptical shapes,
+and we use ellipse fitting for finding the best choice of h for each
+object. Concretely, we apply H-minima transform with a fixed h
+and the watershed algorithm. Suppose that the watershed algorithm splits a nucleus into m objects: wh,i , i = 1, . . . , m. We fit
+an ellipse to each partial original boundary using the effective
+direct least-squares fitting algorithm by Fitzgibbon et al. [6].
+Let nh,i denote the number of points of the boundary of wh,i .
+Let Qh,i denote the ellipse fitted to the object, and bh,i,j be the
+jth point of the boundary. Finally, let Th,i be the transformation that maps the points of the ellipse to the unit circle, and
+let d(x, Qh,i ) denote the distance from x to Qh,i . Employing
+weighted average fitting residuals (WAFR)
+WAFR(wh,i ) =
+(1)
+Wi
+
+nh ,i
+1 
+(2)
+d(Th,i (bh,i,j ), Th,i (Qh,i )) + Wi
+nh,i j =1
+
+(1)
+
+where Wi
+distortion
+
+(2)
+
+and Wi
+
+are weights to be defined later, yields the
+1 
+WAFR(wh,i ).
+m i=1
+m
+
+Sh =
+
+(3)
+
+The optimal h is then the one with the smallest associated
+distortion.
+(1)
+Weights can improve the result significantly. Both Wi and
+(2)
+Wi play roles of penalties: W (1) increases the value of WAFR
+if the ratio of the area of the fitted ellipse to the area of the object
+(2)
+within the ellipse is small, and Wi increases WAFR if there
+are concativities on the boundary of an object. (For a detailed
+description of concativity, see Kothari et al. [8] and compare the
+regions of Fig. 3, part A, indicated by two arrows.) Specifically,
+
+	2
+Area of Qi
+(1)
+.
+Wi = 1 −
+Area of Qi ∩ wh,i
+(2)
+
+For Wi , we look for concativities on the partial original
+boundary of wh,i , disregarding points near division returned by
+watershed. If the concativity is larger than a threshold, then we
+(2)
+set Wi to a positive constant, otherwise it is set to 0. This way
+
+866
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 4, JULY 2013
+
+there is extra penalty to WAFR, if large concativities are found.
+Although we set both the threshold and the constant manually,
+we note that for reasonable values the result can only improve:
+If the threshold is too small, then simply a fixed W (2) is added
+to each WAFR and thus has no influence on the choice of h. We
+henceforth refer to the above as the WAFR algorithm. For each
+object on the binary image, it returns a division with smallest
+Sh , objects’ division, and fitted and filled ellipses.
+Note that since we find an optimal h for each object separately, we immediately gain information on object division.
+This information is exploited in the final cell-tracking algorithm. Moreover, rather than returning the division obtained by
+watershed, one can simply receive fitted and filled ellipses as
+new objects. In this case, we also need to find intersections of
+ellipses and plot them in an image (since they must be separate
+objects—see white contours of ellipses in Fig. 1). The final celltracking algorithm using fitted and filled ellipses outperforms
+the one using objects returned by the watershed algorithm.
+Also, to assess the reliability of the WAFR algorithm, we
+applied it to images of HEL clustered cells shown in Fig. 2,
+top left. In the same figure, the results of WAFR are given as
+smoothed ellipses, and the emphasized contours are the result
+of the MMAC algorithm (which started with the ellipses).
+IV. FULL CELL-TRACKING ALGORITHM
+In this section, we combine the active contours algorithm described in Section II with the segmentation method
+based on H-minima transform and ellipse fitting described in
+Section III into a full algorithm for cell tracking in the time-lapse
+microscopy images sequence.
+We assume that the sequence {f s }S0 −1 of gray-scale images
+with nuclei is given as input (see Fig. 3, bottom right). Each
+image f s of this sequence presents the location of nuclei at time
+Ts for s = 0, . . . , S − 1. Furthermore, we assume that areas
+occupied by the same nucleus in two successive time steps
+overlap. In other words, each nucleus cannot cover a distance
+larger than its diameter in one time step.
+The main steps of our algorithm are presented in Fig. 3.
+In the initialization step, we binarize the gray-scale image
+f 0 (see Fig. 3, left top; the result is shown in part B). We note
+that the segmentation of nuclei in the first frame can be either
+automatic, e.g., using simple thresholding based on the c-means
+method, or manual in extended feature space based on textures.
+Next, for each binary object detected in the initialization step,
+we apply the WAFR algorithm to divide overlapping objects
+and fit ellipses (see the resulting gray object in part A of Fig. 3).
+However, what is returned by this algorithm is not the optimal
+division yielded by the H-minima transform and watershed algorithm, but filled ellipses, fitted to such division (separated by
+their intersections), i.e., the contour Ci0 of ith nucleus in f 0 is
+approximated by ellipse Q0i for i = 1, . . . , N 0 . In the next step,
+we define ψi0 as the scaled signed distance function to the ellipse
+Q0i for all i = 1, . . . , N 0 . Next, for each i = 1, . . . , N 0 , we apply the MMAC algorithm with ψi1 and image f 1 as the input
+[this process is depicted in Fig. 3 as MMAC (Tracking)]. This
+algorithm returns level set functions φ1i , where the zero level set
+corresponds to contours Ci1 of the detected objects (see black
+
+contours in Fig. 3, part E, right image). In the next step, the
+algorithm detects new objects that appear in the current frame
+f s which are brighter than the minimal intensity from all objects
+tracked thus far (see the object indicated by the arrow in Fig. 3,
+part E, left image). The result of this step is indicated by arrows
+in the left image in part E of Fig. 3.
+We repeat this three-step scheme for successive images from
+the given sequence {f s }S0 −1 with the following difference:
+Positive parts of φsi , i = 1, . . . , N s (the number of objects at
+time point s) are now the inputs for the WAFR algorithm. Note
+that at this point, we still formally have N s objects, although
+some φsi can be positive in two disjoint areas. Then, if for some
+object WAFR returns more than one ellipse, these are treated
+as children.
+If in addition images with labeled cytoplasms are given, then
+we can apply at each time point the MMAC algorithm to find
+corresponding contours of cytoplasm with ellipses returned by
+WAFR as the input. This is illustrated as MMAC (Nucleus and
+Cytoplasm) in part D of Fig. 3. Additionally, to find the exact
+shapes of nuclei detected by the WAFR algorithm, the MMAC
+algorithm is applied again (see Fig. 3, part D, lower image).
+Depending on the application of the proposed algorithm, one
+can also store several quantities that describe cells in each image
+f s for s = 0, . . . , S − 1. These quantities can be, for instance,
+the mass center of a nucleus, average intensity of a cell, or
+some of its texture characteristics. We denote by Fis the list
+of interesting features of the ith cell in the image f s with i =
+1, . . . , Ns and s = 0, . . . , S − 1. We present the full algorithm
+for cell tracking as follows.
+
+V. RESULTS OF NUMERICAL EXPERIMENTS
+In this section, we present our experimental results of tracking
+cells in seven series of benchmark images, including five series
+of HeLa-Kyoto cell images expressing a histone H2BeGFP construct (H2BGFP [2]), one series of HeLa mCherry images, and
+
+TARNAWSKI et al.: ROBUST ALGORITHM FOR SEGMENTING AND TRACKING CLUSTERED CELLS IN TIME-LAPSE
+
+867
+
+TABLE I
+CHARACTERISTICS OF DATASETS USED FOR ANALYSIS OF TRACKING PERFORMANCE
+
+TABLE II
+NUMERICAL RESULTS (AVERAGE OVER ALL FRAMES)
+
+one series of HeLa Hoechst (for details see Table I and [23]). For
+each input image, the SNR was calculated as SNR = μsig /σbg ,
+where μsig is the mean value of pixels within objects, and σbg
+is the standard deviation of the background.
+The images in HeLa mCherry and HeLa Hoechst series have
+lower SNR, nonhomogeneous cells, and varying light intensity.
+The tracking results are summarized in Table II as arithmetic
+means of sensitivity∗ (see definition further below), specificity∗ ,
+and F-score∗ over all time points in the respective series. For
+each dataset the highest value of the respective measure is shown
+in bold.
+In addition, to illustrate the quality of segmentation returned
+by the WAFR algorithm, we used four z-stacks of HEL cells. For
+
+all of these images, the WAFR algorithm detected the correct
+number of cells, whereas CellProfiler, MTrack2, and LSetCellTracker gave inferior results (see [23]).
+We tested different sets of parameters and then used the one
+with the best tracking performance for all sets of images. It is
+worth noting that the algorithm is not very sensitive to parameters: Changing parameters by approximately 20% results in no
+more than 5% change in performance.
+Quantitative performance evaluation was performed relative
+to ground truth, which was established independently by manual
+cell tracking by two experienced biologists.
+We used experts’ knowledge to define the best possible procedure for cell tracking in these programs. The most important
+steps include the following.
+1) In CellProfiler: identify primary objects block with options: typical diameter (min, max) = (50, 250), try to
+merge small objects with larger, use Kapur Global for
+thresholding method; and TrackObjects block with the
+tracking method set as distance” and maximum pixel distance to consider matches set to 50.
+2) In MTrack2: it needs 8-bit thresholded image; first, Gaussian blur with radius 2 is applied, then automatic threshold,
+and the last step is to launch MTrack2 module with options: minimum object size set to 200 pixels, maximum
+velocity set to 40, and minimum track length set to 1.
+3) In LSetCellTracker: we tried different sets of parameters
+and finally used default ones which gave the best results.
+Consider two consecutive frames f s−1 and f s with all tracking information. We have N s−1 objects in frame s − 1 and N s
+in sth frame and also identification information. A tracked nucleus can be in solid state from frame s − 1 to the next one,
+or can change its state (be nonsolid). That is, it can disappear,
+hide or divide. For each frame, we have four counters: TP, TN,
+FP, and FN (true positive, true negative, false positive, and false
+negative, respectively), all of which are initially equal to 0. For
+each object that occurs in one or in both adjacent frames, we
+increment the correct counter:
+1) TP—if correct tracking of solid nucleus is detected;
+2) TN—if correct tracking of nonsolid nucleus is detected;
+3) FP—if incorrect tracking of solid nucleus is detected;
+4) FN—if incorrect tracking of nonsolid nucleus is detected.
+The solid or nonsolid state of a nucleus is determined by the
+ground truth as a positive or negative condition, respectively.
+Then, good or bad tracking can be treated as positive or negative
+test outcome. For measurement of the quality of tracking, we
+
+868
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 4, JULY 2013
+
+used commonly known measures:
+TN
+TP
+, specificity =
+TP+FN
+TN+FP
+TP
+.
+precision =
+TP+FP
+In addition, we used the F-score measure which is defined as
+sensitivity =
+
+F-score =
+
+2 · precision · sensitivity
+.
+precision + sensitivity
+
+To incorporate the quality of segmentation of clustered objects into the measurement of the tracking quality, we multiply
+−o|
+the aforementioned measures by the term ρ = 1 − |kk +o
+, where
+k is a real number of cells (ground truth) and o is the number
+of cells considered by the algorithm. This term penalizes wrong
+segmentation of highly clustered cells. We identify measures
+multiplied by ρ with asterisk superscripts.
+The results given in Table II show that the proposed algorithm
+significantly outperforms CellProfiler and MTrack2 software.
+It slightly outperforms LSetCellTracker (the latter one is only
+better under specificity∗ measure), which moreover is much
+more sensitive to parameters’ changes.
+VI. CONCLUSION
+We have presented here a method for extracting the position
+of individual cells from a sequence of time-lapse 2-D gray-scale
+microscopy images of cell nuclei and cytoplasms.
+The contributions of this paper include: 1) the modification
+of a multiphase active contours method, where the force term
+is multiplied by a nonlinear scaling term (improved blurred
+boundaries detection); 2) improved watershed approach based
+on H-minima transform, which is integrated in the cell-tracking
+algorithm (including two new weights); 3) algorithm construction for easy parallelization, e.g., for GPU implementation. To
+demonstrate the latter, we produced a CUDA-optimized implementation on an NVIDIA GTX 295 GPU card. This led to an
+acceleration by a factor of approximately 13 compared to the
+CPU implementation (one core of an Intel Core i7 860 processor
+with 2.79 GHz clock speed). The robustness of the presented
+method, which can be classified as a model evolution approach
+for cell segmentation and tracking, is demonstrated by: 1) low
+sensitivity to SNR, e.g., see the performance of other methods
+in Table II for images with low SNR; 2) high efficiency for
+highly clustered overlapping cells by introducing WAFR algorithm with time complexity independent from the degree of cell
+clustering; 3) high efficiency of segmentation of nuclei with
+obscure boundaries caused by excessive blurring due to out-offocus light signal by introducing a nonlinear scaling in the force
+term.
+An interesting alternative is to extend this approach for 3D image data (e.g., z-stack obtained in confocal microscopy)
+which is on the agenda of our current research pursuits. In
+parallel, we also work on delivering for research community the
+specialized software library including the proposed algorithm
+in computational cloud using “Software as a Service” referred
+to as “on-demand software”.
+
+REFERENCES
+[1] P. Vitorino and T. Meyer, “Modular control of endothelial sheet migration,”
+Genes Dev., vol. 22, no. 23, pp. 3268–3281, 2008
+[2] M. P. Stewart, J. Helenius, Y. Toyoda, S. P. Ramanathan, D. J. Muller,
+and A. A. Hyman, “Hydrostatic pressure and the actomyosin cortex drive
+mitotic cell rounding,” Nature, vol. 469, no. 7329, pp. 226–230, 2011.
+[3] M. H. Schmitz and D. W. Gerlich, “Automated live microscopy to study
+mitotic gene function in fluorescent reporter cell lines,” Methods Mol.
+Biol., vol. 545, pp. 113–134, 2009.
+[4] S. Di Cataldo, E. Ficarra, A. Acquaviva, and E. Macii, “Achieving the
+way for automated segmentation of nuclei in cancer tissue images through
+morphology-based approach: A quantitative evaluation,” Comput. Med.
+Imag. Graph., vol. 34, no. 6, pp. 453–461, 2010.
+[5] E. Ficarra, S. D. Cataldo, A. Acquaviva, and E. Macii, “Automated segmentation of cells with IHC membrane staining,” IEEE Trans. Biomed.
+Eng., vol. 58, no. 5, pp. 1421–1429, May 2011.
+[6] A. Fitzgibbon, M. Pilu, and R. B Fisher, “Direct least square fitting of
+ellipses,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 21, no. 5, pp. 476–
+480, May 1999.
+[7] C. Jung and C. Kim, “Segmenting clustered nuclei using H -minima
+transform-based marker extraction and contour parameterization,” IEEE
+Trans. Biomed. Eng., vol. 57, no. 10, pp. 2600–2604, Oct. 2010.
+[8] S. Kothari, Q. Chaudry, and M. Wang, “Automated cell counting and cluster segmentation using concavity detection and ellipse fitting techniques,”
+in Proc. IEEE Int. Symp. Biomed. Imag., 2009, pp. 795–798.
+[9] X. Yang, H. Li, and X. Zhou, “Nuclei segmentation using markercontrolled watershed, tracking using mean-shift, and Kalman filter in
+time-lapse microscopy,” IEEE Trans. Circuits Syst. I, Reg. Papers, vol. 53,
+no. 11, pp. 2405–2414, Nov. 2006.
+[10] J. Klein, S. Leupold, I. Biegler, R. Biedendieck, R. Münch, and D. Jahn,
+“TLM-Tracker: Software for cell segmentation, tracking and lineage analysis in time-lapse microscopy movies,” Bioinformatics, vol. 28, no. 17,
+pp. 2276–2277, 2012.
+[11] F. Leymarie and M. D. Levine, “Tracking deformable objects in the plane
+using an active contour model,” IEEE Trans. Pattern Anal. Mach. Intell.,
+vol. 15, no. 3, pp. 617–634, Jun. 1993.
+[12] N. Ray, S. Acton, and K. Ley, “Tracking leukocytes in vivo with shape
+and size constrained active contours,” IEEE Trans. Med. Imag., vol. 21,
+no. 10, pp. 1222–1235, Oct. 2002.
+[13] O. Debeir, I. Camby, R. Kiss, P. V. Ham, and C. Decaestecker, “A modelbased approach for automated in vitro cell tracking and chemotaxis analyzes,” Cytometry, vol. 60A, no. 1, pp. 29–40, 2004.
+[14] C. Zimmer, E. Labruyere, V. Meas-Yedid, N. Guillen, and J. Olivo-Marin,
+“Segmentation and tracking of migrating cells in videomicroscopy with
+parametric active contours: A tool for cell-based drug testing,” IEEE
+Trans. Med. Imag., vol. 21, no. 10, pp. 1212–1221, Oct. 2001.
+[15] C. Zimmer and J. Olivo-Marin, “Coupled parametric active contours,”
+IEEE Trans. Pattern Anal. Mach. Intell., vol. 27, no. 11, pp. 1838–1842,
+Nov. 2005.
+[16] O. Dzyubachyk, W. A. van Cappellen, J. Essers, and W. J. Niessen, “Advanced level-set-based cell tracking in time-lapse fluorescent microscopy,”
+IEEE Trans. Med. Imag., vol. 29, no. 3, pp. 852–867, Mar. 2010.
+[17] O. Dzyubachyk, J. Essers, W. A. van Cappellen, C. Baldeyron, A. Inagaki,
+W. J. Niessen, and E. Meijering, “Automated analysis of time-lapse fluorescence microscopy images: From live cell images to intracellular foci,”
+Bioinformatics, vol. 26, no. 19, pp. 2424–2430, 2010.
+[18] N. Paragios and R. Deriche, “Geodesic active contours and level sets for
+the detection and tracking of moving objects,” IEEE Trans. Pattern Anal.
+Mach. Intell., vol. 22, no. 3, pp. 266–280, Mar. 2000.
+[19] V. Caselles, R. Kimmel, and G. Sapiro, “Geodesic active contours,” Int.
+J. Comput. Vis., vol. 22, no. 1, pp. 61–79, 1997.
+[20] T. F. Chan and L. A. Vese, “A multiphase level set framework for image
+segmentation using the Mumford and Shah model,” Int. J. Comput. Vis.,
+vol. 50, no. 3, pp. 271–293, 2002.
+[21] M. R. Lamprecht, D. M. Sabatini, and A. E. Carpenter, “CellProfilerTM
+free, versatile software for automated biological image analysis,” BioTechniques, vol. 42, no. 1, pp. 71–75, 2007.
+[22] MTrack2 Software. (2003). [Online]. Available:http://valelab.ucsf.
+edu/˜nico/IJplugins/MTrack2.html/
+[23] (2012). [Online]. Available:http://robusttracker.vratis.com/
+[24] T. F. Chan and L. A. Vese, “Active contours without edges,” IEEE Trans.
+Image Process., vol. 10, no. 2, pp. 266–277, Feb. 2001.
+[25] A. Dufour, R. Thibeaux, E. Labryere, N. Guillen, and J-Ch. Olivo-Martin,
+“3D Active meshes: Fast discrete deformable models for cell tracking in
+
+TARNAWSKI et al.: ROBUST ALGORITHM FOR SEGMENTING AND TRACKING CLUSTERED CELLS IN TIME-LAPSE
+
+3D time-lapse microscopy,” IEEE Trans. Image Process., vol. 20, no. 7,
+pp. 1925–1937, Jul. 2011.
+[26] P. Yan, X. Zhou, and M. Shah, “Automatic segmentation of highthroughput RNAi fluorescent cellular images,” IEEE Trans. Inf. Technol.
+Biomed., vol. 12, no. 1, pp. 109–117, Jan. 2008.
+[27] P. Soille, Morphological Image Analysis. New York, NY, USA:
+Springer-Verlag, 1998.
+
+Wojciech Tarnawski received the M.Sc. degree in
+biomedical engineering and the Ph.D. degree in computer science both from the Wrocław University of
+Technology, Wrocław, Poland, in 1997 and 2004,
+respectively.
+He is currently an Assistant Professor at the Faculty of Electronics, Wrocław University of Technology. From 2010 to 2011, he was a Postdoctoral Fellow
+at ETH Zurich granted by the Scientific Exchange
+Programme between Poland and Switzerland. His
+current research interests include computer vision,
+cluster analysis and their applications to biomedical image analysis.
+
+Vartan Kurtcuoglu received the Ph.D. degree in
+biomedical engineering from ETH Zurich, Zurich,
+Switzerland.
+He is currently an Assistant Professor of Computational and Experimental Physiology at the Institute
+of Physiology, University of Zurich, Zurich, Switzerland. His research interests include the modeling of
+flow and species transport in the renal, vascular, and
+cerebrospinal fluid spaces based on imaging data.
+
+Paweł Lorek received the M.Sc. degrees in mathematics in 2002 and in computer science in 2006, and
+the Ph.D. degree in applied mathematics in 2007, all
+from Wrocław University, Wrocław, Poland.
+From 2008 to 2010, he was a Postdoctoral Fellow in the Department of Mathematics and Statistics,
+University of Ottawa, Ottawa, ON, Canada. He is
+currently an Assistant Professor at the Mathematical
+Institute, University of Wrocław, Wrocław. His main
+research interests include Markov chains, randomized algorithms, simulations, and image analysis.
+
+Marcin Bodych received an Engineer’s degree in
+control engineering and robotics from the Wrocław
+University of Technology, Wrocław, Poland, in 2012.
+He is currently with Vratis Ltd., Wrocław. His
+research interests include signal, image, and video
+processing, and the number theory.
+
+869
+
+Jan Rotter received an Engineer’s degree in computer science from the Wrocław University of Technology, Wrocław, Poland, in 2010.
+He is currently with Vratis Ltd., Wrocław. His
+main research interests include image processing and
+computational geometry.
+
+Monika Muszkieta received the Ph.D. degree in mathematics from the Technical University in Kaiserslautern, Kaiserslautern, Germany.
+During her studies, she was with the Image Processing Department, Fraunhofer Institute for Industrial Mathematics. She is currently an Assistant Professor at the Institute of Mathematics and Computer Sciences, Wrocław University
+of Technology, Wrocław, Poland. Her research interests include mathematical
+approaches to problems of image analysis and processing. She is particularly
+interested in methods based on partial differential equations and variational
+calculus.
+
+Łukasz Piwowar received the M.Sc. and Ph.D. degrees in computer science both from Wrocław University, Wrocław, Poland, in cooperation with Laboratoire d’Algorithmique et Image, France, in 2003
+and 2009, respectively.
+He is currently an Assistant Professor at the Institute of Computer Science, University of Wrocław,
+Wrocław. His main research interests focus on algorithms parallelization for GPGPU programming
+(CUDA and OpenCL), image processing, realistic
+computer graphics, and realtime rendering.
+
+Dimos Poulikakos received the Ph.D. degree in mechanical engineering from the University of Colorado
+at Boulder, Boulder, USA.
+He is currently the Head of the Laboratory of
+Thermodynamics in Emerging Technologies, ETH
+Zurich, Zurich, Switzerland. His current research is
+in the basic area of thermodynamics and interfacial transport phenomena in emerging and biomedical technologies, focusing on the physics at microand nanoscales, with application in diverse but interconnected areas such as energy, bioengineering,
+nanotechnology, and materials.
+
+Michał Majkowski received the Ph.D. degree in biology from the University of Wrocław, Wrocław,
+Poland.
+He is currently a Confocal Microscopy Specialist
+in the Laboratory of Cytobiochemistry, Biotechnology Faculty, University of Wrocław.
+
+Aldo Ferrari received the Ph.D. degree in physics
+from the Scuola Normale Superiore of Pisa, Pisa,
+Italy.
+He is currently a Lecturer in the Department of
+Mechanical and Process Engineering and the Group
+Leader in Biothermofluidics in the Laboratory of
+Thermodynamics in Emerging Technologies, ETH
+Zurich, Zurich, Switzerland. His research interests
+include the development of nano- and microstructured substrates for the study of cell migration and
+differentiation.
+
+

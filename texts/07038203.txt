@@ -1,0 +1,935 @@
+1696
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+An Adaptive Spatial Filter for User-Independent
+Single Trial Detection of Event-Related Potentials
+Hendrik Woehrle∗ , Mario M. Krell, Sirko Straube, Su Kyoung Kim, Elsa A. Kirchner,
+and Frank Kirchner, Member, IEEE
+
+Abstract— Goal: Current brain–computer interfaces (BCIs) are
+usually based on various, often supervised, signal processing methods. The disadvantage of supervised methods is the requirement
+to calibrate them with recently acquired subject-specific training
+data. Here, we present a novel algorithm for dimensionality reduction (spatial filter), that is ideally suited for single-trial detection
+of event-related potentials (ERPs) and can be adapted online to
+a new subject to minimize or avoid calibration time. Methods:
+The algorithm is based on the well-known xDAWN filter, but uses
+generalized eigendecomposition to allow an incremental training
+by recursive least squares (RLS) updates of the filter coefficients.
+We analyze the effectiveness of the spatial filter in different transfer scenarios and combinations with adaptive classifiers. Results:
+The results show that it can compensate changes due to switching between different users, and therefore allows to reuse training
+data that has been previously recorded from other subjects. Conclusions: The presented approach allows to reduce or completely
+avoid a calibration phase and to instantly use the BCI system with
+only a minor decrease of performance. Significance: The novel filter can adapt a precomputed spatial filter to a new subject and
+make a BCI system user independent.
+Index Terms—Adaptation, brain–computer interfaces (BCI),
+online machine learning, spatial filtering.
+
+I. INTRODUCTION
+VER the past years, the usage of physiological data
+in man–machine interaction became a popular research
+topic. For example, active brain–computer interfaces (BCIs) analyze the neuronal activity and make it usable in control or communication applications [1], i.e., to control devices like robots
+or spellers. Another example is brain state monitoring where the
+aim is to passively decode the subject’s brain state to implement
+approaches such as passive BCIs [2] or embedded brain reading
+[3]. Brain state monitoring as well as some active BCIs require single trial analysis of the human’s electroencephalogram
+(EEG) [2], [4], [5]. EEG data is usually processed by different
+
+O
+
+Manuscript received September 10, 2014; revised December 13, 2014; accepted January 30, 2015. Date of publication February 10, 2015; date of current
+version June 16, 2015. This work was supported by the Federal Ministry of
+Education and Research (BMBF) under the Grant 01IW07003, and the Federal
+Ministry of Economics and Technology (BMWi), under Grants 50 RA 1012 and
+50 RA 1011. Asterisk indicates corresponding author.
+∗ H. Woehrle is with the DFKI Robotics Innovation Center, Bremen 28359,
+Germany (e-mail: hendrik.woehrle@dfki.de).
+M. Krell is with the University of Bremen, Robotics Research Group.
+S. Straube and S. K. Kim are with the DFKI Robotics Innovation Center.
+E. A. Kirchner and F. Kirchner are with the University of Bremen, Robotics
+Research Groupand are also with the the DFKI Robotics Innovation Center.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2402252
+
+methods. In the following, we describe current approaches for
+their adaptation.
+A. Adaptation of Spatial Filters
+Spatial filters (SFs) are a frequently used preprocessing technique in EEG-based BCIs that aim to find a transformation in
+order to create a subset of pseudo-channels by a linear combination of the original channels. The intention is to improve the
+signal to noise ratio and reduce the dimensionality of the data.
+Examples for SFs are the common spatial patterns (CSP) filter
+for sensorimotor rhythms [6] and the xDAWN [7], πSF [8], or
+denoise and window selection [9] algorithms for event-related
+potentials (ERPs) like the P300 potential.
+SFs depend on subject-specific training data, so that different
+methods were developed to achieve a certain degree of user independence. One approach for the CSP filter is the combination of
+subject-specific and subject-independent statistics like covariance matrices [10], [11]. Other approaches select or combine
+precomputed filters of single subjects to find generic prototype
+filters using clustering [12], [13], principal component analysis
+(PCA) [14], or ensemble methods [15].
+However, these approaches focus on sensorimotor rhythms
+and are, therefore, not directly applicable to ERPs. An adaptive
+SF especially for ERPs was presented in [8], but relies on a
+periodic structure of the signal which is not always a justified
+assumption. An approach to apply xDAWN with a minimum
+amount of training data by checking for convergence of the
+learning process was presented in [16], but relied on batch computation and cannot be used for a sample-wise online adaptation.
+To the best of our knowledge, there is currently no work available that investigates if user independence can be achieved by
+adapting xDAWN sample-wise to changing conditions. In this
+paper, we present adaptive xDAWN (axDAWN), an incremental
+version of xDAWN, that is able to efficiently incorporate new
+data for its adaptation.
+B. Adaptation of Classifiers
+Various different classifiers in use for BCIs [17], [18] exist.
+The linear discriminant analysis (LDA) is often used so that
+many approaches aim to adapt this classifier online [19]. In [20]
+and [21], it is shown that an LDA classifier which is rebiased
+or retrained on different sets of data during the application results in a significant classification performance improvement
+for ERD/ERS data, but not for the P300 ERP [21]. Another
+possibility is the usage of pooled covariance matrices [22], [23].
+Further approaches enhance the support vector machine (SVM)
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+WOEHRLE et al.: ADAPTIVE SPATIAL FILTER FOR USER-INDEPENDENT SINGLE TRIAL DETECTION OF EVENT-RELATED POTENTIALS
+
+[24] or probabilistic neural classifiers [25] to perform periodic
+updates. Probabilistic methods perform very well without any
+training [26], [27], but rely on specific assumptions that are
+not always feasible, e.g., language models, so that they cannot
+be directly used in experimental setups that do not fulfill these
+assumptions.
+Many of the used classification algorithms are batch algorithms that require to store the whole training dataset and to
+perform the computation of the classification model again, if
+new data is added to the training dataset. In contrast, online
+classifiers are especially designed to perform efficient updates
+to the classification model if new data is provided. Although
+they are very suitable for adaptation, they are, apart from the
+references listed above, rarely used in BCIs. Therefore, we compare several different classifiers that are known in the literature
+in different transfer scenarios.
+C. Adaptation Based on the Behavior of the Subject
+Supervised methods often have a superior classification accuracy in classification tasks. In contrast to unsupervised methods,
+supervised methods require labels that provide additional information about the data. This is often regarded as a disadvantage,
+since the labels cannot always be provided. However, in certain
+experimental setups, the labels can be generated based on the
+application context or behavior of the subject. These labels can
+then be used to adapt the applied methods while they are in use.
+Adaptation approaches based on this idea have already been
+used for, e.g., the P300 based speller [28]. This is especially
+relevant for passive BCIs [2] or embedded brain reading [5].
+D. Contribution of the Paper
+Based on these considerations, an adaptive spatial filter for
+ERPs should fulfill the following requirements: (1) It should
+adapt sample-wise, i.e., every time a new data sample and the
+corresponding label is acquired, the SF should be able to perform an adaptation step. (2) The updates should be computationally inexpensive, so that they can be performed instantly.
+(3) It should improve the classification performance.
+We present a novel spatial filter, the axDAWN that extends
+the popular xDAWN spatial filter using a recursive least squares
+(RLS) approach. This extension has two important benefits: (1)
+it allows the incremental computation of the filter coefficients
+which is efficient regarding the required memory and computational effort, and (2) allows the incorporation of new data to
+adapt the current filter to changing conditions or a new subject.
+The other processing method that depends essentially on a
+proper calibration is the classifier. It depends also on the preprocessing and feature extraction. Therefore, it is crucial to
+investigate the interplay between classifier and axDAWN. We
+show that the decrease in performance obtained with static algorithms that are transferred between subjects or sessions can
+be compensated by combining adaptive methods, and thus, it is
+possible to reuse training data of previously recorded sessions
+or even data of other subjects.
+Our approach is investigated in an ERP single trial detection
+experiment where the signal processing methods are used to
+
+1697
+
+predict the brain state of a subject that is performing a dual task
+with high cognitive workload. To our knowledge, we are the first
+who propose the methods and their combination as presented in
+this paper.
+II. THE XDAWN SPATIAL FILTER
+The xDAWN spatial filter was developed especially for ERPs
+[7], [29]. Since the xDAWN algorithm is the basis of our method,
+we shortly describe it in the following. Afterwards, we introduce
+a new incremental variant that is able to incorporate new data to
+adapt to the current subject during the application.
+A. The xDAWN Spatial Filter
+The aim of xDAWN is to find a transformation that (1) enhances the discrimination between signal and noise, (2) allows
+to reduce the dimension of the data. We formalize the transformation as follows: we have EEG data X ∈ Rn ×d with n samples
+and d channels, which contains ERPs and noise. We try to find f
+filters for projection to pseudo-channels W ∈ Rn ×f , the result
+is the filtered data matrix X̃ = XW. We assume to have a true
+ERP matrix A ∈ Re×d which contains the form of the ERP that
+we are looking for (assuming a duration of e samples). Additionally, we assume to have a noise matrix N ∈ Rn ×d which contains normally distributed noise. The positions of the ERP in the
+data is given by a Toeplitz matrix D ∈ Re×n . The model of the
+data is then given by X = DT A + N. The filters that we try to
+find enhance the synchronous response XW = DAW + NW.
+A can be approximated by a least squares estimate using the
+pseudoinverse
+Â = argmin = ||X − DA||22 = (DT D)−1 DT X .
+
+(1)
+
+A
+
+According to [7], the optimal filters W can be found by maximizing the signal-to-signal-plus-noise-ratio (SSNR) as given
+by the generalized Rayleigh quotient
+Ŵ = argmax
+W
+
+Tr(WT ÂT DT DÂW)
+.
+Tr(WT XT XW)
+
+(2)
+
+In the standard xDAWN algorithm [7], this optimization problem is solved by combining a QR matrix decomposition (QRD)
+with a singular value decomposition (SVD). The xDAWN model
+has shown to be effective for the detection of ERPs. However,
+xDAWN has the following disadvantages. First, the computations are performed in batch mode, which requires to store all
+data in memory at once. Second, if the signal estimate changes
+or additional data should be included to improve the filter estimation, the filters have to be computed from scratch again. This
+is usually not feasible due to the required computational effort.
+However, the incorporation of additional information is crucial
+for adaptation.
+B. Incremental Computation and Adaptation: axDAWN
+Instead of using the QRD and SVD to find the optimal filters, we use an incremental approach that is based on the RLS
+method [30]. This approach has the following advantages in
+comparison to the classical method: as required for adaptation,
+
+1698
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+it allows to incorporate new data into the filter estimation procedure and furthermore, it allows to include update coefficients
+that allow to adapt to changing conditions. In addition, the incremental computation reduces the amount of required memory
+that is needed for the computation of the optimal filters. Our
+approach is based on introducing a temporal dimension t and
+maximizing the current state of (2) using generalized eigenvalue
+decomposition (GED):
+Ŵ(t) = argmax
+W (t)
+
+Tr(W(t)T R11 (t)W(t))
+,
+Tr(W(t)T R12 (t)W(t))
+
+(3)
+
+where we use the current autocorrelation of the signal estimation R11 (t) = Â(t)T D̂(t)T D̂(t)Â(t) and the autocorrelation of
+the noise-plus-signal estimation R12 (t) = X(t)T X(t). The resulting generalized eigenvectors Ŵ(t) maximize (3) and are
+thus the filters that we are interested in. The primal eigenvector
+w1 (t) and the eigenvalue of the GED can be computed using a
+RLS approach [30] by
+ŵ1 (t) =
+
+w1 T (t − 1)R12 (t)w1 (t − 1)
+w1 T (t − 1)R11 (t)w1 (t − 1)
+· R12 (t)−1 R11 (t)w1 (t − 1).
+
+(4)
+
+The RLS approach is essential to update the current filter when
+new data is provided.
+For numerical reasons, ŵi (t) has to be normalized, i.e., setting
+i (t)
+ŵi (t) ← ||ŵ
+ŵ i (t)|| after each iteration of (4). To get similar values
+as in the original xDAWN algorithm, the filters have to be rescaled. The square of the scaling can
+ be obtained using S =
+
+diag(ŴT R12 Ŵ), so we set wi ← s1i i ŵi .
+1) Computation of the Inverse Noise Correlation: In every
+iteration of (4), the inverse of R12 (t) is required. However,
+it is not feasible to compute it every time step by inverting
+R12 (t) itself. The direct computation can be avoided by using
+the Sherman–Morrison–Woodbury formula [31]:
+R12 (t)−1 = R12 (t − 1)−1
+−
+
+R12 (t − 1)−1 x(t)xT (t)R12 (t − 1)−1
+. (5)
+1 + xT (t)R12 (t − 1)−1 x(t)
+
+This has the following benefits: we can compute R12 (t)−1
+sample-wise, i.e., we can update R12 (t − 1)−1 to obtain R12 (t)−1
+every time when a new sample x(t) arrives. Therefore, we only
+need to store R12 (t)−1 and all required operations are basic
+matrix algebra operations and a single division in each update
+step.
+2) Computation of the Lower-Order Filters: By computing
+the primal eigenvector w1 , we get the first spatial filter. In order
+to get more filters, further eigenvectors have to be computed.
+These eigenvectors can be computed using a deflation technique
+[32]:
+
+
+T
+Ri−1
+i
+1 (t)wi−1 (t)wi−1 (t)
+Ri−1
+R1 (t) = I −
+1 (t)
+wi−1 (t)T Ri−1
+1 (t)wi−1 (t)
+Ri2 (t) = Ri−1
+2 (t) ,
+
+(6)
+
+where each eigenvector wi (t) depends on the preceding eigenvector wi−1 (t), which can be calculated using (4) with the
+respective Ri1 (t) and Ri2 (t).
+3) Estimation of A(t): To get the autocorrelation matrix
+R11 (t), we first need to estimate the ERP matrix A(t) itself. A batch least squares estimate can be obtained by Â =
+(DT D)−1 DT X. In order to compute R11 (t), we need a way
+to find Â(t) incrementally. This is easy if the actual ERPs
+do not overlap in time, since in this case the solution of
+the pseudoinverse corresponds to a simple running averaging
+procedure using Â(t) = Â(t − 1) + X̂(t)−kÂ(t−1) for the kth
+ERP X̂(t). Using this, we can compute R11 (t) = ÂT (t)Â(t).
+The noise autocorrelation matrix can be updated by R12 (t) =
+R12 (t − 1) + x(t)xT (t).
+However, if the ERPs are overlapping, the averaging procedure will not converge to an estimate of A, but to an estimate that contains signal fractions from the preceding and
+succeeding ERPs. Therefore, another method to estimate A
+is required. The solution is again based on the Sherman–
+Morrison–Woodbury formula [31], combined with the averaging procedure. The approach works as follows: The matrix D can be constructed sample-wise by setting d(t) =
+a row of D, e.g., d(t) = [0, 1, 0, 0, 1]T . We then recursively estimate D0 (t) = (DT (t)D(t))−1 by
+D0 (t) = D0 (t − 1) −
+
+D0 (t − 1)d(t)dT (t)D0 (t − 1)
+. (7)
+1 + dT (t)D0 d(t)
+
+We get D̂(t) = D0 (t)D(t)T and can compute the instantaneous ERP estimate Â(t) = D̂(t)X̂(t).
+4) Adaptation-Tracking of a Time-Varying Solution: If the
+filters are used in time-varying settings or transferred from one
+subject to another, they have to be adapted to the new situation.
+Regarding the used model, if the (unknown) A and N are effect
+to change, the optimal W changes accordingly. In order to adapt
+the filters, we have the following possibilities:
+1) we can track the ERP estimate and update the corresponding autocorrelation:
+Â(t)
+and
+R11 (t) =
+Â(t) = λA Â(t − 1) + X̂(t)−
+k
+T
+Â(t)Â (t)
+2) we can track the noise autocorrelation: R12 (t) =
+λX R12 (t − 1) + x(t)xT (t) In this case, the noise autocorrelation has to be adapted accordingly:
+1
+−1
+R12 (t)−1 = λ−1
+X R2 (t − 1)
+
+−
+
+1
+−1
+T
+1
+−1
+λ−2
+X R2 (t − 1) x(t)x (t)R2 (t − 1)
+,
+1
+−1 T
+1 + λ−1
+X x(t)R2 (t − 1) x (t)
+
+(8)
+where λA , λX ∈ [0, 1] are update coefficients.
+The complete algorithm is stated in Alg. 1.
+5) Differences between xDAWN and axDAWN: Both,
+xDAWN as well as axDAWN are based on the same framework, i.e., computation of filters that maximize the SSNR as
+specified in (2). However, in contrast to xDAWN, axDAWN allows to compute the filter weights incrementally, which allows
+it to adapt to new data and reduces the memory consumption.
+
+WOEHRLE et al.: ADAPTIVE SPATIAL FILTER FOR USER-INDEPENDENT SINGLE TRIAL DETECTION OF EVENT-RELATED POTENTIALS
+
+1699
+
+(1) Linear SVM, successive overrelaxation (SOR) variant
+[33]. The complexity parameter C was chosen from
+{10−9 , 10−8 , . . . , 1} using a five-fold cross-validation.
+In the adaptation process, every new sample is added
+to the already obtained training dataset and the SVM
+optimization procedure is continued including this new
+sample based on the old solution [34]. Using an SVM for
+online learning is often not feasible in practice, because
+of the increasing memory consumption and long calculation time, but represents an optimal linear classifier as
+reference.
+(2) LDA. For the adaptation, we follow the Kalman-Filter
+based approach in [19] with update coefficient in
+{10−10 , 10−9 , . . . , 10−1 }.
+(3) Online passive-aggressive algorithms variant 1 (PA1)
+[35] with C ∈ {10−9 , 10−8 , . . . , 1}. The PA1 is closely
+related to the SVM, since model parameters w are computed by solving a constrained optimization problem that
+minimizes the hinge loss over a sequence of examples
+[36], [37]. However, the update step to include new samples is more efficient regarding computation time and
+memory consumption in comparison to the SVM.
+(4) A linear classifier optimized by stochastic gradient descent (SGD) with L2 norm penalty on the parameter
+vector (parameterized by α) and hinge loss with optimal
+learning rate (η(t) = α (t 01+t) )) [38]. The hyperparameter ranges were {10−9 , 10−8 , . . . , 100 } for α and η0 . This
+classifier is an online classification algorithm, too. The
+Scikit-learn [39] implementation was used.
+IV. APPLICATION TO SINGLE-TRIAL DETECTION OF PARIETAL
+POSITIVE ERP COMPONENTS
+
+Fig. 1. Training and adaptation of the methods. A classifier is provisionally
+trained on a training dataset from, e.g., a database. During the application phase,
+the data {x 1 , x 2 , . . .} , x t ∈ Rn arrives one at a time. At time t, the classifier
+makes a prediction p t . Afterwards, the label y t ∈ {−1, 1} is revealed, and the
+classifier suffers a loss  that can be used to update the classifier in order to
+improve its performance in future predictions.
+
+The memory consumption of xDAWN is dominated by the matrices X and D, which require O(nd) and O(ne) memory,
+respectively. In contrast, axDAWN does not need to store these
+matrices. The highest memory consumption is related to the
+storage of Ri1 with O(f d2 ) memory. This is substantially less
+(since f, d  n) and independent of the number of samples.
+III. CLASSIFICATION AND MODEL SELECTION
+As pointed out in Section I, batch algorithms are difficult to
+calibrate with additional information. An alternative approach
+is online learning, where the classification model is constructed
+sample-wise (see Fig. 1). There is a wide range of online learning
+algorithms available in the literature, which differ regarding
+model assumptions and employed optimization procedures. In
+this paper, we consider the following algorithms:
+
+We evaluate the developed algorithms in a transfer study of
+a dual-task paradigm that combines an ongoing manipulation
+task with a visual discrimination oddball task [40]. In this setup,
+infrequent task-relevant target events required the subject to perform a certain action. The task of the applied BR system was to
+detect the brain state of “target recognition and task set change”
+by detecting the P300 and the prospective positivity [41] in single trial in EEG data, which is substantially more difficult than
+P300 classification in standard reactive BCI paradigms, where
+several intensifications are used. The data for the evaluation was
+previously acquired and used, e.g., in [42].
+A. The Evaluation Scenario—Single Trial P300 Detection
+while Playing a Labyrinth Game
+The setup of the scenario was as follows (see Fig. 2): the
+subject had to perform a demanding sensorimotor task by continuously playing a labyrinth game, i.e., to maneuver a ball
+through the maze. The subjects were trained in the task. Training took hours to weeks depending on their abilities to play the
+game. Only those subjects that were able to reach the goal were
+chosen for the experiments and subsequently trained to perform the dual task. The subjects wore a head mounted display
+(HMD), which displayed a virtual model of the game that was
+played as well as stimuli symbols for the oddball task. There had
+
+1700
+
+Fig. 2. Experimental setup of the Labyrinth oddball paradigm: A subject
+wears an HMD and plays a virtual labyrinth game. While playing, it has to
+respond to important target stimuli. Target stimuli evoke a P300 overlaid by an
+prospective positivity, whereas standard stimuli do not.
+
+been two kinds of stimuli: task-irrelevant standard stimuli, and
+task-relevant target stimuli, which required a response, i.e., to
+press a buzzer in a time frame of 200 to 2000 ms after a target stimulus presentation. The target stimuli were shown infrequently among the standard stimuli in a fixed ratio of about 1:6
+over one experimental run. The distribution between both types
+of stimuli was random with a change in order for each run that
+was performed. The inter-stimulus interval was 1000 ms with
+a random jitter of ±100 ms. If the subject did not respond to
+the stimulus representation, a second visually highlighted target
+was shown. Since the setup for presenting the stimuli meets the
+requirements of an oddball paradigm, infrequent stimuli evoke
+a P300 while frequent unimportant ones do not [5]. The above
+explained scenario and dataset was chosen for this investigation since it allows to investigate the possibility of single trial
+detection of ERP activity during complex human–machine interaction. On the other hand, the mainly contributing ERP activity
+to classification performance is the P3b [5], which is frequently
+applied for reactive BCIs such as for P300 speller first reported
+in [43]. Eye artifacts do not contribute to classification performance (see similar investigation on a different dataset in [44]).
+Although it cannot be excluded with absolute certainty that motor activity does not contribute to classification performance,
+this effect should be low since it is present during the whole run
+(ongoing sensorimotor task).
+B. Experimental Procedures
+Six subjects (males; mean age 27.5, standard deviation 2.1;
+right-handed, and normal or corrected-to-normal vision) took
+part in the experiments. The experiments have been conducted
+in accordance with the Declaration of Helsinki and approved
+with written consent by the ethics committee of the University
+of Bremen. Subjects have given informed and written consent to
+participate. The experiment was performed two times by each
+subject, with at least one day rest in between, generating two
+sessions per subject. In each session, each subject performed
+five runs with 120 target stimuli (important information) and
+about 720 standard stimuli (unimportant information, shape of
+stimuli see Fig. 2) in each run. While the subject was perform-
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+Fig. 3. Illustration of the evaluation procedures (exemplary shown for two
+instead of six subjects). Five runs were performed in each recording session,
+with two sessions per subject (light versus dark boxes). Three datasets were
+used in the initial training phase (rectangle boxes), two in the testing phase
+(hexagonal boxes). The evaluation was performed offline on data from the same
+session (SUSS), from another session (SUDS) or from another another subject
+(DUDS).
+
+ing the task, the EEG was recorded continuously (62 electrodes,
+extended 10–20 system with reference at FCz) using a 64 channel actiCap system (Brain Products GmbH, Munich, Germany).
+Two electrodes of the 64 channel system were used to record the
+electromyogram of the lower arm, which was not considered in
+the following analysis. Impedance was kept below 5 kΩ. EEG
+signals were sampled at 1000 Hz, amplified by two 32 channel BrainAmp dc amplifiers (Brain Products GmbH, Munich,
+Germany) and filtered with a low cut-off of 0.1 Hz.
+C. Transfer Setups
+We evaluate the classification performance in several combinations of train and test data to investigate the different use-case
+scenarios (see Fig. 3):
+(1) Same user, same session (SUSS): The SUSS scenario
+represents the standard mode of operation in BCI/BR
+setups: acquire training data directly before the usage of
+the BCI system. We used three of the five runs from each
+session for the training of the methods and two runs of
+the same session for evaluation, resulting in 12 different
+train-test combinations.
+(2) Same user, different session (SUDS): This setup corresponds to an application case, where data of a user is
+available in a database and can be used in a training session. We used three runs of each session for training and
+two runs of the other session of the same user for testing,
+resulting in 12 train-test combinations.
+(3) Different user, different session (DUDS): This setup corresponds to an application, where there is only data from
+another person in the database that can be used in the
+training session. We used three runs of each session for
+training and two runs of another user for testing, which
+results in 120 train-test combinations.
+D. Evaluation Metric: The Balanced Accuracy
+Since the amount of examples of each class is unbalanced,
+we use the balanced accuracy (BA) for the evaluation [45].
+TP
+TN
++ TN+FP
+) where TP, TN, FP,
+It is given by: BA := 12 ( TP+FN
+
+WOEHRLE et al.: ADAPTIVE SPATIAL FILTER FOR USER-INDEPENDENT SINGLE TRIAL DETECTION OF EVENT-RELATED POTENTIALS
+
+1701
+
+Fig. 4. Median classification performance for different spatial filters and numbers of remaining pseudo channels in the SUSS case without adaptation.
+Fig. 6. Classification performance for each adaptation approach, transfer, and
+classifier type. The effect of adaptation approach does not interact with transfer
+and classifier type [interaction of adaptation approach with transfer type and
+classifier type: F (42, 462) = 1.52, p = n.s.]
+
+The obtained data was standardized again feature-wise. Finally,
+the feature vector was classified using different classification
+algorithms as described in Section III. We used a five-fold cross
+validation combined with a grid search to determine the optimal
+hyperparameters on the training data. Finally, we did not map
+the output of the classifier p ∈ R directly to the corresponding
+label sign(y), but compared it with a chosen threshold score θ
+to decide about the finally assigned label. This threshold can be
+chosen such that a given performance measure (in our case the
+BA) is maximized [48].
+V. RESULTS AND DISCUSSION
+Fig. 5. Visualization of the absolute filter weights of w 1 with respect to
+electrode coordinates for exemplary two subjects for xDAWN and axDAWN
+after training the filters on the training data as described in Section IV. Blue
+colors indicate low absolute filter weights, red colors indicate high absolute
+filter weights.
+
+FN represent the number of true positives, true negatives, false
+positives, and false negatives, respectively.
+E. Applied Signal Processing Procedures
+All evaluations were performed in the open source signal processing and classification environment pySPACE [46], where
+the required algorithms are integrated. Before the data was
+processed by any further method, it was cut into segments of
+1000 ms duration after the stimulus markers and labeled as
+standard or target. The segments were standardized using a
+z-score standardization, i.e., all data were adjusted channel-wise
+by subtracting the mean and dividing by the standard deviation
+of the channel. Afterwards, the data was decimated from the
+initial 1000 Hz sampling rate to 25 Hz. To avoid aliasing effects, an anti-alias finite impulse response filter was applied.
+Subsequently, depending on the investigation, we either used
+xDAWN [7], [29] or axDAWN (see Section II) or no spatial filter. To further reduce the dimension in a descriptive way and to
+account for the ERP shape, we fitted straight lines every 120 ms
+with a moving window size of 400 ms to the data using linear
+regression [47]. The slopes of the lines were taken as features.
+
+A. Performance Comparison with different Spatial Filters
+First, we compare the performance of axDAWN with different
+other spatial filters to determine a parametrization that can be
+used in the following evaluations. In this comparison, we use
+axDAWN statically, i.e., without any adaptation of the filter
+coefficients to incoming data in the SUSS setup as described in
+Section IV. The values of λA and λX are both set to 1, if not
+mentioned otherwise.
+1) Dependence of the Classification Performance on the
+Number of Filters: A major objective of spatial filters is the
+dimensionality reduction of the data. We used the SVM as a
+reference classifier for this evaluation. The classification performance for different numbers of filters and therefore remaining
+pseudo-channels in the SUSS setup is shown in Fig. 4. We performed a repeated measures ANOVA with two factors: filter
+type and number of channels. Greenhouse–Geiser was applied
+when necessary. Bonferroni correction was applied for multiple
+comparisons. The results show that the BA for few remaining
+filters is worse than the BA for a higher number of channels.
+However, more than eight filters do not result in an increase
+of the BA. Furthermore, there is no obvious difference in the
+classification performance between xDAWN and axDAWN for
+different numbers of filters in the static case. Both perform better than the PCA [p < 0.03] and πSF [p = n.s.] for less than
+eight filters. Therefore, we used a fixed number of eight pseudo
+channels for all subsequent evaluations.
+
+1702
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+Fig. 7. Classification performance for different types of adaptation, and method transfer. On the left hand side of each subplot, the classification performance for
+individual classifiers for the SUSS, SUDS and DUDS setups is shown. The boxplots on the right hand side contain the averaged performance over all classifiers. In
+subplots (1a) and (1b), the performances of xDAWN and axDAWN are compared if neither an adaptation of classifier nor spatial filter are performed. The subplots
+in (2a) and (2b) show the performances of xDAWN and axDAWN for an adaptation of only the classifier, but not the spatial filter. The subplots 3 and 4 show
+the performance for an adaptation of axDAWN as well as axDAWN combined with adaptation of the classifier. In this case only xDAWN was not used, since it
+requires a complete re-computation of the filter components.
+
+2) Visualization of Filter Weights: The filter weights W of
+the spatial filter can be visualized w.r.t. the electrode coordinates
+to comprehend which electrodes are considered by the spatial
+filter in the feature extraction process. As shown in Fig. 5, high
+absolute weights are obtained at parietal electrode positions, as
+it would be expected since the oddball paradigm evokes a P3b
+[5]. Only minor differences can be observed between xDAWN
+and axDAWN despite different methods of calculation.
+3) Summary: In summary, in the static SUSS setup xDAWN
+and axDAWN provide similar characteristics. The main advantage of axDAWN here is the lower memory consumption required for the computation of filter weights, as mentioned in
+Section II.
+B. Evaluation of the Effect of Adaptation
+The major advantage of axDAWN is its adaptability. Therefore, we evaluate the effect of this adaptability on the classification performance in different transfer setups for different
+classifiers. For statistical comparison, we analyzed the obtained
+results by repeated measures ANOVA with three within-subjects
+factors: (1) transfer type (SUSS, SUDS, DUDS), (2) classifier
+type (LDA, SVM, PA1, SGD), and (3) adaptation approach: no
+adaptation (nCl) or adaptation (aCl) of classifier, in combination with xDAWN, axDAWN or no spatial filter (NoSF) as a
+baseline. NoSF and xDAWN cannot be adapted. However, axDAWN can be used adaptively (denoted axDAWN) or only to
+compute the filter weights incrementally during the preliminary
+training (i.e. non adaptive, denoted as naxDAWN, see Fig. 1),
+which is included for comparison to the standard xDAWN here.
+See also Fig. 6 for all resulting combinations. If necessary,
+
+Greenhouse-Geisser correction was applied and the corrected
+p-value is reported. For multiple comparisons, Bonferroni correction was applied. For hyperparameter selection we used a
+grid search over the values as specified in Section IV-E in all
+subsequent evaluations.
+1) Evaluation without Adaptation: In this experiment, the
+classifiers and spatial filters were trained on the training data
+and evaluated without any adaptation of the classifier and the
+spatial filter in the application phase [nCl-NoSF, nCl-xDAWN,
+nCl-naxDAWN]. The top rows of Fig. 7(1a) and (1b) show an
+obvious effect of transfer type: the classification performance in
+the DUDS and SUDS transfers is reduced compared to SUSS.
+For DUDS, this performance reduction is significant for all classifier types [DUDS versus SUSS: p < 0.012]. This performance
+reduction is less severe for SUDS and depends on the classifier
+type, i.e., it is significant for LDA and SVM [SUDS versus
+SUSS: p < 0.031], but not for PA1 and SGD. Accordingly, the
+trained data-dependent signal processing methods cannot be
+transferred directly to other sessions or subjects without a negative impact on the classification performance. No significant
+difference between xDAWN and naxDAWN can be observed
+for all transfer and classifier types [nCl-xDAWN versus nClnaxDAWN: p = n.s.].
+2) Evaluation with Adaptation: In the following evaluations,
+we trained the methods on the training data and applied different
+adaptation approaches in the application phase.
+a) Adaptation of the Classifier: In this investigation,
+we adapted the classifier, but not the spatial filter ([aClxDAWN, aCl-naxDAWN, aCl-NoSF]). A significant improvement of the classification performance compared to the usage of
+non-adaptive classifiers (nCls) can only be observed for the
+
+WOEHRLE et al.: ADAPTIVE SPATIAL FILTER FOR USER-INDEPENDENT SINGLE TRIAL DETECTION OF EVENT-RELATED POTENTIALS
+
+1703
+
+Fig. 8. Performance over time for SGD in the SUSS (top), SUDS (middle) and DUDS (bottom) transfers for different adaptation strategies. For the labels, refer
+to Section V-B and Fig. 6.
+
+DUDS transfer. The improvement depends on the classifier type
+[aCls versus nCls: p < 0.001 for SVM and SGD, p=n.s. for
+LDA and PA1]. For the aCl-NoSF case, even a decrease can
+be observed for LDA [aCls versus aCl-NoSF: p < 0.003 for
+LDA]. Again, no significant difference between xDAWN and
+naxDAWN is observed [aCl-xDAWN versus aCl-naxDAWN: p
+= n.s.] for all classifiers and transfer types.
+b) Adaptation of the Spatial Filter: In this case, we
+adapted axDAWN, but not the classifier (nCl-axDAWN). λX
+and λA where set to 1.0 for the SUSS, SUDS transfers, for
+the DUDS transfer, we used λA = 0.99. A significant performance improvement compared to no adaptation cannot be observed for SUSS and SUDS, but for DUDS for all classifier
+types [nCl-axDAWN versus nCl-xDAWN and nCl-naxDAWN:
+p < 0.016, nCl-axDAWN versus nCl-NoSF: p < 0.004, see the
+DUDS transfer in Fig. 7(1b) versus Fig. 7(3)].
+In comparison to the adaptation of the classifier, the performance is superior for LDA and PA1, whereas no performance improvement is achieved when the SVM or SGD is
+adapted [nCl-axDAWN vsersus aCl-xDAWN and aCl-naxDAWN:
+p < 0.004 for LDA and PA1]. However, in case of the SVM,
+the usage of no spatial filter (aCl-NoSF) performs better
+[p < 0.001].
+c) Adaptation of Classifier and Spatial Filter: In this evaluation, we adapted both the classifier and axDAWN. We used
+the same values for λX and λA as before. In Figs. 7(4) and 6,
+it can be observed that the simultaneous adaptation of spatial
+filter and classifier improves the classification performance in
+the DUDS case compared to no adaptation of classifier and spatial filter (nCls). This performance improvement is obtained for
+all classifier types [aCl-axDAWN versus nCls: p < 0.001, see
+Fig. 6]. The combined adaptation approach results in a further
+increase of the classification performance compared to the case
+of adaptation of the classifier but not the spatial filter (aCls)
+
+for all classifier types except for SVM. [SGD, PA1, or LDA:
+aCl-axDAWN versus aCls: p < 0.007, SVM: aCl-axDAWN versus aCls: p = n.s.]. However, compared to the case of only
+adapting the spatial filter (nCl-axDAWN), we observed a performance improvement for SGD and SVM [aCl-axDAWN versus
+nCl-axDAWN: p < 0.005], but not for LDA and PA1. A performance improvement is shown for the comparison with the case
+of adaptation of the classifier without using the spatial filter for
+SGD and LDA [aCl-axDAWN versus aCl-NoSF: p < 0.011],
+but not for PA1 and SVM. For the SVM, the performance is
+even worse [aCl-axDAWN versus aCl-NoSF: p < 0.011]. However, as mentioned in Section III, the SVM is used as a reference
+here and cannot be used for online adaptation in a real experimental setup, especially if the amount of data has not been
+reduced by a spatial filter. No significant performance reduction can be observed between the DUDS and the SUDS transfers, if the adaptive SGD is used together with the axDAWN
+(see Fig. 6).
+Accordingly, a combined adaptation of both classifier and
+spatial filter performs better than the single adaptation of classifier or spatial filter.
+3) Summary: Without adaptation, a transfer of pretrained
+methods between subjects or session results in a significant
+decrease of classification performance. Without adaptation,
+xDAWN and axDAWN perform equally. However, with adaptation of either axDAWN or the classifier, a significant classification performance improvement can be achieved in the DUDS
+transfer scenario. A combined adaptation approach achieves an
+even higher improvement of the classification performance. In
+this case, the classification performance in the DUDS transfer is
+not considerably worse in comparison to the SUSS and SUDS
+transfer scenarios. A further advantage of the proposed adaptation approaches is the robustness, i.e., the performance increase
+can be achieved for all classifiers.
+
+1704
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+C. Evaluation of the Development of the Classification
+Performance over Time during Adaptation
+Note that the evaluations of the previous investigation consider the overall performance on the test dataset, i.e., if the
+methods perform bad at the start of the application phase, this is
+contained in the reported values. Hence, an important additional
+aspect is the rate of adaptation, i.e., how many training examples are required to achieve an acceptable performance level,
+which is examined in the following.
+We computed the classification performance for a moving
+window of data. Therefore, the TP, TN, FP and FN for all subjects
+in the interval [t . . . t + 49] were merged. The BA was computed
+for this window to get BA(t). Subsequently, the window was
+shifted by one sample to compute BA(t + 1) on the interval
+[t + 1 . . . t + 50]. The results are shown in Fig. 8.
+It can be observed that in the SUSS setup (see Fig. 8, top)
+the BA is almost constant over time, with a slight decrease. No
+combination of adaptation procedures performs better than the
+other combinations here, which means that adaptation does not
+result in a better performance if additional data from the same
+subject becomes available. However, in the SUDS setup (see
+Fig. 8, middle) the BA is ≈ 0.775 at the beginning, and improves
+to ≈0.85 if both the spatial filter and classifier are adapted.
+This cannot be observed if no adaptation is used. If either the
+spatial filter or the classifier is adapted, the improvement of
+the classification performance lies in between the two other
+combinations. This effect becomes even more apparent in the
+DUDS setup (see Fig. 8, top). Here, the initial BA is ≈0.7 at the
+beginning, and improves to ≈0.85 if spatial filter and classifier
+are adapted. If neither the spatial filter nor the classifier are
+adapted, the BA is around ≈0.65. As in the SUDS setup, the BA
+lies in between the two other combinations if either the classifier
+or spatial filter are adapted.
+These results confirm the conclusions from Section V-B1,
+that the simultaneous adaptation of different methods improve
+the overall classification performance.
+VI. CONCLUSIONS AND FUTURE DIRECTIONS
+In this paper, we introduced a new spatial filter, axDAWN. We
+showed that it performs comparable to the established xDAWN
+in a batch learning scenario. In contrast to xDAWN, it is able to
+incorporate new data and adapt its filter coefficients to new data.
+A further advantage of axDAWN is the computational efficiency
+and low memory requirement. We investigated the classification
+performance of single trial ERP detection when a pretrained signal processing methods are transferred between sessions or even
+subjects. This results in a considerable decrease of the classification performance, especially in the case of transfer between
+subjects. Our axDAWN or adaptive classifiers are able to compensate this decrease in a certain amount. However, best results
+could be obtained by a combination of axDAWN with adaptive
+classifiers. In the future, we will enhance our methods based on
+ideas that are used for CSP filters, i.e., create prototype filters
+that provide a good performance without any training beforehand, select subsets of relevant training data, and additionally
+use methods to find optimal values for the hyperparameters on-
+
+line. Furthermore, we will transfer the developed methods to
+more realistic and complex applications, where the acquisition
+of training data is remarkably more difficult.
+REFERENCES
+[1] J. R. Wolpaw et al., “Brain–computer interfaces for communication and
+control,” Clin. Neurophysiol., vol. 113, no. 6, pp. 767–791, 2002.
+[2] T. O. Zander and C. Kothe, “Towards passive brain–computer interfaces:
+Applying brain-computer interface technology to human-machine systems
+in general,” J. Neural Eng., vol. 8, no. 2, p. 025005, 2011.
+[3] E. A. Kirchner and R. Drechsler, “A formal model for embedded brain
+reading,” Ind. Robot: An Int. J., vol. 40, pp. 530–540, 2013.
+[4] B. Blankertz et al., “Single-trial analysis and classification of ERP componentsa tutorial,” NeuroImage, vol. 56, no. 2, pp. 814–825, 2011.
+[5] E. A. Kirchner et al., “On the applicability of brain reading for predictive human-machine interfaces in robotics,” PLoS ONE, vol. 8, no. 12,
+p. e81732, 2013.
+[6] B. Blankertz et al., “Optimizing spatial filters for robust EEG single-trial
+analysis,” Signal Process. Mag., IEEE, vol. 25, no. 1, pp. 41–56, 2008.
+[7] B. Rivet et al., “xDAWN algorithm to enhance evoked potentials: Application to brain computer interface,” IEEE Trans. Biomed. Eng., vol. 56,
+no. 8, pp. 2035–2043, Jan. 2009.
+[8] F. Ghaderi and S. Straube, “An adaptive and efficient spatial filter for
+event-related potentials,” in Proc. 21st Eur. Signal Process Conf., 2013,
+pp. 1–5.
+[9] C. Saavedra and L. Bougrain, “Denoising and time-window selection
+using wavelet-based semblance for improving erp detection,” in Proc.
+BCI Meeting., 2013.
+[10] F. Lotte and C. Guan, “Learning from other subjects helps reducing braincomputer interface calibration time,” in Proc. IEEE Int. Conf. Acoust.
+Speech Signal Process., 2010, pp. 614–617.
+[11] H. Lu et al., “Regularized common spatial pattern with aggregation for
+EEG classification in small-sample setting,” IEEE Trans. Biomed. Eng.,
+vol. 57, no. 12, pp. 2936–2946, Sep. 2010.
+[12] M. Krauledat et al., “Towards zero training for brain–computer interfacing,” PLoS ONE, vol. 3, no. 8, p. e2967, 2008.
+[13] D. Devlaminck et al., “Multisubject learning for common spatial patterns
+in motor-imagery BCI,” Comput. Intell. Neurosci., vol. 2011, pp. 1–9,
+2011.
+[14] W. Samek et al., “Transferring subspaces between subjects in brain–
+computer interfacing,” IEEE Trans. Biomed. Eng., vol. 60, no. 8, pp.
+2289–2298, Jul. 2013.
+[15] S. Fazli et al., “Subject independent EEG-based BCI decoding,” in Proc.
+Adv. Neural Inform. Process. Syst., 2009, pp. 513–521.
+[16] B. Rivet et al., “Adaptive training session for a P300 speller brain–
+computer interface,” J. Physiol.-Paris, vol. 105, no. 1, 2011.
+[17] N. V. Manyakov et al., “Comparison of classification methods for P300
+brain-computer interface on disabled subjects,” Intell. Neurosci., vol.
+2011, pp. 1–12, 2011.
+[18] L. F. Nicolas-Alonso and J. Gomez-Gil, “Brain computer interfaces, a
+review,” Sensors, vol. 12, no. 2, pp. 1211–1279, 2012.
+[19] A. Schlögl et al., “Adaptive methods in BCI research—an introductory
+tutorial,” Brain–Comput. Interfaces, pp. 331–355, 2010.
+[20] P. Shenoy et al., “Towards adaptive classification for BCI,” J. Neural
+Eng., vol. 3, no. 1, pp. R13–23, 2006.
+[21] D. J. McFarland et al., “Should the parameters of a bci translation algorithm be continually adapted?” J. Neurosci. Methods, vol. 199, no. 1, pp.
+103–107, 2011.
+[22] S. Lu et al., “Unsupervised brain computer interface based on intersubject
+information and online adaptation,” IEEE Trans. Neural Syst. Rehabil.
+Eng., vol. 17, no. 2, pp. 135–145, Feb. 2009.
+[23] C. Vidaurre et al., “Toward unsupervised adaptation of LDA for
+brain computer interfaces,” IEEE Trans. Biomed. Eng., vol. 58, no. 3,
+pp. 587–597, Mar. 2011.
+[24] Y. Li et al., “A self-training semi-supervised SVM algorithm and its
+application in an EEG-based brain computer interface speller system,”
+Pattern Recog. Lett., vol. 29, no. 9, pp. 1285–1294, 2008.
+[25] J. del R Millán and J. Mouriño, “Asynchronous bci and local neural
+classifiers: An overview of the adaptive brain interface project,” IEEE
+Trans. Neural Syst. Rehabil. Eng., vol. 11, no. 2, pp. 159–161, Jun. 2003.
+[26] P.-J. Kindermans et al., “A P300 BCI for the masses: Prior information
+enables instant unsupervised spelling,” in Proc. Neural Inform. Process.
+Syst., 2012.
+
+WOEHRLE et al.: ADAPTIVE SPATIAL FILTER FOR USER-INDEPENDENT SINGLE TRIAL DETECTION OF EVENT-RELATED POTENTIALS
+
+[27] P.-J. Kindermans et al., “A unified probabilistic approach to improve
+spelling in an event-related potential-based brain-computer interface,”
+IEEE Trans. Biomed. Eng., vol. 60, no. 10, pp. 2696–2705, May 2013.
+[28] J. Jin et al., “Whether generic model works for rapid ERP-based BCI
+calibration,” J. Neurosci. Methods, vol. 212, no. 1, pp. 94–99, 2013.
+[29] B. Rivet and A. Souloumiac, “Optimal linear spatial filters for eventrelated potentials based on a spatio-temporal model: Asymptotical performance analysis,” Signal Process., vol. 93, no. 2, pp. 387–398, 2013.
+[30] Y. Rao and J. Principe, “An RLS type algorithm for generalized eigendecomposition,” in Proc. IEEE Signal Process. Soc. Workshop Neural Netw.
+Signal Process. XI, 2001, pp. 263–272.
+[31] G. H. Golub and C. F. Van Loan, Matrix Computations. vol. 4, Baltimore,
+MD, USA: Johns Hopkins Univ. Press, 2013.
+[32] K. I. Diamantaras and S. Y. Kung, Principal Component Neural Networks:
+Theory and Applications. Hoboken, NJ, USA: John Wiley & Sons, Inc.,
+1996.
+[33] O. L. Mangasarian and D. R. Musicant, “Successive overrelaxation for
+support vector machines,” IEEE Trans. Neural Netw., vol. 10, no. 5, pp.
+1032–1037, Sep. 1999.
+[34] I. Steinwart et al., “Training SVMs without offset,” J. Mach. Learning
+Res., vol. 12, pp. 141–202, 2011.
+[35] K. Crammer et al., “Online passive-aggressive algorithms,” J. Mach.
+Learning Res., vol. 7, pp. 551–585, 2006.
+[36] M. M. Krell et al., “Balanced relative margin machine the missing piece
+between FDA and SVM classification,” Pattern Recog. Lett., vol. 41,
+pp. 43–52, 2014.
+[37] M. M. Krell et al., “Generalizing, optimizing, and decoding support vector
+machine classification,” presented at the ECML/PKDD-2014 PhD Session
+Proceedings, Nancy, France, 2014.
+[38] S. Shalev-Shwartz et al., “Pegasos: Primal estimated sub-GrAdient
+SOlver for SVM,” in Proc. 24th Int. Conf. Mach. Learning, 2007,
+pp. 807–814.
+[39] F. Pedregosa et al., “Scikit-learn: Machine learning in python,” J. Mach.
+Learning Res., vol. 12, pp. 2825–2830, 2011.
+[40] T. Picton, “The P300 wave of the human event-related potential,” J. Clinical Neurophysiol., vol. 9, no. 4, pp. 456–479, 1992.
+[41] R. West, “The temporal dynamics of prospective memory: A review of
+the ERP and prospective memory literature,” Neuropsychologia, vol. 49,
+no. 8, pp. 2233–2245, 2011.
+[42] E. A. Kirchner et al., “Towards operator monitoring via brain reading –
+an EEG-based approach for space applications,” in Proc. 10th Int. Symp.
+Artif. Intell., Robot. Autom. Space, Sapporo, Japan, 2010, pp. 448–455.
+[43] L. Farwell and E. Donchin, “Talking off the top of your head: Toward
+a mental prosthesis utilizing event-related brain potentials,” Electroencephalogr. Clin. Neurophysiol., vol. 70, no. 6, 1988.
+[44] F. Ghaderi et al., “Effects of eye artifact removal methods on single trial
+P300 detection, a comparative study,” J. Neurosci. Methods, vol. 221,
+pp. 41–47, pp. 510–523, 2014.
+[45] S. Straube and M. M. Krell, “How to evaluate an agent’s behaviour to
+infrequent events?—reliable performance estimation insensitive to class
+distribution,” Frontiers Comput. Neurosci., vol. 8, no. 43, 2014.
+[46] M. M. Krell et al.. (2013). pySPACE—a signal processing and classification environment in Python. Frontiers Neuroinformatics, vol. 7, no. 40.
+[Online]. Available: https://github.com/pyspace
+[47] S. Straube and D. Feess, “Looking at ERPs from another perspective: Polynomial feature analysis,” Perception, vol. 42 ECVP Abstract Supplement,
+p. 220, 2013.
+[48] J. H. Metzen and E. A. Kirchner, “Rapid adaptation of brain reading interfaces based on threshold adjustment,” in Proc. 35th Ann. Conf. German
+Classification Soc., 2011, p. 138.
+
+Hendrik Wöhrle received the Bachelor’s and Master’s degrees in bioinformatics from the Freie Universität Berlin, Berlin, Germany, in 2003 and 2006,
+respectively.
+He worked as a Software Developer of algorithms
+and signal processing methods from 2007 to 2009.
+Since 2009, he is with the Robotics Innovation Center (RIC) of the German Research Center for Artificial Intelligence (DFKI) in Bremen, Germany. His
+research interests are (biomedical) signal processing,
+machine learning, embedded systems, and reconfigurable computing,
+
+1705
+
+Mario Michael Krell received the Diploma degree in
+mathematics from the Humboldt University of Berlin,
+Berlin, Germany, in 2009.
+Since 2009, he has been with the Robotics Lab at
+the University of Bremen and the Robotics Innovation
+Center (RIC) of the DFKI in Bremen. Currently, he is
+working on improving SVM classification and he is
+the Chief Developer of the signal processing and classification environment pySPACE. His research areas
+are theoretical optimization, appliance of optimization theory, signal processing, and machine learning.
+
+Sirko Straube received the Diploma degree in biology from the Albert-Ludwigs-University, Freiburg,
+Germany, in 2005, and the Dr. rer. nat. degree from the
+University of Bremen, Bremen, Germany, in 2009.
+Since 2005, he has been a Researcher at the Department of Human Neurobiology at the University
+of Bremen. Since 2010, he has been a Postdoctoral
+Researcher at the Robotics Lab at the University
+of Bremen. His research interests comprises of signal processing, brain imaging, electrophysiological
+methods, psychophysics, and machine learning.
+
+Su Kyoung Kim received the MA degree in clinical
+linguistics, psychology, and linguistics and the the
+Dr. phil. degree in clinical linguistics, both from the
+University of Bielefeld, Bielefeld, Germany, in 2003
+and 2007, respectively.
+Since 2008, she has been with the Robotics Lab
+of the University of Bremen, Bremen, Germany, and
+the Robotics Innovation Center (RIC) of the DFKI
+in Bremen. Her research interests are in the field of
+brain–machine interfaces, neurophysiological methods (e.g. EEG, fMRI), analysis of neurophysiological
+and behavior data, and statistical analysis.
+
+Elsa Andrea Kirchner received the Dr. rer. nat
+from the University of Bremen, Bremen, Germany,
+in 2014.
+She studied biology from 1994 to 1999 at the Universities of Bremen and Bonn, Germany. From 1999
+till 2000, she worked as a guest research scientist in
+Boston, MA, USA. Since 2005, she is a Staff Scientist
+of the Robotics Lab at the University of Bremen, and
+Senior Consultant for the Robotics Innovation Center
+at the DFKI. Her research interests are in the field of
+human–machine interaction, cognitive architectures,
+neuropsychology, and electrophysiological methods.
+
+Frank Kirchner (M’13) studied computer science
+and neurobiology at the University Bonn, Bonn, Germany, from 1989 until 1994, where he received the
+Dr. rer. nat. degree in computer science in 1999.
+Since 1994, he has been a Senior Scientist at the
+Gesellschaft für Mathematik und Datenverarbeitung
+(GMD). in Sankt Augustin, Germany, and also a Senior Scientist at the Department for Electrical Engineering from 1998 at Northeastern University in
+Boston, MA, USA. In 1999, he first was appointed
+adjunct and then Tenure Track Assistant Professor at
+the Northeastern University, and since 2002 as a Full Professor at the University of Bremen, Bremen, Germany. Since December 2005, he has also been the
+Director of the Robotics Innovation Center (RIC) in Bremen.
+
+

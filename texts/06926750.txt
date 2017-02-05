@@ -1,0 +1,904 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+367
+
+A Routing Mechanism for Cloud Outsourcing
+of Medical Imaging Repositories
+Tiago Marques Godinho, Carlos Viana-Ferreira, Luı́s A. Bastião Silva, and Carlos Costa
+
+Abstract—Web-based technologies have been increasingly used
+in picture archive and communication systems (PACS), in services
+related to storage, distribution, and visualization of medical images. Nowadays, many healthcare institutions are outsourcing their
+repositories to the cloud. However, managing communications between multiple geo-distributed locations is still challenging due to
+the complexity of dealing with huge volumes of data and bandwidth
+requirements. Moreover, standard methodologies still do not take
+full advantage of outsourced archives, namely because their integration with other in-house solutions is troublesome. In order to
+improve the performance of distributed medical imaging networks,
+a smart routing mechanism was developed. This includes an innovative cache system based on splitting and dynamic management
+of digital imaging and communications in medicine objects. The
+proposed solution was successfully deployed in a regional PACS
+archive. The results obtained proved that it is better than conventional approaches, as it reduces remote access latency and also the
+required cache storage space.
+Index Terms—Cache, cloud, digital imaging and communications in medicine (DICOM), medical imaging, picture archive and
+communication systems (PACS), routing.
+
+I. INTRODUCTION
+EDICAL imaging has an increasingly important role
+in healthcare processes, supporting not only diagnosis,
+but also treatment [1]. This situation has been potentiated by
+the evolution of computers, promoting new ways of producing,
+archiving, and visualizing medical imaging [2], [3]. Modalities
+such as computed tomography (CT), magnetic resonance imaging, and positron emission tomography are, currently, good examples of how computers are fundamental in medical imaging
+processes. Another example is the appearance of picture archiving and communication systems (PACS). This is an umbrella
+term used to classify the systems responsible for the acquisition, storage, visualization, and communication of medical
+imaging data. In the beginning, PACS were developed as isolated islands composed of modality acquisition equipment, a
+storage component and a visualization workstation [1]. With
+
+M
+
+Manuscript received February 21, 2014; revised July 18, 2014 and September
+22, 2014; accepted September 27, 2014. Date of publication October 16, 2014;
+date of current version December 31, 2015. The work of C. Viana-Ferreira and
+L. A. Bastião Silva was supported by the Fundação da Ciência de Tecnologia
+under Grants SFRH/BD/68280/2010 and SFRH/BD/79389/2011, respectively.
+This work was supported by the EU/EFPIA Innovative Medicines Initiative
+Joint Undertaking (EMIF Grant 115372).
+The authors are with the Universidade de Aveiro, DETI/IEETA, Aveiro 3810193 Portugal (e-mail: tmgodinho@ua.pt; c.ferreira@ua.pt; bastiao@ua.pt; carlos.costa@ua.pt).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2361633
+
+the proliferation of these kinds of systems inside a healthcare
+institution, it was necessary to merge them to support integrated workflows and facilitate management tasks. However,
+equipment from different manufacturers was not able to interoperate, due to differences in data formats and communication
+protocols. For this reason, a normalization effort was made and
+the result is the international standard, named digital imaging
+and communications in medicine (DICOM) [4]. Among other
+features, DICOM normalizes the network communication layers, services commands, persistent objects encoding, media exchange structure and the documentation that must follow an
+implementation [5].
+DICOM standard aims to solve problems related to the
+interoperability between systems from different manufacturers. It is a flexible standard that can be readjusted to support changes in medical imaging equipment and technologies.
+Besides, wide acceptance and implementation of this standard have made it the de facto standard of medical imaging
+processes.
+There are several DICOM-based approaches to promote interinstitutional processes [6], [7], but unfortunately they share
+a common unsolved problem—data access latency. The medical imaging environment generates a tremendous amount of
+data. Some modalities, like CT, might produce 1 GB of data per
+study [8], [9]. Therefore, Internet connection bandwidth may be
+a bottleneck for interinstitutional transference of those images,
+especially in real-time accesses.
+The goal of this paper is to improve the performance of DICOM routing mechanisms in PACS-cloud environments, reducing data access latency and maximizing data availability. For
+that, a distributed cache mechanism for DICOM objects was
+developed and integrated with our DICOM Routing Platform
+[6]. The idea was to endow the routers with the capability of
+temporarily storing the studies more likely to be needed. The
+proposed cache uses a strategy of splitting DICOM object and
+dynamic management of blocks across routers. The system can
+correctly cache any portion of a study, even if it is composed of
+only one image. So, it may not have all study fragments, making
+it possible to request only specific fragments of a study from
+remote locations. This approach allows us to start providing data
+to a local client while, in parallel, the remaining fragments are
+retrieved from the remote cache system. The percentage of study
+cached can change dynamically according to cache occupation
+and network conditions.
+This system is being used to improve the performance
+of PACS-cloud solutions, for instance, to support a regional
+PACS archive serving two diagnostic centers with telework
+sessions [10].
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+368
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+II. BACKGROUND
+A. Medical Imaging Standards
+DICOM standard is a major contributor to the exchange of
+structured medical imaging data and almost all equipment manufacturers are following the DICOM rules [5]. DICOM supports several kinds of information, including distinct modalities
+of image (CT, XA, US, among others), reports and waveforms.
+Besides the image pixels, the DICOM file contains the metadata
+header with information related to patient, clinical staff, medical institution, acquisition device, conditions of exam, clinical
+protocol, and much other relevant clinical information.
+The DICOM network layer works over TCP/IP granting reliable connections between actors. It follows the same structure
+as DICOM files, encapsulating messages as TLV (tag, length,
+value) sequences [5]. Numerous concepts are involved in the
+protocol, but we only address the service layer in this document, i.e., exchanged messages.
+DICOM has several services that follow client/server architecture. In the DICOM context, the server is called service class
+provider (SCP) and the client service client user (SCU) [1].
+The same DICOM equipment can have different roles, i.e., SCP
+or SCU, depending on the type of equipment. For instance, a
+modality (i.e., the image acquisition device) is responsible for
+storing the studies in the PACS Archive. Thus, it is considered
+an SCU because it uses a service. On the other hand, The PACS
+archive is offering a service, therefore belonging to the SCP
+class. DICOM has also a network addressing mechanism that
+works similarly to IP and port in the lower layer of the TCP/IP
+stack. So, each DICOM host has an Application Entity Title
+(AETitle) that identifies it [11].
+To communicate with a DICOM device, the first step is to
+propose an exchange of information, a process denominated as
+DICOM association establishment [11]. Here, devices negotiate
+several association parameters, such as the kind of information
+that will be transferred, how it is encoded and the association’s
+duration. After this negotiation, the service commands are executed between SCU and SCP to perform the service goal.
+Each service has one or more associated commands. The most
+important commands are C-ECHO, C-STORE, C-FIND, and CMOVE, which are used for verification, storage, query/retrieve,
+and worklist management services [12].
+The verification service allows the SCU to check end-toend communication, i.e., verify if the SCP is working properly
+through the C-ECHO command.
+Storage is a service that allows the SCU to store images in
+a PACS Archive. Basically, the modality or image generator
+(i.e., Storage SCU) sends the images to the PACS archive (i.e.,
+Storage SCP). For each image, a C-STORE request is invoked.
+All the contents of the DICOM objects are inside the C-STORE
+request message. A C-STORE response is sent from the Storage
+SCP after receiving the object.
+Query/Retrieve is a service composed of two commands.
+Query allows the SCU (i.e., workstation) to search for a study
+or patient, using the C-FIND command. The workstation can
+search over the archive using several fields, for instance, patient
+name, study date and modality. In turn, the retrieve method al-
+
+lows the SCU (i.e., workstation) to obtain an image from the
+SCP (i.e., archive). The C-MOVE is a retrieve command that
+uses a C-STORE to transfer the images. The transfer is executed
+in a new association where the archive is the SCU and the workstation is the SCP. After the C-STORE command is concluded,
+the C-MOVE is ended.
+Traditionally, DICOM is focused on medical imaging processes developed inside one institution, with important issues
+regarding interinstitutional processes. Despite the fact that several institutions use DICOM to distribute imaging, the interinstitutional usage of this standard is mainly supported by a virtual
+private network (VPN) connections [13]. Until very recently, the
+only part of the standard compliant with Web 2.0 was WADO
+[14]. This allows retrieving the images over the web but there
+is a gap in storage and search mechanisms [15]. However, in
+2011, the standard published two new extensions based on representational state transfer web services: the STOW-RS [16] to
+support storage of DICOM objects; and the QIDO-RS [17] to
+support queries based on DICOM Object IDs.
+Interoperability between medical imaging systems can be
+solved by DICOM standard [13]. The integrating healthcare enterprise (IHE) initiative constitutes a great opportunity to readapt
+PACS workflow for interinstitutional data exchange. Instead of
+defining new standards, IHE defines integration profiles that enhance the use of the existing standards (e.g., DICOM, HL7, ISO,
+IETF, etc). The Cross-Enterprise Document Sharing for Imaging
+(XDS-I) [18] profile provides a centralized discovery of medical
+imaging and associated reports, for instance, the patient identifier cross referencing (PIX) an integration profile that takes care
+of linking patient identifiers across distinct affinity domains
+[19]. However, our proposal mainly targets the outsourcing of
+intrainstitutional PACS archives to the cloud. We consider as intrainstitutional processes all transactions between different sites,
+nearby or distant, that have the same governance. Nevertheless,
+our methods are still relevant at an interinstitutional level since
+XDS-I uses DICOM for communications protocol.
+B. Cloud Computing
+Cloud computing has unlocked computational resources as a
+utility service [20]. It may be described as a set of virtualization
+technologies that enable multiple computational resources to be
+gathered and presented as a unified service to multiple clients
+[21]. Recently, cloud computing capabilities have become well
+known for providing anytime-anywhere access to multimedia
+contents and infrastructure in a reliable and scalable way.
+The appearance of several public cloud providers has raised
+medical institutions’ interest in outsourcing their PACS infrastructure, namely their archives [22]. This presents itself as a
+financially attractive option as these institutions often lack IT
+resources to maintain a fully deployed in-house data center with
+high availability [21]. Besides the financial attractiveness, outsourced archives benefit from increased availability and disaster
+resilience provided by the provider’s infrastructure [21], [22].
+Moreover, institutions may take advantage of a “pay-as-you-go”
+business model to match the contracted services exactly to their
+needs [21], [22]. Outsourced archives may be easily shared by
+
+GODINHO et al.: ROUTING MECHANISM FOR CLOUD OUTSOURCING OF MEDICAL IMAGING REPOSITORIES
+
+multiple affiliated institutions, promoting study reusage in the
+same domain [22]. Nevertheless, it is important to integrate outsourced archives with preexisting in-house solutions to keep
+previous investment from being wasted.
+Outsourced archives present themselves as a valid option,
+which allow hosting images in remote locations. Nonetheless,
+this solution increases access latency to the images and imposes
+severe penalties on medical practice [23]. This document targets
+both these issues as it creates a favorable environment for sharing
+DICOM Objects across distributed locations.
+III. RELATED WORK
+DICOM Storage service object pair and DICOM transference
+syntax are not mainly focused on efficiency. Looking at a DICOM network (two or more pieces of DICOM ready equipment
+connected by a TCP/IP network), where the distribution process
+consists of moving (download) files from one place to another,
+it is possible to find a few conceptual problems. First, there is
+no way of knowing how many DICOM objects (e.g., images)
+a study has, before retrieving it. Second, in the procedure of
+retrieving multiple DICOM objects, it is not possible to pause
+the process in the middle. These issues are well described in [5].
+In [24] and [25], Maani et al. claim that although DICOM
+states various transference syntaxes with different levels of compression (both lossy and lossless), applications frequently support distinct syntaxes from each other, leading to the frequent
+usage of the default noncompressed syntax. This results in a
+significant lack of efficiency, especially in Internet environments. Therefore, the authors suggested an interface between
+the DICOM applications in the transfer. This interface uses lossless compression syntaxes and parallel connections. Although
+they claim reasonable gains, especially in wide area networks
+(WAN), their interface is not Web 2.0 compliant. Another disadvantage of the system is related to the inexistence of a discovery
+mechanism to peers. Instead, communications are carried out
+point-to-point.
+Silva et al. propose a PACS architecture that takes advantage
+of cloud computing capabilities [26]. Cloud providers offer huge
+amounts of storage space, as well as optimal availability of data.
+Those characteristics make them very attractive for storing large
+volumes of data, key features of any PACS archive. In [27], it
+is claimed that the costs of storing large volumes of data on
+cloud providers tend to be lower than regular in-house storage,
+as it does not require infrastructure upgrades associated with
+storage scaling. Another argument in favor of cloud-based PACS
+archive is that they can be effectively shared among different
+institutions, promoting study exchange and cost reductions [28].
+Nevertheless, the consequence of not storing data locally is the
+increased time spent on retrieval. Moreover, in some countries,
+storage of patient data on a public cloud provider’s infrastructure
+is not allowed.
+DIPACS [29] is another example of a distributed PACS architecture. It is able to federate multiple affinity domains across the
+internet. A proxy-like system is also used to provide seamless integration with other DICOM compliant applications. Although
+the system complies with the proposed functional requirements,
+
+369
+
+it does not rely on web 2.0 compliant communications and has
+a complex setup, which helps to justify the need for technical
+staff. Moreover, based on the evidence, it is difficult to evaluate
+the performance of the solution.
+Grid solutions have also been targeted to address issues related with the federation of multiple medical image resources.
+VirtualPACS [30] offers a gateway to access federated resources
+using caGRID as a distribution layer. In [30], the problems related with the federation of distributed PACS resources are well
+seen, for instance the difficulties in achieving good performance
+and full connectivity across different network configurations.
+Despite successfully federate multiple resources, study retrieval
+performance has proved to be slightly worse than the original version of the standard. Globus MEDICUS [31] uses the
+same strategy; it federates multiple PACS resources under a
+grid infrastructure. This grid environment also provides rich authentication features based on the grid’s existing infrastructure.
+This solution has better performance than the DICOM protocol
+for large image files. Despite presenting a rich environment for
+federating multiple PACS resources, GRID solutions generally
+require extensive IT expertise to set up. Moreover, as the solutions are tightly coupled with the infrastructure itself, they are
+not portable and supporting them requires deployment of the
+GRID infrastructure, which may be an encumbrance in several
+use cases, such as small imaging centers.
+Cache and prefetching are widely used in distinct scenarios
+and are also very interesting to increase performance and data
+availability in distributed medical imaging scenarios. For instance, in [8], the author described a system in which the PACS
+was outsourced. For that reason, the author needed to have a
+cache system in each institution department, to minimize the
+impact of latency.
+In [32], Bui et al. describe a prefetching mechanism for medical imaging based on a dynamic list of rules. Although they
+did not change the communication latency, they were able to
+decreases its impact, fetching the data before they were needed.
+Nevertheless, their mechanism is focused on intranet communications. Also, the authors did not describe what happens when
+the images are no longer needed. Another disadvantage is that
+there is no automatic system to infer prefetch rules, this being
+defined by the administrator.
+Descampe et al. describe prefetching and caching strategies
+for client/server architectures of JPEG2000 image retrieval services [33]. When the user browses a web portal, the system
+evaluates the window of interest of the page and requests the
+images before being needed. So, the images are prefetched and
+stored in the cache system for future use.
+Langer et al. propose a few modifications to medical image
+workflows inside institutions [23]. It is identified that medical
+image studies are often moved inside radiology departments.
+Although it does not seem a serious problem with in-house
+repositories, it could impose serious performance constraints
+when studies are located in outsourced locations. The need is
+also identified for a “tank” component in PACS, which behaves
+somehow like a cache, to be deployed along with the PACS.
+This component is primarily intended to reduce the number of
+study requests to remote locations.
+
+370
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+Resuming, cache and prefetching are already being used in
+medical imaging solutions. Nevertheless, none of them claims to
+use techniques of splitting the DICOM objects and caching any
+amount of a study. We will show that this caching management
+technique increases performance and efficiency when compared
+to traditional systems.
+IV. CACHE SYSTEM PROPOSAL
+This proposal is focused on increasing data availability and
+on reducing medical imaging communication’s latency in distributed scenarios, for instance, an outsourced regional PACS
+archive. To achieve this goal, a seamless cache system for our
+DICOM routing mechanism was developed.
+In order to be useful in a distributed PACS-cloud environment,
+the proposed system must support four main features: query, retrieve, population, and eviction. First, the query service allows
+an external application to query the cache about the existence of
+objects (studies, series, and images). Second, the retrieval service allows fetching the objects that are in the cache. Moreover,
+the caching system must embed mechanisms that populate and
+evict the cache, i.e., choose which objects should be kept and
+which should be removed from the cache, respectively.
+There are some problems related to development of the cache
+mechanism to support medical imaging scenarios. The retrieval,
+caching, and transfer of medical imaging studies must deal with
+huge amounts of data, but also with its heterogeneity. Different
+modalities produce data with distinct characteristics, such as
+image matrix, number of frames, and average image size [8].
+Some modalities, such as CT, may produce thousands of image
+files per study up to 1 GB. Other modalities, like cardiac US,
+can produce several cine-loop files with hundreds of Megabytes.
+Caching huge files is a complex issue, not only in terms of
+storage space, but also in data transfer latency.
+The strategy adopted to manage this problem, i.e., increasing the router’s cache storage capacity and reducing latency,
+is based on splitting DICOM objects. So, each file is logically
+divided into fragments of a predefined chunk size. Moreover,
+the cache may not have all study fragments and it is possible to
+implement remote retrieval processes of only specific fragments
+of a study. Moreover, if the information is available in more than
+one archive, the client router can retrieve blocks from multiple
+data sources (i.e., provider routers), increasing the system performance in some network conditions. Those mechanisms will
+be discussed further in this paper.
+A. System Architecture
+Four different modules compose the proposed cache system
+(see Fig. 1): storage management, metadata management, service layer, and cache system interface. This highly decoupled
+architecture enables the system to take full advantage of heterogeneous technologies in the different tasks associated with the
+cache system. Moreover, it is easy to switch the implementation
+of any module to satisfy specific scenario requirements, thus
+making the system easily tunable.
+The cache system was developed in Java. We took advantage
+of several tools like Java Simple Plugin Framework (JSPF),
+dcm4che, MapDB and DB4O (see Fig. 2). JSPF was used to de-
+
+Fig. 1.
+
+Cache system architecture.
+
+Fig. 2.
+
+Diagram of the software tools and components of the cache system.
+
+tect, register, load, and execute the plugins, for instance, the intelligence module that provides algorithms to manage the cache.
+In turn, the dcm4che framework is responsible for parsing and
+building DICOM communication messages. MapDB proved to
+be a valuable tool in order to save storage space while keeping
+good performance in storing and retrieving fragments. Since
+MapDB is a key value database, it only supports loading complete values for each key. However, the DICOM information
+model has four entity levels (patient–study–series–image) and
+fragments in our case. As a result, MapDB does not support
+operations based on attributes from all these levels, for instance
+StudyUID and Series. Therefore, DB4O was used as a conventional database that has aggregated information of the study and
+series to allow direct queries for these attributes.
+1) Metadata Management: The metadata management module is responsible for indexing metadata related to the objects
+stored in the cache system, meaning images can be related to
+study, series, etc. This strategy enables fast query answering,
+since it avoids analyzing stored DICOM objects each time a
+query must be processed.
+This database is based on DB4O, an API for object databases.
+2) Storage Management: Besides providing the persistence
+functionality, this module also provides low-level methods for
+querying about the existence of specific objects (or fragments),
+mainly to perform integrity checks. There are two components
+in this module: cache persistence and big memory manager.
+The cache persistence is the lowest level component in the
+system, working only with object keys and binary data. It provides simple methods (put, get, remove, contain) to manage
+
+GODINHO et al.: ROUTING MECHANISM FOR CLOUD OUTSOURCING OF MEDICAL IMAGING REPOSITORIES
+
+objects in the persistence medium. To do so, it uses MapDB,
+relating an object to its key.
+The big memory manager component, however, provides an
+abstraction for DICOM objects (e.g., images) on top of the cache
+persistence module. It uses the service layer cache key translator
+to translate the objects to keys, prior to storage or retrieval.
+Conceptually, the big memory manager is also responsible for
+triggering events via the cache plugin interface module.
+3) Service Layer: The elements enclosed in the service layer
+are intended to provide extended functionalities to other modules. The architecture includes two service components, the
+cache key translator and the cache plugin interface.
+The cache key translator provides centralized object-key
+translation. For that, this module uses a hash function to translate the object into a key. In this way, the storage management
+module does not need to deal with object metadata, but only
+with the seemingly homogeneous key generated by the cache
+key translator for identification of each piece of information.
+When elaborating the requirements of the proposed cache
+system architecture, we noticed that different clients would
+expect different behaviors from their cache system. These
+behaviors are associated with different population and eviction
+policies. Moreover, along with different policies comes the
+need to manage metadata associated with the stored objects.
+Therefore, instead of building a static module for these policies,
+our architecture incorporates a plug-in system where cache system clients can supply their own policy implementation plugin.
+They can acquire metadata through an event listener interface to
+receive notifications of events occurring inside the cache system
+(such as insertion, eviction or retrieval of an object). If necessary,
+they can take actions on the cache system using the public cache
+system interface (such as removing an object or cache one).
+4) Cache System Interface: Our architecture provides an interface that acts as a wrapper, linking all system modules. There
+are two main reasons for bundling all specification in a unique
+interface. First, it is easier for cache clients (i.e., the applications
+that use the cache system) to interact with a single interface, than
+with different modules separately. Second, a common interface
+for cache users and developers (i.e., the developers of the external cache plugins) is less prone to create inconsistencies between
+modules.
+The cache system interface provides methods to store objects,
+to query the existence of objects in the system, and to retrieve
+and evict objects. They are low-level methods mainly associated
+with the repository management module. Besides these methods, the interface also enables queries about studies (following
+the DICOM information Model and mimicking the C-FIND
+Command) and explicit registration of metadata. The metadata
+management modules mainly issue those methods. Moreover,
+our interface is able to receive DICOM protocol messages and
+respond using the same communication protocol, maintaining
+compatibility with the standard.
+B. Cache Plugins
+One important feature of the proposed system is its ability to
+easily change the cache prediction module. For that, we used an
+architecture based on plugins. There are two kinds of plugins:
+
+371
+
+the repository management and the data collectors. The system
+requires one repository management plugin. However, concerning data collector plugins, they are optional and the system
+supports more than one plugin of this kind.
+1) Repository Management Plugins: By definition, a cache
+system is a temporary storage area with limited capacity. For
+that reason, it is necessary to have management mechanisms
+to control the stored volume of data. Therefore, this plugin is
+responsible for managing the occupation of the cache repository, in order to maximize the probability of a needed piece of
+information being in cache. There are two main actions in the
+repository management process: cache population and cache
+depopulation.
+Finally, this plugin must register information in a database
+about the images, studies and series stored in the cache.
+2) Data Collector Plugins: Distinct population and eviction
+strategies need to collect distinct measures to discover which
+studies will be discarded or prefetched. So, it was necessary
+to have a flexible data collector mechanism. The data collector plugins are responsible for collecting the measures needed
+by the repository management plugin. For instance, studying
+user patterns requires access to the user’s request data. Besides,
+sometimes there are other external data sources that could have
+important information for the cache system.
+V. DICOM ROUTING PLATFORM
+WITH CACHING MANAGEMENT
+As expressed, we previously developed a DICOM routing mechanism over the cloud [6], that provides DICOM
+query/retrieve and storage services between remote locations
+over the Internet using the HTTP protocol for communications.
+This approach enhances study exchange among institutions and
+facilitates integration of repositories and the setting up of teleradiology scenarios. The architecture contemplates a DICOM
+router module which is placed inside a DICOM island (i.e., a DICOM network without connectivity to other DICOM networks).
+For each local PACS, routers are viewed as DICOM nodes that
+provide services published by other routers (islands). Therefore,
+services provided by DICOM applications inside the islands will
+then be accessible from outside applications, through the router.
+The communications between routers is carried out through the
+bridge relay which can be located on a cloud provider.
+The platform communications are Web 2.0 compliant. The
+processes are supported by web services and the messages are
+encapsulated in the HTTPS protocol. This provides communications security and ensures the setup of DICOM services in
+restrictive private LAN environments, even without IT network
+expertise or administrator privileges. In this way, our system is
+able to run on most network configurations present in healthcare
+institutions.
+This DICOM routing platform supports standard interoperability between remote medical imaging devices. Physicians can
+work at home, as if they were in the healthcare institution, without changing their workflow. However, the solution has some
+issues regarding access to medical images in scenarios with
+limited bandwidth, which is especially critical when retrieving
+large size studies.
+
+372
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+The next sections will describe the new version of the DICOM
+routing platform that integrates the proposed cache system,
+including the new search and retrieval processes. The cache
+eviction algorithm with object splitting will also be described.
+
+2)
+
+A. Searching
+One of the main features of the proposed system is related to
+its ability to provide search functionality in a seamless way. For
+instance, visualization workstations can send DICOM requests
+(i.e., C-FIND-Request) and receive a response from the DICOM
+router, as if it was an intranet PACS archive.
+The DICOM client application sends a request command to
+the router, which forwards it to local cache. In parallel, the
+request is also forwarded to the bridge relay. At the bridge, the
+request is forwarded to the router that serves the destination
+AETitle. When a response is returned, the bridge terminates the
+session with the destination router and reroutes the response
+to the original router. Upon receiving the response, the router
+forwards it to the requester DICOM application.
+All this process of consulting the remote archive before answering is much more efficient than responding directly from
+the cache database. By doing this, the router can check if its
+cache metadata is updated, enabling more accurate responses.
+B. Retrieval
+The implementation of C-MOVE Command in this distributed environment is very similar to the C-FIND Command.
+However, the cache deployment in the router increases the overall availability of archived data, and reduces studies’ retrieval
+time.
+Fig. 3 presents a scenario where a physician wants to retrieve a
+study that is stored in an outsourced archive hosted, for instance,
+in a private cloud. A public cloud provider hosts the bridge
+relay. Nevertheless, the resources involved in this setup could be
+deployed in other cloud environments, either public or private. It
+illustrates the transfer of a study composed of six blocks of data.
+To take advantage of cached objects, the C-MOVE command
+workflow is carried out as follows.
+1) The router receives the request (i.e., C-MOVE-Request)
+that will be first forwarded to the router’s local cache. If
+the study is in the cache, the router can start serving the
+requester. Even if the local cache satisfies the request, the
+request is always forwarded to the bridge, because the
+archive may have received new images or series (Step 1).
+Along with this message, a “prune work-list” is also
+transmitted containing the objects stored in the router’s
+local cache (hit-list). In the example, the SCU router
+⎧
+maxT hreshold,
+⎪
+⎨
+%f reeCache(n),
+%Study(n) =
+⎪
+⎩
+minT hreshold,
+
+3)
+
+4)
+
+5)
+
+6)
+
+contains blocks 1, 2, and 3 in its local cache, i.e., the
+“prune work-list.”
+The bridge receives the C-MOVE request and the “prune
+work-list,” forwarding it to the router that advertises the
+destination AETitle. A C-MOVE session is created in the
+bridge, in order to track the response from the destination
+router, i.e., the SCP router.
+The remote router forwards the C-MOVE request to the
+PACS archive (Step 2). The request is also forwarded to
+its cache. If the archive is unreachable, the set A will be
+empty.
+In order to respond to the bridge, the SCP router produces
+a list of DICOM objects that exist in the archive (or cache),
+but are not yet present in the issuer’s router cache (i.e.,
+“prune work-list”). In the example, Step 3, the result will
+be the “upload work-list” enumerated as R (4, 5, and 6
+blocks) that is sent back to the SCU Router (Step 4). The
+4 and 5 are already locally in its local cache, and 6 was
+moved from the PACS archive.
+The SCU router merges the response from its cache, and
+the received new blocks, (Step 5) into the final requested
+result.
+Finally, the SCU router starts uploading the work list
+by transmitting the objects (or fragments) using the data
+channels (Step 6), as explained in [34].
+
+C. Cache Eviction Algorithm
+The routing platform uses a cache eviction algorithm based on
+least recently used (LRU), which is commonly used for different
+cache purposes [35], combined with DICOM objects splitting
+technique. In a PACS archive outsourcing scenario, the studies produced at each institution are cached immediately in the
+respective local router. However, the studies cannot be cached
+forever due to capacity limitations. As a result, the standard
+LRU algorithm evicts objects (studies) which are least used. We
+adapted this algorithm to explore the splitting technique. Our
+version evicts objects by a combination of their “age,” date of
+acquisition, and the least recently used information. By doing
+so, higher priority is given to recently produced studies.
+The proposed splitting technique enables our caches to store
+incomplete studies in order to save storage space. Therefore, we
+do not always evict complete studies from cache, but instead,
+we gradually evict portions of a study taking into account the
+amount of storage space available in cache and the priority of
+the study. The amount of each study in our caches is given by
+(1), as shown at the bottom of the page, where n is the nth most
+high-priority study. The percentage of free cache is calculated
+
+if %f reeCache(n) ∈ [maxRegionStart; 1, 0[
+if %f reeCache(n) ∈ [minRegionEnd; maxRegionStart[
+
+if %f reeCache(n) ∈]0, 0; minRegionEnd[
+
+CacheSize − n−1
+i=1 Size(i) × %Study(i)
+%f reeCache(n) =
+CacheSize
+
+(1)
+
+(2)
+
+GODINHO et al.: ROUTING MECHANISM FOR CLOUD OUTSOURCING OF MEDICAL IMAGING REPOSITORIES
+
+Fig. 3.
+
+373
+
+Example of retrieval process.
+
+using (2), as shown at the bottom of the page, where CacheSize
+is the cache storage space and size(i) is the size of the ith most
+high-priority study. Notice that we intentionally fragmented our
+cache storage space into three regions with distinct quality of
+service. The regions definition is based on the maxRegionStart
+and minRegionEnd values defined according to user/institution
+requirements. For instance, it is possible to define distinct regions per medical imaging (1), as shown at the bottom of the
+page modality. The optimal maxThreshold and minThreshold
+are values obtained for each routing platform setup (see Section
+VI).
+The high-quality region provides optimal retrieval times of
+cached objects. The low-quality region reflects the tradeoff situation. Studies cached in this region do not benefit from optimal
+retrieval performance; however, this enables our caches to store
+more studies, covering a longer time span. Between these two
+regions, the portion of each study cached follows an adaptive
+function, based on the amount of space still available in the
+cache. As a result, the quality of service offered for these studies is slightly degraded as the priority of the study decreases.
+However, this region further enables more studies to be cached
+with controlled performance losses.
+VI. RESULTS AND DISCUSSION
+A. Performance
+In order to demonstrate the feasibility and the performance
+benefit of the proposed DICOM routing platform, we deployed
+the solution in a real-world environment. The scenario involved
+two geodistributed institutions sharing a private PACS-cloud
+repository. They belong to the same owner and a radiologist can
+practice in both institutions and report examinations remotely.
+Those institutions deal with different modalities, handling an average of 3000 examinations monthly, with a combined volume
+
+around 60 GB. Each location has its own DICOM router with
+the proposed cache system implemented. Previously, without
+using the presented methods, these caches were able to hold approximately eight months of PACS usage (500 GB). The latency
+associated with remote retrieval of medical imaging studies is a
+critical issue.
+Before evaluating the performance gains associated with the
+proposed solution, the retrieval times without using the routing platform were measured. The trials consisted of recording
+the delays of moving several medical imaging studies between
+the PACS-cloud archive and the remote DICOM client application. The different locations were connected through a 30 Mb/s
+channel. The average download times are presented in Table I.
+The baseline in our trials is the study retrieval time when using
+the standard DICOM transfer through a VPN connection. Next,
+the DICOM router platform is used, and even without caching,
+this platform considerably speeds up study retrieval times, on
+average 1.55 times, with the best case study up to 2.4 times
+(MR-3 study).
+The justification is in the inefficiency of the DICOM protocol in WAN, which introduces severe performance penalties.
+Finally, results of the DICOM router platform with complete
+study cached are also presented in Table I. This trial is equivalent to accessing the local network PACS archive, since no image
+data have to be retrieved from a remote location. In this scenario,
+the DICOM router platform performs optimally, speeding up the
+transfer up to 5.8 times (XA-4 study), 4.17 on average, when
+compared to the standard VPN usage.
+The next step was to evaluate the performance of the DICOM
+router platform with cache, using the splitting technique. The
+trials were repeated for multiple percentages of each study in
+cache, from 5% to 100% with hops of 5%. The results are presented in Fig. 4. As expected, the usage of cache reduces the
+latency. However, the improvement introduced by the proposed
+
+374
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+TABLE I
+COMPARISON OF STUDY RETRIEVAL TIMES BETWEEN THE DICOM ROUTER
+PLATFORM AND THE STANDARD DICOM PROTOCOL
+Retrieval Times (s)
+DICOM Router Platform
+
+Modality
+PT-1
+MR-2
+MR-3
+XA-4
+
+Number
+of files
+
+Volume
+(MB)
+
+VPN
+connection
+
+No study
+cached
+
+Complete study
+cached
+
+244
+223
+369
+15
+
+16.3
+47.1
+206.1
+401.6
+
+14.3
+31.1
+115.5
+228.7
+
+13.8
+19.1
+48.1
+202.8
+
+7.4
+8.9
+21.2
+39.4
+
+cache system is not limited to the enhancement of retrieval
+times, but on finding the minimum percentage of caching that
+assures the same retrieval time of a full cached study (i.e., the
+optimal retrieval speedup—maxThreshold). Knowledge of this
+threshold allows the proposed system to actually save storage
+space, permitting more studies in the cache, without impacting
+the retrieval performance. This maxThreshold level can be automatically adjusted according to the network’s conditions. As
+expressed, the threshold is the result of fetching the image data
+from the remote environment while moving, simultaneously, the
+available images in cache to the client application (i.e., the consumer). So, if the Internet connection bandwidth increases, less
+amount of study is required to be present in the router cache,
+and vice versa.
+Analyzing Fig. 4 charts, we realize that caching 70% of the
+studies is enough to achieve a near optimal speedup. This situation represents an increase of 43% in cached exams. On the other
+hand, the vertical line at 45% represents a frequent tradeoff situation (i.e., the minThreshold). The optimal speedup in retrieval
+times is not achieved, but the required storage space is reduced
+to 45% of the study. In this case, larger studies tend to perform
+a little worse than smaller ones, due to control overhead.
+The reduction of study retrieval times is evident in teleradiology sessions where physicians are remotely reporting. Moreover, institutional routers have now more studies in cache, more
+than 16 months, of which five months are serviced with optimal
+retrieval performance.
+B. Stress Trials
+Besides calculating the impact of the proposed cache system
+in terms of performance and storage space usage, we performed
+a stress test to assess the impact of multiple institutions using
+simultaneously and intensively a cloud-based archive served
+by our DICOM router platform. As in the performance trials
+(Section VI-A), we measured the average retrieval times for
+each study in our dataset. However, in this case, we introduced
+two new institutional routers in the setup, i.e., noise routers.
+The central archive was connected to the network by a provider
+router.
+In the trials, each client router was programmed to continuously request studies. Initially, their local cache was prepopu-
+
+Fig. 4. Percentage of the achieved speedup (Y-axis) with multiple percentages
+of the study in cache (X-axis), taking the complete study in cache as reference
+(in inverse order).
+
+lated with a separate dataset of studies, all of them contained in
+the central PACS archive. The trials were performed with three
+distinct percentage of study cached (0%, 45%, and 70%), according to the regions identified in Section V-C. The optimum
+speedup scenario, where each study is completely cached, was
+used as reference time.
+The average time for retrieving the reference dataset was measured, in each cache region. A degradation factor, which gives
+a measure of how much the average retrieval times increased
+when compared to the reference, is presented in Fig. 5. This
+degradation factor is essentially the inverse of the speedup. The
+chart shows the degradation factor in three network situations:
+“Noise = 0” when no other router is requesting studies besides
+the one assigned with our reference dataset, i.e., the same scenario as the performance trials (Section VI-A); “Noise = 1”
+when another router is active besides our reference; and “Noise
+= 2” when two more routers are active. Analyzing the results,
+we can check that the degradation factor is residual when we
+cache 70% of the study and there are no simultaneous requests
+(Noise = 0). Nevertheless, when the noise levels rise, the degradation factor does not increase in the same proportion, less than
+2×/3×, which introduces another added value for our system.
+This behavior is transversal to both regions (i.e., caching 70%
+and 45%). Moreover, the DICOM router platform is shown to
+perform well even without the study in cache (0%), when compared with the standard VPN solution. Therefore, we confirm
+that our system holds its performance improvements even in
+intensive scenarios.
+VII. CONCLUSION
+Cloud computing is a recent paradigm that focuses on delivering hardware and software services over the Internet, and
+is becoming an appealing solution to replace traditional centralized IT infrastructures. However, there are new challenges
+associated with shifting medical images to the cloud. One major
+concern is associated with the system performance, and in order
+to reduce latency in data transmission, cache mechanisms are
+recommended.
+
+GODINHO et al.: ROUTING MECHANISM FOR CLOUD OUTSOURCING OF MEDICAL IMAGING REPOSITORIES
+
+Fig. 5. Degradation factor for the reference dataset under different conditions:
+Noise = 0, only the reference router; Noise = 1 another router besides the
+reference; Noise = 3, two noise routers besides the reference router.
+
+The proposed caching mechanism was designed to increase
+data availability and reduce data access latency in distributed
+PACS environments. Splitting DICOM objects and caching any
+amount of a study are distinctive features of the proposed system, which increase the cache efficiency when compared to traditional systems. The presented results show a clear advantage
+of the proposed solution. Moreover, the benefits of the proposed
+splitting strategy are valid for distinct prefetching and eviction
+mechanisms.
+REFERENCES
+[1] H. K. Huang, PACS and Imaging Informatics: Basic Principles and Applications, 2nd ed. New York, NY, USA: Wiley, 2010.
+[2] M. J. McAuliffe, F. M. Lalonde, D. McGarry, W. Gandler, K. Csaky,
+and B. L. Trus, “Medical image processing, analysis and visualization in
+clinical research,” in Proc. 14th IEEE Symp. Comput.-Based Med. Syst.,
+Bethesda, 2001, pp. 381–386.
+[3] R. Acharya, R. Wasserman, J. Stevens, and C. Hinojosa, “Biomedical
+imaging modalities: A tutorial,” Comput. Med. Imag. Graph., vol. 19,
+pp. 3–25, 1995.
+[4] Digital Imaging And Communications in Medicine (DICOM), Nat. Elect.
+Manufacturers Assoc., Rosslyn, VA, USA, 2011.
+[5] O. S. Pianykh, Digital Imaging and Communications in Medicine (DICOM). New York, NY, USA: Springer, 2011.
+[6] L. A. B. Silva, C. Costa, and J. L. Oliveira, “DICOM relay over the cloud,”
+Int. J. Comput. Assisted Radiol. Surg., vol. 8, pp. 323–333, 2012.
+[7] S. G. Langer, T. French, and C. Segovis, “TCP/IP optimization over wide
+area networks: Implications for teleradiology,” J. Digital Imag., vol. 24,
+pp. 314–321, 2011.
+[8] S. Langer, “Issues surrounding PACS archiving to external, third-party
+DICOM archives,” J. Digital Imag., vol. 22, pp. 48–52, 2009.
+[9] K. J. Dreyer, D. S. Hirschorn, J. H. Thrall, and A. Mehta, PACS: A Guide
+to the Digital Revolution. New York, NY, USA: Springer, 2005.
+[10] L. A. B. Silva, R. Pinho, L. S. Ribeiro, C. Costa, and J. L. Oliveira, “A
+centralized platform for geo-distributed PACS management,” J. Digital
+Imag., vol. 27, pp. 165–173, 2013.
+[11] ACR-NEMA, “Digital imaging and communications in medicine (DICOM) part 8: Network communication support for message exchange,”
+ed. Rosslyn, VA: Nat. Elect. Manuf. Assoc., 2011.
+[12] ACR-NEMA, “Digital imaging and communications in medicine (DICOM) part 7: Message exchange,” ed. Rosslyn, VA: Nat. Elect. Manuf.
+Assoc., 2011.
+[13] L. Faggioni, E. Neri, C. Castellana, D. Caramella, and C. Bartolozzi,
+“The future of PACS in healthcare enterprises,” Eur. J. Radiol., vol. 78,
+pp. 253–258, 2011.
+[14] ACR-NEMA, “Digital imaging and communications in medicine (DICOM) part 18: Web access to DICOM persistent objects (WADO),” ed.
+Rosslyn, VA: Nat. Elect. Manuf. Assoc., 2011.
+
+375
+
+[15] G. V. Koutelakis and D. K. Lymberopoulos, “WADA service: An extension
+of DICOM WADO service,” IEEE Trans. Inf. Technol. Biomed., vol. 13,
+no. 1, pp. 121–130, Jan. 2009.
+[16] A. C. R. Nema, “DICOM supplement 163: Store over the web by representations state transfer (REST) services (STOW-RS),” 2011.
+[17] ACR-NEMA, “Digital imaging and communications in medicine (DICOM),” in supplement 163: Store over the web by representations State
+Transfer (REST) Services (STOW-RS), ed. Rosslyn, VA: Nat. Elect.
+Manuf. Assoc., 2013.
+[18] ACR-NEMA, “Digital imaging and communications in medicine (DICOM),” in supplement 166: Query based on ID for DICOM objects by
+representational state transfer (REST) services (QIDO-RS), ed. Rosslyn,
+VA: Nat. Elect. Manuf. Assoc., 2013.
+[19] L. Ribeiro, C. Viana-Ferreira, J. Oliveira, and C. Costa, “XDS-I outsourcing proxy: Ensuring confidentiality while preserving interoperability,” IEEE J. Biomed. Health Informat., vol. 18, no. 4, pp. 1404–1412,
+Nov. 2013.
+[20] R. Buyya, C. S. Yeo, S. Venugopal, J. Broberg, and I. Brandic, “Cloud
+computing and emerging IT platforms: Vision, hype, and reality for delivering computing as the 5th utility,” Future Gener. Comput. Syst., vol. 25,
+pp. 599–616, 2009.
+[21] M. Armbrust, A. Fox, R. Griffith, A. D. Joseph, R. Katz, A. Konwinski,
+G. Lee, D. Patterson, A. Rabkin, I. Stoica, and M. Zaharia, “A view of
+cloud computing,” Commun. ACM, vol. 53, pp. 50–58, 2010.
+[22] C. Viana-Ferreira and C. Costa, “Challenges of using cloud computing
+in medical imaging “ in Advances in Cloud Computing Research, M.
+Ramachandran, Ed. Commack, NY, USA: Nova, 2014, pp. 3–18.
+[23] S. Langer, K. Persons, B. Erickson, and D. Blezek, “Towards a more cloudfriendly medical imaging applications architecture: A modest proposal,”
+J. Digital Imag., vol. 26, pp. 58–64, 2013.
+[24] R. Maani, S. Camorlinga, N. Arnason, and R. Eskicioglu, “A practical fast
+method for medical imaging transmission based on the DICOM protocol,”
+SPIE Med. Imag., vol. 7628, pp. 76280M-1–76280M-11, 2010.
+[25] R. Maani, S. Camorlinga, and N. Arnason, “A parallel method to improve
+medical image transmission,” J. Digital Imag., vol. 25, pp. 101–109, 2012.
+[26] L. B. Silva, C. Costa, and J. Oliveira, “A PACS archive architecture supported on cloud services,” Int. J. Comput. Assisted Radiol. Surg., vol. 7,
+pp. 349–358, 2012.
+[27] Frost & Sullivan Healthcare. (2008). Prepare for Disasters & Tackle Terabytes When Evaluating Medical Image Archiving [Online]. Available:
+http://www.frost.com
+[28] M. Benjamin, Y. Aradi, and R. Shreiber, “From shared data to sharing
+workflow: Merging PACS and teleradiology,” Eur. J. Radiol., vol. 73,
+pp. 3–9, 2010.
+[29] T. U. Onbay and A. Kantarcı, “Design and implementation of a distributed
+teleradiaography system: DIPACS,” Comput. Methods Programs Biomed.,
+vol. 104, pp. 235–242, 2011.
+[30] A. Sharma, T. Pan, B. B. Cambazoglu, M. Gurcan, T. Kurc, and J. Saltz,
+“VirtualPACS—A federating gateway to access remote image data resources over the grid,” J. Digital Imag., vol. 22, pp. 1–10, 2009.
+[31] S. G. Erberich, J. C. Silverstein, A. Chervenak, R. Schuler, M. D. Nelson,
+and C. Kesselman, “Globus MEDICUS—federation of DICOM medical
+imaging devices into healthcare Grids,” Stud. Health Technol. Informat.,
+vol. 126, pp. 269–78, 2007.
+[32] A. A. Bui, M. F. McNitt-Gray, J. G. Goldin, A. F. Cardenas, and D. R.
+Aberle, “Problem-oriented prefetching for an integrated clinical imaging
+workstation,” J. Amer. Med. Informat. Assoc., vol. 8, pp. 242–253, 2001.
+[33] A. Descampe, C. De Vleeschouwer, M. Iregui, B. Macq, and F. Marques,
+“Prefetching and caching strategies for remote and interactive browsing of JPEG2000 images,” IEEE Trans. Image Process., vol. 16, no. 5,
+pp. 1339–1354, Apr. 2007.
+[34] T. M. Godinho, L. A. B. Silva, C. Viana-Ferreira, C. Costa, and J. L.
+Oliveira, “Enhanced regional network for medical imaging repositories,”
+presented at the 8th Iberian Conference on Information Systems and Technologies, Lisboa, Portugal, 2013.
+[35] W. Ali, S. M. Shamsuddin, and A. S. Ismail, “A survey of web caching
+and prefetching,” Int. J. Adv. Soft Comput. Appl., vol. 3, pp. 18–44, 2011.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

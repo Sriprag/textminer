@@ -1,0 +1,998 @@
+922
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+General Nonunitary Constrained ICA and its
+Application to Complex-Valued fMRI Data
+Pedro A. Rodriguez∗ , Member, IEEE, Matthew Anderson, Vince D. Calhoun, Fellow, IEEE,
+and Tülay Adalı, Fellow, IEEE
+
+Abstract—Constrained independent component analysis (CICA) algorithms provide an effective way to introduce prior information into the complex- and real-valued ICA framework.
+The work in this area has focus on adding constraints to the objective function of algorithms that assume a unitary demixing matrix.
+The unitary condition is required in order to decouple—isolate—
+the constraints applied for each individual source. This assumption
+limits the optimization space and, therefore, the separation performance of C-ICA algorithms. We generalize the existing C-ICA
+framework by using a novel decoupling method that preserves the
+larger optimization space for the demixing matrix. This framework allows for the constraining of either the sources or the mixing coefficients. A constrained version of the nonunitary entropy
+bound minimization algorithm is introduced and applied to actual
+complex-valued fMRI data. We show that constraining the mixing
+parameters using a temporal constraint improves the estimation
+of the spatial map and timecourses of task-related components.
+Index Terms—Constrained ICA, decoupled, entropy bound, mutual information (MI).
+
+I. INTRODUCTION
+OTH model-based approaches, such as the general linear
+model (GLM), and data-driven approaches, such as independent component analysis (ICA), can be used for studying
+functional magnetic resonance imaging (fMRI) data [1]–[3].
+Model-based approaches make strong assumptions about the
+data which makes them robust to noise and other artifacts; however, poor or inaccurate prior information may prevent them
+from obtaining good results. At the same time, ICA, being
+a blind source separation technique, uses a simple generative
+model based on linear mixing that can minimize the assumptions imposed on the data. Hence, it can provide valuable new
+insights, especially when reliable models of brain activity are
+not available.
+ICA is particularly promising for the analysis of complexvalued fMRI images, since it does not make any strong assumptions about its unfamiliar nature. ICA can be used to obtain
+either spatially or temporally independent decompositions of
+
+B
+
+Manuscript received April 14, 2014; revised October 10, 2014; accepted
+November 7, 2014. Date of publication November 20, 2014; date of current
+version February 16, 2015. This work was supported in part by the NSF under Grant NSF-IIS 1017718 and Grant NSF-CCF 1117056. Asterisk indicates
+corresponding author.
+∗ P. A. Rodriguez is with the Department of Electrical and Computer
+Engineering, University of Maryland, Baltimore, MD 21250 USA (e-mail:
+rodripe1@umbc.edu).
+M. Anderson, V. D. Calhoun, and T. Adalı are with the Department of Electrical and Computer Engineering, University of Maryland.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2371791
+
+the fMRI data. However, in some cases, being able to introduce
+prior information, as in model-based approaches, promises to
+improve performance and robustness to noise. Thus, semiblind
+approaches can be used to combine the benefits of data-driven
+and model-based approaches. They can significantly increase
+our ability to study fMRI in its complex form since not much is
+known about the phase—due to the fact that most fMRI studies use the real valued, i.e., magnitude data. Growing evidence
+suggests that the phase data carries information about the fMRI
+blood-oxygen-level-dependent (BOLD) signal above and beyond what is preserved in the magnitude data, and its use together with magnitude will increase the sensitivity of fMRI
+analyses [4]–[10].
+Constrained independent component analysis (C-ICA) has
+emerged as a powerful semiblind approach. C-ICA, as introduced in [11], incorporates prior information in the form of
+equality and inequality constraints in a Lagrangian framework
+to the ICA objective function. C-ICA algorithms have been
+shown to improve the quality of source estimation performance,
+while retaining ICA’s flexible data-driven nature [11]–[18]. But
+work on C-ICA has a focus on adding constraints to the objective function of algorithms that assume a unitary (orthogonal
+in the real-valued case) demixing matrix. The unitary condition is required to decouple—isolate—and constrain the sources
+or demixing vectors individually. However, requiring a unitary
+demixing matrix limits the solution space and results in suboptimal performance. In this paper, we use a novel decoupling
+method that preserves the larger solution space of nonunitary algorithms, thus enabling algorithms based on mutual information
+(MI) minimization or equivalently maximum likelihood (ML).
+This paper generalizes the work in [19], by extending the decoupling technique and constrained ICA framework so that it can
+be applied to complex-valued ICA algorithms, in particular the
+more flexible and, hence, powerful entropy bound minimization
+(EBM) algorithm [20].
+C-ICA approaches have been used with magnitude-only fMRI
+data to increase the robustness to noise, eliminate the ICA’s inherent permutation ambiguity, and improve the extraction of independent sources of interest. But little attention has been paid
+to complex-valued fMRI data and to constraining the demixing
+vectors. Being able to constrain the demixing vectors is important in spatial ICA applications where prior information about
+the sources is not available. This is particularly true in fMRI applications where model timecourses—mixing parameters—for
+different paradigms are readily obtained and used in approaches
+like GLM in statistical parametric mapping (SPM) [21]. The
+nonunitary decoupling method allows for the derivation of
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+RODRIGUEZ et al.: GENERAL NONUNITARY CONSTRAINED ICA AND ITS APPLICATION TO COMPLEX-VALUED fMRI DATA
+
+C-ICA algorithms that can constrain both the sources and the
+demixing vectors. But constraining the demixing vectors introduces new challenges that were not found when constraining
+the sources [17], e.g., the need to modify the available prior
+information due to dimensionality reduction and prewhitening
+of the data.
+In this paper, we introduce the framework for nonunitary CICA algorithm that addresses the challenges of constraining the
+complex-valued demixing vectors. More importantly, we implement a constrained version of the nonunitary EBM algorithm
+to actual complex-valued fMRI data using the model paradigm
+as a temporal constraint. The results show that the benefits usually associated to the constrained ICA framework can now be
+obtained with nonunitary ICA algorithms.
+Background on ICA and C-ICA is provided in Section II.
+In Section III, the nonunitary decoupling method is used to
+obtain a general nonunitary constrained ICA algorithm based
+on MI. The techniques introduced in this section can be used to
+derive constrained versions of any number of nonunitary ICA
+algorithms. As an example, in Section III-D, we introduce the
+constrained entropy bound minimization (C-EBM) algorithm
+[20]. Experimental results that demonstrate the advantages of
+the C-EBM on actual complex-valued fMRI data are presented
+in Section IV.
+II. BACKGROUND
+A. Optimization of Real-Valued Objective Functions
+of Complex Vectors
+The derivation of the complex-valued C-ICA algorithms requires the optimization of real-valued objective functions of
+complex vectors. In this paper, we focus on gradient optimization techniques, which are used to maximize or minimize these
+objective functions iteratively. When calculating the gradients,
+we use Wirtinger derivatives [22]–[24] and give two definitions.
+In complex optimization, the conjugate gradient ∂J(w)/∂w∗
+yields the maximum change for a objective function J(w), and
+it can be calculated directly, without evaluating separate real
+and imaginary derivatives, by considering J(w) to be an ana-
+
+and Λ, a diagonal matrix, represents the inherent ICA scaling ambiguity, which has a magnitude and phase term in the
+complex-valued implementation of ICA. Hence, the basic formulation for ICA assumes a simple linear mixing model and
+determines both the sources and the corresponding mixing matrix, i.e., both s and A to within a scaling and permutation
+ambiguity. Under the independent and identically distributed assumption, the separability in the complex case is guaranteed as
+long as the mixing matrix is of full column rank and there are
+no two complex Gaussian sources with the same circularity coefficients [25], [26]. The circularity coefficients are defined as
+the eigenvalues of the pseudocovariance matrix of the source
+random vector.
+ICA has proven useful in many applications due to the small
+number of assumptions made about the data. However, in some
+cases, reliable prior information may be available. Semiblind
+ICA algorithms, like C-ICA, use the available prior information to enhance the estimation of the sources. C-ICA incorporates prior information in the form of equality and inequality
+constraints in a Lagrangian framework to the ICA objective
+function
+max O(W) subject to h(W) ≤ 0 and c(W) = 0
+W
+
+def
+
+w∗ , i.e., ∂J(w)/∂w∗ = ∂J [a] (w, w∗ )/∂w∗ [23], [24]. In the
+rest of this paper, ∗ represents the conjugate value of a variable, T represents the transpose operation, and H represents the
+conjugate transpose operation.
+B. C-ICA Framework
+Let N statistically independent, zero mean, and unit variance
+latent sources s(v) = [s1 (v), . . . , sN (v)]T ∈ C N be mixed
+through an unknown invertible N × N mixing matrix A =
+[a1 . . . aN ] ∈ C N ×N so that we obtain the observable mixtures x(v) = [x1 (v), . . . , xN (v)]T ∈ C N as x(v) = As(v),
+where v = 1, . . . , V is the discrete sample index. The mixtures are blindly separated by estimating a demixing matrix
+W = [w1 . . . wN ]H so that y(v) = Wx(v) = ΓΛs(v), where
+y(v) = [y1 (v), . . . , yN (v)]T are the estimated sources. Here,
+Γ, a permutation matrix, represents the permutation ambiguity
+
+(1)
+
+where O(W) is an objective function for ICA to be either maximized or minimized, and h(W) ≤ 0 and c(W) = 0 represent
+inequality and equality constraints, respectively. Constrained
+optimization techniques [27] can be used to solve (1). Typically,
+the augmented Lagrangian method has been used for C-ICA
+algorithms as presented in [12].
+Estimating independent components requires that an appropriate measure of independence is used to compute the demixing
+matrix. MI, an information-theoretic measure of statistical dependence, provides a natural objective function for ICA. MI is
+defined as the Kullback-Leibler divergence between the joint
+and factored marginal estimated source densities, and is given
+by
+
+
+def
+
+lytic function J [a] (w, w∗ ) = J(w) in the two variables w and
+
+923
+
+I (y1 , . . . , yN ) = D py (y) ||
+
+N
+
+
+
+py n (yn )
+
+n =1
+
+=
+
+N
+
+
+
+
+H (yn ) − log det(W) − H (x) (2)
+
+n =1
+def
+
+where H(s) = H(sr , si ) = −E [log p(sr , si )] is the differendef
+
+tial entropy, p(s) = p(sr , si ) is the probability density function
+(pdf) of the random variable s, E [·] denotes expectation, and
+
+W
+W =  r
+Wi
+
+
+−Wi 
+.
+Wr 
+
+(3)
+
+Wr and Wi are the real and imaginary parts of W [24]. The
+pdf of y is expressed in terms of the pdf of x through the
+
+−1
+computation of the Jacobian as py (y) = det(W) px (x).
+
+924
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+The ICA MI-based objective function can be written as
+min J (W) =
+W
+
+N
+
+
+
+
+H wnH x − log |det (W)|2
+
+reduces the cost function in (4) to
+(4)
+
+W
+
+n =1
+
+ 
+where we use the following relationship: det W =
+
+
+det WWH = |det (W)|2 . The term H (x) in (2) is not included since it is fixed with respect to changes in W and can be
+ignored when minimizing (4).
+The objective function can be optimized by using a gradientbased solution to calculate updates for the demixing matrix
+iteratively
+W ← W − ΔW
+
+min J (W) =
+
+(5)
+
+(W )
+υ ∂ ∂JW
+∗ ,
+
+where ΔW =
+and υ is a positive scalar step size.
+Wirtinger calculus is used to calculate the gradient of (4) as
+∂J (W)
+= ψ (y) − W−H
+(6)
+∂W∗
+where ψ (y) = [ψ1 (y1 ) , . . . , ψN (yN )] is a vector function and
+ψn (yn ) is defined as
+
+
+∂H wnH x
+∂H (yn )
+=
+.
+(7)
+ψn (yn ) =
+∂wn∗
+∂wn∗
+It is important to notice that (6) can also be expressed in terms
+of score functions, as it is done when writing the ICA objective
+function in terms of ML [24].
+The gradient solution in (5) updates all the rows of the demixing matrix at the same time. But, as previously noted, we are
+interested in dividing the MI optimization problem into a series
+of subproblems, where we minimize (4) with respect to each of
+the row vectors wn , n = 1, . . . , N seperately. In practice, this
+is usually done by prewhitening the data and assuming a unitary
+demixing matrix, as it is done in ICA algorithms based on maximization of non-Gaussianity. But assuming a unitary demixing
+matrix limits the optimization space of ICA [28], which is why
+in this paper, we use a decoupling method that does not assume
+a unitary demixing matrix.
+III. NONUNITARY CONSTRAINED ICA
+Deriving a nonunitary C-ICA algorithm requires the decoupling of the C-ICA optimization problem. Decoupling is required to be able to constrain the demixing vectors or the
+sources individually. This is particularly important since, in general, prior information about the entire demixing matrix or all
+the sources is usually not available. There are also other motivations for performing this decoupling step. First, it greatly
+simplifies the derivation, design, and implementation of the optimization procedure by reducing the matrix optimization problem into a set of vector optimization problems. Second, by
+decoupling the learning rate, the optimization procedure can be
+tailored to accommodate each row. This especially benefits complicated optimization surfaces. Such a tailoring is more cumbersome if using matrix optimization. Last, by decoupling secondorder optimization methods, such as Newton’s method, become
+practical.
+The motivations for decoupling in C-ICA algorithms are clear,
+but it is usually achieved by constraining W to be unitary which
+
+N
+
+
+
+
+H wnH x
+
+(8)
+
+n =1
+
+so that the updates for each wn can be performed individually,
+i.e., decoupled. Requiring a unitary demixing matrix limits the
+solution space and may lead to suboptimal performance [24],
+[28], [29]. Therefore, in Section III-A, we describe a decoupling
+method [30] that can preserve the larger optimization space of
+nonunitary matrices, while enabling the use of vector optimization via a novel decoupling of the rows of W. This method is
+then used in Section III-B to derive a decoupled version of the
+MI ICA algorithm, the decoupled MI (D-MI) algorithm, without a unitary constraint. Then, in Section III-C, we introduce
+the constrained D-MI algorithm (CD-MI).
+The techniques used to derive the CD-MI can be used to
+derive constrained versions of any number of nonunitary ICA
+algorithms. As an example, in Section III-D, we derive the constrained EBM algorithm.
+Prewhitening is a standard preprocessing procedure that simplifies the derivation of ICA and C-ICA algorithms by assuming
+uncorrelated sources (independence implies uncorrelatedness).
+Therefore, in our derivations, we always assume that the mixtures have been prewhitened but that the demixing matrix is still
+nonunitary. Prewhitening can only achieve the unitary condition
+when the number of samples is infinite [31].
+A. Nonunitary Decoupling of W
+Let the demixing matrix be expressed in terms of vectors, W = [w1 . . . wN ]H ∈ C N ×M , where N ≤ M . We wish
+to decouple the estimation of each row in W, wnH , 1 ≤
+n ≤ N . We denote the remaining N − 1 rows as W̃n =
+[w1 . . . wn −1 wn +1 . . . wN ]H ∈ C (N −1)×M . Using a permutation matrix, we exchange the nth and N th rows of W. This
+enables the use of the determinant of partitioned matrices, provided that W has full rank, to obtain
+
+
+	
+
+
+(9)
+det WWH = det W̃n W̃nH wnH D̃n wn
+	
+
+−1
+where D̃n = I − W̃nH W̃n W̃nH
+W̃n ∈ C M ×M .
+It can be shown that D̃n is a unitary complement projection
+matrix for the space spanned by the rows of W̃n [30]. The most
+common case occurs when M = N , i.e., when W is a square
+invertible matrix, then by the chosen decomposition of W, we
+have that D̃n is a rank one matrix. More explicitly, D̃n = dn dH
+n ,
+where dn ∈ C N ×1 and ||dn || = 1 due to the requirement that
+unitary projections matrices have eigenvalues of 1 or 0 only. To
+clarify, dn is any unit vector such that W̃n dn = 0 ∈ C (M −1)×1
+and, hence, dn is unchanged by changes to wn , i.e., decoupled.
+
+B. Nonunitary D-MI ICA Algorithm
+The first step in deriving the D-MI algorithm is to make all
+the terms in (4) that are dependent on W constant with respect
+to wn . The decoupling method introduced in Section III-A, can
+
+RODRIGUEZ et al.: GENERAL NONUNITARY CONSTRAINED ICA AND ITS APPLICATION TO COMPLEX-VALUED fMRI DATA
+
+without the unitary constraint. The MI objective function is
+optimized subject to the following constraint
+
+Algorithm 1 – D-MI
+1: Randomly initialize W
+2: for n = 1, . . . , N do
+3: Compute vector dn , which is unitary to wi ,
+i = [1, . . . , n − 1, n + 1, . . . , N ]
+4: Compute yn = wnH x
+5: Update wn using (14)
+wn
+6: wn ←
+|| wn ||
+7: end for
+8: Repeat steps 2 to 7 until convergence
+
+hn (wn , rn ) = ρn −  (wn , rn ) ≤ 0
+
+be used to rewrite | det(W)| as
+
+
+
+
+|det(W)| = Sn dH
+n wn
+
+(10)
+
+	
+
+
+
+
+where Sn = det W̃n W̃nH . Using (10) allows us to write
+(4), with respect to any of the row vectors wn , as
+J (W) =
+
+N
+
+
+
+
+
+
+
+H wnH x − 2 log dH
+n wn − 2 log Sn . (11)
+
+n =1
+
+The gradient of (11) can now be decoupled and written as
+
+
+∂J (W)
+∂J (W)
+∂J (W)
+=
+...
+(12)
+∂W
+∂w1
+∂wN
+where
+∂J (W)
+∂H (yn )
+dn
+=
+− H .
+∂wn
+∂wn∗
+wn dn
+
+(13)
+
+The D-MI algorithm uses the following iterative update function for each demixing matrix row:
+Δwn ∝
+
+∂J (wn )
+∂wn∗
+
+925
+
+(14)
+
+and repeats the steps in Algorithm 1 until convergence. It is
+important to note that this is not a deflationary algorithm, i.e.,
+each wn is updated in each iteration of the algorithm.
+The unit norm requirement for wn in the algorithm comes
+from the assumption that the sources have unit variance and
+that the mixture data has been prewhitened, which effectively
+eliminates the magnitude component of the inherent ICA scaling ambiguity. The vector dn can be computed using the
+Gram–Schmidt orthogonalization procedure [32], the method
+proposed in [30], or the fast iterative algorithm used in the
+real-valued EBM algorithm [33]. The latter option is used
+in the algorithms implemented in this paper. Similarly, various convergence metrics can be used in the introduced algorithm. For example,
+uses the following metric:
+
+Algorithm 1
+≤ τ , where τ is a user1 − max abs diag W[new ] WH
+defined tolerance value and diag (·) extracts the diagonal vector
+from a matrix.
+C. Nonunitary Constrained MI ICA Algorithm
+In this section, we introduce the constrained version of the
+D-MI algorithm, which provides a solution to constrained ICA
+
+(15)
+
+where hn is an inequality constraint function,  is a distance
+measure or metric, rn can be a reference for either wn or yn ,
+and ρn is the inequality constraint threshold.
+In real-valued C-ICA algorithms, typical definitions for the
+distance metric include mean square error and correlation-like
+distances. These distance metrics can also be used with complexvalued C-ICA algorithms, if the references are real valued
+and they are used to constrain the magnitude of the estimated
+sources or demixing vectors. For complex-valued references,
+the Cauchy–Schwarz inequality metric in (16) can be used as
+ H
+| yn rn |2 ,
+rn is reference of yn
+(16)
+ (wn , rn ) =
+| wnH rn |2 , rn is reference of wn .
+For simplicity, in this paper, we assume that rn is a unit norm
+complex-valued reference for the demixing vector and that the
+Cauchy–Schwarz inequality is the distance metric. The derived
+algorithms can be easily modified to constrain the sources and
+to use other distance metrics.
+The distance metric should be defined to ensure that rn is
+closer to its corresponding demixing vector, i.e.,  (wn , rn ) >
+ (wi , rn ) , i = 1, 2, . . . , n − 1, n + 1, . . . , N . Therefore, wn
+can be identified from the other demixing vectors by the threshold ρn , if the following condition is met
+ (wn , rn ) ≥ ρn >  (wi , rn ) ,
+
+1 ≤ i = n ≤ N.
+
+(17)
+
+The derivation of the CD-MI ICA algorithm starts by defining the augmented Lagrangian optimization function, which is
+obtained by introducing the constraint (15) into (11) and eliminating any term that is not dependent on wn
+
+
+
+Jnc (W) = H (yn ) − 2 log dH
+n wn
+−
+
+1
+((max{0, γn hn (wn , rn ) + μn })2 − μ2n ) (18)
+2γn
+
+where μn is a Lagrangian multiplier, γn is a positive scalar learning parameter, and the superscript c indicates that the objective
+function is constrained.
+As described in Section II-A, Wirtinger calculus can be used
+to obtain the gradient update function as
+Jnc (w)
+∂H (yn )
+dn
+=
+− H
+∂wn∗
+∂wn∗
+wn dn
+	 
+
+
+∗ 	
+−μn rn wnH rn hn (wn , rn )
+(19)
+
+
+	
+where (·) is the derivative operator with respect to wnH rn . In
+each iteration, we normalize wn to be unit norm and update the
+Lagrange multiplier μn using gradient ascent
+Δwn ∝
+
+μn ← max{0, γn hn (wn , rn ) + μn }.
+
+(20)
+
+The steps of the CD-MI algorithm are provided in Algorithm 2.
+An important consideration during the implementation of
+C-ICA algorithms is to make sure that rn is used to constrain
+the closest demixing vector (or source), as measured by the
+
+926
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+Algorithm 2 – CD-MI
+1: Randomly initialize W
+2: Initialize μn = 0, γn to a small positive scalar value
+(e.g., 3) and set ρn
+3: for n = 1, . . . , N do
+4:
+Compute vector dn , which is unitary to wi ,
+i = [1, . . . , n − 1, n + 1, . . . , N ]
+5:
+Compute yn = wnH x.
+6:
+if Reference rn is available then
+7:
+Compute μn ← max{0, γn hn (wn , rn ) + μn }.
+∂H (yn )
+dn
+8:
+Let Δwn ∝
+−
+−
+∗
+wnH dn
+  H ∗ 	 ∂wn
+
+μn rn wn rn hn (wn , rn )
+9: else
+∂H (yn )
+dn
+− H
+10:
+Let Δwn ∝
+∂wn∗
+wn dn
+11: end if
+wn
+12: wn ←
+|| wn ||
+13: end for
+14: Repeat steps 3 to 13 until convergence.
+
+distance metric. For example, the C-ICA algorithm can be run
+for one (or more) iterations without imposing the constraints.
+Then, the available references can be matched to the extracted
+unconstrained demixing vectors using the selected distance metric. After the matching is done, the constraints can be enforced.
+This method helps us to make sure that the constraints are not
+forced on the demixing vectors that do not match any of the
+references.
+Another typical C-ICA technique used in our implementation
+is to slowly decrease the threshold ρn after a predetermined
+number of iterations (usually more than 20). The role of ρn is
+to determine how strongly is the constraint applied. As it can
+be seen in (15), it is the minimum value of the distance metric
+between the demixing vector and the reference:  (wn , rn ). If the
+algorithm fails to converge, then the constraint can be removed
+and applied to another demixing vector. This technique also
+fixes possible errors made during the initialization of ρn for
+references that are not as accurate as originally thought.
+As previously described, whitening is not required, since the
+CD-MI algorithm does not assume that W is unitary, although,
+in practice, it is recommended. Whitening of the mixture data is
+usually done simultaneously with dimensionality reduction (if
+needed) by using PCA techniques. Whitening is implemented by
+multiplying
+ the mixture data by a whitening matrix (Q) such that
+
+QE xxH QH = I. If the mixture data is prewhitened, then the
+references for the demixing vectors need to be recomputed by
+using Qrn . Whitening does not affect references for the sources
+on C-ICA algorithms.
+In practical applications, usually the available prior information about the mixing parameters corresponds to a column of
+the mixing matrix (an ) rather than a row of the demixing matrix
+(wn ). For example, in fMRI applications, model timecourses are
+usually available for different paradigms, e.g., auditory oddball
+and visuo-motor tasks [21]. Therefore, a reference (pn ) for the
+
+mixing vector an needs to be changed into a reference for wn .
+This transformation can be achieved by rn = E[xxH ]pn , and
+in the case of prewhitening, it becomes rn = Q−H pn (see Appendix). Hence, we can also introduce the whitening matrix into
+the inequality function to make sure that the distance is measured in the unwhitened space. For example, the distance metric
+H
+
+in (16) can be adjusted to be  (wn , pn ) =| Q−1 wn
+pn |2 .
+This latter technique is used in the examples shown in
+Section IV.
+D. Constrained EBM Algorithm
+The EBM algorithm [20] is a nonunitary decoupled ICA algorithm based on MI. It uses a novel (differential) entropy estimator for complex random variables based on the principle
+of maximum entropy. The estimator is used to approximate
+the value of H (yn ) in (11), by using a numerically computed
+maximum entropy bound. This estimator can match a wide
+range of bivariate distributions, those that can have nonellipticial or elliptical contours and can be circular of noncircular,
+sub- or super-Gaussian, unimodal or multimodal, and skewed or
+symmetric.
+The EBM algorithm is very similar to Algorithm 1, except
+for a few changes. First, it uses a projected conjugate gradient
+on its update function:
+
+
+∂Jn (wn )
+H ∂Jn (wn )
+−
+Re
+w
+wn
+υn =
+n
+∂wn∗
+∂wn∗
+υn
+.
+(21)
+Δwn ∝
+|| υn ||
+Second, it adaptively updates the step size of the algorithm if it
+detects oscillation in the objective function value.
+Likewise, the constrained EBM algorithm follows the steps
+of the CD-MI algorithm with similar modifications to the update
+functions.
+IV. EXPERIMENTS
+In this section, we show the results of using the C-EBM algorithm with complex-valued motor-task fMRI data. We compare
+its performance with the original unconstrained EBM algorithm.
+A. Complex-Valued fMRI Data
+The dataset is obtained from fourteen subjects performing a
+finger-tapping motor task while receiving auditory instructions.
+The paradigm involves a block design with alternating periods
+of 30 s ON (finger tapping) and 30 s OFF (rest). The experiments were performed on a 3T Siemens TRIO TIM system
+with a 12-channel radio frequency coil. The fMRI experiment
+used a standard Siemens gradient-echo EPI sequence modified to store real and imaginary data separately. The data were
+preprocessed for motion correction and spatial normalization
+into standard Montreal Neurological Institute space using the
+MATLAB1 SPM Toolbox.2
+1 MATLAB,
+2 SPM,
+
+URL: http://www.mathworks.com.
+URL: http://www.fil.ion.ucl.ac.uk/spm/software/spm5.
+
+RODRIGUEZ et al.: GENERAL NONUNITARY CONSTRAINED ICA AND ITS APPLICATION TO COMPLEX-VALUED fMRI DATA
+
+Fig. 1. Reference signal for the C-EBM algorithm. It is obtained by convolving
+a boxcar function of the task paradigm with a canonical hemodynamic reference
+function.
+
+The complex-valued data was first denoised by using the
+multisubject quality map phase denoising method we have introduced in [34]. Additionally, we use PCA to whiten and reduce the dimensionality of the complex-valued fMRI data prior
+to applying the ICA algorithm. The number of effective principal components for this dataset is selected as 30, using the
+minimum description length criterion for complex valued data
+as in [35], [36].
+B. Methodology
+The unconstrained and temporally constrained EBM ICA algorithms are applied to the finger tapping motor-task fMRI data.
+The task timecourse, shown in Fig. 1, is obtained by convolving a boxcar function of the task paradigm with a canonical
+hemodynamic reference function. The task timecourse is used
+for both the magnitude and the phase of the complex-valued reference used to constrain the estimated component timecourses,
+i.e., mixing coefficients. A threshold of ρ = 0.7 and a step size
+γ = 3 is used in the algorithm. The threshold was selected as
+0.7 because it is the minimum metric value obtained between
+the reference and the timecourse of the best ICs estimated by the
+unconstrained EBM. Selecting a higher value has no effect due
+to the adaptive technique applied to modify ρ (see Section IV-C
+for more details). Selecting a lower value can either turn off the
+constraint or make it so more than one IC matches the threshold,
+which violates the condition in (17). The C-EBM algorithm is
+robust to the value of the step size, but like any other gradient
+descent algorithm, it is susceptible to really small or big values.
+The estimated fMRI sources by both algorithms are shown
+using a Z-score that takes the complex nature of the data into
+account by simply using the Mahalanobis distance, which we
+denote by Zc , where the subscript c refers to the complex representation, i.e., one that simultaneously takes the real and imaginary parts into account. In [34], we show that the use of Zc score
+increases the sensitivity in detecting activated voxels when compared to the use of the typical magnitude-only Z-score. Zc is
+calculated for all complex-valued voxels (l) of the estimated
+sources as
+
+−1
+(22)
+Zc k (l) = [ŝk (l) − μ̂k ] T Ĉk [ŝk (l) − μ̂k ]
+where ŝk = [ŝk ,re , ŝk ,im ]T is the k estimated source, and μ̂k and
+Ĉk are the corresponding estimated spatial image mean vector
+and covariance matrix over all the voxels. Voxels of interest are
+identified if they have a value higher than a specified threshold.
+
+927
+
+Fig. 2. Average magnitude, phase, and Z c maps for the estimated constrained
+motor IC using the C-EBM algorithm. Voxels with |Z c | > 2.5 are displayed.
+(a) Magnitude. (b) Phase (radians). (c) Z c .
+
+To evaluate the performance of both algorithms, we use a
+binary mask created by joining Brodmann areas that identify
+the minimal motor cortex area where we expect voxels to be
+activated [34]. The spatial normalization and smoothing that is
+typically applied and the resolution at which we collect the fMRI
+data mitigates the need of having perfect cytoarchitectonically
+delineated regions. Therefore, for our purposes, both Brodmann
+areas and automated anatomical labeling regions proved suitable. Here, we only present results using Brodmann areas since
+the results were similar with both methods. Other ICA studies
+using Brodmann areas to assess their results can be found in
+[2], [37], [38].
+Calculating active voxels inside the binary mask measures
+the sensitivity of the algorithms but ignores specificity. Therefore, we calculate receiver operating characteristic (ROC) curves
+from the Zc maps obtained by the unconstrained and constrained
+EBM ICA algorithms [34]. The probability of true positives in
+the generated ROC curves indicates the number of voxels that
+survive the threshold (at each point in the ROC curve) and that
+fall inside the motor cortex mask; similarly, the probability of
+false positive indicates the number of voxels that pass the various thresholds and that fall outside the motor cortex mask.
+Comparison of the ROC curves is done by calculating the ratio
+of their respective area under the curve (AUC). Better performance, as measured by a higher AUC, indicates more activated
+voxels (higher sensitivity) located in the expected activation
+areas (higher specificity).
+C. FMRI Data Results
+The estimated constrained source by the C-EBM algorithm
+has activated areas corresponding to a motor task-related component, since the reference time course corresponds to the motor
+task used in the collection of the data. Fig. 2 shows the group
+average magnitude, phase, and Zc images. The same IC is also
+estimated with the unconstrained EBM algorithm. In this case,
+the motor task-related component is identified by finding the IC
+with the highest correlation to the paradigm reference in Fig. 1.
+Visual inspection confirmed that the selected components across
+subjects were indeed the same.
+The extracted components and timecourses from both algorithms are compared across all the subjects. We first calculated
+the correlation coefficient value between the magnitude of the
+extracted timecourse from each subject and the paradigm reference. The correlation values from the C-ICA algorithm ranges
+
+928
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 3, MARCH 2015
+
+Fig. 5. Bivariate t-maps obtained for the motor IC estimated by the EBM and
+C-EBM algorithms. (a) EBM and (b) C-EBM.
+
+Fig. 3. Z c images of the estimated motor IC obtained from subjects 2 and 8
+using the EBM and C-EBM algorithms. Voxels with |Z c | > 2.5 are displayed.
+
+Fig. 4. ROC curve AUC values obtained for the Z c images of the extracted
+motor task-related IC for all the subjects using both the EBM and C-EBM
+algorithms. The absolute value of the ROC curves area is not of interest since
+the test is not designed to obtain the typical ideal AUC value of 1.0, only their
+relative values are important.
+
+from 0.75 to 0.97, while the results from the ICA algorithm
+ranges from 0.25 to 0.91. Similar correlation coefficient values
+are obtained between the phase of the extracted timecourses
+and the paradigm reference. This is an expected result since the
+reference in Fig. 1 is used as a constraint and in the evaluation
+of the estimated timecourses. We only wanted to confirm that
+the C-ICA algorithm truly forces the estimated timecourses to
+resemble the paradigm reference.
+More importantly, we can also show that the C-EBM algorithm can improve the extraction of the spatial sources. Fig. 4
+shows the AUC of the Zc ROC curves obtained from each
+subject by both algorithms. It is clear that the C-EBM algorithm obtains higher AUC value for the majority of the subjects.
+The largest increase in AUC is observed for subjects 2 and 10,
+which are also two of the subjects showing a large improvement in the timecourse estimation. These two subjects were
+previously identified as having a lower level of signal to noise
+ratio. This suggests that the C-EBM algorithm is more robust
+to noise, which is one of the advantages obtained from using a
+semi-blind approach. We incorporated ICASSO [39], [40] in our
+implementation of both algorithms to evaluate the consistency
+in estimates of all the ICA algorithms, the estimated components
+
+from each algorithm were very similar in the ten runs conducted
+per subject.
+As an example of the improvement in the estimation of the
+spatial sources, in Fig. 3, we show the Zc images obtained from
+subjects 2 and 8 using both algorithms. The two Zc images
+obtained from subject 8 are similar, although the C-EBM algorithm estimated slightly more voxels in the motor task-related
+areas and less spurious activated voxels. This translates into a
+higher AUC value for the C-EBM algorithm. The improvement
+in the estimation of the component using the C-EBM algorithm
+on subject 2 is more significant. For example, voxels in the
+motor-task area are barely visible even when using a low Zc
+threshold of 2.5. It is important to note that the threshold of 2.5
+is only used for display purposes, the ROC AUC results are not
+dependent on any particular threshold.
+Group t-tests were conducted to confirm that the extra voxels identified by the C-EBM algorithm are indeed statistically
+significant. For a group of subjects, we can define a complex—
+bivariate—t-map using the Hotelling T2-Test [41]. Fig. 5 shows
+the group (14 subjects) bivariate t-maps obtained from both algorithms at a p-value of 0.01. The C-EBM t-map contains 9%
+more activated voxels in the area of interest with higher values. Additionally, we calculated ROC curves from the t-maps
+and found that the C-EBM algorithm has an AUC that is 6%
+higher.
+V. CONCLUSION
+The main goal of this paper has been to extend the benefits of
+C-ICA to ICA algorithms that do not assume a unitary demixing matrix. Although the unitary condition is usually assumed to
+be able to decouple—isolate—the constraints applied for each
+individual source, it can limit the optimization space and, therefore, the separation performance of C-ICA algorithms. We use
+a decoupling method that can preserve the larger optimization
+space of nonunitary matrices, while enabling the use of vector
+optimization via a novel decoupling of the rows of W.
+This study enables the development of new constrained ICA
+algorithms that are not restricted by the unitary requirement,
+and can be used to constrain either the demixing vectors or the
+sources. As an example, we show how complex-valued C-ICA
+algorithms based on MI can improve the estimation performance
+in actual fMRI data though a temporal constraint. Future work
+will focus in applying the developed method to larger sample
+datasets under different task paradigms.
+
+RODRIGUEZ et al.: GENERAL NONUNITARY CONSTRAINED ICA AND ITS APPLICATION TO COMPLEX-VALUED fMRI DATA
+
+APPENDIX
+DERIVATION OF DEMIXING VECTOR REFERENCES
+In practice, it is common to have prior knowledge about the
+forward model in ICA x = As, either for a source component
+sn or its associated mixing vector an . Therefore, if we have a
+reference pn for an , it needs to be reformulated into a reference
+with respect to the demixing vector wn , since they are the arguments of our objective function. Now assume W is an estimator
+for A−1 (having resolved the permutation and scaling ambiguH
+ities) and letting rn be the reference
+for wn , then, A pn =
+
+−1
+H
+Wrn = A rn implies rn = AA pn . Of course, A itself
+is unknown, but we know that components within an observation
+are to be uncorrelated—they are assumed independent—and we
+may scale them to unit variance
+the
+
+ loss
+ ofH generality.
+ H without
+H
+=
+AE
+ss
+A = AAH ,
+Then, under our
+model
+E
+xx
+ H
+hence rn = E xx pn is the reference to use to constrain the
+nth row of W.
+Additionally, it is easy to show that if x is prewhitened the
+relationship for the reference becomes rn = Q−H pn , where Q
+is the previously defined whitening matrix.
+REFERENCES
+[1] K. Friston et al., “Statistical parametric maps in functional imaging: A
+general linear approach,” Human Brain Mapping, vol. 2, pp. 189–210,
+1995.
+[2] M. J. McKeown et al., “Analysis of fMRI data by blind separation into
+independent spatial components,” Human Brain Mapping, vol. 6, no. 3,
+pp. 160–188, 1998.
+[3] V. D. Calhoun et al., “fMRI activation in a visual-perception task: Network of areas detected using the general linear model and independent
+components analysis,” NeuroImage, vol. 14, pp. 1080–1088, 2001.
+[4] S. Chavez et al., “Understanding phase maps in MRI: A new cutline phase
+unwrapping method,” IEEE Trans. Med. Imag., vol. 21, no. 8, pp. 966–977,
+Aug. 2002.
+[5] Z. Feng et al., “Biophysical modeling of phase changes in Bold fMRI,”
+NeuroImage, vol. 47, no. 2, pp. 540–548, Aug. 2009.
+[6] D. B. Rowe, “Modeling both the magnitude and phase of complex-valued
+fMRI data,” NeuroImage, vol. 25, no. 4, pp. 1310–1324, 2005.
+[7] F. Hoogenrad et al., “In vivo measurement of changes in venous bloodoxygenation with high resolution functional MRI at 0.95 tesla by measuring changes in susceptibility and velocity,” Magn. Reson. Med., vol. 39,
+no. 1, pp. 97–107, 1998.
+[8] S. Arja et al., “Changes in fMRI magnitude data and phase data observed
+in block-design and event-related tasks,” NeuroImage, vol. 49, no. 4,
+pp. 3149–3160, Feb. 2010.
+[9] Z. Chen et al., “Effect of surrounding vasculature on intravoxel bold
+signal,” Med. Phys., vol. 37, pp. 1778–1787, 2010.
+[10] R. Menon, “Postacquisition suppression of large-vessel bold signals in
+high-resolution fMRI,” Magn. Reson. Med., vol. 47, pp. 1–9, 2002.
+[11] W. Lu and J. Rajapakse, “Constrained independent component analysis,”
+Adv. Neural Inform. Process. Syst., vol. 13, pp. 570–576, 2000.
+[12] W. Lu and J. Rajapakse, “ICA with reference,” Neurocomputing, vol. 69,
+no. 16–18, pp. 2244–2257, 2006.
+[13] Z. Zhang, “Morphologically constrained ICA for extracting weak temporally correlated signals,” Neurocomputing, vol. 71, pp. 1669–1679, 2008.
+[14] Z. Sun and L. Shang, “An improved constrained ICA with reference
+based unmixing matrix initialization,” Neurocomputing Lett., vol. 73,
+pp. 1013–1017, 2010.
+[15] M. D. Vos et al., “Spatially constrained ICA algorithms with applications
+in EEG processing,” Signal Process., vol. 91, pp. 1963–1972, 2011.
+[16] Z. Wang, “Fixed-point algorithms for constrained ICA and their applications in fMRI data analysis,” Magn. Reson. Imag., vol. 29, pp. 1288–1303,
+2011.
+[17] V. Calhoun et al., “Semi-blind ICA of fMRI: A method for utilizing
+hypothesis-derived time courses in a spatial ICA analysis,” NeuroImage,
+vol. 25, pp. 527–538, 2005.
+
+929
+
+[18] Q. Lin et al., “Semiblind spatial ICA of fMRI using spatial constraints,”
+Human Brain Mapping, vol. 31, pp. 1076–1088, 2010.
+[19] P. Rodriguez et al., “General non-orthogonal constrained ICA,” IEEE
+Trans. Signal Process., vol. 62, no. 11, pp. 2778–2786, Jun. 2014.
+[20] X.-L. Li and T. Adalı, “Complex independent component analysis by
+entropy bound minimization,” IEEE Trans. Signal Process., vol. 57,
+no. 7, pp. 1417–1430, Jul. 2010.
+[21] K. J. Friston et al., Eds., Statistical Parametric Mapping: The Analysis of
+Functional Brain Images, 1st ed. New York, NY, USA: Academic, 2006.
+[22] W. Wirtinger, “Zur formalen theorie der funktionen von mehr komplexen
+verŁnderlichen,” Mathematische Annalen, vol. 97, no. 1, pp. 357–375,
+1927.
+[23] D. H. Brandwood, “A complex gradient operator and its application in
+adaptive array theory,” Proc. Inst. Elect. Eng., vol. 130, no. 1, pp. 11–16,
+Feb. 1983.
+[24] T. Adalı et al., “Complex ICA using nonlinear functions,” IEEE Trans.
+Signal Process., vol. 56, no. 9, pp. 4536–4544, Aug. 2008.
+[25] J. Eriksson and V. Koivunen, “Complex random vectors and ICA models: Identifiability, uniqueness and seperability,” IEEE Trans. Inf. Theory,
+vol. 52, no. 3, pp. 1017–1029, Mar. 2006.
+[26] T. Adalı et al., “Complex-valued signal processing: The proper way to
+deal with impropriety,” IEEE Trans. Signal Process., vol. 59, no. 11,
+pp. 5101–5125, Nov. 2011.
+[27] S. Boyd and L. Vandenberghe, Convex Optimization. Cambridge, U.K.:
+Cambridge Univ. Press, 2004.
+[28] J. Cardoso, “On the performance of orthogonal source separation algorithms,” in Proc. Eur. Signal Process. Conf., 1994, pp. 776–779.
+[29] L. De Lathauwer et al., “A prewhitening-induced bound on the identification error in independent component analysis,” IEEE Trans. Circuits
+Syst., vol. 52, no. 3, pp. 546–554, Mar. 2005.
+[30] X.-L. Li and X.-D. Zhang, “Nonorthogonal joint diagonalization free
+of degenerate solution,” IEEE Trans. Signal Process., vol. 55, no. 5,
+pp. 1803–1814, May 2007.
+[31] M. Anderson et al., “An effective decoupling method for matrix optimization and its application to the ICA problem,” in Proc. IEEE
+Int. Conf. Acoust., Speech, Signal Process., Kyoto, Japan, 2012,
+pp. 585–590.
+[32] G. H. Golub and C. F. V. Loan, Matrix Computations. Bethesda, MD,
+USA: The Johns Hopkins Univ. Press, 1989.
+[33] X.-L. Li and T. Adalı, “Independent component analysis by entropy
+bound minimization,” IEEE Trans. Signal Process., vol. 58, no. 10,
+pp. 5151–5164, Oct. 2010.
+[34] P. A. Rodriguez et al. (2012). De-noising, phase ambiguity correction and visualization techniques for complex-valued ICA of group
+fMRI data. Pattern Recog. [Online]. 45(6), pp. 2050–2063. Available:
+http://www.sciencedirect.com/science/article/pii/S0031320311002020
+[35] W. Xiong et al.,“On ICA of complex-valued fMRI: Advantages and order
+selection,” in Proc. IEEE Int. Conf. Acoust., Speech, Signal Process., Las
+Vegas, NV, USA, Apr. 2008, pp. 529–532.
+[36] Y. O. Li et al., “Estimating the number of independent components for
+fMRI data,” Human Brain Mapping, vol. 28, pp. 1251–1266, 2007.
+[37] J. Sui et al. (2010). A CCA + ICA based model for multi-task
+brain imaging data fusion and its application to schizophrenia. NeuroImage
+[Online]. 51(1), pp. 123–134. Available: http://www.sciencedirect.com/
+science/article/B6WNP-4Y889SD-4/2/32ee36ed
+3543c0df9a9c0979bc3da993
+[38] E. M. Ventouras et al., “Independent component analysis for source localization of EEG sleep spindle components,” Comput. Intell. Neurosci.,
+vol. 2010, pp. 1–12, Jan. 2010.
+[39] J. Himberg and A. Hyvarinen, “Icasso: Software for investigating the
+reliability of ICA estimates by clustering and visualization,” in Proc.
+IEEE Workshop Neural Netw. Signal Process., 2003.
+[40] S. Ma et al., “Automatic identification of functional clusters in fMRI data
+using spatial dependence,” IEEE Trans. Biomed. Eng., vol. 58, no. 12,
+pp. 3406–3417, Dec. 2011.
+[41] H. Li et al., “Application of independent component analysis with adaptive
+density model to complex-valued fMRI data,” IEEE Trans. Biomed. Eng.,
+vol. 58, no. 10, pp. 2794–2803, Oct. 2011.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

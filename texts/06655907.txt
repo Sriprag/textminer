@@ -1,0 +1,711 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 3, MAY 2014
+
+1043
+
+sEMG-Based Joint Force Control for an Upper-Limb
+Power-Assist Exoskeleton Robot
+Zhijun Li, Senior Member, IEEE, Baocheng Wang, Fuchun Sun, Chenguang Yang, Member, IEEE,
+Qing Xie, and Weidong Zhang
+
+Abstract—This paper investigates two surface electromyogram
+(sEMG)-based control strategies developed for a power-assist exoskeleton arm. Different from most of the existing position control
+approaches, this paper develops force control methods to make the
+exoskeleton robot behave like humans in order to provide better
+assistance. The exoskeleton robot is directly attached to a user’s
+body and activated by the sEMG signals of the user’s muscles,
+which reflect the user’s motion intention. In the first proposed control method, the forces of agonist and antagonist muscles pair are
+estimated, and their difference is used to produce the torque of the
+corresponding joints. In the second method, linear discriminant
+analysis-based classifiers are introduced as the indicator of the motion type of the joints. Then, the classifier’s outputs together with
+the estimated force of corresponding active muscle determine the
+torque control signals. Different from the conventional approaches,
+one classifier is assigned to each joint, which decreases the training time and largely simplifies the recognition process. Finally, the
+extensive experiments are conducted to illustrate the effectiveness
+of the proposed approaches.
+Index Terms—Exoskeleton, force estimation, linear discriminant
+analysis (LDA), surface electromyogram (sEMG).
+
+I. INTRODUCTION
+XOSKELETON robots are very popular in the literature [1]–[6]. In the recent decades, biological signals are
+attracting more and more attention in controlling robots. The
+
+E
+
+Manuscript received August 11, 2012; revised August 16, 2013, March 9,
+2013, and December 16, 2012; accepted October 14, 2013. Date of publication November 5, 2013; date of current version May 1, 2014. This work was
+supported in part by the Natural Science Foundation of China under Grant
+61174045 and Grant 61025016, in part by the International Science and Technology Cooperation Program of China under Grant 2011DFA10950, and in part
+by the Fundamental Research Funds for the Central Universities under Grant
+2011ZZ0104, in part by the Program for New Century Excellent Talents in University under Grant NCET-12-0195, and in part by the Marie Curie International
+Incoming Fellowship Grant FP7-PEOPLE-2010-IIF-275078.
+Z. Li is with The Key Lab of Autonomous System and Network Control,
+College of Automation Science and Engineering, South China University of
+Technology, Guangzhou 510006, China (e-mail: zjli@ieee.org).
+B. Wang and W. Zhang are with Department of Automation, Shanghai Jiao
+Tong University, Shanghai 200030, China (e-mail: cheng_870701@163.com;
+wdzhang@sjtu.edu.cn).
+F. Sun is with the Department of Computer Science and Technology, Tsinghua University, Beijing 100084, China (e-mail: fcsun@tsinghua.edu.cn).
+C. Yang is with the School of Computing and Mathematics University of
+Plymouth, Plymouth PL4 8AA, U.K. (e-mail: cyang@ieee.org).
+Q. Xie is with the Department of Rehabilitation Medicine, Ruijin Hospital,
+Shanghai Jiao Tong University, Shanghai 200030, China (e-mail: ruijin_xq@
+yahoo.com.cn).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2286455
+
+typical signals include electroencephalographic (EEG) and surface electromyogram (sEMG). The sEMG is a biological signal
+which is commonly applied in rehabilitation. It can be introduced as the driving or feedback signal into the exercise of elders
+or those recovering from stroke to improve exercise performance
+and muscle collaboration [7]. In controlling exoskeleton robots,
+which are attached to a user’s body, it is important to automatically assist the user’s motion according to the user’s motion
+intention [8]. The amount of activity level of sEMG reflects the
+amount of the generating force of the muscles adjacent to the
+measuring point. In [9], the rehabilitation devices or assistive
+robots could incorporate the information extracted from sEMG
+and recognize the signal patterns. In [10]–[12], targeted muscle reinnervation was proposed for amputees. It involves transferring the residual amputated nerves to nonfunctional muscles
+acting as biological amplifiers of motor commands in amputees.
+The research community has focused on the use of signalprocessing techniques to achieve accurate decoding of the
+sEMG. Using offline approaches, the accuracy of sEMG pattern recognition can be more than 90% through employing various classifiers, such as linear discriminant analysis (LDA) [13],
+time-delayed artificial neural networks [14], and support vector machines (SVMs) [15]. The aforementioned works show a
+promising future in estimating the motion intention using complicated but powerful classifiers; however, the ease of utilizing
+such strategy has been left open, because in most cases, the
+output of the classifier is categorical and discrete. For example, in [16], Shenoy et al. implemented the SVM to recognize
+eight motion patterns of human forearm to control a manipulator online. The sEMG signal is only used to indicate the motion
+direction of corresponding joints, while the velocity and torque
+of the joints are predefined. In order to realize smooth and continuous control, a lot of works have been conducted to estimate
+joints’ force from the sEMG signal, [6], [17]–[20]. In the previous works, since force sensors are indispensable, the control
+approaches with only sEMG signals are not fully investigated.
+In this paper, we propose control strategies based on upperlimb sEMG signals to provide power-assist for the user. The
+strategies aim to make sEMG easier to apply in controlling
+exoskeleton devices without both force sensors and manifold
+parameters of the robot–user system. The first method is called
+independent force control. The forces of agonist and antagonist
+muscles pair are estimated, and their difference is used for the
+torque of the corresponding joints. In the second method, LDAbased classifiers are introduced as the indicator of the motion
+type of the joints. The classifiers utilize the estimated force of
+the corresponding active muscle to produce the control signals.
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1044
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 3, MAY 2014
+
+Different from conventional approaches, one classifier is assigned to each joint, which decreases the training time and
+largely simplifies the recognition process. Finally, the experiments are conducted to verify the efficacy of the proposed
+approaches.
+II. METHODS
+In this paper, power-assist control strategies are developed
+for an exoskeleton arm. Since the interaction between human
+and robot is in real time, a human is involved in the control loop
+naturally. In order to reflect the muscle force, we transfer the
+percentage of maximum torque range of human joints to those
+of the robot’s corresponding joints. The estimated force in this
+paper is a percentage value, presenting the relevant magnitude
+of the real force. It has no physical meaning. This value would
+be mapped into the current range of the robot joints for amplification. In the first method, the forces of agonist and antagonist
+muscles pair dominating the relevant joints are estimated, and
+the force difference between the pair would be used for controlling the corresponding joints of the robot, while in the second
+method, LDA-based classifiers are introduced as the indicator
+of the joint motion type and combined with the estimated force
+of corresponding active muscle to produce the control signal.
+The second method is different from the conventional approach,
+which assigns one classifier for each joint and decomposes the
+motion of the joints to be independent. By this way, the forearm motion can be treated as a combination of different joint
+motions, which can decrease the training time and simplify the
+recognition of motion.
+A. Independent Force Control
+The common method on estimating muscle forces from the
+sEMG signals is to approximate the active state for a Hilltype muscle model [21], [22]. In this approach, the following
+models are necessary in modeling a joint: 1) anatomical model,
+2) EMG-to-activation model, 3) Hill-type muscle model, and 4)
+model calibration. It is noted that, in addition to the complexity
+of establishing the anatomical model, a motion capture system
+needs to determine the parameters (e.g., tendon length) of the
+joint kinematics.
+However, in this paper, we aim to develop sEMG-based control, which is easily implemented on the exoskeleton and suitable
+for different users without long training and calibration time.
+One of the potential applications is rehabilitation. We only design task movements specialized for certain joint of the patients,
+i.e., the elbow and wrist joint.
+The approach diagram is described in Fig. 1. The sEMG signals are collected from the agonist/antagonist muscles pair and
+fed into the motion recognizer. The force from sEMG signals
+can be estimated, while the noise in sEMG signals can be filtered by the Kalman filter. The difference of the filtered forces
+between the agonist and antagonist muscles is treated as the
+reference input in the PI controller. In the control process, the
+user adjusts his joint motion and force by his visual feedback.
+In order to obtain the estimated force from the sEMG signals,
+a high-pass filter is used to remove approximately 99% of the
+
+Fig. 1.
+
+Control flow of independent force control.
+
+Fig. 2.
+
+Control flow of classifier-based control.
+
+sEMG signal power, which is mainly due to the fatigue and tissue
+filtering properties and the differential amplification process
+[23]. The nonlinearity between the sEMG signal and force is
+also considered. Moreover, the Kalman filter is utilized to reduce
+the estimation noise. The detail of implementation is discussed
+in the following section. The reference force (ri (t), see Fig. 2)
+produced by the estimation of force can be described as
+ri (t) = mi + (sgn(ΔFi ) · Li − mi ) · |ΔFi |/100 · p
+|ri (t)| < Li i = {0 (elbow), 1 (wrist)}
+
+(1)
+
+where mi is the holding force when the input force is zero; ΔFi
+is the force difference between the agonist/antagonist muscles
+pair, p is the proportional coefficient, and Li is the limit of the
+input force. In proportional control, the user can obtain much
+larger force compared with his/her own. The maximum sEMG
+magnitude is the only parameter that needs to be determined before control online, so the training time can be reduced, avoiding
+fatigue and increasing the ease of use.
+B. Classifier-based Control
+Assume that the motion coupling between the elbow and wrist
+is weak. The potential motion state of each joint is yi ∈ Y 4 , Y =
+{0 (Rest), 1 (Flexion), 2 (Extension), −1 (Nondetermined)}. If
+all the motion combinations of both elbow and wrist joints (i.e.,
+rest, flexion, and extension) are required to be classified by
+only one classifier, there would be nine classes, which is the
+square of the single joint’s motion classes. The combination
+number would increase exponentially according to the number
+of joints. For cooperative motion of many joints, it would be
+time consuming to train so many classes, and the performance
+of the classifier may be degenerated without enough calculation
+time in each class. Therefore, we assign a classifier to each
+
+LI et al.: sEMG-BASED JOINT FORCE CONTROL FOR AN UPPER-LIMB POWER-ASSIST EXOSKELETON ROBOT
+
+1045
+
+TABLE I
+THE REFERENCE FORCE’S SOURCE
+
+joint. As a result, the number of classes would be three for each
+classifier. For example, the input feature vector of the classifier
+corresponding to the elbow motion type is vi , and it is extracted
+only from the sEMG signals of muscles controlling the elbow,
+while the output is yi . The total class number can be reduced to
+the sum of the number of each joint’s motion classes.
+As for the classifier selection, it is well known that LDA in
+classifying sEMG is with better performance than some other
+classifiers (e.g., SVM) [24], [25], and there exist few parameters
+necessary to be selected. Therefore, we combine it into our control scheme because of its simplicity. The classifier developed in
+this study is based on uncorrelated linear discriminant analysis
+(ULDA) [26]. As a dimensionality reduction method, ULDA
+can reduce class-pair specific decision boundaries to a simple
+one-dimensional (1-D) threshold. In [25], through 1-versus-1
+technology and majority votes, it can be used in the multiclass
+classification problem. The class associated with a feature vector
+v for a given binary classifier can be described as follows:
+
+CA B
+
+⎧
+⎨ CA ,
+= CB ,
+⎩
+CV M ,
+
+(DA V < DB V ) ∩ (DA V < τA )
+(DB V < DA V ) ∩ (DB V < τB )
+else
+
+(2)
+
+where CA B is the class output of the binary classifier; CA , CB ,
+and CV M denote membership to class A, B, or neither; DA V
+and DB V are the normalized distance between the sample v and
+class A and B, and τA and τB are adjustable thresholds. These
+thresholds can be adjusted based on the confidence of the result.
+The smaller the threshold, the more confident the result.
+As we mentioned, the output of the classifier is categorical and
+discrete. In order to achieve a smooth and continuous control,
+estimated force has to be mixed into it. Therefore, we introduce
+a decision maker shown in Fig. 2. It selects the reference force
+source based on the rules illustrated in Table I. The estimated
+force from the selected force’s source would be used to replace
+ΔFi in (1). We assume that the user holds his/her posture in
+a period time TM . In other words, the user cannot change his
+posture very quickly. This scheme is used for filtering out the
+impulse noise, and ensured by the following condition:
+c(t − 1) = · · · = c(t − TM /TS )
+c(t) = c(t − 1)
+
+(3)
+
+where c(t) is the class label of time t (see Fig. 2), c(t − 1) is
+the last label, and TS is the sampling time. In the sample time
+TM , the control input cannot be changed until next sample time
+even if the recognition results vary.
+
+Fig. 3.
+
+Flow of force estimation.
+
+III. DATA COLLECTION AND ANALYSIS
+A. Data Collection
+In the data collection, we select a pair of agonist and antagonist muscles for the elbow and wrist joint, respectively. A
+group of four-channel sEMG signals was collected from four
+locations on the upper limb (i.e., biceps-short head, triceps-long
+head, flexor carpi radialis, and extensor carpi radialis), using
+bipolar electrodes. For the elbow joint, we define the biceps as
+the agonist muscle and the triceps as the antagonist muscle. For
+the wrist, flexor carpi radialis is defined as the agonist muscle
+and extensor carpi radialis as the antagonist muscle. The raw signals were digitally sampled at 1024 Hz, bandpass filtered from
+10 to 500 Hz using a digital, four-order Butterworth filter, and
+a notch filter was used to remove the unwanted line-frequency
+(50 Hz) [27]. In the training stage, the user performed six joint
+postures (i.e., classes). The motions are isometric and consist
+of elbow rest, elbow flexion, elbow extension, wrist rest, wrist
+flexion, and wrist extension. Each contraction was held for 8 s,
+with 3–5 s rest between adjacent contractions. The suite of six
+states was repeated five times totally. A twofold cross-validation
+was employed to evaluate the performance of the classifier. The
+information of maximum force has been included in the data
+collected in the above training process, so the training of two
+methods can proceed simultaneously.
+B. Data Analysis
+After the data acquisition, the force signal can be estimated
+from the filtered sEMG signals. The whole procedure of the
+estimation is illustrated in Fig. 3. First, the sEMG signal is
+high-pass (cut-off frequency Fcut ) filtered to remove most of
+the power energy in the low-frequency range. Then, the signals
+would be rectified, and in this paper, we simply obtain its absolute value. Then, the low-pass filter is utilized to obtain the
+signal envelope. It is now known that the relationship between
+the force produced by the muscle and the amplitude of the EMG
+signal is relatively nonlinear. It can be described by [28]:
+EMGN = 100
+
+e(−EM G L ξ ) − 1
+e(−100ξ ) − 1
+
+(4)
+
+1046
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 3, MAY 2014
+
+where EMGL denotes EMG linearly normalized to 100% of
+maximum, EMGN denotes EMG nonlinearly normalized to
+100% of maximum, and ξ is a constant of the defined exponential curvature. Then, the Kalman filter is implemented to
+remove the noise and make the force estimation smooth. In
+order to utilize the Kalman filter, we use the following model:
+f (t) = f (t − 1) + Q
+EMGN (t) = f (t) + R
+
+(5)
+
+TABLE II
+MATHEMATICAL DEFINITION OF FEATURES, GIVEN si AS THE ith SIGNAL,
+AND N THE NUMBER OF SAMPLES IN A SEGMENT
+
+TABLE III
+PARAMETERS CONFIGURATION
+
+wheref (t) is the desired estimated force, Q is the process noise
+covariance, R is the measurement noise covariance, the parameters Q and R are used for smoothing the estimated force, which
+are selected according to [20]. Then, we have
+fˆ− (t) = fˆ(t − 1)
+P − (t) = P (t − 1) + Q
+−
+
+−
+
+(6)
+−1
+
+K(t) = P (t)(P (t) + R)
+
+fˆ(t) = fˆ− (t) + K(t)(EMGN (t) − fˆ− (t))
+P (t) = (1 − K(t))P −1 (t)
+
+(7)
+
+where fˆ− (t) is the estimated prior value, fˆ(t) is the estimated
+a posteriori force value, P − (t) is the a priori estimate error
+covariance, P (t − 1) is the a posteriori estimate error covariance, K(t) is the Kalman filter gain. Equations (6) and (7) are
+called as the predication step and the update step, respectively.
+According to linearity assumption, the estimated state is simply equal to the previous one, and the observation is utilized to
+update the estimation.
+For the classification of the second method, the classifier acts
+upon a sliding window, producing a class decision. Therefore,
+the original data need to be segmented. A segment is a sequence
+of data limited in a time slot, which is used to estimate signal
+features. Real-time constraints enforce a delay time of less than
+300 ms between the onset of muscle contraction made by a user
+and corresponding motion in device [29]. In order to achieve
+the real-time control, a 100 samples window is selected, which
+produces a nearly 10-Hz control command flow. After the segmentation, the following step is the feature extraction, which
+reveals the underlying information between different patterns.
+Careful effort must be paid on the feature selection, because
+it has a strong effect on the performance of the classifier. In
+the previous study, Tkach et al. [30] conducted a study of many
+time-domain features. They concluded that mean absolute value
+(MAV), waveform length (WL), and autoregression coefficient
+are the most insensitive features to three disturbances, including
+sEMG electrode location shift, variation in muscle contraction
+effort, and muscle fatigue. Meanwhile, Farina and Merletti [31]
+have also pointed out that a segment length shorter than 125 ms
+is to be avoided for the extraction of AR feature, because they
+would lead to high variance and bias. Finally, we selected MAV
+and WL, which produce 4-D feature vectors for the two classifiers, respectively. The mathematical definition of these features
+is described in Table II. The parameters mentioned previously
+are shown in Table III.
+
+Fig. 4. Estimation of force. The green curve below indicates the error calculated as the absolute value of the difference between the force and sEMG curves.
+The RMS of error is 6.9%.
+
+IV. EXPERIMENTAL VALIDATION AND RESULTS
+This study was approved by the Institutional Review Board at
+Ruijin Hospital. Five subjects, aged 21–30, have been involved
+in the study and provided informed consent. One of the demonstration videos is provided in the link (http://v.youku.com/
+v_show/id_XMzc0MDQwOTA0.html). The evaluation experiment of force estimation was conducted first on biceps brachii.
+The sEMG signal and the actual force were acquired in the
+meantime. The resulting actual force and sEMG-based estimated force are then shown in Fig. 4. In the comparison, both
+signals have been normalized with their respective maximum
+value. The correlation coefficient between the two signals is
+0.8608 (p < 0.0001).
+Then, the principal components analysis technique was applied to reduce the 4-D original feature vector to a 2-D one,
+which is easy to plot in a plane [32]. The processed feature vectors of sEMG signals collected in elbow and wrist are shown in
+Fig. 5, which shows the distribution of 50 feature vectors. From
+the figure, we can see that the feature set we selected is proper
+enough for the discrimination between patterns. By twofold
+cross-validation, the recognition rates about the two joints’ motion are 90% and 95%, respectively. In addition, the time-domain
+
+LI et al.: sEMG-BASED JOINT FORCE CONTROL FOR AN UPPER-LIMB POWER-ASSIST EXOSKELETON ROBOT
+
+1047
+
+TABLE IV
+PARAMETERS OF THE TUNED PI CONTROLLER
+
+TABLE V
+PREDEFINED TRAJECTORIES FOR THE EVALUATION EXPERIMENT
+
+(a)
+
+(b)
+
+Fig. 5. Feature distribution after dimension reduction. The red, green, and
+blue colors denote that y i = 0, 1, 2, respectively. (a) Features depicting elbow
+motion. (b) Features depicting wrist motion.
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+(e)
+
+(f)
+
+(g)
+
+(h)
+
+Fig. 6. Configuration of the online control experiment. (a) Hardware configuration. (b) Software interface.
+
+Fig. 7.
+
+PI force controller.
+
+feature has little request for a long data segmentation, and it can
+be well suitable for the real-time control problem.
+The experimental environment is shown in Fig. 6, which consists of an exoskeleton and one of the subjects. The robot has
+corresponding joints to each joint of the user’s arm. The upper
+and lower arms of the robot are both adjustable according to the
+length of the user’s arm. The right part of Fig. 6 is the software
+interface designed by us, and we can switch between the two
+methods in the experiment during control. The sEMG signals
+can be monitored, and once abnormal signals are observed, the
+operator can stop the system.
+The structure of the PI controller is shown in Fig. 7, and
+the PI parameters need to be selected properly beforehand. The
+feedback force signals are actually motor current, as the robot
+is not equipped with the force sensors and that the fact that the
+value force is proportional to the motor current. The selected
+parameters of the force controller are listed in Table IV.
+In order to have a comprehensive evaluation of our strategy,
+four kinds of motion types of the elbow and wrist were predefined, described in Table V. The results of the two methods
+are shown in Figs. 8 and 9, respectively. From the difference
+
+Fig. 8. Records using the independent force control method. The red line
+denotes the percentage force estimated from the agonist muscle, the green
+line denotes the force estimated from the antagonist muscle, and the blue line
+denotes the degree of robot’s joint. The right axes express the position of the
+relevant joints in degrees. (a) Elbow with trajectory 1. (b) Wrist with trajectory
+1. (c) Elbow with trajectory 2. (d) Wrist with trajectory 2. (e) Elbow with
+trajectory 3. (f) Wrist with trajectory 3. (g) Elbow with trajectory 4. (h) Wrist
+with trajectory 4.
+
+of the forces from the agonist/antagonist muscles pair, we can
+distinguish which kind of motion the user is performing. When
+the force of the agonist muscle is much larger than that from
+the antagonist muscle, the motion is flexion, and its extension
+
+1048
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 3, MAY 2014
+
+(a)
+
+(b)
+
+Fig. 10.
+
+(c)
+
+(d)
+
+(e)
+
+(f)
+
+(g)
+
+(h)
+
+Fig. 9. Records using the classifier-based method. The red line denotes the
+percentage force estimated from the agonist muscle, the green line denotes the
+force estimated from the antagonist muscle, the blue line denotes the degree
+of robot’s joint. The black circle denotes the results of the recognition. The
+right axes express the position of the relevant joints in degrees. (a) Elbow
+with trajectory 1. (b) Wrist with trajectory 1. (c) Elbow with trajectory 2.
+(d) Wrist with trajectory 2. (e) Elbow with trajectory 3. (f) Wrist with trajectory 3.
+(g) Elbow with trajectory 4. (h) Wrist with trajectory 4.
+
+when the force of the agonist muscle is smaller than that from
+the antagonist muscle. If the forces estimated from the muscles
+pair are almost the same and have much small value, the user is
+resting the relevant joint.
+In the first two rows of both Figs. 8 and 9, the intention of
+the first two trajectories is tracked well. Although the force of
+the agonist muscle is larger than that of the antagonist muscle
+in some situations of Fig. 8, the position of the controlled robot
+joint remains constant. It is due to the inertia, friction, and
+gravity of the robot’s joint that make it insensitive to the small
+force difference fluctuation. This insensitivity in fact increased
+the robustness of the method. In Fig. 9(c), the motion states of
+the elbow are almost recognized as flexion, which should be rest.
+It indicates that the classifier has a poor online performance. It
+is due to the transient signals of online experiments, compared
+with the isometric contraction signals collected for training. That
+situation also occurs in Fig. 9(b) and (e). However, the output
+remains consistent with the real intention of the user, especially
+
+Results of nonpower-assist control.
+TABLE VI
+EXERTED FORCE IN THE PROPOSED METHODS
+
+in the flexion and extension movement of both the elbow and
+wrist. In the contraction of the two joints, the second method
+performs a little better than the first one as especially indicated
+in the comparison with Figs. 8(f) and 9(f), thanks to the smooth
+and timely indicator of the movement intention.
+In order to make a comparison, we let the robot follow the
+subject’s elbow motion without force assistance. The estimated
+forces from sEMG of the biceps brachii were obtained. The
+relationship of the estimated force and position is shown in
+Fig. 10. It can be distinguished that the force that the user
+exerts is pretty large and the biceps muscle keeps contracting
+during the experiment. The comparison of the RMS value of
+the estimated force is shown in Table VI. Compared with the
+nonpower-assist situation, the force that the user has to exert
+nearly falls by half. In the first method, the exserted force in
+triceps-short head increased in comparison to the nonpowerassist method, because the elbow extension motion is recognized
+on the condition that the force of triceps-short head exceeds the
+one of biceps-short head. However, the second method does
+not need that requirement, thanks to the classifier and the more
+time-consuming training period. As a result, it decreases both
+the forces of the two muscles. The methods we proposed indeed
+assist the movement of the user, reducing the force that the user
+has to exert.
+In general, Fig. 8 reveals that the independent force control
+depends only on the force difference of the agonist/antagonist
+muscles pair. It is sensitive to the force difference, especially
+in the wrist joint because of the smaller gravitational torque
+compared with the elbow joint. Fig. 9 shows that the classifierbased method can produce smoother control, though it consumes
+more training time. The two methods are complementary to
+provide good performance.
+V. CONCLUSION
+This paper has developed two control strategies based on
+the upper-limb sEMG signals to provide power-assist to users.
+The developed sEMG-based control is easier to be applied to the
+
+LI et al.: sEMG-BASED JOINT FORCE CONTROL FOR AN UPPER-LIMB POWER-ASSIST EXOSKELETON ROBOT
+
+exoskeleton robot. Both methods depend on the force estimation
+from the corresponding agonist/antagonist muscles pair. A major innovative contribution is that the developed control strategies no longer require the expensive and supernumerary sensors
+including the force and position sensors, as well as precise modeling of the exoskeleton system. The first method is based only
+on the force estimation, and the force difference between the agonist and antagonist muscles is used to produce the joint torque.
+The second method combines force estimation with a motion
+classifier, and the training process endows the recognition stage
+with more flexibility and robustness.
+
+REFERENCES
+[1] H. Kawamoto and Y. Sankai, “Comfortable power assist control method
+for walking aid by HAL-3,” in Proc. IEEE Int. Conf. Syst., Man Cybern.,
+Oct. 2002, pp. 6–9.
+[2] A. Zoss, H. Kazerooni, and A. Chu, “On the mechanical design of the
+Berkeley lower extremity Eexoskeleton (BLEEX),” in Proc. IEEE/RSJ
+Int. Conf. Intell. Robot. Syst., Aug. 2–6, 2005, pp. 3465–3472.
+[3] W. Ye, Z. Li, and C.-Y. Su, “Development and human-like control of
+an upper limb rehabilitation exoskeleton using sEMG Bio-feedback,” in
+Proc. IEEE Int. Conf. Mechatron. Autom., 2012, pp. 2077–2082.
+[4] Y. Wu, Y. Yu, D. Xu, Z. Wu, and F. Che, “Kinematics analysis and simulation of a robot with wearable and power-assisted lower extremities,”
+Mech. Sci. Technol., vol. 26, no. 2, pp. 235–240, 2007.
+[5] E. Rocon, M. Manto, J. Pons, S. Camut, and J. Belda, “Mechanical suppression of essential tremor,” Cerebellum, vol. 6, no. 1, pp. 73–78, 2007.
+[6] E. Rocon and J. L. Pons, Robotic Rehabilitation Exoskeleton: Tremor
+Suppression. London, U.K.: Springer-Verlag, 2011.
+[7] G. Y. F. Ng, A. Q. Zhang, and C. K. Li, “Biofeedback exercise improved
+the EMG activity ratio of the medial and lateral vasti muscles in subjects
+with patellofemoral pain syndrome,” J. Electromyogr. Kinesiol., vol. 18,
+no. 1, pp. 128–133, Feb. 2008.
+[8] G. Li, A. E. Schultz, and T. A. Kuiken, “Quantifying pattern recognitionłbased myoelectric control of multifunctional transradial prostheses,”
+IEEE Trans. Neural Syst. Rehabil. Eng., vol. 18, no. 2, pp. 185–192, Apr.
+2010.
+[9] M. A. Oskoei and H. Hu, “Myoelectric control systems—A survey,”
+Biomed. Signal Process. Contr., vol. 2, no. 4, pp. 275–294, Oct. 2007.
+[10] P. Zhou, M. M. Lowery, K. B. Englehart, H. Huang, G. Li, L. Hargrove,
+J. P. A. Dewald, and T. A. Kuiken, “Decoding a new neural-machine interface for control of artificial limbs,” J. Neurophysiol., vol. 98, pp. 2974–
+2982, 2007.
+[11] H. Huang, P, Zhou, G. Li, and T. A. Kuiken, “An analysis of EMG electrode configuration for targeted muscle reinnervation based neural machine interface,” IEEE Trans. Neural Syst. Rehabil. Eng., vol. 16, no. 1,
+pp. 37–45, Feb. 2008.
+[12] T. A. Kuiken, G. Li, B. A. Lock, R. D. Lipschutz, L. A. Miller,
+K. A. Stubblefield, and K. B. Englehart, “Targeted muscle reinnervation
+for real-time myoelectric control of multifunction artificial arms,” J. Amer.
+Med. Assoc., vol. 301, no. 6, pp. 619–628, 2009.
+[13] K. Englehart and B. Hudgins, “A robust, real-time control scheme for
+multifunction myoelectric control,” IEEE Trans. Biomed. Eng., vol. 50,
+no. 7, pp. 848–854, Jul. 2003.
+[14] A. T. C. Au and R. F. Kirsch, “EMG-based prediction of shoulder and
+elbow kinematics in able-bodied and spinal cord injured individuals,”
+IEEE Trans. Rehabil. Eng., vol. 8, no. 4, pp. 471–480, Dec. 2000.
+[15] M. A. Oskoei and H. Hu, “Support vector machine-based classification
+scheme for myoelectric control applied to upper limb,” IEEE Trans.
+Biomed. Eng., vol. 55, no. 8, pp. 1956–1965, Aug. 2008.
+[16] P. Shenoy, K. J. Miller, B. Crawford, and R. P. N. Rao, “Online electromyographic control of a robotic prosthesis,” IEEE Trans. Biomed. Eng.,
+vol. 55, no. 3, pp. 1128–1135, Mar. 2008.
+[17] K. Kiguchi and Y. Hayashi, “An EMG-based control for an upper-limb
+power-assist exoskeleton robot,” IEEE Trans. Syst., Man, Cybern. B: Cybern., vol. 42, no. 4, pp. 1064–1071, Aug. 2012.
+[18] P. K. Artemiadis and K. J. Kyriakopoulos, “An EMG-based robot control
+scheme robust to time-varying EMG signal features,” IEEE Trans. Inf.
+Technol. Biomed., vol. 14, no. 3, pp. 582–588, 2010.
+
+1049
+
+[19] P. K. Artemiadis and K. J. Kyriakopoulos, “Estimating arm motion and
+force using EMG signals: On the control of exoskeletons,” in Proc.
+IEEE/RSJ Int. Conf. Intell. Robot. Syst., Nice, France, Sep. 2008, pp. 279–
+284.
+[20] J. Kuan, T. Huang, and H. Huang, “Human intention estimation method
+for a new compliant rehabilitation and assistive robot,” presented at the
+SICE Annual Conf., Taipei, Taiwan, Aug. 18–21, 2010
+[21] A. L. Hof and J. Van Den Berg, “EMG to force processing I: An electrical
+analog of the Hill muscle model,” J. Biomech., vol. 14, no. 11, pp. 747–
+758, 1981.
+[22] D. G. Lloyd and T. F. Besier, “An EMG-driven musculoskeletal model
+to estimate muscle forces and knee joint moments in vivo,” J. Biomech.,
+vol. 36, no. 6, pp. 765–776, 2003.
+[23] J. R. Potvin and S. H. M Brown, “Less is more: High pass filtering, to
+remove up to 99% of the surface EMG signal power, improves EMGbased biceps brachii muscle force estimates,” J. Electromyogr. Kinesiol.,
+vol. 14, no. 3, pp. 389–399, 2004.
+[24] T. Lorrain, N. Jiang, and D. Farina, “Influence of the training set on the
+accuracy of surface EMG classification in dynamic contractions for the
+control of multifunction prostheses,” J. Neuroeng. Rehabil., vol. 8, no. 25,
+pp. 1–8, 2011.
+[25] E. J. Scheme, K. B. Englehart, and B. S. Hudgins, “Selective classification for improved robustness of myoelectric control under nonideal conditions,” IEEE Trans. Biomed. Eng., vol. 58, no. 6, pp. 1698–1705, Jun.
+2011.
+[26] J. Ye, T. Li, T. Xiong, and R. Janardan, “Using uncorrelated discriminant
+analysis for tissue classification with gene expression data,” IEEE Trans.
+Comput. Biol. Bioinformat., vol. 1, no. 4, pp. 181–190, Oct.–Dec. 2004.
+[27] G. Li, Y. Li, L. Yu, and Y. Geng, “Conditioning and sampling issues
+of EMG signals in motion recognition of multifunctional myoelectric
+prostheses,” Ann. Biomed. Eng., vol. 39, no. 6, pp. 1779–1787, Jun. 2011.
+[28] J. R. Potvin, R. W. Norman, and S. M. McGill, “Mechanically corrected
+EMG for the continuous estimation of erector spine muscle loading during repetitive lifting,” Eur. J. Appl. Physiol. Occupat. Physiol., vol. 74,
+pp. 119–132, 1996.
+[29] B. Hudgins, P. Parker, and R. Scott, “A new strategy for multifunction
+myoelectric control,” IEEE Trans. Biomed. Eng., vol. 40, no. 1, pp. 82–
+94, Jan. 1993.
+[30] D. Tkach, H. Huang, and T. A. Kuiken, “Study of stability of time-domain
+features for electromyographic pattern recognition,” J. Neuroeng. Rehabil., vol. 7, no. 21, pp. 1–13, 2010.
+[31] D. Farina and R. Merletti, “Comparison of algorithms for estimation of
+EMG variables during voluntary isometric contractions,” J. Electromyogr.
+Kinesiol., vol. 10, pp. 337–349, 2000.
+[32] L. J. Hargrove, G. Li, K. B. Englehart, and B. S. Hudgins, “Principal
+components analysis preprocessing for improved classification accuracies
+in pattern-recognition-based myoelectric control,” IEEE Trans. Biomed.
+Eng., vol. 56, no. 5, pp. 1407–1414, May 2009.
+
+Zhijun Li (M’07–SM’09) received the Dr. Eng. degree in mechatronics from Shanghai Jiao Tong University, Shanghai, China, in 2002.
+From 2003 to 2005, he was a Postdoctoral Fellow at the Department of Mechanical Engineering and Intelligent systems, University of ElectroCommunications, Tokyo, Japan. From 2005 to 2006,
+he was a Research Fellow at the Department of Electrical and Computer Engineering, National University of Singapore, and Nanyang Technological University, Singapore. From 2007 to 2011, he was an
+Associate Professor at the Department of Automation, Shanghai Jiao Tong University. Currently, he is a Professor in the College of Automation Science and
+Engineering, South China University of Technology, Guangzhou, China. His
+current research interests include rehabilitation robotics, mobile manipulation,
+biomedical mechatronics, etc.
+Dr. Li is serving as an Editor-at-large of Journal of Intelligent & Robotic
+System.
+
+1050
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 3, MAY 2014
+
+Baocheng Wang received the B.S. degree in automation from the Qingdao University of Science and
+Technology, Shandong, China, in 2010. He received
+the Master’s degree in automation from Shanghai
+Jiaotong University, Shanghai, China, in 2013.
+His research interests include the application of
+machine learning techniques to the understanding of
+EEG signals and control of biorobot.
+
+Qing Xie received the Bachelor of Medicine degree
+in 1987 and the Master’s degree in medical rehabilitation in 1999 from Hebei Medical University, Hebei,
+China.
+From 1987 to 2002, she was a Doctor in the Department of Rehabilitation Medicine, Renming Hospital,
+Wuhan University, Hebei. Since 2002, she has been
+a Chief Doctor in the Department of Rehabilitation
+Medicine, Ruijin Hospital, Shanghai Jiao Tong University, Shanghai, China, and also the Director of the
+Rehabilitation Medicine and Physical Therapy Department, Ruijin Hospital, Shanghai Jiao Tong University. She has been devoted
+to the neurological rehabilitation and orthopedic rehabilitation for 25 years.
+Dr. Xie is the Editor of Chinese Journal of Physical Medicine and Rehabilitation and Chinese Journal of Rehabilitation.
+
+Fuchun Sun received the Ph.D. degree from the Department of Computer Science and Technology, Tsinghua University, Beijing, China, in 1998.
+He is currently a Professor at the Department of
+Computer Science and Technology, Tsinghua University. His research interests include intelligent control, neural networks, fuzzy systems, variable structure control, nonlinear systems, and robotics.
+
+Chenguang Yang (M’10) received the B. Eng. degree in measurement and control from Northwestern
+Polytechnical University, Xi¯an, China, in 2005, and
+the Ph.D. degree in control engineering from the National University of Singapore, Singapore, in 2010.
+From October 2009 to December 2010, he was a
+Research Associate with Imperial College London,
+London, U.K., working on human–robot interaction.
+Since December 2010, he has been a Lecturer of
+robotics with the School of Computing and Mathematics, Plymouth University, Plymouth, U.K., where
+he is currently on secondment as a Marie Curie International Incoming Fellow from August 2011, supported by the European Commission. His current
+research interests include robotics, control, and human–robot interaction.
+
+Weidong Zhang received the B.S., M.S., and Ph.D.
+degrees from Zhejiang University, Hangzhou, China,
+in 1990, 1993, and 1996, respectively.
+He worked in National Key Laboratory of Industrial Control Technology as a Postdoctoral Fellow
+before joining Shanghai Jiao Tong University, Shanghai, China, in 1998 as an Associate Professor. Since
+1999, he has been a Professor at the Department of
+Automation, Shanghai Jiao Tong University. He is
+serving as the Deputy Dean of the Department of
+Automation, Shanghai Jiao Tong University. His research interests include robust control, distributed control, and their applications
+in industry.
+Dr. Zhang has authored or coauthored more than 200 journals and conference
+papers.
+
+

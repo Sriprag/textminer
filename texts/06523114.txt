@@ -1,0 +1,1119 @@
+1046
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 6, NOVEMBER 2013
+
+Hardware-Efficient Low-Power Image Processing
+System for Wireless Capsule Endoscopy
+Pawel Turcza and Mariusz Duplaga
+
+Abstract—This paper presents the design of a hardwareefficient, low-power image processing system for next-generation
+wireless endoscopy. The presented system is composed of a custom
+CMOS image sensor, a dedicated image compressor, a forward error correction (FEC) encoder protecting radio transmitted data
+against random and burst errors, a radio data transmitter, and a
+controller supervising all operations of the system. The most significant part of the system is the image compressor. It is based
+on an integer version of a discrete cosine transform and a novel,
+low complexity yet efficient, entropy encoder making use of an
+adaptive Golomb–Rice algorithm instead of Huffman tables. The
+novel hardware-efficient architecture designed for the presented
+system enables on-the-fly compression of the acquired image. Instant compression, together with elimination of the necessity of
+retransmitting erroneously received data by their prior FEC encoding, significantly reduces the size of the required memory in
+comparison to previous systems. The presented system was prototyped in a single, low-power, 65-nm field programmable gate
+arrays (FPGA) chip. Its power consumption is low and comparable to other application-specific-integrated-circuits-based systems,
+despite FPGA-based implementation.
+Index Terms—Image compression, low-power design, wireless
+capsule endoscopy (WCE).
+
+I. INTRODUCTION
+IRELESS capsule endoscopy (WCE) enables noninvasive screening and diagnostic assessment of the entire
+gastrointestinal (GI) tract. The first capsule endoscope was introduced to the market in 2001 by Given Imaging Ltd. [1]. At
+present, there are several companies, including Olympus [2] and
+IntroMedic [3], which supply healthcare providers with such devices. The wireless capsule endoscope is the size and shape of a
+pill and contains a tiny camera with relatively low (256 × 256)
+resolution, an LED-based illumination system, two small batteries, and a radio transmitter. It travels through the GI tract due
+to peristaltic movement and transmits images of its lumen to a
+portable data recorder worn by the patient.
+
+W
+
+Manuscript received August 28, 2012; revised April 12, 2013; accepted May
+24, 2013. Date of publication June 4, 2013; date of current version November
+12, 2013. This work was supported in part by the European Community within
+the sixth Framework Programme through the VECTOR project under Contract
+0339970 and in part by the Ministry of Science and Higher Education of Poland
+under Grant AGH-11.11.120.774.
+P. Turcza is with the AGH University of Science and Technology, al. A.
+Mickiewicza 30, 30-059 Krakow, Poland (e-mail: turcza@agh.edu.pl).
+M. Duplaga is with the Institute of Public Health, Jagiellonian University
+Medical College, 31-531 Krakow, Poland (e-mail: mmduplag@cyf-kr.edu.pl).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2266101
+
+Current research activities in WCE are focused on methods
+for automatic detection of areas in the GI tract with abnormal
+conditions, such as bleeding or tumors [4], [5] and on the design
+of the next generation capsule. Its new features should include
+the option of remote real-time manipulation [6]– [8] for verification of suspicious lesions, the option of narrowband imaging (NBI) enabling enhanced visualization of the microvascular
+structure of the mucosa, and measurements of temperature, pressure, and pH supporting the detection of pathologies invisible
+on a video image.
+Accurate remote manipulation of a capsule endoscope requires transmission of images with high quality and sufficient
+frame rate. A single image with QVGA resolution (320 × 240
+pixels, 8 bits per pixel) amounts to 614 kb, while the VGA image
+(640 × 480, 8 bits per pixel) amounts to 2.45 Mb. However, due
+to severe attenuation of radio waves by the human body [9], [10],
+considerable limitations of available bandwidth in the Industrial, Scientific, and Medical or Medical Implant Communication Service frequency bands, and power consumption level, the
+capsules data transmitter can reach only 2∼3 Mb/s [11], [12].
+Therefore, transmission of images enabling real-time remote
+manipulation of the capsule endoscope requires their efficient
+compression. The compression factor should be in the 5 to 20
+range, depending on the required image resolution and frame
+rate. Such a compression ratio is possible only when lossy compression is applied. However, standard lossy image compression algorithms, including JPEG, JPEG 2000, or MPEG, are
+not helpful due to their high computational complexity and inability to work on RAW images from color filter array (CFA)
+sensors. Therefore, for this purpose, a dedicated algorithm is
+needed [13]–[22].
+This paper describes an improved image processing system
+for the next generation of wireless endoscopy. A dedicated,
+image coder is the most significant part of the presented system. It is based on an integer discrete cosine transform (DCT)
+and a novel, low complexity yet efficient, entropy encoder. The
+new entropy encoder (see Section III-D) makes use of an adaptive Golomb–Rice (AGR) algorithm instead of Huffman tables.
+Its hardware implementation cost (in terms of silicon area) is,
+therefore, lower, as it does not require costly RAM for table implementation. In addition, it offers a higher compression ratio
+than the previous table-based approach [22]. A new, efficient,
+low-power hardware architecture was developed for the proposed compressor. The system clock frequency was halved, as
+compared to [22], and it amounts to 12 MHz in the system
+operating at 24 fps with the QVGA imager [23]. The size of
+input pixel buffer (see Section III-A) was halved also. Besides
+the image compressor, the developed system includes a camera
+
+2168-2194 © 2013 IEEE
+
+TURCZA AND DUPLAGA: HARDWARE-EFFICIENT LOW-POWER IMAGE PROCESSING SYSTEM FOR WIRELESS CAPSULE ENDOSCOPY
+
+Fig. 1.
+
+1047
+
+Simplified block diagram of image and data processing in the wireless capsule endoscope.
+
+interface, a stream buffer for the compressed image bitstream,
+a bit-serial Reed–Solomon forward error correction (FEC) encoder protecting transmitted data against errors, and a controller
+supervising the internal operations of the entire system.
+The proposed system was implemented in the Verilog language and prototyped in one ultra-low-power 65-nm field programmable gate arrays (FPGA) manufactured by SiliconBlue
+Technologies, a startup company. The implemented system was
+successfully validated. Its energy consumption, when processing 24 QVGA images per second, is about 0.29 mJ per compressed image frame. This value is comparable to those reported for other modern application specific integrated circuits
+designs [15], [20].
+This paper is organized as follows. The overview of the proposed system is given in Section II. In Section III, the image
+compressor algorithm and its efficient low-power hardware architecture are discussed in detail. The performance of the image compressor and the results of its comparison to JPEG and
+JPEG 2000 are described in Section IV. The results of the implementation are included in Section V. Section VI contains the
+conclusions.
+
+II. SYSTEM OVERVIEW
+A simplified block diagram of the image and data processing
+system for the next generation wireless capsule endoscope is
+presented in Fig. 1. It consists of a custom CMOS image sensor
+[23] with a CFA, an LED-based illumination module, an FPGA
+chip implementing all image and data processing tasks, a radio
+data transmitter [11], and an external receiver.
+The CMOS image sensor delivers images to the FPGA chip
+using a fast, low-voltage differential double data rate (LVDSDDR) serial interface (vdata and vclk lines). The very fast readout guaranteed by the LVDS-DDR interface is essential in minimizing charge leakage in the CMOS sensor. Serially received
+image data are converted to parallel by the DDR-RX interface.
+Incoming images are instantaneously compressed by a dedicated
+image compressor, which is presented in Section III. Because
+of the very fast readout of image pixels, the compressor output
+bitstream rate is significantly higher than the data rate supported by a radio transmitter. Therefore, the resulting bitstream
+must be temporarily stored in the stream buffer. The process
+of image compression is supervised by the system controller,
+which observes the stream buffer occupancy level and adjusts
+the compression factor to maximize the image quality without
+overflowing the stream buffer.
+
+Fig. 2. RS frame series representing the bitstream resulting from compression
+of a single image frame.
+
+To prevent error propagation during image data decompression, the receiver side bit-error-rate (BER) has to be kept below
+10−8 . However, in practice, due to the channel noise and receiver sensitivity of about −90 dBm, a raw receiving BER is
+usually around 10−3 . Lowering BER by increasing transmitter
+power is not practical. Therefore, in the presented system, we
+implemented a channel coding scheme using redundant FEC
+codes. The implemented FEC is based on a Reed–Solomon algorithm [24] and allows for correction of up to 16 erroneously
+transmitted bytes in each 255 length RS frame (see Fig. 2). Its
+proper operation requires precise synchronization, which is established by the decoder before decoding the RS frame based
+on a unique marker (SOF— Start Of Frame), which is placed
+before the first RS frame of each image frame. A part of the last
+RS frame of each image frame is used to carry nonimage data,
+such as pH or temperature measurements.
+III. IMAGE COMPRESSION
+Due to various physical limitations imposed on the WCE
+design related to size, consumable power, and available transmission bandwidth, the application of lossy image compression
+seems to be the most practical way of ensuring the required
+high frame rate and image resolution in the wireless capsule
+endoscope. The rationale for such a statement is summarized as
+follows.
+1) The capsule endoscope captures color images using a
+CMOS image sensor with a CFA. However, the CFA data
+represent only one-third of the original image intensities.
+
+1048
+
+Fig. 3.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 6, NOVEMBER 2013
+
+Block diagram of a transform-based image coder.
+
+The missing information must be recovered by interpolation. It has been shown in [25] that the errors due to
+bilinear interpolation are comparable to, or even higher
+than, the errors introduced by the image compression operation itself ([25], Table I).
+2) Each image sensor produces a certain amount of noise.
+Therefore, a raw image usually undergoes some preprocessing before it is displayed. Lossy image compression
+algorithms reduce the amount of data to be transmitted
+by approximating the image with 2-D smooth basis functions. Under certain conditions, this leads to noise reduction [26].
+3) The availability of images of adequate quality is necessary
+for the assessment of pathological lesions occurring in the
+GI tract. Such images can be created from multiple low
+resolution, subpixel shifted images of the same scene with
+super resolution techniques [27].
+Most consumer CFA digital cameras perform color interpolation on an acquired CFA image to construct a full color image.
+This is then compressed with a standard image compressor,
+e.g., JPEG or JPEG2000. Such an approach, although appropriate for popular consumer applications, is not suitable for WCE.
+The main obstacle is the color interpolation step, which triples
+the amount of compressed data without increasing the image
+information content.
+The alternative approach reverses the sequence of interpolation and compression steps. Such an approach offers two
+important advantages: 1) color interpolation (demosaicking) is
+performed on the decompressor side, where there is enough processing power to use the most advanced algorithms; and 2) it
+does not lead to an increase in the amount of data.
+The image compressor proposed in this paper is based on the
+alternative approach. Its block diagram is presented in Fig. 3.
+It involves several processing steps. In the first step, the compressed image is divided into separate N × N pixel blocks (see
+Section III-A). This operation is followed by color space transformation described in Section III-B. In the next step, each pixel
+block undergoes the 2-D DCT transformation (see Section IIIC). The resulting coefficients are quantized and encoded using
+a dedicated low-complexity, low-memory yet efficient encoder
+presented in Section III-D.
+A. Conversion of Progressive Pixel Scan to Block-Wise Order
+The proposed image compressor operates on small nonoverlapping image blocks, and therefore, requires block-wise data
+access. However, the majority of available CMOS image sen-
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+Fig. 4. Exemplary SRAM buffer contents resulting in algorithm operation. (a)
+d1 =12. (b) d2 =4. (c) d3 =13. (d) d4 =16.
+
+sors, due to internal design constraints, offer only progressive,
+i.e., line by line, readout. This is not a problem as long as
+the acquired image undergoing compression can be stored temporarily in the low-cost off-chip memory. However, in the case
+of a capsule, due to power and space limitations, off-chip memory is hardly available. Therefore, the acquired image must be
+compressed instantaneously. In such a case, a special converter
+rapidly amending the linear arrangement to blocks is necessary.
+Its main implementation cost is related to the size of on-chip
+static memory (SRAM) storing the required number of consecutive image lines.
+The principle of the converter operation, first in the standard
+version and then in the optimized version, is discussed in this
+section, based on the example presented in Fig. 4, for SRAM
+storing N = 3 lines of C = 12 pixels. In the example, the processed pixels are represented by consecutive integers.
+The initially empty buffer (SRAM) is filled with the incoming pixels line by line [see Fig. 4(a)]. When the buffer is full,
+its column-wise readout, i.e., 0, 12, 24, 1, . . ., results in blockwise pixel ordering. Completion of the readout process ends
+the current conversion and makes it possible to start a new one.
+The necessity of the sequential write-in followed by a readout of the entire buffer forces the image sensor readout circuit and the compressor to operate in alternating mode. While
+
+TURCZA AND DUPLAGA: HARDWARE-EFFICIENT LOW-POWER IMAGE PROCESSING SYSTEM FOR WIRELESS CAPSULE ENDOSCOPY
+
+simple, such alternating workflow organization has two important drawbacks: 1) the system clock frequency must be doubled;
+and 2) most image sensors do not allow for the interruption of
+the readout process. A simple but costly solution to this problem
+is to employ two independent buffers [17] or a single one with
+double capacity [22].
+In this paper, a more efficient, so called in-place, solution
+is proposed. The conversion from linear to block order can be
+performed using a single buffer storing only N × C pixels, i.e.,
+in-place if just the compressor is able to process incoming pixels
+in real time. The operation principle is explained based on the
+example in Fig. 4. The 2-D array (buffer) is addressed with
+an address A = c + rC, where r and c are the actual row and
+column numbers, respectively.
+The algorithm starts when the buffer is full [see Fig. 4(a)]. The
+in-place operation principle requires that each single write-in
+operation is preceded by the single readout. The block-wise arrangement of pixels from the buffer in Fig. 4(a) can be achieved
+by their column-wise readout. It means that the current address
+(An ) for read/write operation should be set apart from the previous one d1 = C positions
+
+(An −1 + C) mod (N C−1), An −1 + C = N C−1
+An =
+N C−1,
+An −1 + C = N C−1
+(1)
+where N C is the size of the buffer, A0 = 0, and
+n = 1, 2, . . . , N C−1. Buffer contents resulting from read/write
+operation of consecutive pixels at addresses (1) are shown in
+Fig. 4(b). One can observe that the consecutive pixels, e.g., 36
+and 37, were placed during the write-in operation at addresses
+distant from each other d1 = C positions. Therefore, the blockwise arrangement of pixels in Fig. 4(b) requires a readout operation at consecutive addresses in increments of d2 = d1 C = CC.
+This observation leads to the general formula for address generation
+⎧
+(A
++ di ) mod (N C − 1), An −1 + di = N C − 1,
+⎪
+⎨ n −1
+An −1 = N C − 1
+An =
+N
+C−1,
+An −1 + di = N C − 1
+⎪
+⎩
+0,
+An −1 = N C − 1
+(2)
+where
+di = di−1 C
+
+(3)
+
+and i denotes the reordering step starting from 0. Exponential
+growth of di in (3) prohibits direct implementation of (2) and
+(3). The solution is to apply the modulo arithmetic property
+(a1 + a2 ) mod M = [a1 mod M + a2 mod M ] mod M
+
+(4)
+
+to (2), to enable the reduction of di modulo N C−1, i.e.,
+di = (di−1 C) mod (N C−1),
+
+i = 0, 1, . . . .
+
+(5)
+
+Although evaluation of (5) requires the division operation, its
+overall implementation cost is insignificant since it is evaluated
+only once per N C memory access cycles. In most applications,
+only R/N values of (5), where R is an image row number,
+are required. In such cases, the required values of di can be
+computed offline and tabulated.
+
+1049
+
+(a)
+
+(b)
+
+Fig. 5. Efficient hardware implementation of the linear to block-wise order
+converter. CR denotes the conditional reduction operation from (6).
+
+Fig. 6.
+
+Algorithm for in-place data reordering.
+
+From (5), it follows that di < N C−1, and therefore,
+An + di ≤ 2(N C−1). This means that the modulo operation
+in (2) can be replaced with a conditional reduction by N C−1
+(marked as CR(NC−1) in Fig. 5), which in turn leads to the
+following equation:
+⎧
+⎨An −1 + di ,
+An = An −1 + di −(N C−1),
+⎩
+0,
+
+An −1 + di ≤ N C−1 = An −1
+An −1 + di > N C−1
+An −1 = N C−1
+(6)
+and the corresponding division-less hardware efficient implementation [see Fig. 5(a)]. The throughput of the presented converter is one pixel per clock cycle, if just the buffer is implemented as a dual-port SRAM. When the dual-port SRAM does
+not support simultaneous memory read/write operations occurring in the same clock cycle at the same address, the modified
+circuits shown in Fig. 5(b) should be used instead. The algorithmic description of the proposed in-place pixel reordering
+method is given in Fig. 6. The proof that the formula (6) generates N C unique addresses starting at 0 and ending with N C−1
+is given in Appendix A.
+
+1050
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 6, NOVEMBER 2013
+
+(a)
+
+Fig. 8.
+
+(b)
+
+Fig. 7.
+
+Image after (a) color transformation and (b) structure conversion.
+
+B. Color and Structure Transformation
+Although each pixel in the CFA image sensor represents just
+a single color value: red (R), green (G), or blue (B) independent
+compression of each of the R, G, and B color planes is not efficient. Therefore, the first step in the image compression should
+be a color space transformation (CT) to map the CFA color
+space into a space in which better compression can be achieved.
+Because the CFA image results from downsampling of an RGB
+image, the appropriate CT could be derived from the CT proposed for the RGB color space. However, when low-complexity
+implementation is required, CT from H.264 Fidelity Range Extensions (FRExt) (7) or reversible color transform (RCT) of
+JPEG 2000 (8) is a better choice.
+⎤⎡ ⎤
+⎤ ⎡
+⎡
+1/2 1/4
+1/4
+Y
+G
+⎥
+⎣ Cg ⎦ = ⎢
+(7)
+⎣ 1/2 −1/4 −1/4 ⎦ ⎣ B ⎦
+Co
+R
+0
+−1/2 1/2
+⎤⎡ ⎤
+⎤ ⎡
+⎡
+1/2 1/4 1/4
+Y
+G
+⎥
+⎣ Cu ⎦ = ⎢
+0 ⎦⎣B ⎦.
+(8)
+⎣ −1/2 1/2
+Cv
+R
+−1/2
+0
+1/2
+In the aforementioned equations, Y is the luma component,
+while Cg , Co , and Cu , Cv are chroma components. Because the
+CFA image is composed of 2 × 2 repeating patterns with two
+G, one R, and one B pixel, Lee [28] proposes the transformation
+of these four elements together as
+⎤⎡ ⎤ ⎡
+⎡ ⎤ ⎡
+⎤
+0
+a12 a13 G1
+Y1
+0
+a11
+a11
+a12 a13⎥⎢ G2⎥ ⎢ 0 ⎥
+⎢ Y2⎥ ⎢ 0
+⎦⎣ ⎦ + ⎣
+⎣ ⎦=⎣
+⎦ (9)
+Cb
+a21 /2 a21 /2 a22 a23 B
+128
+Cr
+a31 /2 a31 /2 a32 a33 R
+128
+where Y1 (G1 ) and Y2 (G2 ) indicate luminance (green) data in
+each of 2 × 2 CFA blocks (see Fig. 7). Cb and Cr are chroma
+components and an m are coefficients from (7) or (8).
+The image resulting from the CT operation is shown in the
+upper-right corner in Fig. 7(a). Samples of Cb and Cr constitute
+regular arrays which are compressed directly. The luma component (Y1 , Y2 ) forms a diamond grid which requires an additional
+transformation to remove empty pixels. Two such transformations, namely Structure Separation and Structure Conversion,
+
+2-D-block transformation of the luma component.
+
+have been proposed in [29]. The former produces two rectangular arrays: one is composed of odd luma pixels (Y1 ), and the
+other contains even luma pixels (Y2 ). Prior to array separation,
+low-pass filtering is applied to reduce aliasing. However, the
+implementation costs of the nonseparable diamond 2-D lowpass filter [29], especially in terms of memory access, preclude
+application of this method in a wireless capsule endoscope. The
+latter is simply array squeezing [see Fig. 7(b)].
+C. Image Transformation
+Neighboring pixels in natural images are strongly correlated.
+Linear orthogonal transformation shows a high effectiveness in
+reducing interpixel correlation and packing pixel energy into
+very few transform coefficients. The energy packing efficiency
+of a given transformation depends on its type and size N . However, the optimal transform, the Karhunen–Loève transform
+(KLT), is not used in practice, since it depends on signal statistics
+and does not have an efficient implementation. Therefore, the
+DCT, discrete wavelet transform, or discrete Walsh–Hadamard
+transform are used instead. When choosing the optimal N , the
+following should be considered.
+1) Buffer size in progressive to block-wise order converter
+(see Section III-B) depends linearly on transform size N .
+2) The computational complexity of N -point transform
+grows faster than N .
+3) Efficient implementation requires N to be an integer
+power of 2.
+4) For natural images, the energy packing efficiency of 16 ×
+16 DCT is 9.45 dB and 8.82 dB for 8 × 8 DCT. As such
+16 × 16 DCT is only marginally better than 8 × 8 DCT.
+5) Artifacts resulting from coefficient quantization tend to
+become more visible as the block size increases.
+Due to the aforementioned reasons, most current coding standards assume the 8 × 8 DCT block size as optimal. When applying this knowledge to CFA image compression, it should be
+noted (see Fig. 7) that every second pixel in the original chroma
+image Cb or Cr is empty. Therefore, the 4 × 4 block in the
+Cb or Cr image is equivalent to an 8 × 8 block in an image
+resulting from CT of a full color image. The situation is more
+complicated for the Y component. When the Y image is transformed row wise (see Fig. 8), the distance between neighboring
+pixels is 2 as it is in Cb and Cr images; however, when the
+column-wise
+transformation takes place, the distance is only
+√
+2. For this reason, and in order to reduce hardware implementation complexity, the size of the transformed block was set to
+4 × 4 in the proposed algorithm. In addition, instead of plain
+DCT, its integer approximation was chosen.
+
+TURCZA AND DUPLAGA: HARDWARE-EFFICIENT LOW-POWER IMAGE PROCESSING SYSTEM FOR WIRELESS CAPSULE ENDOSCOPY
+
+1051
+
+Fig. 9. Scanning order of the coefficients (10) resulting from 4 × 4 image
+block transformation.
+
+The 2-D-DCT is a separable transform usually implemented
+as a 1-D row-wise transform followed by a 1-D column-wise
+transform. Forward 2-D-DCT of 4×4 pixels block B is computed as
+X = (CBCT ) ⊗ S
+
+(10)
+
+where ⊗ is the Kronecker product, the superscript T denotes a
+transposition, and C is an integer approximation of the forward
+DCT matrix [30]
+⎡
+⎤
+1 1
+1
+1
+⎢ 2 1 −1 −2 ⎥
+C=⎣
+(11)
+⎦.
+1 −1 −1 1
+1 −2 2 −1
+Since the matrix (11) only represents an approximation of the
+original DCT, an additional scaling with matrix S
+⎤
+⎡ 2
+ab/2 a2
+ab/2
+a
+2
+2
+⎢ ab/2 b /4 ab/2 b /4 ⎥
+(12)
+S=⎣ 2
+⎦
+ab/2 a2
+ab/2
+a
+2
+2
+ab/2 b /4 ab/2 b /4
+√
+is required (a = 12 , b = 2). The scaling operation (12) can
+be incorporated into coefficient quantization step, to reduce the
+computational complexity of (10). The inverse DCT of the input
+data block X is computed as
+B̂ = CTi (X ⊗ Si )Ci
+where
+
+⎡
+1
+⎢1
+⎢
+Ci = ⎢
+⎣1
+
+(13)
+
+⎤
+
+⎤
+ab
+2
+1/2
+b ⎥
+⎦.
+ab
+−1/2
+2
+b
+1
+−1
+(14)
+The applied integer 2-D-DCT besides good decorrelation property (see Section IV, Table I) has a very efficient pipeline architecture [22], which allows the transformation of a new image
+block to be started every 16 clock cycles, i.e., on average a single
+image pixel is transformed with each clock cycle.
+1
+
+⎡ 2
+a
+⎥
+−1
+−1 ⎥
+⎢ab
+⎥ , Si = ⎣ 2
+a
+−1
+1 ⎦
+ab
+1 −1/2
+1
+
+1/2
+
+ab
+b2
+ab
+b2
+
+a2
+ab
+a2
+ab
+
+D. Coefficient Encoding
+Coefficients (10) resulting from 4 × 4 image block transformation (see Fig. 9) are quantized and then entropy encoded. In
+this section, a new, low-complexity, and low-memory yet efficient coefficient encoder suitable for WCE is presented. Its
+algorithmic description is given in Fig. 10.
+
+Fig. 10. Algorithmic description of the proposed algorithm for DCT coefficient encoding. Mapping functions M and M 1 are given by (15) and (16),
+respectively. AGR(x, C) returns the code representing the value of argument x
+using an AGR entropy encoder, while C is an encoding context. The function
+Upd(C, x) updates encoding contents C based on previously encoded value x.
+
+The developed encoder makes use of the run-length encoding principle known from the JPEG baseline standard, but the
+resulting pairs of nonzero AC coefficients with run-length of
+the preceding zero coefficients are encoded with an AGR encoder instead of Huffman tables. Such an approach assures
+low-complexity and low-memory requirements. Results presented in Section IV demonstrate the superiority of the proposed
+approach.
+It is well known that DC and AC coefficients have different
+statistical properties. As such they are encoded separately. DC
+coefficients of adjacent blocks exhibit strong correlation. They
+also represent a significant fraction of the total image energy.
+Therefore, prior to entropy encoding, the DPCM scheme (d =
+current DC − previous DC) is applied to the neighboring DC
+coefficients. The resulting differences are entropy encoded with
+an AGR encoder [31]. Since the Golomb–Rice coder is able to
+encode nonnegative integers only, the following mapping [32]
+is used to transform the DPCM result d to nonnegative integers:
+
+2d,
+d≥0
+M (d) =
+.
+(15)
+2|d| − 1, d < 0
+The majority of AC coefficients are quantized to 0’s because
+of the energy compaction property of DCT. The few remaining nonzero coefficients in the 4 × 4 block are typically lowfrequency coefficients clustered around the DC coefficient. They
+are encoded in a two-step process. First, the AC coefficients are
+scanned along a zigzag order (see Fig. 9) and converted into an
+intermediate sequence of symbols (z, v), where z is the number
+of consecutive zero-value AC coefficients in the sequence preceding the nonzero AC coefficient v. All of the remaining AC
+coefficients in the block which are equal to zero are represented
+by a single symbol (0, 0).
+
+1052
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 6, NOVEMBER 2013
+
+TABLE I
+COMPRESSION RESULTS FOR SIX TEST IMAGES FROM FIG. 11
+
+significantly limits the computational complexity of (18) but
+also assures fast adaptation of parameter k to the local statistics of coefficients (10). In simulations, it was found that the
+value N0 = 16 constitutes a good compromise between computational complexity of (18), adaptation speed, and estimation
+accuracy of k.
+IV. COMPRESSION RESULTS
+
+Symbols (z, v) (i.e., pairs of z, v) are encoded with an AGR
+encoder. Pairs (z, v) = (0, 0) and (z, v) = (0, 0) are encoded
+in different ways. This is because in simulation experiments,
+it was found that the symbol (0, 0) occurs very frequently.
+Therefore, in order to maximize the compression efficiency,
+a very short code should be assigned to it. In the proposed
+algorithm, a single Golomb–Rice code with value 0 is assigned
+to the symbol (0, 0). The others symbols are represented by
+two independent Golomb–Rice codes. The first element of the
+pair (z, v) = (0, 0), i.e., z is represented by a code with the
+value z + 1, which distinguish it from the symbol (0, 0), for
+which an AGR code with a value 0 has been designated. The
+second element of the pair, i.e., v, is signed and nonzero. Before
+encoding with AGR, it is mapped to a nonnegative integer using
+the following mapping function:
+
+2v − 1,
+v>0
+.
+(16)
+M1 (v) =
+2(|v| − 1), v < 0
+The AGR [31] encoder (implemented by the AGR function in
+Fig. 10) encodes
+ the given integer x ≥ 0 as two strings of bits:
+
+a prefix x/2k in unary representation, followed by k least
+significant bits of x. For example, if x = 10 and k = 2, then the
+Golomb–Rice code for x is “11010.” Here the unary prefix is
+“110" = 2 and the binary
+remainder
+is “10" = 2. The length of
+
+
+the resulting code is x/2k + 1 + k. The optimal value of the
+parameter k for two-sided exponentially decaying distribution
+of transform coefficients is given by [33]
+k = log2 (x̄ + 1)	
+
+(17)
+
+where x̄ is the expected value of a random variable x. In the
+proposed encoder, the parameter k is estimated, using a method
+presented in [32], by maintaining in each context CD C , CZ , CV
+two registers NC and AC . The register NC is responsible for
+counting the number of times the context C has been encountered so far, while AC represents the accumulated sum of magnitudes of transform coefficients within the context C. Each time
+the given symbol is encoded with AGR the associated context is
+updated by the function Upd (see Fig. 10). Based on values NC
+and AC and the (17), the AGR coding parameter k is computed
+as
+k = min {κ : 2κ · NC ≥ AC } .
+
+(18)
+
+Each time the value of NC exceeds the specified threshold value
+N0 , values of NC and AC are halved. Such an approach not only
+
+In this section, the performance of the proposed image compressor is evaluated and compared to the previous version of the
+algorithm [22] as well as to JPEG, JPEG2000, and other CFA
+compression schemes dedicated to WCE.
+It is well known that the amount of detail affects the compression rate. Therefore, test images used in the evaluation process
+were generated by CFA subsampling of full color, high-quality
+endoscopic images with different numbers of details. To evaluate
+the quality of image reconstruction, the value of peak signal-tonoise ratio (PSNR) defined as
+2552
+
+PSNR(dB) = 10log10 
+(xi − x̂i )2
+
+(19)
+
+was used. In the aforementioned formula, 
+· denotes averaging
+operation, while xi and x̂i are values of pixels in the original
+and decompressed image, respectively.
+In order to facilitate comparison of the algorithms, the PSNR
+value was fixed for a given image as far as possible. The compression ratio (CR) was defined as a ratio of the size of the original CFA image to the size of the resulting bitstream. It can be
+readily observed that the newly proposed algorithm, employing
+the coefficient encoder described in Section III-D, continually
+outperforms the old one [22].
+JPEG and JPEG 2000 operate on full color images only.
+Therefore, the original CFA images were interpolated to RGB
+space prior to compression. The CFA images resulting from
+decompression by the developed algorithm were converted to
+RGB space using the method proposed in [34]. Table I shows that
+for a chosen set of test endoscopic images (with a 320 × 320
+resolution), the proposed algorithm performs very closely to
+JPEG and JPEG 2000, although its implementation complexity
+is just a small fraction of the complexity of these standards.
+Based on Fig. 11 and Table I, it can be seen that the highest
+PSNR is obtained when the smooth image, e.g., one with a low
+amount of detail, such as image (f) in Fig. 11, is compressed.
+In such case, the CR is also high. When the compressed image
+exhibits a significant amount of fine details, like image (a) in
+Fig. 11, the achievable CR as well as PSNR is lower. It should
+be noted that the proposed compressor achieves more uniform
+results compared to JPEG2000. It can also be seen that the
+reversible CT (8) assures slightly higher performance than the
+CT (7) proposed in H.264 FRExt. Original test images and their
+decompressed counterparts are presented in Fig. 11.
+Table II compares, in terms of CR and PSNR, the proposed
+algorithm with other related CFA compression schemes. Presented results are based on 158 endoscopic images [35] taken
+from different parts of the GI tract. It should be noted that, all the
+competitive algorithms included in Table II were tested using
+
+TURCZA AND DUPLAGA: HARDWARE-EFFICIENT LOW-POWER IMAGE PROCESSING SYSTEM FOR WIRELESS CAPSULE ENDOSCOPY
+
+Fig. 11.
+
+1053
+
+(Top) Original test images and (bottom) their decompressed counterparts.
+TABLE II
+COMPARISON WITH OTHER CFA COMPRESSION SCHEMES
+
+similar images (from [35]) with 512 × 512 resolution. It can be
+seen that the proposed algorithm offers significantly higher CR
+and similar or higher image reconstruction quality compared to
+others.
+V. IMPLEMENTATION RESULTS
+The proposed image processing system was prototyped in
+iCE65L08-CC72, an ultra-low-power 65-nm FPGA. The developed miniaturized system is presented in Fig. 12. It consists of
+five circular boards of 10 mm diameter. The main board includes
+the FPGA chip, two voltage regulators (1.2 V for FPGA core
+and 1.8 V for I/O), the quartz oscillator, and the FLASH memory storing FPGA configuration bitstream. The other boards are
+the CMOS image sensor [23], the LED-based illumination module with the optics, the power management board and the radio
+transmitter [11].
+The performance of the implemented system in comparison
+with others is given in Table III. Some issues concerning the
+power efficiency comparison will be discussed in details for the
+QVGA image case. When the image compressor is running, the
+power consumption of an FPGA core is 12 mW; when the compressor is off, it is about 5.8 mW. In general, the lengths of the on
+and off periods depend on image resolution, acquisition speed,
+frame rate, and compressor throughput. The acquisition time of
+a QVGA image by the imager [23] using 48-MHz DDR-LVDS
+interface is about 8.2 ms. The acquired image is compressed instantaneously. Therefore, the length of the active phase is equal
+to 8.2 ms, i.e., the image acquisition time. The system operates
+at a 24 frame rate, the idle time is 33.5 ms, and the average
+power consumption amounts to 7 mW. This value is similar to
+6.2 mW, the value reported in [15], but higher than the 1.3 mW
+
+Fig. 12.
+
+Image processing boards for the wireless capsule endoscope.
+
+reported in [20]. However, the systems in [15] and [20] operate
+at an 8 frame rate only. For fair comparison, the total consumable power should be normalized to the actual frame rate. After
+calculation, 0.29 and 0.16 mJ is obtained per image frame in
+the presented system and the system in [20], respectively. The
+slightly higher energy consumption in the presented system in
+comparison to the system in [20] results from its implementation technology (FPGA), which precludes application of power
+reduction techniques such as degradation of supply voltage to
+0.95 V and clock gating. Both of these techniques are reported
+in [20] as being responsible for a 50% reduction of consumable
+
+1054
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 6, NOVEMBER 2013
+
+TABLE III
+COMPARISON WITH OTHER WCE SYSTEMS
+
+power of the second system [20] in comparison to the first
+one [15].
+The power consumption of the WCE is dominated by the
+illumination module. The simplest module equipped with four
+white LEDs consumes about 50 mW. 40 mW is consumed by
+the imager [23], 7 mW by the FPGA core, and 5 mW by the
+radio transmitter [11]. During tests and development, an external
+power supply was used. For short time ex-vivo tests, a single
+80 mAh NiMH PH-1/4AAA80 battery with a high-efficiency
+step-up dc–dc converter such as MAX 1675 is sufficient. For
+longer operation, a custom LiPo battery or a 3-D inductive
+power supply module [11] is necessary.
+The size of the required on-chip memory, given in Table III,
+is the second important measure of the system’s efficiency. It is
+easily observed that the proposed solution features the lowest
+memory requirements, resulting from:
+1) application of a memory-efficient pixel order converter,
+discussed in Section III-A,
+2) usage of a novel entropy encoder, presented in
+Section III-D, instead of Huffman tables, and
+3) application of a FEC encoder to protect wirelessly transmitted data against random and burst errors.
+Reducing the random BER from 10−3 (typical value in wireless transmission) to quasi-error free and correcting burst-like errors (up to 16 bytes per 255 byte frame) using the Reed–Solomon
+encoder [24] renders data retransmission unnecessary, which in
+turn allows for significant reduction of the output stream buffer
+size.
+VI. CONCLUSION
+In this paper, a hardware-efficient image processing system
+for future generation WCE was proposed. Its most significant
+part is an image compressor which operates directly on CFA
+images. Such a design approach was chosen because imagers
+dedicated to WCE, unlike consumer ones, do not include an
+on-chip color interpolation engine and output RAW CFA data
+only. It has been demonstrated that the proposed compressor
+performs very closely to JPEG and achieves more uniform results compared to JPEG 2000. It should be noted, that the chosen imager [23], in comparison to a consumer one [36] with
+YUV output, offers lower power consumptions (40 mW versus
+60 mW) and higher SNR (53 dB versus 46 dB). For the presented compressor, a new, efficient hardware architecture was
+developed. Because of the novel architecture, the presented system is able to compress the acquired image on the fly (8.2 ms
+
+per QVGA image at 12 MHz system clock), and therefore,
+does not require a large buffer for temporary image storing.
+Additional memory savings were achieved by eliminating the
+necessity of retransmitting erroneously received data. This was
+accomplished by FEC encoding of data in the transmitter and
+enabling the receiver to recover erroneously received data solely
+based on FEC redundancy. Using efficient, pipelined hardware
+architecture means that the FPGA-based image processing core
+consumes only 0.29 mJ of energy for compression of a single image frame. In comparison to our previous WCE system [22], the new one offers a higher compression ratio, lower
+energy consumption, and requires a smaller amount of on-chip
+memory.
+APPENDIX
+In this section, we prove that the formula (6) generates N C
+unique addresses starting at 0 and ending with N C−1. We first
+introduce some notation and prove a single helpful lemma. The
+notation a|b denotes that a divides b, N = {1, 2, 3, . . .} is the
+set of all natural numbers and N0 = {0, 1, 2, 3, . . .} is the set of
+natural numbers including 0.
+Lemma 1:
+(kC i )mod(N C−1) = 0,
+
+k ∈ [1, N C−2] ∩ N,
+
+i ∈ N0 .
+
+Proof:
+On the contrary, suppose that there exists i0 ∈ N0 such that
+(kC i 0 )mod(N C−1) = 0
+
+(20)
+
+for some k ∈ [1, N C−2] ∩ N. It means that
+kC i 0 = q(N C−1),
+
+q ∈ N.
+
+(21)
+
+There exist p ∈ N0 and q0 ∈ N such that Cq0 and
+q = C p q0 .
+
+(22)
+
+By (21) and (22)
+Cq0 , p ∈ N0 .
+
+kC i 0 = C p q0 (N C−1),
+
+(23)
+
+Since k < N C−1 and Cq0 , we have i0 > p . After simplification of (23), we obtain
+kC i 1 = q0 (N C−1),
+
+i1 = i0 −p ≥ 1.
+
+(24)
+
+The aforementioned equation can be rewritten in the following
+form:
+q0 = C(q0 N −kC i 1 −1 ),
+
+i1 −1 ≥ 0
+
+(25)
+
+TURCZA AND DUPLAGA: HARDWARE-EFFICIENT LOW-POWER IMAGE PROCESSING SYSTEM FOR WIRELESS CAPSULE ENDOSCOPY
+
+which shows that C|q0 , which contradicts the assumption Cq0
+and completes the proof.
+
+Theorem 2:
+Let d0 = 1, di = (di−1 C)mod(N C−1), then di = 0 for i ∈
+N.
+This theorem states that the step di defined by (5) does not
+vanish.
+Proof: To prove the theorem it is enough to rewrite the aforementioned equation in the following nonrecursive form:
+di = C i mod(N C−1),
+
+i∈N
+
+and apply Lemma 1 with k = 1.
+Theorem 3: Let An be given by (6), then
+An = N C−1,
+
+(26)
+
+
+n = 0, 1, . . . , N C − 2.
+
+The meaning of this theorem is that (6) generates the address
+equal to N C−1 as the latest address in the series, i.e., AN C −1 =
+N C−1.
+Proof: It is easily seen that A0 = 0 = N C−1 and A1 =
+di = N C−1. On the contrary, let k be the smallest number from the set {2, . . . , N C−2} such that Ak −1 = N C−1,
+Ak −1 + di = N C−1, and Ak = N C−1. By the following recursion, resulting from (2):
+An = (ndi )mod(N C−1)
+
+(27)
+
+and (26) we have that
+N C−1 = (kC i )mod(N C−1)
+
+(28)
+
+which is equivalent to
+0 = (kC i )mod(N C−1)
+
+(29)
+
+which is impossible by Lemma 1.
+
+Theorem 4: The formula (6) generates exactly NC unique
+addresses An , n = 0, 1, . . . , N C−1, for each step di defined
+by (5).
+Proof: From Theorem 3, we known that An = N C−1 for
+n = 0, 1, . . . , N C−2. Since AN C −1 = N C−1, it is enough to
+show that
+An = Am
+
+for n = m, n, m ∈ [0, N C−2] ∩ N0 .
+
+(30)
+
+The above can be also rewritten as
+(nC i )mod(N C−1) = (mC i )mod(N C−1)
+
+(31)
+
+for n = m, n, m ∈ [0, N C − 2]. On the contrary, suppose that
+An = Am for some n = m, n, m ∈ [0, N C − 2], i.e.,
+(nC i )mod(N C−1) = (mC i )mod(N C−1).
+
+(32)
+
+Using arithmetic modulo property, the aforementioned can be
+rewritten as
+((n−m)C i )mod(N C−1) = 0.
+
+(33)
+
+Without loss of generality, we can set that n > m. Applying
+Lemma 1 with k = n−m to (33), we came to a contradiction,
+which completes the proof.
+
+
+1055
+
+REFERENCES
+[1] G. Iddan, G. Meron, A. Glukhovsky, and P. Swain, “Wireless capsule
+endoscopy,” Nature, vol. 405, pp. 417–418, May 25, 2000.
+[2] C. Gheorghe, R. Iacob, and I. Bancila, “Olympus capsule endoscopy for
+small bowel examination,” J. Gastrointest. Liver Dis., vol. 16, pp. 309–
+313, 2007.
+[3] S. Bang, J. Y. Park, S. Jeong, Y. H. Kim, H. B. Shim, T. S. Kim, D. H. Lee,
+and S. Y. Song, “First clinical trial of the “MiRo” capsule endoscope
+by using a novel transmission technology: Electric-field propagation,”
+Gastrointest. Endosc., vol. 69, no. 2, pp. 253–259, 2009.
+[4] Y. Shen, P. Guturu, and B. P. Buckles, “Wireless capsule endoscopy video
+segmentation using an unsupervised learning approach based on probabilistic latent semantic analysis with scale invariant features,” IEEE Trans.
+Inf. Technol. Biomed., vol. 16, no. 1, pp. 98–105, Jan. 2012.
+[5] B. Li and M. H. Meng, “Tumor recognition in wireless capsule endoscopy
+images using textural features and SVM-based feature selection,” IEEE
+Trans. Inf. Technol. Biomed., vol. 16, no. 3, pp. 323–329, May 2012.
+[6] VECTOR project web page, (2013). [Online]. Available:http://www.
+vector-project.com/
+[7] Press information. Magnetically guided capsule endoscope system presented at UEGW in Barcelona. (2013). [Online]. Available:http://www.
+olympus.co.uk/corporate/1696 4717.htm
+[8] R. Carta, G. Tortora, J. Thoné, B. Lenaerts, P. Valdastri, A. Menciassi,
+P. Dario, and R. Puers, “Wireless powering for a self-propelled and steerable endoscopic capsule for stomach inspection,” Biosens. Bioelectron.,
+vol. 25, pp. 845–851, Dec. 2009.
+[9] L. Wang, T. D. Drysdale, and D. R. S. Cumming, “In-situ characterization of two wireless transmission schemes for ingestible capsules,” IEEE
+Trans. Biomed. Eng., vol. 54, no. 11, pp. 2020–2027, Nov. 2007.
+[10] L. S. Xu, MQ.-H. Meng, and C. Hu, “Effects of dielectric values of human
+body on specific absorption rate following 430, 800, and 1200 MHz RF
+exposure to ingestible wireless device,” IEEE Trans. Inf. Technol. Biomed.,
+vol. 14, no. 1, pp. 52–59, Jan. 2010.
+[11] R. Puers, R. Carta, and J. Thoné, “Wireless power and data transmission strategies for next-generation capsule endoscopes,” J. Micromech.
+Microeng., vol. 21, no. 5, p. 054008, 2011.
+[12] P. Bradley, “RF integrated circuits for medical implants: Meeting
+the challenge of ultra low power communication,” (2013). [Online].
+Available:http://www.cmoset.com/uploads/Peter Bradley.pdf
+[13] D. Turgis and R. Puers, “Image compression in video radio transmission
+for capsule endoscopy,” Sens. Actuat., A: Phys., vol. 123–124, pp. 129–
+136, Sep. 2005.
+[14] M.-Ch. Lin, L.-R. Dung, and P.-K. Weng, “An ultra-low-power image
+compressor for capsule endoscope,” BioMed. Eng. OnLine, vol. 5, no. 1,
+2006.
+[15] X. Xie, G. Li, X. Chen, X. Li, and Z. Wang, “A low-power digital IC design
+inside the wireless endoscopic capsule,” IEEE J. Solid-State Circuits,
+vol. 41, no. 11, pp. 2390–2400, Nov. 2006.
+[16] P. Turcza and M. Duplaga, “Low-power image compression for wireless capsule endoscopy,” in Proc. IEEE Int. Worksh. Imaging Syst. Tech.,
+Krakow, Poland, May 2007, pp. 1–4.
+[17] P. Turcza, T. Zielinski, and M. Duplaga, “Hardware implementation aspects of new low complexity image coding algorithm for wireless capsule
+endoscopy,” in Computational Science, (Lecture Notes in Computer Science 5101). New York, NY, USA: Springer-Verlag, 2008, pp. 476–485.
+[18] K. Wahid, S.-B. Ko, and D. Teng, “Efficient hardware implementation
+of an image compressor for wireless capsule endoscopy applications,” in
+Proc. IEEE Int. Joint Conf. Neural Netw. (IEEE World Congr. Comput.
+Intell.), 2008, pp. 2761–2765.
+[19] L. R. Dung, Y. Y. Wu, H. C. Lai, and P. K. Weng, “A modified H. 264
+Intra-frame video encoder for capsule endoscope,” in Proc. IEEE Biomed.
+Circuits Syst. Conf., 2008, pp. 61–64.
+[20] X. Chen, X. Zhang, L. Zhang, X. Li, N. Qi, H. Jiang, and Z. Wang,
+“A wireless capsule endoscope system with low-power controlling and
+processing ASIC,” IEEE Trans. Biomed. Circuits Syst., vol. 3, no. 1,
+pp. 11–22, Feb. 2009.
+[21] C. Cheng, Z. Liu, C. Hu, and M. Meng, “A novel wireless capsule endoscope with JPEG compression engine,” in Proc. IEEE Int. Conf. Automat.
+Logist., Aug. 2010, pp. 553–558.
+[22] P. Turcza and M. Duplaga, “Low power FPGA based image processing
+core for wireless capsule endoscopy,” Sens. Actuat., A: Phys., vol. 172,
+pp. 552–560, Nov. 2012.
+[23] M. Vatteroni, D. Covi, C. Cavallotti, L. Clementel, P. Valdastri,
+A. Menciassi, P. Dario, and A. Sartori, “Smart optical CMOS sensor for
+
+1056
+
+[24]
+[25]
+
+[26]
+[27]
+[28]
+[29]
+[30]
+[31]
+[32]
+[33]
+[34]
+[35]
+[36]
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 17, NO. 6, NOVEMBER 2013
+
+endoluminal applications,” Sens. Actuat., A: Phys., vol. 162, pp. 297–303,
+2010.
+E. R. Berlekamp, “Bit-Serial Reed-Solomon Encoders,” IEEE Trans. Inform. Theory, vol. 28, no. 6, pp. 869–874, Nov. 1982.
+N.-X. Lian, L. Chang, V. Zagorodnov, and Y.-P. Tan, “Reversing demosaicking and compression in color filter array image processing: Performance analysis and modeling,” IEEE Trans. Image Process., vol. 15,
+no. 11, pp. 3261–3278, Nov. 2006.
+S. G. Chang, B. Yu, and M. Vetterli, “Adaptive wavelet thresholding for
+image denoising and compression,” IEEE Trans. Image Proc., vol. 9, no. 9,
+pp. 1532–1546, Sep. 2000.
+S. Farsiu, M. Elad, and P. Milanfar, “Multiframe demosaicing and superresolution of color images,” IEEE Trans. Image Process., vol. 15, no. 1,
+pp. 141–159, Jan. 2006.
+S.-Y Lee and A. Ortega, “A novel approach of image compression in
+digital cameras with a Bayer color filter array,” in Proc. Int. Conf. Image
+Process., Oct. 2001, vol. 3, pp. 482–485.
+C. C. Koh, J. Mukherjee, and S. K. Mitra, “New efficient methods of
+image compression in digital cameras with color filter array,” IEEE Trans.
+Consum. Electron., vol. 49, pp. 1448–1456, Nov. 2003.
+H. S. Malvar, A. Hallapuro, M. Karczewicz, and L. Kerofsky, “Lowcomplexity transform and quantization in H.264/AVC,” IEEE Trans. Circuits Syst. Video Tech., vol. 13, no. 7, pp. 598–603, Jul. 2003.
+R. F. Rice, “Some practical universal noiseless coding techniques,” Jet
+Propulsion Laboratory, Pasadena, CA, USA, Tech. Rep. JPL-79-22, Mar.
+1979.
+N. Memon, “Adaptive coding of DCT coefficients by Golomb–Rice
+codes,” in Proc. Int. Conf. Image Process., vol. 1, Chicago, IL, USA,
+1998, pp. 516–520.
+R. Gallager and D. V. Voorhis, “Optimal source codes for geometrically
+distributed integer alphabets,” IEEE Trans. Inf. Theory, vol. 21, no. 2,
+pp. 228–230, Mar. 1975.
+H. S. Malvar, L. He, and R. Cutler, “High-quality linear interpolation for
+demosaicing of bayer-patterned color images,” in Proc. IEEE Int. Conf.
+Acoust., Speech, Signal Process., May 2004, vol. 3, pp. 485–488.
+Gastrolab. (2013). [Online]. Available:http://www.gastrolab.net
+OmniVisoin OV7670 (2013). [Online]. Available:http://www.ovt.com
+
+Pawel Turcza received the M.Sc. degree in computer
+science in 1993 and the M.Sc. and Ph.D. degrees in
+electronic from the AGH University of Science and
+Technology (AGH-UST), Krakow, Poland, in 1996
+and 2001, respectively.
+He is currently an Assistant Professor in
+the Department of Measurement and Electronics,
+AGH-UST. His research interests include hardwaresoftware codesign in biomedical systems and signal
+processing for communication systems.
+
+Mariusz Duplaga graduated as medical doctor from
+Jagiellonian University Medical College, Krakow,
+Poland, in 1991 (clinical specialisation degrees in internal medicine and pulmonology in 2001 and 2005,
+respectively) and received the Doctoral degree in
+medicine in 1999.
+He is currently researching and teaching in the
+Faculty of Health Sciences (from 2005), Institute
+of Public Health and in the Faculty of Medicine
+(from 1993), Department of Respiratory Medicine
+both within Jagiellonian University Medical College.
+Participation in many national and international interdisciplinary projects related to the use of modern technologies in medicine, carried out within EC
+Framework Programmes (BIOAIR, PRO-ACCESS, MATCH, HEALTHWARE,
+eHealth ERA, MPOWER, VECTOR). His main areas of research and teaching
+activities include e-health and telemedicine, e-inclusion, evolution of public
+health, endoscopy imaging, and respiratory medicine.
+
+

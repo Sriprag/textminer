@@ -1,0 +1,1121 @@
+460
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 2, MARCH 2016
+
+Joint Feature Extraction and Classifier Design for
+ECG-Based Biometric Recognition
+Sandeep Gutta, Student Member, IEEE, and Qi Cheng, Senior Member, IEEE
+
+Abstract—Traditional biometric recognition systems often utilize physiological traits such as fingerprint, face, iris, etc. Recent
+years have seen a growing interest in electrocardiogram (ECG)based biometric recognition techniques, especially in the field of
+clinical medicine. In existing ECG-based biometric recognition
+methods, feature extraction and classifier design are usually performed separately. In this paper, a multitask learning approach
+is proposed, in which feature extraction and classifier design are
+carried out simultaneously. Weights are assigned to the features
+within the kernel of each task. We decompose the matrix consisting of all the feature weights into sparse and low-rank components.
+The sparse component determines the features that are relevant to
+identify each individual, and the low-rank component determines
+the common feature subspace that is relevant to identify all the subjects. A fast optimization algorithm is developed, which requires
+only the first-order information. The performance of the proposed
+approach is demonstrated through experiments using the MIT-BIH
+Normal Sinus Rhythm database.
+Index Terms—Biometrics, classification, electrocardiogram
+(ECG), feature selection, multitask learning (MTL), sparsity.
+
+I. INTRODUCTION
+IOMETRIC recognition refers to the process of identifying a person based on human’s unique characteristics and
+traits. Current biometric recognition systems mostly use physiological traits such as fingerprint, face, iris, etc. These systems
+can be fooled as one may impersonate others by copying their
+fingerprints, face images, etc. Recent years have seen a growing
+interest in electrocardiogram (ECG)-based biometric recognition techniques, especially in clinical medicine [1]. Each person
+has a unique ECG pattern due to the unique physical and geometrical structure of his/her heart and body [2], which makes
+ECG useful for biometric recognition.
+The ECG signal during a single heartbeat is shown in Fig. 1.
+A typical ECG consists of three waves per heartbeat: a P wave,
+a QRS wave, and a T wave. Generally in ECG-based biometric recognition, features are defined in two ways: fiducial and
+nonfiducial [6]. In fiducial methods, the ECG features are defined using certain fixed fiducial points such as the peaks of
+P, QRS, and T waves. Using the time intervals between these
+fiducial points and amplitudes at these points, we can define
+several features for an ECG signal. Nonfiducial methods do not
+require detecting fiducial points, and usually consist of defining
+
+B
+
+Manuscript received June 10, 2014; revised October 12, 2014 and December
+20, 2014; accepted February 1, 2015. Date of publication February 10, 2015;
+date of current version March 3, 2016.
+The authors are with the School of Electrical and Computer Engineering, Oklahoma State University, Stillwater, OK 74078 USA (e-mail:
+sgutta@okstate.edu; qi.cheng@okstate.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2015.2402199
+
+Fig. 1.
+
+ECG waveform during a single heartbeat.
+
+features using the ECG record of a longer duration. For example, a discrete cosine transform (DCT) can be used to define
+the nonfiducial features of an ECG signal, where the transform
+coefficients are used as features [6]. After defining the ECG features, standard classification algorithms can be used to identify
+the individuals.
+In [3], Biel et al. defined features using the fiducial points
+from a standard 12-lead ECG, and used the soft independent
+modeling by class analogy method for classification. Israel et al.
+also defined features using the fiducial points, and used linear discriminant analysis for classification [4]. Wübbeler et al.
+used a nonfiducial method for defining features [5]. A twodimensional (2-D) heart vector signal is constructed using three
+Einthoven leads. Wang et al. defined nonfiducial features using
+autocorrelation and DCT methods [6]. Irvine et al. also used a
+nonfiducial method based on principal component analysis to
+define features [7]. The nearest neighbor method was used for
+classification in [5]–[7]. Tawfik et al. defined nonfiducial features using DCT on the QRS complex, and used neural networks
+for classification [8].
+Most of existing work uses simple classification algorithms
+such as linear classifiers, nearest neighbor methods, etc., which
+may not be robust in practice. Since the ECG feature vectors
+need not always be linearly separable, the linear classifiers may
+not perform well. ECG feature vectors may also be noisy in practice. The performance of nearest neighbor methods degrades as
+evidenced in [9] and our experimental results. Moreover, existing methods have not applied feature selection/extraction to
+identify only relevant ECG features for classification. The redundant or irrelevant features may not only lead to the problem of overfitting but also increase the overall computational
+complexity [9].
+
+2168-2194 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+GUTTA AND CHENG: JOINT FEATURE EXTRACTION AND CLASSIFIER DESIGN FOR ECG-BASED BIOMETRIC RECOGNITION
+
+In this paper, we focus on biometric recognition using a
+single-lead ECG signal, which can be easily acquired in many
+situations [10]. A novel recognition framework is proposed capable of dealing with nonlinearly separable data of a high dimension. We convert the classification problem of multiple subjects
+into a set of binary classification problems (tasks). Each binary classification task corresponds to identifying one subject.
+For each binary classification task, a robust nonlinear kernel
+classifier is designed. In each classifier, the features are scaled
+according to their relevance so that more relevant features have
+more effect during classification. This step not only removes
+redundancy/irrelevance in features but also greatly enhances the
+generalization of the classification algorithm. The classifier parameters and feature scaling parameters for all the tasks are
+jointly estimated using the available training data. More specifically, we combine feature selection and classifier design into a
+single learning problem. Furthermore, we combine the learning
+of all the tasks as the tasks are not completely independent. The
+learning of one classification task may be useful for the learning of other (related) tasks. This greatly improves the learning
+efficiency.
+The remainder of this paper is organized as follows. Related
+work on joint feature selection and classifier design, and multitask learning (MTL) is presented in Section II. Preprocessing
+of the ECG signal is described in Section III. The problem
+formulation is given in Section IV. The proposed classification
+framework is provided in Section V. In Section VI, the proposed
+method is evaluated using the MIT-BIH Normal Sinus Rhythm
+ECG database. Conclusions are provided in Section VII.
+II. RELATED WORK
+Recent years have seen growing research interest in simultaneous (or joint) feature selection and classifier design due to
+the fact that selecting features independently of the classifier
+is not always optimal. The relative importance of features may
+sometimes depend on the type of classifier used. For linear classifiers, joint feature selection and classifier design can be easily
+done as the number of classifier parameters is determined by
+the number of features. In such cases, we can directly use the
+classifier parameters to model the relevance of individual features to classification. However, for nonlinear classifiers, joint
+feature selection and classifier design are not straightforward.
+In [11], Weston et al. proposed a feature selection approach for
+support vector machines (SVMs) by using scaling factors for individual features. The scaling factors were found by minimizing
+the SVM generalization bound through the gradient descent approach. The similar problem was also studied in [12], where the
+scaling factors and the SVM parameters were jointly obtained
+by minimizing the standard SVM empirical risk function. In
+[13], Krishnapuram et al. proposed a Bayesian approach for
+this type of problem. Sparsity promoting zero-mean Gaussian
+priors were placed on both the feature scaling factors and the
+classifier parameters. With these priors, the final estimates of
+the feature scaling factors and classifier parameters were found
+by maximizing the posterior probability.
+In general, each binary classifier in an M -ary classification
+problem is trained separately using the available training data.
+
+461
+
+This is referred to as single task learning. Often, these learning tasks are not completely independent as they may share
+some common information (or structure). Hence, learning of
+one task may be useful for learning of other tasks. MTL is an
+approach in which multiple related tasks are learned in parallel with some shared representation [14]. This greatly improves
+the efficiency of learning as each task learns from the other related tasks as well. For example, in face recognition, learning
+one particular human’s face will be useful for learning others’ as all humans share the same facial structure and biology.
+The MTL approach has been applied to several other prediction and classification problems. In [14], Caruana proposed a
+MTL approach based on backpropagation neural networks. The
+hidden layer of the backpropagation neural network was shared
+between all the tasks. In [15], Bakker and Heskes proposed a
+Bayesian approach for a set of similar classification and regression problems, where some model parameters (input-hiddenlayer weights) were shared among all the tasks and a joint prior
+distribution was placed on the other parameters.
+The MTL approach has also been applied to feature selection.
+In [16], Jebara proposed a common feature selection method for
+multiple SVMs based on maximum entropy discrimination. In
+[17], Argyriou et al. proposed an approach for learning common sparse features across multiple related supervised learning
+tasks. They formulated this multitask feature learning problem
+as a convex optimization problem and used the alternating minimizing algorithm to solve it. In [18], Chen et al. considered the
+problem of learning sparse and low-rank patterns from multiple
+tasks. They considered linear classifiers for each task, the feature scaling parameters of which were decomposed into sparse
+and low-rank components. The sparse component highlights the
+discriminative features for each classification task, and the lowrank component captures the common discriminative feature
+subspace between different tasks.
+Most of the existing work still treats feature selection and classifier design for multiple tasks as separate learning problems.
+Even though in [18], joint feature selection and classifier design
+for multiple tasks were proposed, the authors focused on linear
+classifiers only. Linear classifiers have limited performance for
+many real-world problems and cannot be extended to nonlinear
+ones straightforwardly. As mentioned in Section I, we formulate
+ECG-based biometric recognition as a MTL problem. The original classification problem with more than two classes is first
+converted into a set of kernel-based binary classification tasks.
+A matrix is formed which consists of the feature scaling factors
+for all the tasks. It is then decomposed into a sparse component
+and a low-rank component. The sparse component determines
+the features that are relevant only to each individual task, and the
+low-rank component determines the common feature subspace
+that is relevant for all the tasks. Thus, the relatedness between
+different tasks is modeled through the feature subspace sharing
+between tasks.
+III. ECG SIGNAL PREPROCESSING
+In this paper, we use a nonfiducial method to define the features of a single-lead ECG signal. Nonfiducial features are generally preferred over fiducial features as using a small number
+
+462
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 2, MARCH 2016
+
+of fiducial features may not generalize well to a large number of
+subjects [7]. Moreover, reliably detecting fiducial points in ECG
+signals for all the subjects automatically is not always possible
+in practice [7]. Our data preprocessing has two main steps:
+1) filtering;
+2) nonfiducial feature value calculation.
+To remove the noise in raw ECG signals, a fourth-order Butterworth bandpass filter with cutoff frequencies 1–40 Hz is first
+applied. Then, the entire ECG record of a subject is divided into
+nonoverlapping windows of 5-s duration. The nonfiducial features for each window are computed using the autocorrelation
+and DCT technique in [6]. Using the autocorrelation reduces
+the effect of heart rate variability on the recognition task [19].
+Specifically, the normalized autocorrelation function is given
+by
+N −m −1
+x[i]x[i + m]
+(1)
+Rxx [m] = i=0
+Rxx [0]
+where x[i] is the ith ECG sample in one window, N is the
+window length, and x[i + m] is the time-shifted version of x[i]
+with time lag m = 0, 1, . . . , M − 1, M  N . The DCT of the
+obtained autocorrelation is as follows:
+
+
+M
+−1
+
+π(2m + 1)k
+Z[k] = w[k]
+Rxx [m] cos
+(2)
+2M
+m =0
+where k = 0, 1, . . . , M − 1, and w[k] is given by
+⎧
+
+⎪
+k=0
+⎨ M1 ,
+.
+w[k] = 
+
+⎪
+⎩ M2 ,
+1≤k ≤M −1
+
+(3)
+
+binary classifier functions simultaneously using the available
+data D = {T1 , T2 , . . . , TL }.
+A. Binary Classifier
+For each binary classification task, we consider the following
+probabilistic kernel classifier based on the generalized linear
+model [20]
+
+
+N
+
+l
+l
+l
+l
+l
+l
+wi K(x , xi )
+(4)
+P (y = 1|x ) = σ w0 +
+i=1
+l T
+] are the classifier parameters,
+where wl = [w0l , w1l , . . . , wN
+N is the size of the training dataset, K(·, ·) is a valid kernel function, and σ(a) = 1+e1 −a . The classifier function fl (·)
+assigns the class label based on thresholding the class probability, P (y l = 1|xl ). Here, the Gaussian kernel function is
+applied as it corresponds to an infinite dimensional feature
+mapping
+⎞
+⎛
+d
+
+(5)
+(xj − zj )2 ⎠ .
+K(x, z) = exp ⎝−
+j =1
+
+The main advantage of the probabilistic kernel classifier is that it
+directly models the class probabilities without the need of modeling the underlying class generative distributions. Moreover,
+the data are projected to a very high dimensional space (infinite in our case) where the data are well separated. The kernel
+function eliminates the need of defining this feature mapping
+explicitly.
+B. Feature Scaling
+
+In general, the first d DCT coefficients, {Z[k], k = 0, . . . , d −
+1}, may contain significant information, d < M . Therefore,
+these d DCT coefficients are defined as the nonfiducial features
+of one ECG window.
+IV. PROBLEM FORMULATION
+We consider an L-class classification problem (recognition of
+L subjects), L > 2. We convert this into L one-versus-rest binary classification problems (tasks). That is, we decide whether
+the input ECG record belongs to subject l or not, l = 1, 2, . . . , L.
+For each subject, we initially divide the entire ECG record
+into nonoverlapping windows of 5-s duration. The nonfiducial ECG features are then computed for each window. Let
+Tl = {(xli , yil ); i = 1, . . . , N } be the available training data for
+the lth binary task, where N is the number of training ECG
+windows for each task. Let d be the total number of nonfiducial
+features defined for the ith window, i.e., xli ∈ Rd . The label
+of the sample xli is yil ∈ {0, 1} corresponding to “not subject l” and “subject l,” respectively. Let fl (·) be the classifier
+function for the lth binary task, i.e., y l = fl (xl ; wl ), where
+wl are the classifier parameters. In general, these L different
+tasks are related to each other. Our goal here is to learn the
+relevant subset of nonfiducial features for each task and the L
+
+For each task, a nonnegative scaling factor is introduced corresponding to each feature. This factor measures the relevance
+of a particular feature for the given task. Higher its value, the
+more relevant the corresponding feature is to the learning of the
+task. Let θjl be the scaling factor corresponding to feature j for
+task l. Accordingly, θ l = [θ1l , θ2l , . . . , θdl ]T is a vector of all the
+scaling factors for task l. For all the tasks, the scaling factors
+can be represented in a matrix form as follows:
+
+
+Θ = θ 1 |θ 2 | . . . |θ L d×L .
+(6)
+Hence, feature relevance is modeled through matrix Θ. We
+decompose Θ into two components, one sparse and one low
+rank, as follows:
+Θ=S+R
+
+(7)
+
+where S is the sparse matrix, which means that only a few
+elements of the matrix are nonzero. In other words, there will be
+only a few features selected corresponding to each task. R is the
+low-rank matrix. That is, a common low-dimensional subspace
+is extracted for all tasks. Note that all the matrices here are of
+dimension d × L, and each column corresponds to a task. Let
+the rank of matrix R be r ≤ min(d, L). We can decompose R
+
+GUTTA AND CHENG: JOINT FEATURE EXTRACTION AND CLASSIFIER DESIGN FOR ECG-BASED BIOMETRIC RECOGNITION
+
+further as follows:
+
+where
+
+Rd×L = Bd×r Cr ×L
+
+⎡ 1
+⎡
+⎤ c1
+|
+|
+| ⎢
+⎢ 1
+⎢
+⎥⎢ c2
+⎢
+⎥
+= ⎣ b1 b2 . . . br ⎦⎢
+⎢ ..
+⎢.
+|
+|
+| ⎣
+c1r
+
+c21 . . .
+c22 . . .
+.. . .
+. .
+c2r . . .
+
+⎤
+cL1
+⎥
+cL2 ⎥
+⎥
+⎥
+.. ⎥
+. ⎥
+⎦
+cLr
+
+kθl (x) = [1, e−θ
+
+l
+
+(8)
+
+min
+
+θ = s +r
+
+cli bi
+
+(9)
+
+where sl is the lth column of the sparse matrix S and is different
+for each task. The basis vectors {b1 , b2 , . . . , br } span a linear
+subspace. So the low-rank matrix R relates all tasks by sharing
+this common feature subspace.
+By integrating the feature scaling factors into the Gaussian
+kernel, we have1
+⎞
+⎛
+d
+
+(10)
+Kθ (x, z) = exp ⎝−
+θj (xj − zj )2 ⎠ .
+j =1
+
+This scaled kernel function, Kθ (·, ·), is used in the classifier (4)
+instead. By putting all classifier parameters together, we have a
+more compact representation
+
+
+(11)
+W = w1 |w2 | . . . |wL (N +1)×L .
+Our goal is to learn both matrices W and Θ based on the
+available training data D efficiently.
+V. MTL ALGORITHM
+With the generalized probabilistic kernel classifier [as in (4)]
+for each task, the multitask likelihood function of all training
+data is given by
+L
+
+
+lT
+
+z2
+
+, . . . , e−θ
+
+lT
+
+zN T
+
+] ,
+
+− log L (W, S, R) + λ1 W0
+
+s.t. S + R  0
+
+i=1
+
+L(W, Θ) = P (Y|{Xl }, W, Θ) =
+
+, e−θ
+
++ λ2 S0 + α rank(R)
+
+= sl + cl1 b1 + cl2 b2 + · · · + clr br
+= sl +
+
+z1
+
+and x = [x1 , x2 , . . . , xd ]T is a sample.
+In this likelihood function, we have the following unknown
+variables: W, the (N + 1) × L classifier parameter matrix,
+Θ = S + R, the scaling factor matrix with S being a d × L
+sparse matrix, and R a d × L low-rank matrix. We intend to
+estimate these parameters in the sense that the multitask likelihood in (12) is maximized. Therefore, our optimization problem
+can be formulated as follows:
+W ,S,R
+
+l
+
+r
+
+
+lT
+
+zi = [(x1 − x1i )2 , (x2 − x2i )2 , . . . , (xd − xdi )2 ]T ,
+
+where B is a matrix with r basis column vectors each having
+a unit norm, and C is the coefficient matrix. Therefore, for the
+lth task, the feature scaling vector (or feature weight vector) is
+given by
+l
+
+463
+
+P (yl |Xl , wl , θ l )
+
+(14)
+
+where {λ1 , λ2 , α} are the regularization parameters, ·0 is the
+0 norm (the number of nonzero elements), and rank(·) denotes
+the rank of the matrix. The regularization term of W penalizes
+the number of nonzero elements in W, which reduces overfitting. Similarly, the regularization term of S penalizes the number of nonzero elements in S, which results in a sparse feature
+scaling component. The regularization term of R penalizes the
+rank of matrix R, which results in a low-dimensional common
+feature subspace. The constraint S + R  0 ensures that the
+feature scaling factors are nonnegative.
+The rank function and the 0 norm are nonconvex functions.
+Nonconvex optimization is, in general, difficult as nonconvex
+functions have many local optima. So we replace the 0 norm by
+its convex envelope (tightest convex approximation), 1 norm
+[21], and the rank function by its convex envelope, nuclear
+(or trace) norm [22]. Therefore, the new optimization problem
+becomes
+min
+
+W ,S,R
+
+− log L (W, S, R) + λ1 W1
++ λ2 S1 + α R∗
+
+s.t. S + R  0
+(15)
+
+
+where A1 = i,j |aij | is the 1 norm and A∗ = i σi
+is the trace norm (or nuclear norm), and σi are the singular
+values of the matrix A. Under the availability of large datasets,
+convex relaxation achieves a good tradeoff between decreasing
+the computational complexity and minimizing the risk objective
+function [23].
+
+l=1
+
+(12)
+
+A. Optimization algorithm
+
+(13)
+
+It is still difficult to solve the optimization problem (15)
+directly as the objective function has some nondifferentiable
+components (1 norm and nuclear norm). Besides, the objective function is not strictly convex due to the quasi-convexity
+of the negative log-likelihood term. Note that the nondifferentiable components in the objective function are separable in the
+variables, which can be exploited. Accordingly, we divide the
+optimization problem into three optimization problems in the
+
+where the likelihood function of task l is given by
+P (yl |Xl , wl , θ l )
+=
+
+N
+
+  lT
+y l  
+(1−y il )
+σ w kθl (xli ) i σ −wlT kθl (xli )
+i=1
+
+1 Task index l
+
+is omitted here because the kernel form is the same for all tasks.
+
+464
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 2, MARCH 2016
+
+three variables W, S, and R. At each step, we perform optimization with respect to one variable while fixing the other
+two. Specifically, at the kth iteration, we solve the following
+subproblems:
+1) Optimizing with respect to W by fixing S and R
+
+
+W(k ) = arg min − log L W, S(k −1) , R(k −1)
+W
+
++ λ1 W1
+
+(16)
+
+2) Optimizing with respect to S by fixing W and R
+
+
+S(k ) = arg min − log L W(k ) , S, R(k −1)
+
+is the objective function and  is some preset tolerance level.
+More explicitly, at the kth iteration, we have
+1) Optimizing with respect to W by fixing S and R:
+
+
+
+w − w(k −1) , ∇f1 w(k −1)
+w(k ) = arg min
+w
+
+2
+
++ γ1 w − w(k −1) + λ1 w1
+(23)
+2
+
+
+where f1 (w) = − log L w, s(k −1) , r(k −1) .
+2) Optimizing with respect to S by fixing W and R
+
+
+
+s(k ) = arg min
+s − s(k −1) , ∇f2 s(k −1)
+s
+
+S
+
++ γ2 s − s(k −1)
+
++ λ2 S1
+s.t. S + R(k −1)  0.
+
+(17)
+
+3) Optimizing with respect to R by fixing W and S
+
+
+R(k ) = arg min − log L W(k ) , S(k ) , R + α R∗
+R
+
+R + S(k )  0.
+
+s.t.
+
+(18)
+
+The optimization with respect to W is unconstrained. We
+convert the above second and third subproblems into unconstrained problems by using the logarithmic barrier function. So
+we have
+
+
+S(k ) = arg min − log L W(k ) , S, R(k −1) + λ2 S1
+S
+
+d·L
+
+
+1 
+(k −1)
+log si + ri
+t1 i=1
+
+
+= arg min − log L W(k ) , S(k ) , R + α R∗
+
+−
+
+R(k )
+
+d·L
+
+
+1 
+(k )
+log si + ri .
+t2 i=1
+
+y
+
+(20)
+
+where y is the optimization variable, f (·) is a smooth (differentiable) quasi-convex function, and g(·) is a nonsmooth convex
+function. We adopt the proximal gradient method [24] to solve
+these three problems. At each iteration, we linearize the function f (·) at the estimate from the previous iteration and then
+minimize it. That is, at step k, we have
+y(k ) = arg min fl (y, y(k −1) ) + λg(y)
+y
+
+(21)
+
+where fl (y, y(k −1) ) is given by
+
+
+
+fl (y, y(k −1) ) = f (y(k −1) ) + y − y(k −1) , ∇f (y(k −1) )
++γ y − y
+
+(k −1)
+
+2
+2
+
+.
+
++ λ2 s1
+
+(24)
+
+
+
+
+where f2 (s) = − log L W(k ) , S, R(k −1) − t11 d·L
+i=1
+
+
+(k −1)
+.
+log si + ri
+3) Optimizing with respect to R by fixing W and S
+
+
+
+R(k ) = arg min
+R − R(k −1) , ∇f3 R(k −1)
+R
+
++ γ3 R − R(k −1)
+
+2
+F
+
++ α R∗
+
+(25)
+
+
+
+
+where
+f3 (R) = − log L W(k ) , S(k ) , R − t12 d·L
+i=1
+
+
+(k )
+log si + ri .
+The optimization problems (23) and (24) can be solved in
+closed forms. Specifically, the solution of (23) is given by
+
+
+ λ 
+1
+1
+(k )
+(k −1)
+(k −1)
+w = soft w
+−
+∇f1 w
+(26)
+,
+2γ1
+2γ1
+(soft(y, α))i = sgn(yi ) · max(|yi | − α, 0),
+
+(19)
+
+Note that all the above subproblems are in the following form:
+min h(y) = f (y) + λg(y)
+
+2
+
+where soft(·, ·) is the soft thresholding operator defined as [24]
+
+R
+
+−
+
+2
+
+(22)
+
+Here, ∇ denotes the gradient of the function and 	·, ·
+ denotes
+the inner product (dot product). We initially start with a feasible
+
+
+
+ 2
+point, and stop when h y(k ) − h y(k −1) 2 < , where h(·)
+
+i = 1, 2, . . . , n
+(27)
+where sgn(·) is the sign function, y ∈ Rn , and α ∈ R+ . Similarly, the solution of (24) is given by
+
+
+ λ 
+1
+2
+s(k ) = soft s(k −1) −
+∇f2 s(k −1) ,
+.
+(28)
+2γ2
+2γ2
+The problem (25) can be simplified into the following form:
+
+
+ 2
+1
+(k )
+(k −1)
+(k −1)
+−
+∇f3 R
+R = arg min γ3 R− R
+R
+2γ3
+F
++ α R∗
+
+(29)
+
+where ·F is
+Frobenius norm of the matrix and is defined
+
+the
+ 
+T
+2
+as AF =
+i
+j |aij | . Let UΣV be the SVD of the
+
+
+matrix R(k −1) − 2γ1 3 ∇f3 R(k −1) . Then the solution of the
+problem (29) is given by
+R(k ) = UΣα VT
+
+(30)
+
+where (Σα )ii = max{0, Σii − α}.
+2 We vectorize the matrices W and S for simplicity in calculations. That is,
+we convert the matrices W and S into column vectors w and s, respectively,
+by stacking their columns on top of one another.
+
+GUTTA AND CHENG: JOINT FEATURE EXTRACTION AND CLASSIFIER DESIGN FOR ECG-BASED BIOMETRIC RECOGNITION
+
+465
+
+B. Convergence and Computational Complexity
+
+B. Proposed Method
+
+The proximal gradient method is known to have a sublinear
+rate of convergence [24]
+ 
+
+
+1
+(k )
+	
+h x
+− h (x )  O
+(31)
+k
+
+The ECG records are preprocessed as explained in Section
+III. The nonfiducial features are defined as the first d DCT coefficients of the autocorrelation function with 70 time lags, for
+different values of d. Since the QRS wave is more stable than
+the P and T waves, we choose the number of lags of the autocorrelation function corresponding to the length of the QRS wave
+portion in the ECG signal. With the sampling rate of 128 Hz and
+each window of 5 s, 70 time lags are considered sufficient for
+the autocorrelation function. Based on the size of the available
+data, 20% of the training data are used as validation data to set
+the regularization parameters of the algorithm. Choosing 10%
+results in a smaller validation set. We can also use 30% instead
+of 20%. 20% is chosen since it is adequate in our experiments.
+The estimated sparse components for all the tasks are shown in
+Fig. 2, when d = 40. From the figure, we can see the features
+that are relevant to each individual task. Note that the least relevant features have the scaling factors close to zero. The rank
+of the estimated low-rank matrix R̂ is 12. To demonstrate the
+advantage of computing the underlying low-rank subspace, we
+use the scaled linear kernel, Kθ (x, z) = xT Θz, where Θ is a
+diagonal matrix with θ as its main diagonal. Since the scaling
+parameters are all nonnegative, matrix Θ is symmetric and positive semidefinite. Hence, the above scaled linear kernel is a valid
+kernel. For illustration, we project the training data of arbitrary
+subjects into arbitrary 2-D subspaces of the space spanned by
+the estimated low-rank matrix (using its left singular vectors).
+The projections of the data with respect to different left singular
+vectors (basis vectors) are shown in Fig. 3. From the figure,
+we can see that the computed low-rank space is useful for the
+recognition of these subjects.
+
+where x	 is the global minimum. The proximal gradient method
+converges to the global minimum when the smooth (differentiable) function f (·) is convex. Here in our case, the smooth
+functions are not strictly convex but are quasi-convex. For quasiconvex functions, the first-order condition of convexity
+f (y) ≥ f (x) + ∇f (x)T (y − x) ∀ x, y ∈ dom f
+
+(32)
+
+does not hold strictly. This means that the gradient ∇f (x) can be
+zero even when x is not a global minimum. This may sometimes
+lead us to a local minimum. To mitigate this issue, we run the
+algorithm using different initial starting points and finally pick
+the solution with minimum objective value. This will not have
+major effect in practice as we often use parallel computation
+techniques.
+Based on (26)–(29), the number of computations in each
+iteration is proportional to the number of parameters in the
+matrices W, S, and R. The computational complexity of the
+algorithm in each iteration is O((N + 2d)L), where N is the
+size of the training data, d is the number of nonfiducial features,
+and L is the number of subjects.
+C. Final Classification Decision Rule
+After obtaining W, S, and R, we calculate the class probabilities of all subjects, P (y l = 1|x), l = 1, 2, . . . , L, given a data
+sample x. The probability P (y l = 1|x) represents the total evidence available for telling whether the data sample x belongs to
+subject l or not. Using the Dempster–Shafer theory of evidence,
+we assign the new data sample x to the class (subject) with the
+highest belief [25]. Since all the available belief of class l is
+given by its class probability P (y l = 1|x), the data sample x is
+assigned to a class with the highest class probability, i.e.,
+l	 = arg max P (y l = 1|x).
+l
+
+(33)
+
+VI. EXPERIMENTAL RESULTS
+A. Data
+For performance evaluation, the MIT-BIH Normal Sinus
+Rhythm ECG database from PhysioNet [26] is adopted. The
+database contains long-term (about 24 h) two-lead ECG recordings of 18 subjects referred to the Arrhythmia Laboratory at
+Boston’s Beth Israel Hospital. All the ECG records are sampled at 128 Hz. Subjects include 5 men, aged 26 to 45, and 13
+women, aged 20 to 50. These 18 subjects were found to have
+had no significant arrhythmias. Lead I ECG data are used in our
+experiments as it is most commonly used and easy to acquire in
+many situations [10]. For each person, ECG signal from hour 1
+to hour 2 is used as training data, and the ECG signal from hour
+13 to hour 14 is used as test data.
+
+C. Comparison With SVM Classifier
+SVM is one of the best supervised classifiers, since it is flexible in handling nonlinearly separable classes by projecting the
+data into a very high dimensional space, and constructing maximum margin decision hyperplanes in that space [27]. We use
+SVM with a Gaussian kernel for comparison. We extend the
+binary SVM classifiers to multiclass classification using posterior class probabilities. Platt’s approach is used to compute
+the posterior class probabilities [28]. The basic idea is to fit a
+logistic sigmoid function to the outputs of the trained SVM. The
+proposed sigmoid model is as follows:
+1
+(34)
+1 + eμf (x)+γ
+where μ and γ are the parameters of the model, and they can be
+found by minimizing the negative log-likelihood of the training
+data using the standard Newton’s method with backtracking line
+search. The final classification decision rule is to assign a test
+sample to the class with the highest posterior probability.
+P (y = 1|f (x)) =
+
+D. Comparison With Other ECG Recognition Methods
+We also compare the classification performance of the proposed method with the nearest neighbor method in [6], and the
+neural network method in [8]. For all the methods, we use the
+
+466
+
+Fig. 2.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 2, MARCH 2016
+
+Estimated sparse components showing the feature relevance for each individual task.
+
+Fig. 3. Projection of the training data of arbitrary subjects into arbitrary 2-D
+subspaces of the estimated low-rank space.
+
+same set of nonfiducial features. We use a normalized Euclidean
+distance measure in the nearest neighbor classifier. For the neural network method in [8], we use a network of one hidden layer
+with d nodes. The correct detection rates, training, and testing
+time of all the methods are shown in Fig. 4.
+From the results, we can see that the proposed method outperforms the SVM-based method and the neural network and
+nearest neighbor methods in [8] and [6], especially for higher
+numbers of nonfiducial features. This is because in the proposed
+method, the features are scaled according to their relevance. Besides, the MTL approach is effective in estimating the classifier
+and feature scaling parameters. The computational complexity
+of the proposed method, SVM, and neural network during training is O((N + 2d)L), O(LN 2 ) [29], and O(N (d2 + dL)2 ) [9],
+respectively. The total training time of the proposed method in
+the experiments is a bit higher because multiple initializations
+are required. In practice, training is generally conducted offline.
+Therefore, the practical applicability of the method is not affected. Note that the testing time is low and comparable to other
+methods. Unlike other methods, the nearest neighbor method
+does not require a training step, but it consumes more time in
+testing. The computational complexity of the nearest neighbor
+method during testing is O(dN ). Also, it has a high space complexity as it needs to store the entire training data over time.
+In real situations, there may exist measurement noise in the
+acquired ECG signal, due to poor electrode contact, inherent
+sensor thermal noise, power line interference, etc. The noise
+due to poor electrode contact can be modeled as a randomly
+
+GUTTA AND CHENG: JOINT FEATURE EXTRACTION AND CLASSIFIER DESIGN FOR ECG-BASED BIOMETRIC RECOGNITION
+
+467
+
+have little effect on the performance of the proposed method
+as long as they are present in both training and test data. If the
+ECG pattern significantly changes due to the development of
+heart diseases, the classification performance of the proposed
+method will be affected and new training samples should be
+collected for those subjects.
+VII. CONCLUSION
+In this paper, a new joint feature extraction and classifier design method is proposed for single-lead ECG-based biometric
+recognition. A nonfiducial-point-based method is used to define
+features. The original classification problem is converted into
+a set of binary classification problems. We propose the multitask learning approach in which feature extraction and classifier
+design for all the binary classification tasks are conducted simultaneously. Probabilistic nonlinear kernel classifiers are adopted
+for binary classification. For each binary classification task, we
+give weights to the features according to their relevance (importance). The matrix consisting of the feature weights for all the
+tasks is decomposed into a sparse component and a low-rank
+component. The sparse component gives the features relevant
+to each classification task, and the low-rank component gives
+the common feature subspace relevant to all the classification
+tasks. A fast first-order optimization algorithm is proposed. Experimental results on the MIT-BIH Normal Sinus Rhythm ECG
+database show the effectiveness of the proposed MTL approach
+over other conventional approaches.
+REFERENCES
+
+Fig. 4. Comparison results for different number of nonfiducial features: (a)
+Correct detection rate; (b) training time; and (c) testing time.
+
+occurring step signal with exponential decay [30]. Majority of
+the high-frequency noise is often removed by bandpass filtering in the preprocessing step. Our method is also tested in the
+presence of additive white Gaussian noise. The performance degrades smoothly with the increase of noise variance. In [31] and
+[32], the SVM and neural network algorithms are shown insensitive to the additive measurement noise like our method, while
+the nearest neighbor classifier is sensitive [33]. The presence of
+artifacts in the ECG signal due to arrhythmia or ischemia will
+
+[1] H. Silva, A. Lourenco, A. Fred, and J. Filipe, “Clinical data privacy and
+customization via biometrics based on ECG signals,” Lecture Notes Comput. Sci., Inform. Quality e-Health, vol. 7058, pp. 121–132, 2011.
+[2] R. Hoekema, G. J. H. Uijen, and A. Van Oosterom, “Geometrical aspects of
+the interindividual variability of multilead ECG recordings,” IEEE Trans.
+Biomed. Eng., vol. 48, no. 5, pp. 551–559, May 2001.
+[3] L. Biel, O. Pettersson, L. Philipson, and P. Wide, “ECG analysis: A new
+approach in human identification,” IEEE Trans. Instrum. Meas., vol. 50,
+no. 3, pp. 808–812, Jun. 2001.
+[4] S. A. Israel, J. M. Irvine, A. Cheng, M. D. Wiederhold, and B. K. Wiederhold, “ECG to identify individuals,” Pattern Recog., vol. 38, no. 1, pp. 133–
+142, 2005.
+[5] G. Wübbeler, M. Stavridis, D. Kreiseler, R. D. Bousseljot, and C. Elster, “Verification of humans using the electrocardiogram,” Pattern Recog.
+Lett., vol. 28, no. 10, pp. 1172–1175, 2007.
+[6] Y. Wang, F. Agrafioti, D. Hatzinakos, and K. N. Plataniotis, “Analysis
+of human electrocardiogram for biometric recognition,” EURASIP J. Adv.
+Signal Process., pp. 1–11, vol. 2008, art. no. 148658, 2008.
+[7] J. M. Irvine, S. A. Israel, W. T. Scruggs, and W. J. Worek, “EigenPulse: Robust human identification from cardiovascular function,” Pattern Recog.,
+vol. 41, no. 11, pp. 3427–3435, 2008.
+[8] M. M. Tawfik and H. S. T. Kamal, “Human identification using QT signal
+and QRS complex of the ECG,” Online J. Electron. Elect. Eng., vol. 3,
+no. 1, pp. 383–387, 2011.
+[9] C. M. Bishop, Pattern Recognition and Machine Learning. New York,
+NY, USA: Springer-Verlag, 2006.
+[10] M. K. Delano and C. G. Sodini, “A long-term wearable electrocardiogram
+measurement system,” in Proc. IEEE Int. Conf. Body Sensor Netw., 2013,
+pp. 1–6.
+[11] J. Weston, S. Mukherjee, O. Chapelle, M. Pontil, T. Poggio, and V. Vapnik,
+“Feature selection for SVMs,” in Proc. Adv. Neural Inform. Process. Syst.,
+2000, pp. 668–674.
+[12] Y. Grandvalet, and S. Canu, “Adaptive scaling for feature selection in
+SVMs,” in Proc. Adv. Neural Inform. Process. Syst., 2002, pp. 553–560.
+[13] B. Krishnapuram, A. J. Hartemink, L. Carin, and M. A. T. Figueiredo, “A
+Bayesian approach to joint feature selection and classifier design,” IEEE
+
+468
+
+[14]
+[15]
+[16]
+[17]
+[18]
+[19]
+
+[20]
+[21]
+[22]
+[23]
+[24]
+[25]
+[26]
+
+[27]
+[28]
+[29]
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 2, MARCH 2016
+
+Trans. Pattern Anal. Mach. Intell., vol. 26, no. 9, pp. 1105–1111, Sep.
+2004.
+R. Caruana, “Multitask learning,” Ph.D. dissertation, School of Computer
+Science, Carnegie Mellon University, Pittsburgh, PA, USA, 1997.
+B. Bakker and T. Heskes, “Task clustering and gating for Bayesian multitask learning,” J. Mach. Learn. Res., vol. 4, pp. 83–99, 2003.
+T. Jebara, “Multi-task feature and kernel selection for SVMs,” presented
+at the Int. Conf. Machine Learning, Banff, AL, Canada, 2004.
+A. Argyriou, T. Evgeniou, and M. Pontil, “Convex multi-task feature
+learning,” Mach. Learn., vol. 73, no. 3, pp. 243–272, 2008.
+J. Chen, J. Liu, and J. Ye, “Learning incoherent sparse and low-rank
+patterns from multiple tasks,” ACM Trans. Knowl. Discovery Data, vol.
+5, no. 4, pp. 22:1–22:31, 2012.
+I. Odinaka, P.-H. Lai, A. D. Kaplan, J. A. O’Sullivan, E. J. Sirevaag, and
+J. W. Rohrbaugh, “ECG biometric recognition: A comparative analysis,”
+IEEE Trans. Inform. Forensics Security, vol. 7, no. 6, pp. 1812–1824, Dec.
+2012.
+P. McCullagh and J. A. Nelder, Generalized Linear Models, 2nd ed. London, U.K.: Chapman and Hall, 1989.
+S. S. Chen, D. L. Donoho, and M. A. Saunders, “Atomic decomposition by basis pursuit,” SIAM J. Sci. Comput., vol. 20, pp. 33–61,
+1998.
+M. Fazel, H. Hindi, and S. Boyd, “A rank minimization heuristic with
+application to minimum order system approximation,” in Proc. Amer.
+Control Conf., 2001, pp. 4734–4739.
+V. Chandrasekaranan and M. I. Jordan, “Computational and statistical
+tradeoffs via convex relaxation,” Proc. Nat. Acad. Sci., vol. 110, no. 13,
+pp. E1181–E1190, 2013.
+A. Beck and M. Teboulle, “A fast iterative shrinkage-thresholding algorithm for linear inverse problems,” SIAM J. Imaging Sci., vol. 2, no. 1,
+pp. 183–202, 2009.
+S. Gutta and Q. Cheng, “Data-based distributed classification and its
+performance analysis,” in Proc. 15th Int. Conf. Inform. Fusion, 2012,
+pp. 1519–1526.
+A. L. Goldberger, L. Amaral, L. Glass, J. M. Hausdorff, P. Ivanov,
+R. G. Mark, J. E. Mietus, G. B. Moody, C.-K. Peng, and H.
+E. Stanley. (2000, Jun.). PhysioBank, PhysioToolkit, and PhysioNet:
+Components of a new research resource for complex physiologic
+signals. Circulation [Online]. 101(23), pp. e215–e220. Available:
+http://www.physionet.org/physiobank/database/nsrdb/
+C. Cortes and V. Vapnik, “Support-vector networks,” Mach. Learn., vol.
+20, no. 3, pp. 273–297, 1995.
+J. C. Platt, “Probabilistic outputs for support vector machines and comparison to regularized likelihood methods,” Advances in Large Margin
+Classifiers, 1999, pp. 61–74.
+J. C. Platt, “Sequential minimal optimization: A fast algorithm for training
+support vector machines,” Advances in Kernel Methods-Support Vector
+Learning, 1998.
+
+[30] G. M. Friesen, T. C. Jannett, M. A. Jadallah, S. L. Yates, S. R. Quint, and
+H. T. Nagle, “A comparison of the noise sensitivity of nine QRS detection
+algorithms,” IEEE Trans. Biomed. Eng., vol. 37, no. 1, pp. 85–98, Jan.
+1990.
+[31] H. Xu, C. Caramanis, and S. Mannor, “Robustness and regularization of
+support vector machines,” J. Mach. Learn. Res., vol. 10, pp. 1485–1510,
+2009.
+[32] D. Saad and S. A. Solla, “Learning with noise and regularizers in multilayer neural networks,” Adv. Neural Inform. Process. Syst., vol. 9, pp. 260–
+266, 1997.
+[33] S. Okamoto and Y. Nobuhiro, “An average-case analysis of the k-nearest
+neighbor classifier for noisy domains,” in Proc. 15th Int. Joint Conf. Artif.
+Intell., 1997, vol. 1, pp. 238–243.
+
+Sandeep Gutta (S’10) received the B.E. degree
+in electronics and communication engineering from
+Andhra University, Visakhapatnam, India, in 2008,
+and the M.S. degree in electrical engineering from
+Oklahoma State University, Stillwater, OK, USA, in
+2011, where he is currently working toward the Ph.D.
+degree at the School of Electrical and Computer Engineering.
+His research interests include statistical signal processing and machine learning.
+
+Qi Cheng (M’06–SM’12) received the B.E. degree
+in electrical engineering from Shanghai Jiao Tong
+University, Shanghai, China, in July 1999, and the
+M.S. and Ph.D. degrees in electrical engineering from
+Syracuse University, Syracuse, NY, USA, in 2003 and
+2006, respectively.
+From 1999 to 2000, she was a System Engineer at
+Guoxin Lucent Technologies Network Technologies
+Company, Ltd., Shanghai. Since August 2006, she
+has been with Oklahoma State University, Stillwater,
+OK, USA, where she is currently an Associate Professor with the School of Electrical and Computer Engineering. Her research
+interests include statistical signal processing and data fusion with applications
+in distributed sensor networks.
+Dr. Cheng has served as an Editor for the IEEE COMMUNICATIONS LETTERS.
+She is a Member of Women in Engineering ProActive Network.
+
+

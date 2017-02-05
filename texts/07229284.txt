@@ -1,0 +1,905 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 4, APRIL 2016
+
+797
+
+cvxEDA: A Convex Optimization Approach
+to Electrodermal Activity Processing
+Alberto Greco, Student Member, IEEE, Gaetano Valenza, Member, IEEE, Antonio Lanata, Member, IEEE,
+Enzo Pasquale Scilingo, Member, IEEE, and Luca Citi∗ , Member, IEEE
+
+Abstract—Goal: This paper reports on a novel algorithm for the
+analysis of electrodermal activity (EDA) using methods of convex
+optimization. EDA can be considered as one of the most common
+observation channels of sympathetic nervous system activity, and
+manifests itself as a change in electrical properties of the skin, such
+as skin conductance (SC). Methods: The proposed model describes
+SC as the sum of three terms: the phasic component, the tonic
+component, and an additive white Gaussian noise term incorporating model prediction errors as well as measurement errors and
+artifacts. This model is physiologically inspired and fully explains
+EDA through a rigorous methodology based on Bayesian statistics,
+mathematical convex optimization, and sparsity. Results: The algorithm was evaluated in three different experimental sessions to test
+its robustness to noise, its ability to separate and identify stimulus
+inputs, and its capability of properly describing the activity of the
+autonomic nervous system in response to strong affective stimulation. Significance: Results are very encouraging, showing good
+performance of the proposed method and suggesting promising
+future applicability, e.g., in the field of affective computing.
+Index Terms—Convex optimization, electrodermal activity, skin
+conductance, sparse deconvolution.
+
+I. INTRODUCTION
+LECTRODERMAL activity (EDA) broadly refers to any
+alteration in the electrical properties of the skin. One of
+the most frequently used measures of EDA is skin conductance
+(SC). Electrodermal signals are a manifestation of the activity
+in eccrine sweat glands that are innervated by the sympathetic
+branch of the autonomic nervous system (ANS), mainly by the
+sudomotor nerves [1]. Indeed, when the sudomotor nerves stimulate the production of sweat, the conductivity measured on the
+skin surface changes as a result of sweat secretion and of variations in ionic permeability of sweat gland membranes [2]–[4].
+Although sweating is primarily a means of thermoregulation,
+sweat glands located on the palmar and plantar (glabrous) surfaces possibly evolved to increase grip and enhance sensitivity,
+and may be more responsive to psychologically significant stimuli than to thermal ones [2], [4]. This relationship between EDA,
+ANS, and psychological stimuli—together with the relative ease
+of measurement—makes this physiological signal widely popu-
+
+E
+
+Manuscript received May 17, 2015; revised July 31, 2015; accepted August 16, 2015. Date of publication August 28, 2015; date of current version
+March 17, 2016. The work was supported in part by the European Union Seventh Framework Program FP7/2007-2013 under Grant agreement 601165 of the
+project WEARHAP and in part by the School of Computer Science and Electronic Engineering, University of Essex, Colchester, U.K. Asterisk indicates
+corresponding author.
+A. Greco is with the University of Essex and the University of Pisa.
+G. Valenza, A. Lanata, and E. P. Scilingo are with University of Pisa.
+∗ L. Citi is with the School of Computer Science and Electronic Engineering,
+University of Essex, Colchester CO4 3SQ, U.K. (e-mail: lciti@ieee.org).
+Digital Object Identifier 10.1109/TBME.2015.2474131
+
+lar in neuroscience research, including information processing,
+quantification of arousal levels during emotional and cognitive
+processes, and clinical research examining predictors and correlates of normal and pathological behavior [5]–[7].
+The SC signal can be decomposed in two components, tonic
+and phasic, which have different time scales and relationships
+to the triggering stimuli. Tonic phenomena include slow drifts
+of the baseline skin conductance level and spontaneous fluctuations in SC [4]. The phasic component, skin conductance
+response (SCR), reflects the short-time response to the stimulus. The typical shape of the SCR comprises a relatively rapid
+rise from the conductance level followed by a slower asymptotic
+exponential decay back to the baseline.
+When the interstimulus interval (ISI), i.e., the temporal gap
+between two consecutive stimuli, is shorter than the recovery
+time of the first response, the two SCRs overlap. This occurrence
+is observed in many experimental paradigms, particularly in
+cognitive neuroscience where common values of ISI (1–2 s)
+are generally shorter than the recommended minimum ISI to
+avoid such an overlap, which is around 10–20 s [5], [8]. The
+overlap issue is probably the main limitation in a set of factors
+regarding the decomposition of SC into its phasic and tonic
+components. Despite the wide use of EDA measurements, the
+generation of the SCR via skin sympathetic nerve fibers remains
+an understudied topic.
+In the past two decades, several mathematical solutions have
+been developed to decompose the phasic signal into individual
+SCRs associated with each stimulus, even during short ISI experimental paradigms, and to model how ANS activity [and, in
+particular, the sudomotor nerve activity (SMNA)] causes SCRs.
+This process allows the estimation of the ANS activity with potentially better time resolution than using the raw SCR signal.
+Many of the early methods, whose primary aim was to overcome
+the overlap issue, required visual inspection and introduced subjective elements into the analysis. For example, Barry et al. [9]
+attempted to correct the baseline by subtracting each SCR from
+an extension of the preceding SCR using graphical tools. Lim
+et al. [10] instead proposed a model based on a response function
+made of 4–8 parameters optimized for each single response to
+obtain a response-by-response variation in the SCR shape. This
+method also required visual inspection to select the best model.
+Further automation of the analysis occurred through the
+description of the peripheral system as a linear time-invariant
+(LTI) system and the development of different classes of models
+based on this assumption [11]. In addition to decomposing
+the phasic signal into individual SCRs, these models often
+attempt to estimate the ANS activity by searching for the most
+likely input signal which could explain the observed output
+(the measured SC). The first LTI model was presented by
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+798
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 4, APRIL 2016
+
+Alexander et al. [12]. Their method permits the estimation
+of the SMNA using a model where the SC is the result of a
+convolution between discrete bursting episodes of the SMNA
+and a biexponential impulse response function (IRF) assumed
+known a priori and time invariant.
+Benedek and Kaernbach criticized some aspects of Alexander’s model and developed two new models in which the LTI
+assumption was modified to take into account the variability in
+SCR shape. These methods are known as nonnegative deconvolution [13] and continuous deconvolution analysis (CDA) [14].
+Both models split the SMNA into two parts, one describing
+the phasic activity and the other representing EDA variations
+of different origins (e.g., noise). Both models assume a pharmacokinetic model of the dynamic law of diffusion of sweat.
+They adopted a biexponential IRF, called the Bateman function.
+Although observation noise is not formally modeled in any of
+these methods [12]–[14], all of three assume its existence. They
+estimate a noisy SMNA and then recover a filtered phasic component using a low-pass filter and a subsequent heuristic and
+prefixed peak-detection scheme.
+Recently, Bach presented the SCRalyze toolbox (now incorporated into PsPM), which comprises several models that assume a LTI system [15]. These models and that of Alexander
+et al. use a heuristic IRF whose parameters have been optimized
+on large datasets. SCRalyze algorithms try to estimate the model
+input (SMNA) or parameters that best explain the observed SC
+data based on optimization methods. Moreover, they include a
+noise term, which also accounts for possible violations of the
+assumption of time invariance.
+Using several aspects of these previously assessed methodological approaches (e.g., the IRF), our previous study [16]
+proposed decomposing SC signals into smooth tonic and sparse
+phasic components through the solution of a convex optimization problem. The solution of the problem incorporated the
+physiological knowledge about EDA by means of an appropriate choice of constraints and regularizers. In particular, the
+nonnegativity of the SMNA—that [14] promoted using a soft
+penalty—was seamlessly enforced by our previous (and current) model through the use of a nonnegative constraint on the
+corresponding optimization variable. More recently, Chaspari
+et al. [17] also proposed a sparse representation of EDA but their
+use of overcomplete dictionaries leads to a nonconvex problem
+with no guarantee of finding the globally optimal solution. Since
+an amazing variety of practical problems can be cast in the form
+of a convex optimization problem, mathematical optimization
+has become an important tool in many disciplines and the list of
+its applications is steadily growing [18].
+In this paper, we present a novel method to estimate the ANS
+activity from the EDA using a convex optimization approach.
+The model is grounded on Bayesian statistics and a simple yet
+physiologically sound representation of the observed SC as the
+sum of three components: a slow tonic component, the output of
+the convolution between an IRF and a sparse (compact, bursty)
+nonnegative SMNA phasic driver, and an additive noise term.
+We model the IRF—which is related to the phasic component—
+as an infinite impulse response (IIR) function by means of an
+autoregressive moving average (ARMA) model. Compared to
+a finite impulse response (FIR) or matched filter approach, the
+IIR system exhibits better accuracy (by not requiring truncation
+of the IRF) and greater computational efficiency, thanks to a
+
+more compact representation of the system. After introducing
+the method in Section II, we report the results of a thorough evaluation of the algorithm on simulated and real data. Experimental
+results, described in Section IV, demonstrate the model’s positive attributes, also through a comparison with the CDA [14],
+which has been of great inspiration for this study.
+II. ALGORITHM
+A. Convex Optimization
+The goal of an optimization problem
+minimize f0 (x)
+subj. to fi (x) ≤ 0
+
+i = 1, . . . , m
+
+(1)
+
+is to find the best possible choice among the vectors belonging
+to the subset of Rn defined by the constraint functions. An optimization problem is convex when both the objective and the
+constraint functions are convex [18]. In the context of mathematical optimization, the most important consequence of convexity
+is that necessary conditions for local optimality are also sufficient for global optimality. In other words, if a convex function
+is minimized, the global optimal value of the problem will always be found. Contrary to most nonconvex problems, for some
+important categories of convex optimization problems, there are
+algorithms that can reliably and efficiently solve very large-scale
+problems. A special subclass of convex optimization problems
+is represented by quadratic optimization (quadratic program,
+QP) wherein the objective function is a quadratic polynomial
+in the variables and the constraints are all affine functions [18].
+The cost function of a QP may include l2 -norm and l1 -norm
+regularization terms that can be used to prevent overfitting or
+to favor sparse solutions, i.e., solutions with a large number of
+components equal to zero. We will show now that, given a set
+of physiologically sound assumptions, the EDA deconvolution
+problem can be cast as a quadratic optimization problem.
+B. Model Assumptions
+We modeled the EDA generation process based on the following assumptions:
+A1) SCRs are preceded by bursts from the sudomotor nerves
+controlling the sweat glands. These bursts are temporally
+discrete episodes [19], [20], i.e., SCRs are generated by a
+neural signal that is sparse and nonnegative because of the
+nature of a nerve activity.
+A2) The relationship between the number of sweat glands recruited and the amplitude of a firing burst is linear [20].
+Moreover, the output response of the system depends only
+on the instant where the nerve input is applied. Stated otherwise, the timecourse of a single SCR induced by a neural
+burst is not influenced by previous ones, even when their
+SCRs overlap [21]. In the light of these considerations, it
+is reasonable to characterize the system as LTI.
+A3) The sweat diffusion process has a subject-specific IRF
+which is relatively stable for all SCRs from the same subject [14].
+A4) This phasic activity is superimposed to a slowly varying
+tonic activity with spectrum below 0.05 Hz [22], i.e., whose
+
+GRECO et al.: CVXEDA: A CONVEX OPTIMIZATION APPROACH TO ELECTRODERMAL ACTIVITY PROCESSING
+
+information content can be represented by samples spaced
+every 10 s (e.g., by 10-s averages in [4]).
+C. Observation Model
+
+D. Maximum a Posteriori (MAP) Estimation
+Given the observation model (8), the goal is to identify the
+MAP spike train p and tonic component t parametrized by
+[q, , d], for the measured SC signal y:
+
+We model a given N -sample long SC signal y as the sum of
+a tonic t and a phasic r component plus an additive noise term
+:
+y =r+t+
+
+(2)
+
+where y, t, r, and  are N -long column vectors. The noise term
+ is an independent and identically distributed (iid) sequence
+of zero-average Gaussian random variables with variance σ 2 ,
+representing measurement and modeling errors.
+The tonic component is represented as the sum of cubic Bspline functions with equally spaced knots every 10 s (assumption A4), an offset and a linear trend term
+t = B + Cd
+
+(3)
+
+where B is a tall matrix whose columns are cubic B-spline basis
+functions,  is the vector of spline coefficients, C is a N ×2
+matrix with Ci,1 = 1, and Ci,2 = i/N , d is a 2×1 vector with
+the offset and slope coefficients for the linear trend.
+Within r the shape of a single phasic response (under assumptions A2 and A3) is modeled using a biexponential IRF, called
+the Bateman function
+
+ τ
+τ
+(4)
+h(τ ) = e− τ 0 − e− τ 1 u(τ )
+where τ0 and τ1 are, respectively, the slow and fast time constants while u(τ ) is the unitary step function. The Bateman
+function is the output of a bicompartmental pharmacokinetic
+model representing the diffusion of the sweat through the gland
+ducts [23]. The Laplace transform of (4) is simply
+L{h(τ )} =
+−τ0−1
+
+1
+1
+−1 −
+s + τ0
+s + τ1−1
+
+where
+and
+are the poles of this second-order LTI
+system. Its discrete-time approximation, obtained using central
+−1
+differencing (bilinear transform) s = 2δ zz +1
+with sampling interval δ, is the following ARMA model:
+
+2
+1 + z −1
+H(z) =
+ψ + θz −1 + ζz −2
+ψ = (τ1−1 δ + 2)(τ0−1 δ + 2)/(τ1−1 δ 2 − τ0−1 δ 2 )
+θ = (2 τ1−1 τ0−1 δ 2 − 8)/(τ1−1 δ 2 − τ0−1 δ 2 )
+ζ = (τ1−1 δ − 2)(τ0−1 δ − 2)/(τ1−1 δ 2 − τ0−1 δ 2 ).
+
+(6)
+
+r=Mq
+
+(7)
+
+where p represents the SMNA, q is an auxiliary variable that
+will be used to find p indirectly, M is a tridiagonal matrix
+with elements Mi,i = Mi,i−2 = 1, Mi,i−1 = 2, 3 ≤ i ≤ N , and
+A is a tridiagonal matrix with elements Ai,i = ψ, Ai,i−1 = θ,
+Ai,i−2 = ζ, 3 ≤ i ≤ N .
+Finally, the observation model (2) can be written as
+y = M q + B + Cd + .
+
+(8)
+
+(9)
+
+q ,,d
+
+Assuming independence between q, , and d (i.e., between the
+phasic activity, the slowly varying tonic component, and the
+drift) and applying Bayes’ theorem, we obtain
+P [q, , d | y] ∝ P [y | q, , d] P [q] P [] P [d]
+
+(10)
+
+where P [y | q, , d] is the likelihood of observing a specific
+SC time series given the parameters of the model, while P [q],
+P [], and P [d] are the prior probabilities of the parameters. We
+omitted the evidence P [y] since it plays no role in the optimization. Unlike other approaches in the literature, our model
+relies exclusively on the presence and definition of the priors
+in (10)—which we are about to describe in detail—to impose
+physiologically sound constraints on the signals to be estimated.
+As a result, the method does not require preprocessing of the
+observed SC signal (e.g., bandpass filtering) nor postprocessing
+of the inferred phasic and tonic components (e.g., to deal with
+negative neural activations).
+To model the SMNA p representing the input (see A1) to
+the LTI system, we use the simplest first-order description of
+spike trains [24], i.e., a Poisson distribution: pi ∼ Pois(λδ),
+where λδ is the expected firing rate per bin, i.e., λ is the average
+number of spikes per unit time. To keep the analysis tractable, we
+replace the Poisson distribution with an exponential distribution
+of the same mean [24]. In this way, the constraint pi ∈ N can
+be relaxed to pi ≥ 0. Finally, since p and q are related by (7),
+the prior P [q] becomes
+P [q] =
+
+N
+N
+
+
+1 −pi
+e λδ =∝
+exp(−(λδ)−1 (Aq)i ).
+λδ
+i=1
+i=1
+
+(11)
+
+Concerning the tonic component, we make use of assumption
+A4 and consider a uniform frequency spectrum in the band
+0 − 0.05 Hz. As we use equally spaced knots every Δ = 10 s,
+the sampling frequency is exactly twice the upper band limit and
+the elements of the vector  can be assumed iid. In particular,
+we adopt a normal distribution for the amplitude at each knot
+i ∼ N (0, σ2 ). As a result, the prior P [] is
+P [] =
+
+Q
+
+i=1
+
+The ARMA cascade can be represented in matrix form as
+q = A−1 p,
+
+[q, , d] = arg max P [q, , d | y].
+
+(5)
+
+−τ1−1
+
+799
+
+√
+
+
+
+1
+1 2
+exp − i2
+2 σ
+2π σ
+
+(12)
+
+where Q is the number of knots (approximately N δ/Δ). Finally,
+for the drift coefficients d, we assume uninformative priors and
+drop P [d] altogether from further analysis.
+The likelihood term follows immediately from (8) and from
+the error model  ∼ N (0, σ 2 ):
+	
+
+
+N
+
+1
+(M q + B + Cd − y)2i
+√
+exp −
+.
+P [y | q, , d] =
+2σ 2
+2πσ
+i=1
+(13)
+
+800
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 4, APRIL 2016
+
+Replacing (11), (12), and (13) in (10) and taking the logarithm:
+ln P [q, , d | y] = −
+
+−
+
+N
+1 
+(M q + B + Cd − y)2i
+2σ 2 i=1
+Q
+N
+1 
+1  2
+(Aq)i − 2
+ + const (14)
+λδ i=1
+2σ i=1 i
+
+with (Aq)i ≥ 0. Maximizing (14) yields the MAP solution to
+(9). After multiplying by σ 2 and substituting α = σ 2 /(λδ) and
+γ = σ 2/σ2 , we rewrite (14) as a constrained minimization problem in matrix form to obtain a more compact notation. This
+optimization problem, that we term convex-optimization-based
+EDA model (cvxEDA), represents the core of the algorithm
+presented in this manuscript
+minimize
+
+1
+γ
+	M q+B+Cd − y	22 +α 	Aq	1 + 		22
+2
+2
+
+subj. to Aq ≥ 0.
+
+tently elicit a phasic response. Similarly, the detection of phasic
+activity in the absence of stimulation may be caused by electrodermal changes that are not stimulus-elicited but spontaneous
+and nonspecific, possibly a result of muscular contractions or
+respiratory irregularities [4]. We tested our new model taking
+into account evaluation procedures reported in the literature.
+We first validated the model’s ability to estimate phasic and
+tonic components explaining the observed SC through simulated and experimental data (see “Experiment 1” below). In the
+latter case, we used a forced maximal expiration task, that a
+previous study [28] has shown to reliably induce a sympathetic
+activation. A further validation was performed to investigate the
+predictive power of features derived from our model in inferring central (mental/emotional) states (see “Experiment 2”). In
+this case, performances of our model were also compared with
+those obtained from the CDA, as implemented in the Ledalab
+software [14].
+A. Simulated Data
+
+(15)
+After some matrix algebra, this optimization problem can be
+rewritten in the standard QP form and solved efficiently using
+one of the many sparse-QP solvers available. After finding the
+optimal [q, , d], the tonic component t can be derived from (3)
+while the SMNA driving the phasic component can be easily
+found as p = Aq.
+Although solving (15) is strictly equivalent to maximizing
+(14), the former has a different interpretation. In the optimization
+problem, the objective function to be minimized is a quadratic
+measure of misfit between the predicted and the observed data.
+Prior knowledge is accounted for by means of additive regularizing terms. For example, the spiking nature of the driving
+input (assumption A1) is enforced by means of the l1 -norm penalization which is an effective way to sparsify a signal while
+maintaining convexity [25]–[27]. Smoothness of the tonic curve
+(assumption A4) is enforced by the choice of the basis (B) and
+through the l2 -norm penalization of the spline coefficients. The
+two parameters α and γ control the strength of the penalty
+for the phasic and tonic components, respectively. A large α
+(stronger l1 regularization of p) yields a sparser estimate with
+most noise-induced spurious spikes suppressed, but also more
+signal distortion (i.e., attenuation of genuine activations). Conversely, a small α produces a less distorted but noisier solution.
+Concerning γ, higher values mean a stronger penalization of ,
+i.e., a smoother tonic curve.
+III. MATERIALS AND METHODS
+There is no universally accepted protocol for the validation
+of EDA analysis algorithms. A characterization in terms of sensitivity and specificity, as typically done in a pattern recognition framework, is not directly applicable in this context since
+there is no one-to-one correspondence between external stimuli
+supposed to elicit ANS responses and SCRs (see [11] for a discussion). Unless the sympathetic nerve activity is also recorded
+through microneurography, failure to detect a phasic SC response after the occurrence of an experimental stimulus may
+be equally ascribed to a low sensitivity of the algorithm under
+study or, alternatively, to the inability of the stimulus to consis-
+
+Each simulated SC time series lasted T = 90 s and was generated as the sum of three terms: the first one, representing
+the phasic component of the EDA, was obtained as the result of a convolution between a simulated SMNA and a biexponential IRF (τ1 = 0.7 s, τ0 ∼ Unif(2.0, 4.0) s), the second
+one was a slowly varying signal representing the tonic component, obtained as a linear trend plus a sinusoid with a period
+Tt ∼ Unif(45.0, 90.0) s, the third term was an additive white
+Gaussian noise (AWGN). The SMNA driving the phasic component was simulated by placing ten pulses of unit area (modeling neural bursts) at random times with a minimum 1 s distance
+between them and from the two ends. To test the ability of the
+method to recover partially overlapping SCRs in the presence
+of noise, two sets of 100 time series were generated with different levels of signal-to-noise ratio (SNR): 33 and 13 dB (defined
+as 10 log10 (a2 /σN2 ) where a is the foot-to-peak amplitude of a
+single SCR and σN2 is the AWGN variance).
+B. Experiment 1
+In the first experiment, 15 healthy subjects (aged 18–35 years,
+seven females) performed a forced maximal expiration task [28],
+in which they were asked to breathe out with the maximum possible intensity in order to trigger the ANS-mediated expiration
+reflex. All subjects gave written informed consent prior to taking part in the study, which was approved by the local Ethics
+Committee. A Biosemi Active II system was used to acquire
+the SC signal and the respiratory effort (by means of a thoracic
+respiration belt). The protocol started with the subjects breathing normally and resting in front of a gray monitor for 3 min in
+order to record their baseline levels. This was followed by three
+stimulus sessions in which subjects had to perform a deep expiration whenever the color of the screen background changed
+to black. Each session consisted of six forced expirations with a
+variable ISI chosen randomly among 4, 8, and 12 s. Consecutive
+sessions were separated by a 30-s recovery interval.
+This experimental paradigm was chosen to obtain SC signals in which the presence of an autonomic response to the
+stimulus was as objective and reliable as possible. In fact, previous studies have shown that the forced expiration protocol is a
+
+GRECO et al.: CVXEDA: A CONVEX OPTIMIZATION APPROACH TO ELECTRODERMAL ACTIVITY PROCESSING
+
+TABLE I
+AROUSAL RATING OF IAPS IMAGES USED
+Session
+N
+A1
+A2
+A3
+A4
+
+Arousal Rating
+
+Arousal Range
+
+Arousal Level
+
+2.81 ± 0.24
+3.58 ± 0.30
+4.60 ± 0.31
+5.55 ± 0.28
+6.50 ± 0.33
+
+2.42 − 3.22
+3.08 − 3.98
+4.00 − 4.99
+5.01 − 6.21
+5.78 − 6.99
+
+VL
+L
+L-M
+M-H
+H
+
+valid method of evoking SCRs unaffected by emotional change
+with more stable waveform patterns, less habituation, and better
+reproducibility than other means of stimulation (including electrical) [28]. In this way, the presence of at least one SCR after
+each stimulus was ascertained, allowing determination whether
+the new methodological approach was able to separate and identify each phasic response even when stimuli were close to each
+other and their SCRs overlapped.
+C. Experiment 2
+In the second experiment, 15 healthy subjects (aged 22–26
+years, seven female) different from the previous ones were
+stimulated by viewing affective images from the official IAPS
+database [29] to assess our algorithm’s predictive validity, i.e.,
+its ability to distinguish stimulations with different arousal content and provide meaningful information about ANS activation.
+All subjects gave written informed consent before taking part in
+the study, which was approved by the local Ethics Committee.
+Subjects were comfortably seated in an acoustically insulated
+room watching the slideshow on a computer screen while their
+SC was recorded using a BIOPAC MP150 physiological acquisition system. The affective elicitation consisted of four arousal
+sessions alternated with four neutral sessions: N, A1, N, A2,
+N, A3, N, A4; where N sessions are sequences of six very low
+arousal (VL) images while Ai (with 1 ≤ i ≤ 4) are sets of 20 images eliciting increasing levels of arousal. Details about arousal
+rating values are reported in Table I. Arousal sessions were classified as Low (L), Low–Medium (L–M), Medium–High (M–H),
+and High (H) according to the IAPS score criteria. Each image
+was presented for 10 s.
+D. EDA Processing and Analysis
+For each dataset, the cvxEDA described in Section II was
+applied to each SC time series. As per assumption A3, a subjectspecific IRF was considered for this study. While τ1 = 0.7 s
+was used for all subjects, the optimal τ0 was determined on a
+per-subject basis as the value τ0 ∈ [2.0, 4.0] s that minimized
+the l2 -norm of the residual after fitting the cvxEDA model.
+Fixed values α = 0.0008 and γ = 0.01, chosen during previous
+exploratory tests on separate data, were employed throughout
+this analysis.
+The accuracy of the algorithm on the simulated dataset was
+assessed by measuring its ability to recover the neural activations in the phasic driver from noisy SC time series. For each
+time series, the set of occurrence times T e of pulses with area
+exceeding a 0.5 threshold was compared to the set of times T s
+of the impulses in the original simulated SMNA using an al-
+
+801
+
+gorithm modeled after the AAMI/ANSI EC38:1998 standard.
+Briefly, times in T e and times in T s were considered as “matching” if they were within a match window of ±0.15 s. Each
+impulse from either signal could only match a single impulse
+from the other one. Times in T e not matching any element of
+T s were considered false positives (FP) while times in T s not
+matching any element of T e were considered false negatives
+(FN). Finally, the performance of the algorithm was measured
+in terms of sensitivity, computed as the fraction of matched elements of T s , and positive predictive value (PPV), computed as
+the fraction of matched elements of T e .
+In the respiratory stimulation dataset, the presence of an estimated burst of the SMNA activity was verified in each 5-s
+time window following a stimulus onset, in order to prove the
+model’s ability to correctly detect real SCRs.
+In the last study, to verify that the recovered components represented meaningful information regarding ANS activity, we
+investigated whether the amplitude of the phasic driver p increased in response to affective stimulation with increasing levels of arousal, as previously reported in the literature [30], [31],
+[4, ch 3.2.2]. An intersubject analysis compared the responses
+to the four arousal levels through a nonparametric Page test [32,
+ch 7.2], under the alternative hypothesis of increasing phasic
+responses with increasing levels of arousal (we used nonparametric tests because the hypothesis of Gaussianity was rejected
+by a Kolmogorov–Smirnov test, p < 0.05). In posthoc analysis,
+each pair of arousal sessions was compared using a one-tailed
+Wilcoxon signed-rank test with Bonferroni correction to determine significant differences between arousal levels in the
+expected direction. We computed the adjusted p-value, i.e., the
+original p-value multiplied by 6 (the number of pairwise comparisons among four conditions), to allow direct comparison to
+the standard significance levels (e.g., 0.05). In the following, we
+also report√the Z-scores (from which the measure of effect size
+ZN = Z/ N can be computed, where N = 15 is the sample
+size). Finally, the slow tonic component was analyzed comparing mean values of each arousal session with the preceding
+neutral session, using a one-tailed Wilcoxon signed-rank test.
+IV. RESULTS
+For all EDA datasets analyzed, the cvxEDA model produced
+the expected results: the SC data [see Fig. 1(a)] was decomposed
+into two signals, a sparse component p and a smooth component
+t, that we interpret as the activity of the sudomotor nerve [see
+Fig. 1(b)] and the tonic level [see Fig. 1(c)].
+A. Simulated-Data Results
+Application of the model to the simulated dataset highlighted
+the sparsity of the p term as well as the smoothness of the tonic
+component, even with low SNR. Qualitative visual analysis of
+Fig. 2 was sufficient to determine that the algorithm worked
+properly on these data. A quantitative proof was provided in
+terms of detection performance in recovering the neural activations in the phasic driver from the noisy SC time series. In
+the high-SNR test, the algorithm achieved 99.3% sensitivity and
+100.0% PPV on average, whereas it scored 96.7% sensitivity
+and 91.3% PPV in the low-SNR condition.
+
+802
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 4, APRIL 2016
+
+Fig. 3. Example of SC raw data (top) and its estimated phasic component
+(bottom) during the forced maximal expiration task. Dotted lines mark the onset
+of the visual cue triggering a forced expiration.
+Fig. 1. Application of the cvxEDA decomposition procedure to the SC signal
+recorded during the forced maximal expiration task for a representative subject.
+(a) Raw SC signal, Z-score normalized. (b) Estimated sparse phasic driver
+component p. (c) Estimated slow tonic component t.
+
+Fig. 4. Within-subject ranks of the peak amplitudes of the phasic component
+obtained by cvxEDA (left) and CDA (right) for the four arousal levels. The
+dots mark the across-subject average rank for each level while the wiskers
+indicate the standard error. The hypothesized effect of arousal level on the
+phasic component was confirmed by the Page test (p = 10−6 for cvxEDA,
+p = 0.001 for CDA). Posthoc Bonferroni-corrected pairwise comparisons of
+the peak amplitudes found significant differences in the cases indicated by
+asterisks (∗ : p < 0.05; ∗∗ : p < 0.01).
+
+C. Experiment 2 Results
+
+Fig. 2. Solution of EDAcvx model applied to the same simulated signal with
+different levels of AWGN (top: 33 dB, bottom: 13 dB).
+
+B. Experiment 1 Results
+Visual inspection of the time series recorded during the forced
+maximal expiration protocol confirmed the effectiveness of the
+paradigm in eliciting strong SCRs that were partly overlapped
+because of short ISIs (see Fig. 3). After applying our algorithm,
+we monitored peaks in the p signal within a 5-s time window
+poststimulus (considering the latency of a typical SCR [4]).
+Intersubject analysis indicated that the algorithm was able to
+identify the corresponding phasic peak after 96.6% of the stimuli
+and overcome the overlap issue. Furthermore, visual inspection
+of the raw SC data in the time windows after stimuli that were
+not identified by the algorithm showed the almost complete
+absence of an SCR, probably because of incorrect performance
+of the task by the subject.
+
+Statistical analysis of the tonic and phasic driver components
+confirmed the ability of the algorithm to characterize the ANS
+activity. Page-test results comparing the four arousal sessions
+indicated a strong significant (p = 10−6 , L = 428, L∗ = 4.74)
+relationship between the arousal level and the phasic driver
+peak amplitude [see also Fig. 4(left)], which is the most
+appropriate parameter to quantify ANS activity [4]. Posthoc
+Bonferroni-corrected pairwise comparisons revealed significantly larger phasic responses to A2 than to A1 (p = 0.040,
+Z = 2.47), to A3 than to A1 (p = 0.018, Z = 2.75), to A4 than
+to A1 (p = 0.002, Z = 3.32), and to A4 than to A2 (p = 0.004,
+Z = 3.21). Concerning the tonic component, the Wilcoxon
+test showed that the tonic mean values were significantly
+higher during arousal than during neutral sessions (p = 0.001,
+Z = 3.147, ZN = 0.813). For comparison, the recordings were
+also processed using Ledalab, which implements the CDA [14].
+This method also decomposes the EDA signal into tonic and
+phasic components. Consistently with the literature and with
+results from our cvxEDA model, CDA estimated a phasic driver
+whose peak amplitude within each arousal session increased
+with increasing levels of arousal (Page test p = 0.001, L = 409,
+
+GRECO et al.: CVXEDA: A CONVEX OPTIMIZATION APPROACH TO ELECTRODERMAL ACTIVITY PROCESSING
+
+L∗ = 3.04). However, a posthoc analysis revealed a significant
+difference (p = 0.010, Z = 2.93) only between the most
+extreme sessions, A4 and A1 [see Fig. 4(right)]. Overall, our
+approach provides a stronger correlation and augmented discriminant power, with respect to the elicited arousing session,
+than CDA.
+
+V. DISCUSSION
+In this study, we present a novel algorithm for the analysis
+of EDA based on MAP probability, convex optimization, and
+sparsity. The model describes the recorded SC as the sum of
+three terms: the phasic component, the tonic component, and
+an AWGN term incorporating model prediction errors as well
+as measurement errors and artifacts. Compared to our previous
+convex-optimization approach to EDA analysis [16], the new
+algorithm models the IRF (4) as an ARMA model (i.e., an IIR
+filter) instead of an MA model (i.e., an FIR filter). This allows a
+much more compact representation of the IRF by means of two
+tridiagonal matrices instead of a banded matrix, thus increasing the accuracy and significantly reducing the computational
+cost. In fact, the sparsity and structure of the problem (15) can
+be effectively exploited by state-of-the-art sparse-QP solvers.
+The main difference between our model and established methods in the literature lies in the presence and definition of the
+prior probabilities for the phasic and tonic signals. Positiveness
+and burstiness of the SMNA driving the phasic component are
+modeled through a first-order description of spike trains, i.e., assuming a Poisson distribution approximated by an exponential
+distribution. This form of the prior probability translates into
+a nonnegative inequality constraint and an l1 -norm regularizer
+in the final optimization problem. Although one could impose
+a stronger regularization—e.g., l0 -“norm” [27]—on the phasic
+driver, this would render the problem nonconvex, i.e., computationally more demanding, and would significantly deviate from
+the physiological explanation in terms of Poisson spike trains.
+Physiologically plausible temporal scale and smoothness of the
+tonic input signal are achieved by means of an adequate choice
+of the spacing between the knots of the spline and through
+a Gaussian prior on the values at the knots, which ultimately
+translates into an l2 regularization of the spline’s coefficients
+in the optimization problem. Thanks to the ARMA observation
+model and to this choice of priors, we can impose physiologically sound constraints on the signals to be estimated and yet be
+able to obtain the globally optimal solution by solving a standard quadratic-programming problem. Our proposed cvxEDA
+model shares some major limitations with most state-of-the-art
+algorithms, mainly by relying on the strong assumptions of linearity and time-invariance of the system. In reality, physiological systems—especially those involving neural dynamics—are
+likely to show nonlinear and complex dynamics. Furthermore,
+such a dynamics and its statistical properties can be different
+among subjects and further depend on environmental and experimental conditions. Within the proposed EDA modeling framework, inter and intrasubject variabilities can be accounted for by
+choosing a customized IRF function for each subject/condition.
+This problem was partially addressed in our experimental analysis by performing an outer optimization step to tune the slow
+time constant of the IRF for each specific subject.
+
+803
+
+The new algorithm was evaluated in three ways to test its
+robustness to noise, its ability to separate and identify each
+phasic response (even when they overlapped because of short
+ISIs), and its capability of properly describing the activity of the
+ANS in response to strong affective stimulation. The results of
+the three analyses confirmed the proprieties of the model. On
+a simulated dataset, the algorithm proved to be robust to different levels of noise. When applied to real data from a forced
+maximal expiration protocol, the algorithm demonstrated strong
+ability to reliably detect phasic responses to eliciting stimuli,
+also overcoming the problem of overlapping SCRs encountered
+in experimental paradigms involving short ISIs. In the affective stimulation paradigm, the mean tonic level estimated by the
+model was significantly different in arousal and neutral sessions.
+Analyzing the phasic response, we found a consistent statistical
+relationship between the arousal levels and the peak amplitude
+of the estimated phasic driver; thus, confirming the model’s predictive validity. These results were compared to those obtained
+using Ledalab’s implementation of the CDA [14], a method that
+performs a deterministic inversion of the peripheral model. The
+trends found using the CDA confirmed those obtained from our
+model. However, CDA only found statistically significant differences between the lightest and the strongest levels of arousal
+while our model allowed a finer discrimination.
+As it can be implemented in few lines of code and does not
+depend on external libraries (except a conventional QP solver),
+our algorithm has a wide applicability and can be readily integrated in existing open-source psychophysiological modeling
+software. Given also the low computational cost of the proposed algorithm, we envisage employing our cvxEDA model in
+further affective computing applications, including porting the
+algorithm to wearable/portable monitoring devices (e.g., Empatica tools [33]).
+VI. CONCLUSION
+These encouraging results confirm that our EDA algorithm
+based on MAP and convex optimization provides a decomposition of the EDA that is robust to noise, overcomes the issue of
+overlapping SCRs, and provides a window on the ANS activity.
+Moreover, the solution incorporates the physiological characteristic of the phasic and tonic components by means of priors and
+constraints, without requiring pre or postprocessing steps. Another advantage of casting our model as a convex optimization
+problem is that, once the problem is formalized, a globally optimal solution can be efficiently found using existing solvers. The
+applicability of our model is not limited to EDA analysis, but
+can be extended to other domains requiring the deconvolution
+of pulse trains from the output of systems that can be represented as ARMA models, for example, in calcium imaging [24]
+or hormone secretion analysis [27].
+REFERENCES
+[1] D. Fowles et al., “Publication recommendations for electrodermal measurements,” Psychophysiology, vol. 18, no. 3, pp. 232–239, 1981.
+[2] R. Edelberg, “Electrical activity of the skin: Its measurement and uses
+in psychophysiology,” in Handbook of Psychophysiology, N. S. Greenfield and R. A. Sternbach, Eds. New York, NY, USA: Holt, Rinehart and
+Winston, 1972, ch. 9.
+
+804
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 4, APRIL 2016
+
+[3] R. Edelberg, “Electrodermal mechanisms: A critique of the two-effector
+hypothesis and a proposed replacement,” in Progress in Electrodermal
+Research, J.-C. Roy et al., Eds. New York, NY, USA: Springer, 1993,
+pp. 7–29.
+[4] W. Boucsein, Electrodermal Activity, 2nd ed. New York, NY, USA:
+Springer, 2012.
+[5] M. E. Dawson et al., “The electrodermal system,” in Handbook of Psychophysiology, J. T. Cacioppo et al., Eds. Cambridge, U.K.: Cambridge
+Univ. Press, 2007, ch. 7.
+[6] A. Greco et al., “On the deconvolution analysis of electrodermal activity in bipolar patients.” in Proc. 34th Int. Conf. IEEE EMBS, 2012,
+pp. 6691–6694.
+[7] A. Greco et al., “Electrodermal activity in bipolar patients during affective
+elicitation,” IEEE J. Biomed. Health Inform., vol. 18, no. 6, pp. 1865–1873,
+Nov. 2014.
+[8] A. Breska et al., “Interstimulus intervals for skin conductance response
+measurement,” Psychophysiology, vol. 48, no. 4, pp. 437–440, 2011.
+[9] R. J. Barry et al., “Elicitation and habituation of the electrodermal orienting
+response in a short interstimulus interval paradigm,” Int. J. Psychophysiol.,
+vol. 15, no. 3, pp. 247–253, 1993.
+[10] C. L. Lim et al., “Decomposing skin conductance into tonic and phasic
+components,” Int. J. Psychophysiol., vol. 25, no. 2, pp. 97–109, 1997.
+[11] D. R. Bach and K. J. Friston, “Model-based analysis of skin conductance
+responses: Towards causal models in psychophysiology,” Psychophysiology, vol. 50, no. 1, pp. 15–22, 2013.
+[12] D. Alexander et al., “Separating individual skin conductance responses in
+a short interstimulus-interval paradigm,” J. Neurosci. Methods, vol. 146,
+no. 1, pp. 116–123, 2005.
+[13] M. Benedek and C. Kaernbach, “Decomposition of skin conductance
+data by means of nonnegative deconvolution,” Psychophysiology, vol. 47,
+no. 4, pp. 647–658, 2010.
+[14] M. Benedek and C. Kaernbach, “A continuous measure of phasic electrodermal activity,” J. Neurosci. Methods, vol. 190, no. 1, pp. 80–91, 2010.
+[15] D. R. Bach, “A head-to-head comparison of SCRalyze and Ledalab,
+two model-based methods for skin conductance analysis,” Biol. Psychol.,
+vol. 103, pp. 63–68, 2014.
+[16] A. Greco et al., “Electrodermal activity processing: A convex optimization
+approach,” in Proc. 36th Int. Conf. IEEE EMBS, 2014, pp. 2290–2293.
+[17] T. Chaspari et al., “Sparse representation of electrodermal activity with
+knowledge-driven dictionaries,” IEEE Trans. Biomed. Eng., vol. 62,
+no. 3, pp. 960–971, Mar. 2015.
+[18] S. P. Boyd and L. Vandenberghe, Convex Optimization. Cambridge, U.K.:
+Cambridge Univ. Press, 2004.
+[19] V. G. Macefield and B. G. Wallin, “The discharge behaviour of single
+sympathetic neurones supplying human sweat glands,” J. Auton. Nervous
+Syst., vol. 61, no. 3, pp. 277–286, 1996.
+[20] T. Nishiyama et al., “Irregular activation of individual sweat glands in
+human sole observed by a videomicroscopy,” Auton. Neurosci., vol. 88,
+no. 1, pp. 117–126, 2001.
+[21] D. R. Bach et al., “Modelling event-related skin conductance responses,”
+Int. J. Psychophysiol., vol. 75, no. 3, pp. 349–356, 2010.
+[22] D. R. Bach et al., “An improved algorithm for model-based analysis
+of evoked skin conductance responses,” Biol. Psychol., vol. 94, no. 3,
+pp. 490–497, 2013.
+[23] R. Schneider, “A mathematical model of human skin conductance,” Psychophysiology, vol. 24, no. 5, p. 610, 1987.
+[24] J. T. Vogelstein et al., “Fast nonnegative deconvolution for spike train
+inference from population calcium imaging,” J. Neurophysiol., vol. 104,
+no. 6, pp. 3691–3704, 2010.
+[25] M. S. O’Brien et al., “Recovery of a sparse spike time series by L1
+norm deconvolution,” IEEE Trans. Signal Process., vol. 42, no. 12,
+pp. 3353–3365, Dec. 1994.
+[26] R. Tibshirani, “Regression shrinkage and selection via the LASSO,”
+J. Roy. Stat. Soc. Ser. B, vol. 58, pp. 267–288, 1996.
+[27] J. de Rooi and P. Eilers, “Deconvolution of pulse trains with the L0
+penalty,” Anal. Chim. Acta, vol. 705, no. 1, pp. 218–226, 2011.
+[28] Y. Kira et al., “ Sympathetic skin response evoked by respiratory stimulation as a measure of sympathetic function,” Clin. Neurophysiol.,
+vol. 112, no. 5, pp. 861–865, 2001.
+[29] P. Lang et al., “International affective picture system (IAPS): Digitized
+photographs, instruction manual and affective ratings,” The Center for
+Research in Psychophysiology, Univ. Florida, Gainesville, FL, USA, Tech.
+Rep. A-6, 2005.
+[30] E. W. Cook et al., “Affective individual differences and startle reflex
+modulation,” J. Abnormal Psychol., vol. 100, no. 1, pp. 5–13, 1991.
+
+[31] P. J. Lang et al., “Looking at pictures: Affective, facial, visceral, and
+behavioral reactions,” Psychophysiology, vol. 30, pp. 261–261, 1993.
+[32] M. Hollander et al., Nonparametric Statistical Methods. New York, NY,
+USA: Wiley, 2014.
+[33] Empatica: Human data in real time. (2015, Jul. 31). [Online]. Available:
+https://www.empatica.com/
+
+Alberto Greco (S’13) received the Master’s degree in biomedical engineering
+from the University of Pisa, Pisa, Italy, in 2010. He is currently currently
+working toward the Ph.D. degree in automation, robotics, and bioengineering
+at the Research Center “E. Piaggio,” University of Pisa.
+He was a Visiting Fellow at the University of Essex, U.K, in 2014. His
+main research interests include physiological modeling, wearable monitoring
+system, and biomedical signal processing. Applications include the assessment
+of electrodermal activity, affective computing, and the assessment of mood and
+consciousness disorders.
+
+Gaetano Valenza (S’10–M’12) received the M.Sc. degree in biomedical engineering from the University of Pisa, Pisa, Italy.
+He is currently a Research Fellow at the University of Pisa and Harvard Medical School/Massachusetts General Hospital, Boston, MA, USA. His research
+interests include statistical and nonlinear biomedical signal and image processing, cardiovascular and neural modeling, and wearable systems for physiological
+monitoring. He is author of more than 90 international scientific contributions
+in these fields, and is currently an Associate Editor of the Nature’s Journal Scientific Reports.
+
+Antonio Lanatà (M’12) received the Graduate degree in electronic engineering. He received the Ph.D. degree in automation, robotics, and bioengineering
+from the University of Pisa, Pisa, Italy.
+He is currently working toward the research mainly at the Research Center
+“E. Piaggio,” Italy, which is focused on wireless/wearable monitoring systems
+for biomedical applications and signals processing. His fields of application are
+affective computing, mental and consciousness disorders, and human–animal
+interaction. He has published numerous articles in international scientific journals and is author of several chapters of books.
+
+Enzo Pasquale Scilingo (M’10) received the Laurea Degree in electronic engineering from the University of Pisa, Italy and the Ph.D. degree in bioengineering
+from the University of Milan, Italy, in 1995 and 1998, respectively. He is currently an Associate Professor in electronic and information bioengineering at
+the University of Pisa, Pisa, Italy. He has several teaching activities and he
+is a Supervisor of several Ph.D. students. He coordinated a European Project
+EC-FP7-ICT-247777 “PSYCHE—Personalised monitoring SYstems for Care
+in mental Health.” His main research interests include wearable monitoring
+systems, human–computer interfaces, biomedical, and biomechanical signal
+processing, modeling, control, and instrumentation. He is author of more than
+150 papers on peer-review journals, contributed to international conferences
+and chapters in international books.
+
+Luca Citi (S’06–M’09) received the Graduate degree in electronic engineering with a major in biomedical engineering from the University of Florence,
+Florence, Italy, in 2004. He received the Ph.D. degree in biorobotics science
+and engineering from Scuola Superiore Sant’Anna, Pisa, Italy, and IMT Lucca,
+Lucca, Italy, in 2009.
+After working as a postdoc at Massachusetts General Hospital/Harvard Medical School, Boston, MA, USA, he is currently a Lecturer (Assistant Professor)
+at the University of Essex, Colchester, U.K. His main research interests include
+signal processing and machine learning applied to physiological signals, computational neuroscience, and neural interfaces.
+
+

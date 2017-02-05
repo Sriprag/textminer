@@ -1,0 +1,1224 @@
+1478
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+Sequential Hierarchical Agglomerative Clustering
+of White Matter Fiber Pathways
+Ali Demir∗ and H. Ertan Çetingül, Member, IEEE
+
+Abstract—Objective: We consider the problem of clustering
+white matter fiber pathways, extracted from diffusion MRI data
+via tractography, into bundles that are consistent with the neuroanatomy. Methods: We cast this problem as clustering streams
+of data, and use a sequential framework to process one fiber at a
+time. Our method, named as sequential hierarchical agglomerative
+clustering (HAC), represents the clusters with parametric models,
+performs HAC of relatively small number of fibers only when the
+parameters need to be initialized and/or updated, and assigns the
+labels to the following streams of data according to the current
+models. Results: Experiments on phantom data evaluate the sensitivity of our method to initialization and parameter tuning, and
+show its advantages over alternative techniques. Experiments on
+real data demonstrate its efficacy and speed in clustering white
+matter fiber pathways into anatomically distinct bundles. Conclusion: Sequential HAC is a fast method that benefits from having a
+predefined number of clusters, and rapidly assigns labels to incoming data with high accuracy. It can be thought of as a mechanism
+that does clustering, while simultaneously accepting newly computed fibers; thereby, alleviating the burden of computing the distances between every pair of fibers in a tractogram. Significance:
+Sequential HAC is a practical tool that can interactively cluster
+fiber pathways and can be integrated into fiber tracking, which
+will be very useful for clinical researchers and neuroanatomists.
+Index Terms—Brain modeling, clustering algorithms, diffusion
+magnetic resonance imaging (DMRI), fiber tracking, iterative
+methods.
+
+I. INTRODUCTION
+UANTITATIVE characterization of the white matter
+(WM) circuitry in the human brain is paramount for mapping the structural connectome, which is known to be affected
+by neurological diseases. Diffusion magnetic resonance imaging (DMRI) can describe this circuitry in vivo by measuring
+variations in water diffusion along several directions. In particular, these measurements provide insights into the mathematical representations of diffusion (e.g., diffusion tensors (DTs)
+[1], higher order tensors [2], orientation distribution functions
+(ODFs) [3]), which reflect the local fiber orientation profile.
+These representations can be used to extract a tractogram, i.e.,
+WM fiber pathways given by tractography.
+
+Q
+
+Manuscript received July 25, 2014; revised November 21, 2014; accepted
+January 5, 2015. Date of publication January 13, 2015; date of current version
+May 18, 2015. This work was supported in part by the National Institutes of
+Health under Grant R01 EB008432. Asterisk indicates corresponding author.
+* A. Demir is with the Institute of Biomedical Engineering, Boğaziçi University, Istanbul 34684, Turkey (e-mail: ali.demir@boun.edu.tr).
+H. E. Çetingül is with the Imaging and Computer Vision Technology Field,
+Siemens Corporation, Corporate Technology.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2391913
+
+Once information on the WM circuitry is inferred, to gain
+clinical insights, it is a common practice to focus on selected
+fiber bundles (i.e., spatially coherent collections of fiber pathways), whose integrity is anticipated to be affected by development, degeneration, or disease [4]. Examples include, but are
+certainly not limited to brain tumors, which can grossly displace
+WM tracts, callosal atrophy in individuals with Alzheimer’s disease [5], or diffusely abnormal WM linked to pathogenesis of
+multiple sclerosis [6]. To date, either manual or atlas-guided
+placement of regions of interest (ROIs) is offered in the existing
+clinical platforms as the functionality for bundle identification
+and segmentation [7]. In the former, an expert is asked to draw
+ROIs that interact with each other according to Boolean operations. The desired clinical accuracy in isolating the fiber bundle
+of interest is achieved, in practice, after multiple trials. In the
+latter, the placement of ROIs requires relatively less interaction, yet an atlas (i.e., a brain image averaged across multiple
+subjects and with a WM parcellation) has to be nonlinearly
+registered with the subject of interest before the analysis. Overall, these cumbersome and error-prone tasks are necessary to
+eliminate spurious pathways and/or select a collection of spatially similar ones. But more importantly, this process yields an
+expert- or atlas-dependent test bed that may discard differences
+among subjects. In that regard, automatically grouping similar
+pathways into bundles that are consistent with the underlying
+neuroanatomy is important for fast, reproducible, and subjectspecific analysis of structural brain connectivity, and can provide
+reliable information for statistical comparisons across different
+populations.
+A. Related Work
+Clustering WM tracts into anatomically meaningful bundles
+is nontrivial due to several reasons. First, the complexity of the
+WM circuitry and its modeling with several thousands of fiber
+pathways make the task of automatically assigning anatomical
+labels to these pathways very challenging, especially when there
+is no consensus on the quantitative definition (e.g., boundaries)
+of WM bundles [8]. Second, the variability within a bundle can
+be very high because, as underlined in [9], “tracts comprising
+a bundle can diverge from it connecting cortical and subcortical areas.” This is a major obstacle in quantifying similarity
+among fiber pathways and has been only partially addressed
+despite the multitude of similarity measures proposed in the
+literature. Third, the variability in WM architecture and connectivity patterns across subjects poses problems for researchers in
+developing a generalizable solution for fiber clustering.
+Despite these challenges, the problem of identifying WM
+fiber bundles has been an active research topic with numerous
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+DEMIR AND ÇETINGÜL: SEQUENTIAL HIERARCHICAL AGGLOMERATIVE CLUSTERING OF WHITE MATTER FIBER PATHWAYS
+
+attempts, which can be broadly categorized in terms of the space
+of analysis, techniques formulated in the diffusion space versus
+those in the tract space. For the former, the motivation is that
+the bundles can be obtained through segmentation in curved
+spaces/manifolds by considering similarity measures between
+the diffusion representations (e.g., DTs, ODFs, etc.). We refer
+the reader to [10]–[13] for a concise review of this genre of techniques. Our study falls into the latter category where the task,
+as described before, is to cluster fiber pathways in a tractogram
+into anatomically meaningful bundles.
+In the latter category, representing fibers and quantifying fiber
+similarity play a fundamental role. Earlier approaches often
+employ shape descriptors/statistics [14]–[17] or point sequencetype parametrization along with the Chamfer or Hausdorff
+distances [18]–[22]. Although these methods yield promising
+results, their performance drops when analyzing partially overlapping or locally diverging fibers. Another critical ingredient
+in fiber clustering is the type of the clustering mechanism.
+Among the plethora of algorithms, the ones that have attracted
+widespread attention are spectral clustering [19], [23], [24],
+graph theoretic methods, such as affinity propagation [25], dominant sets [26], and hierarchical clustering (HC) [9], [27].
+More recent work in WM fiber clustering aims to promote
+the use of tractograms for neuroscientific studies [28]. This includes the development of techniques for clustering data from
+multiple subjects, the integration of parcellated anatomical data
+into the formulation, and the design of new mathematical representations for fibers. For instance, a number of works investigate
+the use of stochastic models and processes for fiber modeling.
+Wassermann et al. [9] propose to use a Gaussian process-based
+representation for the fibers and compute the fiber similarity by
+the inner product of two Gaussian processes. Wang et al. [29]
+consider a Dirichlet process mixture model as a prior to learn the
+bundle models from training tractograms, and use these models
+to cluster the tractogram of a new subject. Wang et al. [30] embed the neuroanatomical information into an associativity vector
+to represent a fiber pathway, and define the feature space as the
+multivariate Gaussian mixtures of these vectors for expectationmaximization clustering. There also exist hierarchical partitioning mechanisms (e.g., [31], [32]) specifically designed for
+clustering very large tractograms, as well as atlas-driven techniques. Guevara et al. [33] propose a bundle segmentation
+method based on a multisubject bundle atlas derived from a
+two-level intrasubject and intersubject clustering. Jin et al. [34]
+introduce a method that maps multiple hand-labeled atlases into
+the tractogram at hand, and fuses clustering results from these
+atlases using a mean distance fusion scheme. Prasad et al. [35]
+develop a method for automatic clustering and population analysis of WM fiber tracts by using atlas-based labeling and maximum density paths for bundle representation. We refer the reader
+to [28] for an excellent literature review on fiber clustering.
+B. Motivation and Contributions
+In the case of using pairwise (dis)similarities as the sole information for clustering, most of the processing time is devoted to the computation of these similarities. Olivetti et al. [36]
+
+1479
+
+Fig. 1. Sequential HC of 93 fibers from the sample 2-bundle dataset shown on
+the right. The binary image shows the pairs for which the distance is computed
+during clustering (black pixel: distance is computed for the pair, white pixel:
+distance not computed). Time increases from left to right (and top to down).
+The cluster centers form horizontal/vertical lines and some of them are updated,
+when needed, with the Restart trigger.
+
+propose to alleviate this issue by performing a coarse clustering
+of the data and manually selecting fibers that are representative
+of the bundles of interest. The authors repeat this cumbersome
+procedure until the fibers associated with those bundles are completely identified. Garyfallidis et al. [37] introduce a remarkable
+linear time grouping strategy called QuickBundles (QB), which
+is primarily designed to simplify clustering of dense fiber sets
+and it is publicly available in Dipy.org [38]. To measure the
+fiber similarity, QB employs the minimum average direct-flip
+distance, which is fast to compute, but the method does not
+enforce a fixed number of clusters and does not allow label updates, i.e., once a fiber is assigned to a cluster, it stays in that
+cluster.
+Since tractography can be thought of as a process that sequentially produces fiber pathways, it can theoretically operate
+in tandem with clustering. Inspired from this observation, in this
+paper, we present a method that processes one fiber at a time,
+represents the clusters with parametric models, performs HC
+of relatively small number of fibers only when the parameters
+need to be initialized and/or updated, and assigns the labels to
+the following streams of data according to the current models
+(see Section II). Experiments show that our framework computes only a certain number of pairwise dissimilarities reducing the overall computation time drastically (see Section III).
+As a proof of concept, in Fig. 1, we show the matrix of
+pairwise fiber distance computations (on a sample data with
+93 fibers) resulting from our sequential clustering method. Here,
+the black pixels represent the pairs for which distances are computed. The sparsity of this matrix (i.e., the ratio of the number
+of black pixels to that of white ones) shows how effective the
+proposed solution is in reducing the computation time, considering the fact that conventional
+methods (e.g., standard HC)
+ 
+computations.
+We proceed with diswould require up to 93
+2
+cussions on the advantages and limitations of our approach and
+conclude the paper with a review of the contributions and directions for future work (see Section IV). This paper extends
+our previous work [39] by providing more technical details and
+validation.
+
+1480
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+Fig. 2. (a) Illustration of HAC of synthetically generated items into 7 → 3 → 2 → 1 cluster (blue→green→red→black). (b) First three dendrograms with
+different levels of combination similarity: Full dendrogram, where each item is assigned to a separate cluster (left); Dendrogram where individual clusters are
+merged into 7 groups (middle); Dendrogram, where the previous 7 clusters are merged into 3 groups (right).
+
+II. METHODS
+The proposed method is based on the generic framework in
+[40], which can employ different clustering algorithms (herein,
+referred to as the “baseline”). We use HC as the baseline algorithm, and assume that the streaming data is the set of
+fiber pathways {Xt : t ∈ N}, where Xt := (xt,1 , xt,2 , . . .) with
+xt,n ∈ R3 . t denotes the processing order of the fibers and can
+be considered as a discrete time index.
+A. HC of Fiber Pathways
+HC is a greedy grouping mechanism that seeks to build a
+hierarchy of clusters. It does not require the number of clusters
+to be specified beforehand, but the most common HC algorithms
+have a complexity that is at least quadratic in the number of
+items compared to the linear complexity of k-means [41]. HC
+algorithms are either top-down or bottom-up. Bottom-up (or
+agglomerative) algorithms treat each item as a singleton and
+successively merge pairs of clusters until all clusters have been
+merged into a single one [see Fig. 2(a)]. Top-down (or divisive)
+clustering assigns all the items to a single cluster and proceeds by
+recursively splitting clusters until individual items are reached.
+HC is visualized as a tree diagram called dendrogram illustrating the arrangement of the clusters [see Fig. 2(b)]. In
+the case of hierarchical agglomerative clustering (HAC), the
+items/clusters are represented along the x-axis and the y coordinate of each horizontal line is the combination similarity of the
+two items/clusters that are merged. The dendrogram is used to
+decide where to cut the hierarchy by investigating the similarities between the clusters based on the single- or average-linkage
+criteria.1 The reader is referred to [41]–[43] for further details
+on HC.
+In this study, we consider each fiber pathway as an item and
+use HAC as the baseline clustering algorithm with different linkage criteria at different stages of the sequential framework. We
+quantify the similarity between two fibers Xi = (xi,1 , xi,2 , . . .)
+and Xj = (xj,1 , xj,2 , . . .) by the symmetrized Chamfer distance
+computed as
+
+1
+(1)
+d(Xi , Xj ) = dChamfer (Xi , Xj ) + dChamfer (Xj , Xi )
+2
+1 Let A and B denote two sets. HAC with single-linkage criterion considers
+the distance of the most similar members of two sets as their combination similarity: min{d(a, b) : a ∈ A, b ∈ B}. In contrast, the average-linkage criterion
+uses the distance
+ between
+ the sample-averages of the members of these sets:
+1/(|A||B|)
+d(a, b).
+a ∈A
+b ∈B
+
+Fig. 3.
+
+Flowchart of the sequential clustering framework.
+
+where, with |Xj | denoting the cardinality of Xj ,
+dChamfer (Xj , Xi ) =
+
+
+1
+|Xj |
+
+x j , n ∈X j
+
+min xj,n −xi,m 2 .
+
+x i , m ∈X i
+
+(2)
+
+B. Sequential Clustering Framework
+The sequential clustering framework we adopt uses parametric models to represent the clusters. It was originally designed
+to work with baseline algorithms, such as k-centers (designed to
+find k clusters by minimizing the within-cluster distances) and
+k-affinity propagation (k-AP, finding k clusters based on the
+exchanged real valued messages between data points), which
+require the computation of a “cluster center” as a model parameter [40]. As explained before, we replace the aforementioned
+baseline algorithms with HAC with a user-specified number of
+clusters (e.g., agglomeration of clusters ends when we obtain L
+clusters).
+Fig. 3 shows a simplified flowchart of the proposed sequential fiber clustering method. When the Stream new fiber process
+is initiated (via Start), a new fiber pathway Xt is provided
+as input to the framework (i.e., Xt becomes an element of the
+initial bunch). Data streaming continues until the initial bunch
+is full. This triggers the Cluster initial bunch of fibers process,
+which employs HAC with the average-linkage criterion to initialize the cluster models. On initialization, a cluster label can
+instantly be assigned to each streaming fiber. If the fiber at hand
+is found not to be a member of any of the current clusters, it
+
+DEMIR AND ÇETINGÜL: SEQUENTIAL HIERARCHICAL AGGLOMERATIVE CLUSTERING OF WHITE MATTER FIBER PATHWAYS
+
+is added into a reservoir. When the reservoir is full or if the
+framework detects a drift (will be described next) in the streaming fibers, the Update cluster model process triggers HAC with
+the single-linkage criterion (to distinguish fibers that are previously assigned as cluster centers from unlabeled/drifting fibers
+in the reservoir). Note that, if needed, the user can interrupt the
+streaming process at any instant (via Pause/Stop) and investigate the clusters. We now present the mathematical details of
+this framework.
+1) Parametric Modeling of the Clusters: The model of a
+cluster (or fiber bundle) with label l has four parameters:
+1) The number of fiber pathways nl associated with cluster
+(l)
+(l)
+(l)
+l, i.e., nl = |F (l) |, where F (l) = {X1 , X2 , . . . , Xn l };
+(l)
+2) The cluster center Xc ;
+ l
+(l)
+(l)
+3) The sum of distances Dl = ni=1
+d(Xi , Xc ) between
+(l)
+all the fiber pathways in cluster l and Xc ; and
+ l
+(l)
+(l)
+d(Xi , Xc )2
+4) The sum of squared distances Sl = ni=1
+(l)
+between all the fiber pathways in cluster l and Xc .
+Since HC algorithms do not require (and hence do not provide) a “cluster center” to operate, following the initialization
+and update processes in Fig. 3, we explicitly compute the clus(l)
+ter centers Xc , using the minimum within-bundle distance
+criterion, i.e.,
+Xc(l) = argmin
+
+nl
+
+
+X ∈F ( l ) i=1
+
+(l)
+
+d(Xi , X)2 .
+
+(3)
+
+2) Initialization: Initialization refers to the process of computing the model parameters of the clusters for the first time. This
+process is not triggered until the size of the initial bunch (i.e., a
+collection of fiber pathways that will be used for initialization)
+reaches to the user-defined value N . When the initial bunch is
+reported to be full, data streaming is temporarily paused, HAC
+with average-linkage criterion is applied to the fibers in the initial bunch, and the model parameters are computed as described
+in Section II-B1. From that point onward, since the framework
+is considered to be initialized, the processes related to the initial
+bunch will never be triggered.
+3) Labeling a New Fiber Pathway: Following the initialization of the model parameters, newly streaming fiber pathways
+are compared to the current cluster centers. For the sake of simplicity, let us denote such a fiber pathway again by Xt . If this
+(l)
+fiber pathway is similar to one of the cluster centers, say Xc ,
+(l)
+(i.e., if d(Xt , Xc ) < ξ for some threshold ξ > 0), then Xt is
+assigned to cluster l.2 Subsequently, the parameters nl , Dl , and
+(l)
+Sl are updated as nl ← nl + 1, Dl ← Dl + d(Xt , Xc ), and
+(l)
+Sl ← Sl + d(Xt , Xc )2 . Otherwise, Xt is added into a set R
+called the reservoir without a label.
+4) Conditions to Trigger a Model Update: Inherent in the
+concept of sequential clustering is the process of updating
+the model parameters when a number of conditions are met.
+We herein consider two such conditions. The first condition is
+the limited size of R, i.e., taking action when the reservoir is full.
+2 If
+
+a new fiber pathway X t is found to be similar to more than one cluster
+centers, it is assigned to the cluster whose center is closest to X t .
+
+1481
+
+The second condition is based on the well-known Page-Hinkley
+Test (PHT) [44], [45]. The PHT can detect changes in the normal behavior of a process established by a model. In our case,
+it is used to detect a drift in the streaming fibers by analyzing
+a sequence of relevancy information. Since the first condition
+is self-explanatory, in what follows, we focus on the second
+condition.
+Relevancy Information: The relevancy information quantifies how much the streaming fiber pathway Xτ at time point
+t = τ is in accordance with the current clusters. This measure
+is computed using a Gaussian distribution model with the firstorder statistics of the within-cluster distances. Assume that the
+(l)
+distances from Xτ to the cluster center Xc comes from a
+half-normal distribution for which f (x; σl ) denotes the corresponding probability density function with σl > 0. The relevancy information associated with Xτ is then computed as
+
+
+(4)
+max f d(Xτ , Xc(l) ); σl
+l=1,2,...,L
+
+and assigned as the new element of a sequence (pt )t∈N .
+Page-Hinkley Test: The PHT is applied to the sequence pt to
+detect a drift in the streaming fiber pathways. This test considers
+a variable Ut defined as
+Ut=T =
+
+T
+
+t=1
+
+(pt − pt + δ) with pt=T =
+
+T
+1
+pt
+T t=1
+
+(5)
+
+i.e., the cumulated difference between the observed values and
+their mean pt (with a tolerance δ > 0) till the current time t = T .
+To detect decreases, it computes the maximum value of |Ut |
+as mT = maxt=1,2,...,T |Ut |, and checks the condition P HT =
+(mT − UT ) > λ, where λ > 0 is the detection threshold. If this
+condition holds, meaning that the stream at hand is drifting,
+then the model update process is triggered. In that case, the time
+index τ is reset to 1 and pt is emptied.
+5) Model Update: When the model update process is triggered (i.e., when the reservoir R is full or the PHT detects a
+drift in the streaming fibers), the model parameters are updated
+by first applying HAC with single-linkage criterion to the items
+(l)
+in the union set H = R ∪ C, where C = {Xc }Ll=1 is the set
+3
+of cluster centers before the update. This generates the new
+(l)
+cluster centers, denoted by {X̂c }Ll=1 , which are required for
+the update of the labels of the previously clustered fibers and
+the model parameters nl , Dl , and Sl as described below.
+Let rl be the number of fibers in R associated with the updated
+(l)
+cluster l. With abuse of notation, also let {Xc,k }K
+k =1 , with K ≤
+L, be the subset of the previous (or “old”) cluster centers in C
+associated with the updated cluster l, and nl,k be the number of
+(l)
+the fibers previously associated with Xc,k . Then, the number of
+the
+Kfibers nl associated with the updated cluster l is equal to rl +
+k =1 nl,k . Since the explicit use of the labeled fibers (i.e., items
+that were assigned to a cluster in the previous iterations) for the
+update is against the nature of sequential processing, Dl and Sl
+are updated using a random perturbation model for these fibers.
+3 As HAC with the average-linkage criterion tends to merge items in C with
+those in R to form new clusters, we use the single-linkage criterion to enforce,
+to some extent, preserving the existing cluster arrangement.
+
+1482
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+As a result, the sum of the squared distances for the new cluster
+l is approximated as
+Sl =
+
+rl
+K
+
+
+ 
+(l)
+(l)
+nl,k d(Xc,k , X̂c(l) )2 + Sk +
+d(Xr,i , X̂c(l) )2
+i=1
+
+k =1
+
+(6)
+where Sk is the sum of squared distances of the fibers in the
+(l)
+(l)
+“old” cluster l to Xc,k , and {Xr,i } is the set of fibers in R
+associated with the updated cluster l. Similar to Sl , the sum of
+distances Dl is approximated as
+Dl =
+
+K
+
+
+
+(l)
+nl,k d(Xc,k , X̂c(l) )
+
+
+
++ Dk +
+
+rl
+
+
+(l)
+
+d(Xr,i , X̂c(l) ) (7)
+
+i=1
+
+k =1
+
+where Dk is the sum of the distances of the fibers in the “old”
+(l)
+cluster l to Xc,k .
+For the sake of clarity, let us elaborate (6) to explain how
+the parameters Sl and Dl are updated. The first summation
+term in (6) accumulates the updates derived from the previous
+(l)
+cluster centers {Xc,k }, which are now associated with the cluster
+(l)
+
+(l)
+
+(l)
+
+centered at X̂c . Since d(Xc,k , X̂c )2 can be considered as
+the squared mean distance between the items associated with
+(l)
+(the cluster centered at) Xc,k and the new cluster center, the
+(l)
+
+(l)
+
+term nl,k d(Xc,k , X̂c )2 approximates the sum of the squared
+distances for the new members (i.e., items in C) of the updated
+cluster l and it is added to the previous squared sum Sk . The
+second summation term in (6) is the sum of squared distances for
+the fibers in the reservoir, which are now associated with the new
+cluster. The approximation in (7) follows the same assumption
+except that the fiber distances are not squared.
+At this point, it is worth reminding the reader that after HAC
+(l )
+the fiber pathways Xc 1 ∈ C may be associated with a new
+(l )
+cluster, say X̂c 2 , as members or they may remain as cluster
+centers. If the first case happens, the fiber pathways that were
+(l )
+previously associated with Xc 1 (or with cluster l1 ) will now
+(l 2 )
+be associated with X̂c (or with cluster l2 ), i.e., their labels
+change without explicitly considering them for clustering.
+6) Overview of the Algorithm: The steps of the sequential
+HAC method is given in Algorithm 1.
+III. RESULTS
+The performance of the sequential HAC method is first evaluated through experiments on phantom data. The purpose of
+these experiments is to 1) measure the sensitivity of the method
+to parameter tuning (e.g., the similarity threshold ξ and the initialization percentage N% , which is the ratio of the size of the
+initial bunch N , to the total number of items), and 2) compare different clustering algorithms (k-centers, k-AP, HAC) integrated into the sequential framework with their batch versions
+in terms of clustering accuracy and runtime. We then apply
+sequential HAC for clustering fiber pathways extracted from
+real DMRI data into bundles that are anatomically meaningful.
+For a fair comparison, before computing the distances between
+pairs of fibers, each fiber pathway Xt is resampled such that
+xt,n +1 − xt,n 2 = 3 mm.
+
+Algorithm 1 Sequential HAC Method
+Require:Data stream X1 , X2 , . . . , Xt , . . .; Number of
+clusters L
+while t ≤ |{Xt }| do
+if t ≤ N then
+Fill in the initial bunch
+else
+if t = N (initial bunch is full) then
+Apply HAC with average-linkage to initial bunch
+Initialize model parameters {Section II-B2}
+else
+(l)
+Find the closest cluster center Xc to Xt {Section
+II-B3}
+(l)
+if d(Xt , Xc ) < ξ then
+Assign label l for Xt
+Update model parameters for cluster l
+else
+Push Xt into R
+end if
+Apply PHT
+if R is full or PHT detects a drift {(Section
+II-B4)} then
+Apply HAC with single-linkage to H = R ∪ C
+Update model parameters {Section II-B5}
+end if
+end if
+end if
+t←t+1
+end while
+A. Experiments on Phantom Data
+1) Materials: We conduct a set of experiments on the biological phantom in [46], which is constructed from excised rat
+spinal cords, and designed to have two crossing fiber bundles
+[see Fig. 4(a)]. The diffusion weighted images of this phantom,
+herein referred to as Phantom1, are acquired using a 40 × 9 × 40
+image matrix with an isotropic spatial resolution of 2.5 mm and a
+diffusion sensitization at b = 1,300 s/mm2 applied along a set of
+90 gradient directions with ten baseline (b0 ) images. We model
+diffusion with ODFs [47] [see Fig. 4(b)], and use the method
+in [48] to extract the fiber pathways. For a visual demonstration, we depict clustering of 5000 fiber pathways via sequential
+HAC (2500 per bundle; initialized with an homogeneous set of
+N = 500 fibers; ξ and |R| set to 4 mm and 50, respectively) in
+Fig. 4(c), which also shows that the two bundles become denser
+over time.
+In tandem, we test our method on the Neurospin MR phantom dataset [49] provided for the MICCAI 2009 Fiber Cup [50].
+The Neurospin phantom (Phantom2) contains crossing, kissing,
+branching, and bending fibers [see Fig. 5(a)], and the diffusion
+weighted MR images are acquired using the following imaging parameters: The image matrix is of size 64 × 64 × 3 with
+an isotropic spatial resolution of 3 mm. Sixty-five images are
+acquired, one image with no diffusion sensitization and 64 diffusion weighted images at b = 1500 s/mm2 . Similar to the case
+
+DEMIR AND ÇETINGÜL: SEQUENTIAL HIERARCHICAL AGGLOMERATIVE CLUSTERING OF WHITE MATTER FIBER PATHWAYS
+
+1483
+
+Fig. 4. (a) Image of Phantom1 [46]. (b) ODFs reconstructed at slice 4 (color coded, such that blue ∼ low, red ∼ high). (c) Sequential HAC of the data: Input
+fiber pathways (left), clustering streams of fiber pathways (middle), and the final result (right).
+
+Fig. 5. (a) Illustration of the Neurospin MR phantom (Phantom2). (b) Fiber pathways depicted using directional coloring. (c), (d) Ground truth bundles that are
+identified for the experiments on parameter tuning (c) and clustering accuracy/runtime (d).
+TABLE I
+CLUSTERING ACCURACY OF THE SEQUENTIAL CLUSTERING ALGORITHMS
+ON SET 1 OF Phantom2 AT VARYING VALUES OF ξ AND N %
+Method
+
+Sequential
+k-centers
+
+Sequential
+k-AP
+
+Sequential
+HAC
+
+ξ versus N %
+3
+5
+7
+9
+3
+5
+7
+9
+3
+5
+7
+9
+
+10%
+44.1 ± 7.6
+63.7 ± 8.4
+68.1 ± 9.0
+67.5 ± 9.6
+39.1 ± 6.2
+44.6 ± 7.0
+58.6 ± 8.2
+65.0 ± 5.1
+95.5 ± 5.1
+98.2 ± 3.7
+95.6 ± 5.2
+99.5 ± 0.5
+
+20%
+46.8 ± 6.2
+58.9 ± 8.7
+62.9 ± 7.6
+64.3 ± 9.1
+37.7 ± 4.2
+52.9 ± 3.3
+52.2 ± 6.9
+58.1 ± 6.6
+92.8 ± 4.6
+98.7 ± 3.1
+98.2 ± 3.7
+99.7 ± 0.4
+
+30%
+51.1 ± 5.6
+58.9 ± 6.0
+59.2 ± 7.2
+58.5 ± 6.3
+47.5 ± 3.7
+53.6 ± 4.8
+51.3 ± 7.4
+52.8 ± 7.0
+98.0 ± 4.1
+99.1 ± 2.3
+98.7 ± 3.2
+99.6 ± 0.4
+
+TABLE II
+PERFORMANCE (CLUSTERING ACCURACY AND RUNTIME) OF BATCH VERSUS
+SEQUENTIAL VERSIONS OF DIFFERENT ALGORITHMS ON PHANTOM DATA
+Phantom1
+
+40%
+51.8 ± 4.8
+54.6 ± 5.7
+55.1 ± 6.1
+55.3 ± 5.6
+48.5 ± 2.2
+49.6 ± 5.3
+56.3 ± 3.5
+51.9 ± 4.6
+98.9 ± 3.2
+98.8 ± 3.2
+98.1 ± 3.7
+99.8 ± 0.3
+
+of the previous phantom, we consider the ODF [51] as the diffusion model, and extract 5000 fiber pathways shown in Fig. 5(b)
+from seven bundles using streamline tractography [52]. Fig. 5(c)
+shows these seven bundles, each having a different number of
+fibers (minimum 199, maximum 2061). While we take this first
+set of fibers as the ground truth for the experiment on parameter tuning, we consider the four bundles in Fig. 5(d), which
+are reprocessed to contain 5000 fiber pathways (i.e., tractography reapplied to have denser bundles) for the experiment on
+clustering accuracy and runtime.
+2) Results on Parameter Tuning: We perform this experiment to quantify the sensitivity of the sequential framework
+(employing HAC, k-centers, or k-AP as the baseline) to the
+changes in the similarity threshold ξ and the initialization per-
+
+Method\Performance
+k-centers
+k-AP
+HAC
+Sequential k-centers
+Sequential k-AP
+Sequential HAC
+
+Phantom2
+
+Accuracy (%)
+
+Time (s)
+
+Accuracy (%)
+
+Time (s)
+
+98.5 ± 8.4
+99.9 ± 0.1
+100 ± 0
+60.1 ± 10.8
+69.0 ± 13.9
+100 ± 0
+
+289.36
+506.67
+555.94
+20.56
+19.62
+18.84
+
+99.9 ± 0.1
+99.9 ± 0.1
+100 ± 0
+82.2 ± 8.1
+75.1 ± 6.1
+89.2 ± 9.4
+
+422.13
+717.15
+667.27
+18.66
+41.77
+20.23
+
+centage N% . The experiment also provides an initial comparison between these algorithms. The data to be clustered contains
+5000 fiber pathways from seven bundles shown in Fig. 5(c). We
+set ξ ∈ {3, 5, 7, 9} (in millimeter) and N% ∈ {10, 20, 30, 40}
+(in %), and consider 1000 random orderings of the fiber stream
+for each pair (ξ, N% ) of parameters.4 The size of the reservoir
+is set using the size of the initial bunch, i.e., |R| = 0.2N . Note
+that if |R| increases, less calls are triggered to update the cluster models. The results are presented in Table I in terms of the
+mean and standard deviation of the accuracy (%) in clustering.
+One can immediately observe that sequential HAC significantly
+outperforms k-centers and k-AP in terms of clustering accuracy at all values of (ξ, N% ). Between the performance of the
+sequential k-centers and k-AP, there is an average difference of
+4 A practical approach to selecting the distance threshold ξ would be to take
+the within-bundle arrangement of the fibers and the spatial resolution of the
+DMRI data into consideration.
+
+1484
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+Fig. 6. Clustering of selected WM fiber pathways in Brain0, Brain1, and Brain2. (a), (c), (e) Fiber pathways passing through the spherical ROI (yellow) in
+directional coloring. (b), (d), (f) Clusters given by sequential HAC. For clarity, the results are divided into three groups to show distinct sets of clusters from
+different viewpoints and these clusters are found to be consistent with WM structures such as the corpus callosum (CC), cingulum, fornix, inferior fronto-occipital
+fasciculus (IFOF), internal capsule, superior longitudinal fasciculus (SLF), and U-fibers.
+
+around 6% in favor of k-centers. When we focus on the sensitivity of the sequential framework to the parameters, we see
+that it is difficult to draw conclusions from the results of sequential HAC as the method attains very high levels of accuracy
+at all values of (ξ, N% ). Nonetheless, for a fixed value of N% ,
+we observe a weak trend showing an increase in the clustering
+accuracy as ξ increases. One might also anticipate that increasing N% makes the framework more stable (and therefore more
+successful in clustering) as in the case of ξ = 3 mm. Yet, we
+observe that while increasing ξ (i.e., being able to assign labels
+to more items instead of placing them into the reservoir), having
+higher values of N% decreases the performance of the sequential k-centers and k-AP algorithms. Considering the fact that
+k-centers and k-AP randomly choose the initial cluster centers,
+we conjecture, based on the available empirical evidence, that
+having less items for initialization and a larger threshold help
+these methods identify representative cluster centers during the
+model update. Selecting HAC as the baseline also made the
+sequential framework less sensitive to changes in (ξ, N% ).
+3) Results on Clustering Accuracy/Runtime: We apply the
+batch versions in addition to the sequential versions of the
+
+k-centers, k-AP, and HAC algorithms to cluster the fibers in
+Phantom1 and in set 2 of Phantom2. For the latter, we focus on
+the intersecting and branching bundles because we empirically
+observe that the U-shaped and linear bundles (in set 1) we eliminated are relatively simple to analyze. In the experiments, we set
+the parameters ξ = 4 mm, N% = 20%, |R| = 60 for Phantom1,
+and ξ = 6 mm, N% = 20%, |R| = 200 for Phantom2, run the
+algorithms 100 times with different orderings of the fiber stream,
+and report the average accuracy (%) in clustering, as well as the
+average runtime (in seconds) in Table II. We observe that due
+to noisy items, Phantom1 is found to be more challenging than
+Phantom2, and that sequential clustering is sensitive (to the extent measured by the standard deviation of accuracy) to the order
+of the fiber stream. The batch versions of the aforementioned algorithms cluster the data into two groups for Phantom1 and into
+four for Phantom2 with an accuracy of more than 98%.5 Despite
+this similarity in accuracy, their runtimes differ significantly,
+
+5 The batch versions of k-centers and k-AP have nonzero standard deviations
+because of the random selection of the centers.
+
+DEMIR AND ÇETINGÜL: SEQUENTIAL HIERARCHICAL AGGLOMERATIVE CLUSTERING OF WHITE MATTER FIBER PATHWAYS
+
+1485
+
+with k-centers being the fastest technique.6 In the case of sequential clustering, on the other hand, the sequential HAC method
+achieves the highest accuracy, as well as runtimes that are comparable to those of the sequential k-centers. We observe that both
+k-centers and k-AP greatly benefit from having access to all the
+items (i.e., the batch case), but their performance deteriorate
+under the sequential processing framework. The reason behind
+this result is that k-centers and k-AP are more likely to consider
+the previous cluster centers as outliers during the model update
+process (i.e., tend to generate new clusters), whereas HAC can
+avoid this tendency when applied according to the single-linkage
+criterion.
+B. Experiments on Real Data
+1) Materials: Sequential HAC is also tested on a human
+brain dataset containing structural, functional, and diffusion
+MR images of three healthy volunteers (referred to as Brain0,
+Brain1, and Brain2) provided for the Pittsburgh Brain Connectivity Challenge (PBCC Spring 2009).7 The diffusion weighted
+images are acquired using a 128 × 128 × 68 image matrix with
+an isotropic spatial resolution of 2 mm and a diffusion sensitization at b = 1,500 s/mm2 applied along a set of 256 directions
+with 29 b0 images. Having represented diffusion with ODFs
+[51], we apply streamline tractography to extract the WM fiber
+pathways. In what follows, we provide both qualitative and
+quantitative results to demonstrate the efficacy of our method.
+2) Results: For qualitative validation, we place a large spherical seed ROI in each brain and apply tractography to extract
+around 100000 fiber pathways that primarily delineate WM
+structures including the corpus callosum, cingulum, fornix, internal capsule, and other fasciculi. Fig. 6(a), (c), and (e) shows
+the seed ROIs and the fiber pathways that are fed as streams
+into the sequential HAC for Brain0, Brain1, and Brain2, respectively. The ROIs are purposely placed at different locations
+of the brains (right frontal region in Brain0, center region in
+Brain1, and left posterior region in Brain2) to capture different
+projections. The sequential HAC algorithm is initialized with
+1000 fibers (N% = 1%), and ξ and |R| are set to 14 mm and
+200 (0.2N ), respectively. In each experiment, the fibers are clustered twice (L = 60 for the first pass) to associate noisy/irregular
+fibers with the “cluster(s) of outliers,” each having very few
+members. In the second pass, L is reduced to 50 and the final
+results [see Fig. 6(b), (d), and (f)] show anatomically consistent
+grouping of the aforementioned WM structures. That being said
+a number of (clusters of) outliers were eliminated by applying a
+threshold on the number of members in each cluster and simple
+split/merge operations were needed for some clusters to obtain
+a unified result on long and spatially incoherent bundles, such
+as IFOF and SLF.
+For quantitative validation, we use the probabilistic atlas of
+human WM [53]. This atlas contains 16 different tract probability maps, each of which is a single-channel 3-D image describing the position of the corresponding tract: the intensity
+6 In the case of batch processing, the computation of the full matrix of fiber
+distances takes 289.28 and 422.01 s for Phantom1 and Phantom2, respectively.
+7 pbc.lrdc.pitt.edu/?q=2009a-home.
+
+Fig. 7. Tract probability maps of the genu (blue) and splenium (red) of the
+corpus callosum overlayed on the structural T1 image in the atlas space.
+
+value of a voxel gives the probability that the tract of interest
+passes through that voxel (see Fig. 7 for the tract probability
+map of the genu and the splenium of the corpus callosum). For
+proper use of the atlas, we register the fractional anisotropy image of the atlas brain to those of the volunteer data using the
+diffeomorphic demons algorithm [54], and apply the resulting
+transformation(s) for obtaining the tract probability maps in the
+subject space (i.e., of Brain0, Brain1, or Brain2). Then, the
+whole-brain fiber pathways of each data are filtered using the
+registered tract probability maps, with emphasis to form bundles
+that contain a large number of spatially coherent fibers that are
+passing through regions with high tract probabilities. As a result,
+31 961, 50 122, and 44 121 fiber pathways are selected from
+Brain0, Brain1, and Brain2, respectively, and these pathways
+are fed into sequential HAC with ξ = 25 mm, N% = 10%, and
+|R| = 0.2N . Fig. 8 shows the input fiber pathways from several WM structures as well as the clusters given by sequential
+HAC.8 Our method find the final clusters in 242, 619, and 455 s
+and achieves an accuracy of 98.9%, 98.4%, and 98.6% for
+Brain0, Brain1, and Brain2, respectively, by setting L = 20
+and automatically eliminating clusters with very few members.
+We note that these outliers correspond to around 2% of the fiber
+pathways and purposely eliminated from Fig. 8 for the sake of
+clarity, but they are included in the computation of the accuracy
+in clustering.
+To further demonstrate the efficacy of sequential HAC, we analyze the recently presented clustering results on Brain0, Brain1,
+and Brain2 in terms of the silhouette score [55]. The silhouette
+8 Since dense bundles (i.e., bundles that contain a large number of spatially
+coherent fibers) are selected to generate the input data, some bundles such as
+CCF and ATR are not included in certain experiments.
+
+1486
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+Fig. 8. Clustering of selected WM fiber pathways in Brain0, Brain1, and Brain2 via sequential HAC: Fiber pathways forming the anterior thalamic radiation
+(ATR), corpus callosum-frontal and occipital (CCF/CCO), corticospinal tract (CST), as well as the cingulum, IFOF, and SLF are illustrated using (a)–(c) directional
+coloring. Clustering of the fiber pathways with (d) an accuracy of 98.9% and runtime of 242 seconds for Brain0, (e) 98.4% and 619 seconds for Brain1, (f) and
+98.6% and 455 seconds for Brain2.
+
+Fig. 9. Silhouette scores of the fiber clustering given by sequential HAC for
+Brain0, Brain1, and Brain2.
+
+score, denoted by s(X), shows the degree of associativity of an
+item X to the cluster it was assigned, say l, by comparing its
+average distance to the items in l with that to the items in the
+“closest” cluster. To be specific, let d¯l (X) denote the average
+distance between X and all other items of l. Also let d¯l 
+ (X)
+denote the average distance between X and all other items in its
+closest cluster l
+ , i.e., d¯l 
+ (X) = minc= l d¯c (X). The silhouette
+score is computed as
+s(X) =
+
+d¯l 
+ (X) − d¯l (X)
+.
+max{d¯l 
+ (X), d¯l (X)}
+
+(8)
+
+Note that −1 ≤ s(X) ≤ 1: the closer the item X to the center
+of the cluster it was assigned and the farther it is from its closest
+cluster, the closer s(X) to 1, whereas if there is a cluster, other
+than l, which better represents X, then s(X) is negative. In other
+words, the silhouette score of a fiber pathway quantifies how
+well that item is clustered. Note also that in order to compute
+s(X), the full matrix of pairwise fiber distances is required, yet
+the sequential clustering framework is designed not to compute
+the entire matrix. Thus, in our case, we compute the missing
+entries in the matrix after we find the clusters via sequential
+HAC, and we then calculate the silhouette score of each fiber
+pathway. Fig. 9 shows, for each brain data, the silhouette scores
+of the fibers in descending order. The ratio of the number of
+fibers with positive scores to the total number of fibers is 94.9%,
+94.5%, and 96.6% for Brain0, Brain1, and Brain2, respectively.
+These results, along with the ones previously reported, show the
+efficacy and speed of sequential HAC in analyzing real datasets.
+At this point, it is worth discussing, from a different perspective, the efficiency of the sequential HAC method when
+analyzing the fiber pathways, for instance, in Brain0. Fig. 10
+shows a binary image (similar to the motivating example in
+Section I-B) that represents the matrix of pairwise fiber distance
+computations, along with the 866 fibers in Brain0 and the resulting clusters. The row/column order is temporal (i.e., the top
+left corner is at t = 0 and the fiber pathways are ordered according to their processing times) and the black pixels represent
+
+DEMIR AND ÇETINGÜL: SEQUENTIAL HIERARCHICAL AGGLOMERATIVE CLUSTERING OF WHITE MATTER FIBER PATHWAYS
+
+Fig. 10. Binary image showing the pairs for which the distance is computed
+during sequential HAC of Brain0 (black pixel: distance is computed for the pair,
+white pixel: distance not computed).
+
+the pairs for which the distance is computed. Starting from an
+empty matrix at t = 0, the first step is the initialization, i.e.,
+computing the distances for all the pairs of items in the initial
+bunch (black region at the top left corner) and performing HAC.
+Afterward, each new item is compared with the cluster centers
+(see the thin black lines in Fig. 10); thus, a large number of
+distance computations are skipped leaving the corresponding
+pixels as white. In fact, these black lines provide information
+about the fiber pathways that are selected as the cluster centers,
+as well as the times at which the model update process is triggered. The small black regions after the initialization represent
+the comparison between the drifting fibers, which trigger, after
+some time, the model update process. The sparsity of the matrix
+shows how effective our method is in reducing the computation
+time.
+C. Discussions
+Having outlined the results, let us proceed with a summary
+of the advantages and limitations of our method. We propose to
+integrate HAC into the generic framework in [40], which was
+designed to perform clustering only for initializing and updating
+the cluster models. Our experiments show that replacing the
+originally proposed baseline algorithms (i.e., k-centers, k-AP)
+with HAC made the framework less sensitive to the similarity
+threshold, ξ, and the initialization percentage, N% . There are
+two main reasons behind the efficacy of the sequential HAC
+method:
+1) Unlike k-centers and k-AP, HAC does not require a
+randomized initialization because it does not rely on the
+concept of “cluster center” even when used with the
+average-linkage criterion, and
+2) During the model update, HAC with single-linkage does
+not consider the previous cluster centers as spurious items
+and tends to keep them as the representative items of the
+clusters, whereas k-centers and k-AP are more likely to
+select item(s) in the reservoir as the new cluster center(s).
+
+1487
+
+While implementing this fast clustering algorithm, we choose
+a fixed number of clusters L, which is often higher than the
+number of bundles present in the data at hand, mainly to prevent noisy items (outliers) from affecting the model update.
+That being said, strategies to estimate the number of clusters
+from the data can also be adopted. The advantage of searching for a fixed number of clusters, although it may seem as a
+limiting factor at first, can be understood from the following
+example: In our exploratory experiments on real data with QB
+[37], we observe that depending on the user-specified threshold
+on fiber distances, the algorithm may result in different numbers
+of clusters. For instance, QB with the same threshold value of
+ξ = 14 mm (used in our first experiment on real data) produced
+340 clusters for Brain1 and increasing the threshold, as one
+can anticipate, caused neighboring clusters to merge into larger
+bundles. We think this was mainly due to the absence of 1) a predefined number of clusters to look for and 2) a rearrange/update
+step for clusters. Sequential HAC takes advantage of searching
+for a fixed number of clusters and a rigorous model update step
+to rearrange these clusters.
+It is also worth noting that the amount of memory required
+by sequential HAC is limited by the size of the similarity matrix
+for the initial bunch, which is negligible compared to the full
+similarity matrix. For instance, assuming that N% = 20%, the
+amount of memory required is at most 4% of the size of the
+full similarity matrix (e.g., consider the ratios of the areas of
+the black regions on the upper left corners in Figs. 1 and 10
+to the areas if the matrices were full) The drop is even more
+remarkable, from 4% to 1%, when one decreases N% to 10%.
+Our method is also suitable for the conventional “orthogonal”
+processing of tractography and clustering, as well as for their simultaneous application, i.e., the sequential HAC can be applied
+after obtaining the fiber pathways to be grouped or in tandem
+with tractography, and both approaches are theoretically identical in terms of the computation time and accuracy. Last but not
+least, we conjecture through preliminary empirical evidence that
+the homogeneity of the initial bunch (i.e., having comparable
+numbers of items from each cluster) is not required because the
+initial cluster assignments can change during the model update
+step.
+A limitation of the sequential HAC method is that it is designed to rapidly cluster data streams, yet it currently does not
+take anatomical information into consideration as a prior. Another limitation is that the method requires some effort from
+the user for parameter selection. Moreover, different implementation strategies (e.g., running the algorithm more than once)
+and/or additional postprocessing steps in the form of outlier
+elimination or splitting/merging of clusters may be necessary,
+especially when dealing with whole-brain tractograms. Nevertheless, as underlined in [28], “clustering large multiple subject
+or high resolution tractography datasets has required the development of multistep or multilevel methods to handle a high
+number of fibers.” Therefore, the proposed method should be
+viewed as a practical tool that rapidly provides labeled items,
+which can potentially be used in more sophisticated clustering
+pipelines that often consider additional anatomical information,
+e.g., a parcellated brain.
+
+1488
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 6, JUNE 2015
+
+IV. CONCLUSION
+We have presented a fast data clustering method that incorporates the well-known HAC algorithm into a sequential
+framework for clustering streams of WM fiber pathways into
+anatomically meaningful bundles. Our solution can be considered as a realization of the strategy of doing fiber clustering while
+simultaneously performing tractography. We have represented
+the clusters with parametric models, performed HC of a small
+number of fiber pathways only when the parameters need to be
+initialized and/or updated, and assigned the labels to the following streams of data according to the current models. We have
+evaluated our method on phantom and real data: Experiments on
+phantom data measured the sensitivity of our method to initialization and parameter tuning, and showed its advantages over
+alternative techniques. Experiments on real data demonstrated
+its accuracy and speed in forming fiber bundles, a desirable and
+practical feature to gain insights into brain connectivity and its
+impairment.
+Possible directions for future work include using anatomical
+knowledge as a prior and estimating an optimal order of data
+streaming (assuming the fibers are precomputed) to let the user
+stop the framework earlier, i.e., when she/he thinks the current
+bundles provide sufficient information for the next stages.
+ACKNOWLEDGMENT
+The authors would like to thank the anonymous reviewers
+for critically reading the manuscript and suggesting substantial
+improvements. A. Demir and H. E. Çetingül contributed equally
+to this study. A. Demir performed this study, while at Siemens
+Corporation, Corporate Technology.
+REFERENCES
+[1] P. Basser et al., “Estimation of the effective self-diffusion tensor from the
+NMR spin echo,” J. Magn. Reson. B, vol. 103, no. 3, pp. 247–254, 1994.
+[2] A. Barmpoutis et al., “Regularized positive-definite fourth order tensor field estimation from DW-MRI,” Neuroimage, vol. 45, no. 1 Suppl.,
+pp. S153–S162, 2009.
+[3] D. Tuch, “Q-ball imaging,” Magn. Reson. Med., vol. 52, no. 6,
+pp. 1358–1372, 2004.
+[4] S. Smith et al., “Tract-based spatial statistics: Voxelwise analysis of
+multi-subject diffusion data,” Neuroimage, vol. 31, no. 4, pp. 1487–1505,
+2006.
+[5] S. J. Teipel et al., “Progression of corpus callosum atrophy in Alzheimer
+disease,” Arch. Neurol., vol. 59, no. 2, pp. 243–248, 2002.
+[6] C. Laule et al., “Diffusely abnormal white matter in multiple sclerosis:
+Further histologic studies provide evidence for a primary lipid abnormality
+with neurodegeneration,” J. Neuropathol. Exp. Neurol., vol. 72, no. 1,
+pp. 42–52, 2013.
+[7] S. Wakana et al., “Reproducibility of quantitative tractography methods
+applied to cerebral white matter,” Neuroimage, vol. 36, no. 3, pp. 630–644,
+2007.
+[8] H. Li et al., “A hybrid approach to automatic clustering of white matter
+fibers,” Neuroimage, vol. 49, no. 2, pp. 1249–1258, 2010.
+[9] D. Wassermann et al., “ Unsupervised white matter fiber clustering
+and tract probability map generation: Applications of a Gaussian process framework for white matter fibers,” Neuroimage, vol. 51, no. 1,
+pp. 228–241, 2010.
+[10] C. Lenglet et al., “DTI segmentation by statistical surface evolution,”
+IEEE Trans. Med. Imag., vol. 25, no. 6, pp. 685–700, Jun. 2006.
+[11] M. Descoteaux and R. Deriche, “High angular resolution diffusion MRI
+segmentation using region-based statistical surface evolution,” J. Math.
+Imag. Vis., vol. 33, no. 2, pp. 239–252, 2009.
+
+[12] P.-L. Bazin et al., “Belief propagation based segmentation of white matter
+tracts in DTI,” in Proc. Int. Conf. Med. Image Comput. Comput.-Assisted
+Intervention, 2009, pp. 943–950.
+[13] H. E. Çetingül et al., “Segmentation of high angular resolution diffusion
+MRI using sparse Riemannian manifold clustering,” IEEE Trans. Med.
+Imag., vol. 33, no. 2, pp. 1–17, Feb. 2014.
+[14] M. Maddah et al., “Automated atlas-based clustering of white matter fiber
+tracts from DTMRI,” in Proc. Int. Conf. Med. Image Comput. Comput.Assist Intervention, 2005, vol. 3749, pp. 188–195.
+[15] P. Batchelor et al., “Quantification of the shape of fiber tracts,” Magn.
+Reson. Med., vol. 55, no. 4, pp. 894–903, 2006.
+[16] I. Corouge et al., “Fiber tract-oriented statistics for quantitative diffusion
+tensor MRI analysis,” Med. Image Anal., vol. 10, no. 5, pp. 786–798,
+2006.
+[17] M. Mani et al., “A comprehensive Riemannian framework for the analysis
+of white matter fiber tracts,” in Proc. IEEE Int. Symp. Biomed. Imag., 2010,
+pp. 1101–1104.
+[18] Z. Ding et al., “Classification and quantification of neuronal fiber pathways using diffusion tensor MRI,” Magn. Reson. Med., vol. 49, no. 4,
+pp. 716–721, 2003.
+[19] L. O’Donnell and C.-F. Westin, “Automatic tractography segmentation
+using a high-dimensional white matter atlas,” IEEE Trans. Med. Imag.,
+vol. 26, no. 11, pp. 1562–1575, Nov. 2007.
+[20] D. Wassermann and R. Deriche, “Simultaneous manifold learning and
+clustering: Grouping white matter fiber tracts using a volumetric white
+matter atlas,” in Proc. Med. Image Comput. Comput.-Assisted Intervention
+Workshop, 2008.
+[21] M. Maddah et al., “A mathematical framework for incorporating anatomical knowledge in DT-MRI analysis,” in Proc. IEEE Int. Symp. Biomed.
+Imag., 2008, pp. 105–108.
+[22] M. Maddah et al., “A unified framework for clustering and quantitative
+analysis of white matter fiber tracts,” Med. Image Anal., vol. 12, no. 2,
+pp. 191–202, 2008.
+[23] A. Brun et al., “Clustering fiber tracts using normalized cuts,” in
+Proc. Med. Image Comput. Comput.-Assisted Intervention Conf., 2004,
+vol. 3216, pp. 368–375.
+[24] L. Bloy et al., “Neuronal white matter parcellation using spatially coherent normalized cuts,” in Proc. IEEE Int. Symp. Biomed. Imag., 2011,
+pp. 2061–2065.
+[25] A. Leemans and D. Jones, “A new approach to fully automated fiber tract
+clustering using affinity propagation,” in Proc. Int. Soc. Magn. Reson.
+Med. Conf., 2009, p. 856.
+[26] L. Dodero et al., “Automatic white matter fibers clustering using dominant set,” in Proc. IEEE Int. Workshop Pattern Recog. Neuroimag., 2013,
+pp. 216–219.
+[27] B. Moberts et al., “Evaluation of fiber clustering methods for diffusion
+tensor imaging,” in Proc. IEEE Vis.Conf., 2005, pp. 65–72.
+[28] L. J. O’Donnell et al., “Fiber clustering versus the parcellation-based
+connectome,” Neuroimage, vol. 80, pp. 283–289, 2013.
+[29] X. Wang et al., “Tractography segmentation using a hierarchical Dirichlet
+processes mixture model,” Neuroimage, vol. 54, no. 1, pp. 290–302, 2011.
+[30] Q. Wang et al., “Application of neuroanatomical features to tractography
+clustering,” Hum. Brain Mapping, vol. 34, no. 9, pp. 2089–2102, 2013.
+[31] P. Guevara et al., “Robust clustering of massive tractography datasets,”
+Neuroimage, vol. 54, no. 3, pp. 1975–1993, 2011.
+[32] E. Visser et al., “Partition-based mass clustering of tractography streamlines,” Neuroimage, vol. 54, no. 1, pp. 303–312, 2011.
+[33] P. Guevara et al., “Automatic fiber bundle segmentation in massive
+tractography datasets using a multi-subject bundle atlas,” Neuroimage,
+vol. 61, no. 4, pp. 1083–1099, 2012.
+[34] Y. Jin et al., “Automatic clustering of white matter fibers in brain diffusion
+MRI with an application to genetics,” Neuroimage, vol. 100, pp. 75–90,
+2014.
+[35] G. Prasad et al., “Automatic clustering and population analysis of
+white matter tracts using maximum density paths,” Neuroimage, vol. 97,
+pp. 284–295, 2014.
+[36] E. Olivetti et al., “Fast clustering for interactive tractography segmentation,” in Proc. Int. Workshop Pattern Recog. Neuroimag., 2013,
+pp. 42–45.
+[37] E. Garyfallidis et al., “QuickBundles, a method for tractography simplification,” Front. Neurosci., vol. 6, no. 175, 2012.
+[38] E. Garyfallidis et al., “Dipy, a library for the analysis of diffusion MRI
+data,” Front. Neuroinformat., vol. 8, no. 8, 2014.
+[39] A. Demir et al., “Online agglomerative hierarchical clustering of neural
+fiber tracts,” in Proc. IEEE Eng. Med. Biol. Soc. Conf., 2013, pp. 85–88.
+
+DEMIR AND ÇETINGÜL: SEQUENTIAL HIERARCHICAL AGGLOMERATIVE CLUSTERING OF WHITE MATTER FIBER PATHWAYS
+
+[40] X. Zhang et al., “Data streaming with affinity propagation,” in Machine Learning and Knowledge Discovery in Databases (Lecture Notes
+in Computer Science Series), W. Daelemans et al., Eds. Berlin, Germany:
+Springer-Verlag, 2008, vol. 5212, pp. 628–643.
+[41] C. Manning et al., Introduction to Information Retrieval. Cambridge,
+U.K.: Cambridge Univ. Press, 2008.
+[42] J. H. Ward, Jr., “Hierarchical grouping to optimize an objective function,”
+J. Amer. Stat. Assoc., vol. 58, no. 301, pp. 236–244, 1963.
+[43] F. Murtagh and P. Contreras, “Algorithms for hierarchical clustering: An
+overview,” Wiley Interdisciplinary Reviews, Data Min. Knowl. Discovery,
+vol. 2, no. 1, pp. 86–97, 2012.
+[44] E. Page, “Continuous inspection schemes,” Biometrika, vol. 41, nos. 1/2,
+pp. 100–115, 1954.
+[45] D. Hinkley, “Inference about the change-point from cumulative sum tests,”
+Biometrika, vol. 58, no. 3, pp. 509–523, 1971.
+[46] J. S. Campbell et al., “Flow-based fiber tracking with diffusion tensor and
+q-ball data: Validation and comparison to principal diffusion direction
+techniques,” Neuroimage, vol. 27, no. 4, pp. 725–736, 2005.
+[47] I. Aganj et al., “Reconstruction of the orientation distribution function
+in single- and multiple-shell q-ball imaging within constant solid angle,”
+Magn. Reson. Med., vol. 64, no. 2, pp. 554–566, 2010.
+[48] H. E. Çetingül et al., “Simultaneous ODF estimation and tractography in
+HARDI,” in Proc. IEEE Eng. Med. Biol. Soc. Conf., 2012, pp. 86–89.
+[49] C. Poupon et al., “New diffusion phantoms dedicated to the study and validation of high-angular-resolution diffusion imaging (HARDI) models,”
+Magn. Reson. Med., vol. 60, no. 6, pp. 1276–1283, 2008.
+[50] P. Fillard et al., “Quantitative evaluation of 10 tractography algorithms
+on a realistic diffusion MR phantom,” Neuroimage, vol. 56, no. 1,
+pp. 220–234, 2011.
+[51] M. Descoteaux et al., “Regularized, fast, and robust analytical Q-ball
+imaging,” Magn. Reson. Med., vol. 58, no. 3, pp. 497–510, 2007.
+[52] S. Mori and P. van Zijl, “Fiber tracking: Principles and strategies—A
+technical review,” NMR Biomed., vol. 15, nos. 7/8, pp. 468–480, 2002.
+[53] K. Oishi et al., MRI Atlas of Human White Matter, 2nd ed. New York, NY,
+USA: Academic, 2011.
+
+1489
+
+[54] T. Vercauteren et al., “Diffeomorphic demons: Efficient non-parametric
+image registration,” Neuroimage, vol. 45, no. 1 Suppl, pp. S61–S72, 2009.
+[55] P. Rousseeuw, “Silhouettes: A graphical aid to the interpretation and
+validation of cluster analysis,” J. Comput. Appl. Math., vol. 20, pp. 53–65,
+1987.
+
+Ali Demir received the B.S. degree with a double
+major in computer engineering and biomedical engineering from Yeditepe University, Istanbul, Turkey, in
+2008, and the M.S. degree in electronics engineering
+from Sabanci University, Istanbul, in 2010. He is currently working toward the Ph.D. degree in biomedical
+engineering from Boğaziçi University, Istanbul.
+His research interests include computational image analysis, machine learning, MRI segmentation,
+and registration.
+
+H. Ertan Çetingül (M’03) received the B.S. degree in electrical and electronics engineering and the
+minor in business administration from Middle East
+Technical University, Ankara, Turkey, in 2003, the
+M.S. degree in electrical and computer engineering
+from Koç University, Istanbul, Turkey, in 2005, and
+the Ph.D. degree in biomedical engineering from The
+Johns Hopkins University, Baltimore, MD, USA, in
+2011.
+He is currently a Staff Scientist in the Imaging and Computer Vision Technology Field, Siemens
+Corporation, Corporate Technology, Princeton, NJ, USA. His research interests include computer vision, computational modeling, and machine learning for medical image analysis, with emphasis on neuroimaging and brain
+connectivity.
+
+

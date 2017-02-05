@@ -1,0 +1,606 @@
+476
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+Patient-Specific 12-Lead ECG Reconstruction
+From Sparse Electrodes Using Independent
+Component Analysis
+Gill R. Tsouri and Michael H. Ostertag
+
+Abstract—We propose and evaluate a method of 12-lead electrocardiogram (ECG) reconstruction from a three-lead set. The
+method makes use of independent component analysis and results
+in adaptive patient-specific transforms. The required calibration
+process is short and makes use of a single beat. We apply the
+method to two sets of leads: leads I, II, V2 and the Frank XYZ
+leads. Performance is evaluated via percent correlation calculations between reconstructed and original leads from a publicly
+available database of 549 ECG recordings. Results depict percent
+correlation exceeding 96% for almost all leads. Adaptability of the
+method’s transform is shown to compensate for changes in signal
+propagation conditions due to breathing, resulting in reduced variance of reconstruction accuracy across beats. This implies that the
+method is robust to changes that occur after the time of calibration.
+Accurate and adaptive reconstruction has the potential to augment
+the clinical significance of wireless ECG systems since the number
+of sensor nodes placed on the body is limited and the subject could
+be mobile.
+Index Terms—Biomedical signal processing, blind source separation, body sensor networks, electrocardiography.
+
+I. INTRODUCTION
+HE electrocardiogram (ECG) aids cardiologists in the diagnosis of heart conditions. There are multiple setups for
+ECG electrodes, but the standard clinical 12-lead ECG is the
+setup most commonly used. Traditionally, a clinical 12-lead
+ECG uses electrodes accurately placed at predefined sites on
+the body and requires the patient to recline and be still to avoid
+motion artifacts. Consequently, 12-lead ECG monitoring is limited to short timespans while remote long-term ECG monitoring
+relies on one-lead or three-lead ECGs, which provide limited information on heart condition. Reduced-lead ECG systems are
+important for improving patient comfort during long-term monitoring and in cases where placing many electrodes on a patient
+interferes with auscultation, examination, or resuscitation.
+The data from a 12-lead ECG are quite redundant. Some leads
+can be reconstructed with a high degree of accuracy from other
+
+T
+
+Manuscript received June 14, 2013; revised September 21, 2013 and
+November 5, 2013; accepted November 30, 2013. Date of publication December 11, 2013; date of current version March 3, 2014.
+G. R. Tsouri is with the Communications Research Laboratory, Department
+of Electrical and Microelectronic Engineering, Rochester Institute of Technology, Rochester, NY 14623 USA (e-mail: grteee@rit.edu).
+M. H. Ostertag is with the Department of Electrical and Microelectronic Engineering, Rochester Institute of Technology, Rochester, NY 14623 USA (e-mail:
+michael.h.ostertag@gmail.com).
+Digital Object Identifier 10.1109/JBHI.2013.2294561
+
+leads in the set. This has been the basis for reduced-lead systems developed in the past [1]–[5]. The basic idea is to provide
+a clinical 12-lead ECG using as little as three leads. A common assumption in previous lead reconstruction work was that
+the signals from the heart propagate in a homogenous medium,
+which allows for the use of linear transformation in the form
+of matrices to translate reduced-lead observations to the full
+12-lead ECG. The three prominent types of lead reconstruction
+transforms are the universal, population-specific, and patientspecific transforms. In all cases, the transforms are fixed and do
+not adapt to changes over time. It is widely accepted that universal transforms are not reliable due to the wide degree of variance
+in the transforms across time and across patients. Each patient
+has a different composition of chest tissues, different size, shape,
+or location of the heart, and different levels of aging and disease [6]. Population-specific transforms have proven to be more
+effective than their universal counterparts. By segmenting patients based on their age, gender, and disease classification, the
+transform becomes better customized and produces more accurate reconstruction. The patient-specific transforms perform
+best due to the anatomical and diagnostic differences across
+patients [7]. In [8], a comprehensive analysis was performed to
+assess reconstruction accuracy of transforms derived via predictive lead fitting using linear regression. Combinations of —four
+to five leads were used to reconstruct 12-lead ECG. Patientspecific transforms were found to perform best. The transforms
+in [8] were trained over vast data and were not adaptive, i.e.,
+their coefficients were fixed after calibration.
+In this contribution, we propose, analyze, and evaluate a
+patient-specific and adaptive 12-lead reconstruction method
+based on independent component analysis (ICA). The 12-lead
+ECG is reconstructed from a set of just three leads. As with
+other patient-specific transforms, the proposed method relies on
+calibration of a transform matrix to a specific patient. However,
+the calibration process does not require vast data. Instead, just
+a single beat is required which means that calibration time is
+approximately 1 s. In contradistinction to previous transforms,
+the proposed method generates adaptive transforms capable of
+compensating for changes in signal propagation conditions from
+the time of calibration, i.e., the transform’s coefficients change
+over time. We are unaware of previous work making use of
+transforms that adapt over time to reconstruct a 12-lead ECG
+from a reduced-lead set.
+ICA is a technique for blind-source separation. It extracts statistically independent sources, also known as independent components (ICs), from a set of observations. Rows of sources(s)
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+TSOURI AND OSTERTAG: PATIENT-SPECIFIC 12-LEAD ECG RECONSTRUCTION FROM SPARSE ELECTRODES
+
+477
+
+are related to rows of observations (x) by the mixing matrix (A)
+as follows:
+x = As.
+
+(1)
+
+The mixing matrix is square in many popular ICA algorithms
+in order to exploit the inverse to minimize the convergence
+time [9]. ICA is widely used in many domains such as acoustics, image analysis noise reduction, and electroencephalography signal interpretation [9], [10]. Specifically, past use of ICA
+for ECG was limited to reducing noise and suppressing motion
+artifacts [11] and separating maternal and fetal ECGs [12].
+In past work [13], we reported on a preliminary attempt to
+apply ICA for reconstructing precordial ECG leads. The preliminary method presented in [13] allows for reconstructing leads
+V1, V3, V4, and V6 from leads V2 and V5. In this contribution,
+we expand the work in [13] to derive a new method for a complete 12-lead ECG reconstruction from just three leads. The
+method uses an improved calibration technique to customize
+the reconstruction transforms per patient and produces much
+better results than before. Two different reduced-lead sets are
+investigated in this paper: leads I, II, V2 and Frank XYZ leads.
+Performance of both sets is evaluated over the PhysikalischTechnische Bundesanstalt (PTB) diagnostic ECG database as
+made available through PhysioNet [14]. In addition, the adaptability of the method’s transforms to signal propagation conditions is demonstrated over a long period of time.
+II. PROPOSED METHOD
+We treat the sensed signals from the three leads as a sparse
+measure of the required 12-lead set. The first stage of the proposed method consists of basic preprocessing in which the ECG
+waveform is filtered and the QRS complexes are identified. Next,
+a training sequence from a single beat creates a patient-specific
+transform that relates the ICs from the reduced-lead set to the 12
+to-be-reconstructed leads. After the training sequence, all electrodes that are not part of the reduced-lead set may be removed.
+A flow diagram of the proposed method is depicted in Fig. 1 and
+each step is described in more detail in the following sections.
+A. Signal Preprocessing
+The first preprocessing stage includes band-pass filtering of
+the ECG waveforms. Two digital filters were developed using
+the Parks–McClellan algorithm [15]. The first is a high-pass
+filter with the end of the stop band at a frequency of 0.5 Hz to
+remove any dc offset and baseline drift. The second is a lowpass filter with the start of the stop band at 150 Hz to reduce the
+amount of high-frequency noise in the signal. The filters were
+cascaded and the specific frequencies were selected to meet the
+American Heart Association standards [16].
+The second preprocessing stage was designed to perform
+QRS detection. The detection algorithm is similar to the Pan–
+Tompkins QRS detection algorithm [17]. A 100 ms moving
+average is taken of the square of the approximate derivative and
+
+Fig. 1.
+
+Flow diagram of proposed method.
+
+is obtained with:
+y[n] = −x[n − 10] − 2x[n − 5] + 2x[n + 5]+x[n + 10].
+(2)
+The resulting function (y [n]) is normalized and any peak
+that has a value above the threshold of 0.125 and occurs at least
+200 ms from the previous peak is marked as a QRS complex. The
+200 ms wait was selected because the heart cannot beat faster
+due to physiological limitations. Once the QRS complexes are
+located, the beat domain is defined as spanning three-eighths
+the time between the current and previous peak and five-eighths
+the time between the current and next peak.
+B. Transform Training Sequence
+ICA is applied to a single detected beat. The ICs are extracted
+from the reduced three-lead set resulting in:
+⎤
+⎡
+⎤⎡
+⎤
+⎡
+aX bX cX
+IC1
+xX
+xRLS = ⎣ xY ⎦ = As = ⎣ aY bY cY ⎦ ⎣ IC2 ⎦ (3)
+xZ
+aZ bZ cZ
+IC3
+where xRLS is a matrix of the observations from the reducedlead set (each row in xRLS is comprised of samples of a single
+lead taken during the training beat), A is the 3 × 3 mixing matrix, and s is the set of ICs generated from the reduced-lead set
+using ICA (each row in s represents a sampled IC signal during the training beat). The patient specific 12-by-3 reconstruction transform matrix (Ar ) is derived using the pseudoinverse
+matrix:
+
+−1
+(4)
+Ar = xobs sT ssT
+where xobs is a matrix of the observed 12-leads during the single
+detected beat (each row is comprised of samples of a single lead
+taken during the raining beat). Note that Ar does not change
+during the beat, i.e., a single matrix is obtained from all samples
+taken during the training beat.
+At this point, the excess electrodes may be removed from
+the patient since they can be reconstructed by the previously
+
+478
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+mentioned transform and the ICs generated from a reduced-lead
+set.
+C. Reconstruction Sequence
+The set of three leads used for training is also used for the
+reconstruction of the missing leads. ICs are generated from a
+one-beat segment of the reduced-lead set using ICA with an
+initial guess of the mixing matrix that was found during the
+training phase. This starting point helps the ICA algorithm to
+converge to a more consistent ordering and orientation of ICs.
+A known problem with ICA is the ordering of ICs. The ICs
+may alternate row positions in s, which would be compensated
+for by corresponding changes in the matrix A. To fix the ordering problem, ICs are sorted based upon the correlation of
+the current set of ICs with the original set, i.e., the ordering
+which correlates the best with the ICs obtained upon training
+is chosen. To reconstruct the missing leads, the sorted ICs are
+left-multiplied by the reconstruction transform as follows:
+⎤
+⎤
+⎡
+⎡
+bI
+cI
+xI
+aI
+⎡
+⎤
+bII
+cII ⎥ IC1
+⎢ xII ⎥
+⎢ aII
+⎥
+⎢
+⎣ IC2 ⎦ (5)
+xr = ⎢
+..
+.. ⎥
+⎣ ... ⎦ = Ar s = ⎣ ...
+.
+. ⎦ IC3
+xV 6
+aV 6 bV 6 cV 6
+where s now represents the ICs obtained by applying ICA to the
+current beat and xr holds the 12 reconstructed leads.
+The adaptability of the transforms stems from the fact that
+although the patient-specific reconstruction matrix Ar does not
+change after training, the matrix A obtained by the ICA algorithm per detected beat does vary. The result is that changes in
+A across detected beats compensate for changes in the reducedlead set observations due to variability in signal propagation
+conditions. This will be demonstrated in a later section.
+III. PERFORMANCE EVALUATION
+Two sets of reduced leads were evaluated: leads I, II, V2
+and the Frank XYZ leads. The set comprising leads I, II, V2
+was chosen due to a high degree of orthogonality between the
+limb leads and V2, which suggests that more information can
+be obtained. This lead set represents a scenario in which the
+method could be easily integrated into current hospital setups.
+The Frank XYZ lead set was chosen due to the appeal of using
+differential measurements, which are much more convenient
+to acquire compared to single-ended measurements, especially
+when considering a wireless ECG system.
+The ICA algorithm used to find the ICs throughout the evaluation was the FastICA algorithm [9]. FastICA is based on
+an optimization iteration scheme designed to maximize nonGaussianity to achieve statistical independence of the ICs.
+The two sets were evaluated using recordings from the PTB
+diagnostic ECG database as made available through PhysioNet
+[14]. The database consists of 549 ECG recordings from 290
+subjects with a variety of diagnostic classes: 52 healthy controls, 148 myocardial infarctions, and the remainder with other
+cardiac diagnoses. For each recording, the three limbs, three
+augmented, six precordial, and three Frank leads were captured
+simultaneously at a sampling frequency of 1 kHz.
+
+The figure of merit used for comparing the actual leads to
+reconstructed leads was percent correlation (ρ), which is similar
+to the metric used in [8]. It is defined as follows:
+
+N
+i=1 x [i] x̃ [i]
+
+
+× 100%
+(6)
+ρ = 
+
+N
+2
+N
+2
+i=1 x [i]
+i=1 x̃ [i]
+where the index value i represents the samples within a beat of
+length N samples, x [i] is the original ECG signal sample, and
+x̃ [i] is the reconstructed ECG signal sample. A perfect match
+in the timing of the two signals would correspond to a ρ value
+of 100%. We chose this metric instead of a mean-square error
+estimate since it represents the matching of signal patterns. Since
+cardiac activity is inferred by the changes of the signal over
+time, time variations in the signal pattern are more important
+for diagnosis than the average absolute difference between the
+signals.
+Both reduced-lead sets were used for reconstruction over the
+entire PTB database. Percent correlation for the first beat after
+the training sequence (t = 0 s) and a beat 30 s after the training sequence (t = 30s) was derived across reconstructed leads
+and across patients and the mean and standard deviation were
+extracted per lead.
+IV. RESULTS AND DISCUSSION
+A. Reduced-Lead Set: Leads I, II, and V2
+In initial tests, we observed that different sets of limb leads
+generated identical ICs, which was likely due to the fact that
+they were physically connected in the hospital setting. Because
+leads I, II, and III were found to be exchangeable, leads I and II
+were arbitrarily selected. The third lead is required to monitor
+their orthogonal direction. Lead V2 was selected as the third
+lead since it is the most orthogonal precordial lead and had been
+successfully used before [2]. Eventually, the reduced-lead set of
+leads I, II, and V2 was selected because the three leads capture
+data that encompasses all orientations of the heart.
+The reconstructed leads were compared to original leads using ρ as defined in (6). The probability density function (PDF)
+of ρ was evaluated using the histogram method. We found that
+an overwhelming majority of reconstruction instances exhibit
+very high ρ for all reconstructed leads. This was the case for
+reconstruction at both time instances, suggesting accurate reconstruction across time.
+Statistical averages from the PDFs are provided in Table I,
+where the mean μ and standard deviation σ were calculated over
+the entire data. Each row in the table corresponds to a certain
+time difference between training and reconstruction and each
+table entry provides the mean and standard deviation in parenthesis. The limb and augmented leads initially provided nearly
+perfect reconstructions with average ρ value of 99.9%–100%
+for leads III, AVR, AVL, and AVF and 94.9%–98.1% for V1,
+V3, V4, V5, and V6. After 30 s, reconstruction accuracy remained high. Due to the spatial proximity of leads V1 and V3 to
+a lead from the reduced set (V2), they were reconstructed more
+accurately than V4–V6. The lower reconstruction correlations
+of leads V4–V6 suggest that the limb leads cannot as accurately
+
+TSOURI AND OSTERTAG: PATIENT-SPECIFIC 12-LEAD ECG RECONSTRUCTION FROM SPARSE ELECTRODES
+
+479
+
+Fig. 2. Typical example of reconstructing 12-lead ECG with the proposed method using reduced-lead set of I, II, and V2. The black curves are the original leads
+of patient S0009 and the gray curves are the reconstructed versions. The average percent correlation across all leads is 97.99%.
+TABLE I
+STATISTICS OF CORRELATIONS BETWEEN ACTUAL AND RECONSTRUCTED
+LEADS FOR RECONSTRUCTION USING THE REDUCED-LEAD
+SET: LEADS I, II, AND V2
+
+reconstruct the precordial leads and that a reduced-lead set containing more than one precordial lead could be chosen to improve precordial lead reconstruction. Nonetheless, reconstruction accuracy is high across all leads.
+A typical example for 12-lead reconstruction is depicted in
+Fig. 2. Note that a considerable amount of discrepancy between
+actual and reconstructed leads can be attributed to the difference
+in noise superimposed over the signals.
+B. Reduced-Lead Set: Frank XYZ Leads
+The PDF of ρ was estimated as before and the corresponding
+statistical averages were evaluated and are provided in Table II.
+Overall reconstruction accuracy is high across all leads and
+we observe the same trends as for the I, II, and V2 leads set.
+Accuracy is slightly lower than for the previous set with the
+exception of leads V4–V6, where reconstruction is better. A
+typical example of reconstruction is provided in Fig. 3.
+Note that the variation in accuracy across the two lead sets is
+low and inconsistent. We conclude that both lead sets perform
+well.
+
+TABLE II
+STATISTICS OF CORRELATIONS BETWEEN ACTUAL AND RECONSTRUCTED
+LEADS FOR THE REDUCED-LEAD SET: FRANK’S XYZ LEADS
+
+C. Comparison With Past Work
+We are unaware of previous work making use of transforms
+that adapt over time. In past methods, the transforms remain
+fixed after calibration, and reconstruction accuracy is averaged
+across time per lead. When adaptive transforms are considered it
+makes sense to test for reconstruction accuracy at specific times
+across all subjects. Furthermore, the proposed method makes use
+of three leads and requires a single beat for calibration whereas
+previous methods with best accuracy make use of four to five
+leads and are calibrated using all available beats. In addition, an
+adaptive transform is expected to provide better performance in a
+dynamic environment where the subject is not forced to remain
+still. As all available databases and past methods assumed a
+stationary subject (usually in a supine position), a comparison
+with past work is problematic.
+We benchmark performance of the proposed method to the
+best results of nonadaptive patient-specific transforms reported
+
+480
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+Fig. 3. Typical example of reconstructing 12-lead ECG with the proposed method using reduced-lead set of X, Y , and Z . The black curves are the original leads
+of patient S0001 and the gray curves are the reconstructed versions. The average percent correlation across all leads is 96.73%.
+TABLE III
+MEAN OF SIMILARITY COEFFICIENT RESULTS AS TAKEN FROM [8, TABLE 8]
+
+in [8], where a reduced set of four to five leads was used and
+calibration considered all beats. We find that reconstruction accuracy is approximately the same. More specifically, when considering [8, Table 8] we find that the proposed method has
+an accuracy level across the entire data that is slightly lower
+than the accuracy of reconstructing QRST interval in [8] and
+higher than the accuracy of reconstructing deviation at J point.
+A relevant subset of the table in [8] is provided in Table III for
+reference. Note that results in [8] were generated using four predictor leads, where our proposed method uses three leads. The
+table summarizes results from predictor lead sets where leads I,
+II, and V2 were included. The same leads were used to evaluate
+our proposed method in Table I.
+D. Comparison With Fixed Transforms
+To further evaluate the proposed method, we implemented
+two fixed transforms and compared their performance with that
+of the proposed method over the PTB diagnostic ECG database.
+The first transform was the Dower universal transform [4]. The
+second transform was a patient-specific transform we generated using linear regression. The Dower transform is a standard
+transform that reconstructs a 12-lead ECG from a Vector CardioGram (VCG) lead set. The linear regression patient-specific
+transform was generated using least-squares estimation over the
+same training beat as used for generating the ICA transform.
+
+All three methods were used to reconstruct a full 12-lead ECG
+from the reduced-lead set of Frank’s XYZ leads.
+After the preprocessing stage, the first beat of each patient was
+used to train the linear regression transform and ICA transform.
+All three methods were then used on all subsequent beats to
+reconstruct the full 12-lead ECG.
+If the minimum of the peak cross-correlation between the
+current set of ICs and the original ICs used for training was
+less than 0.9, then the beat was not reconstructed by any of the
+methods. Poor correlation between ICs likely indicates a fault
+in the ICA method caused by a convergence to an incorrect set
+of ICs or an error in the sorting of the ICs. ICA convergence can
+be improved using a more efficient ICA convergence algorithm.
+Since the focus of our investigation is ECG reconstruction and
+not ICA, we avoided beats that failed ICA convergence. Out of
+the entire database 42,008 beats generated ICs with this level of
+correlation. These beats were used to evaluate all three transforms.
+The statistical mean and standard deviation over all reconstructed beats is summarized in Table IV. As expected, the
+universal transform provides poor results compared to the two
+patient specific transforms. Both patient specific transforms perform very well with percent correlation higher than 96% across
+almost all leads.
+The linear regression transform provides slightly higher average accuracy compared to the ICA transform across some of
+the leads. However, note that the standard deviation of the ICA
+transform is noticeably lower than the standard deviation of the
+linear regression transform (with the exception of lead V5). This
+indicates that that the ICA transform’s average performance is
+more representative of its instantaneous performance. While
+there are beats for which the linear regression transform performs very well, there are also cases where is performs poorly.
+
+TSOURI AND OSTERTAG: PATIENT-SPECIFIC 12-LEAD ECG RECONSTRUCTION FROM SPARSE ELECTRODES
+
+TABLE IV
+STATISTICS OF CORRELATIONS BETWEEN ACTUAL AND RECONSTRUCTED
+LEADS ACROSS ENTIRE DATABASE USING FRANK’S XYZ LEADS AND THREE
+RECONSTRUCTION MATRICES: UNIVERSAL TRANSFORM, PATIENT SPECIFIC
+LINEAR REGRESSION, AND ADAPTIVE ICA
+
+481
+
+required to fully understand the adaptability of the transform.
+We elaborate on that in the next section.
+V. CHALLENGES AND FUTURE RESEARCH
+
+Fig. 4.
+
+Adaptability of coefficients of mixing matrix A for patient s0404lrem.
+
+This result implies that the ICA transform adapts to changes
+in signal propagation conditions across beats and thus could
+provide a more reliable reconstruction. We elaborate on more
+results supporting this premise next.
+E. Adaptability of the Transform
+We observed that transform A for extracting the ICs from
+the observations changed over time. An example is provided
+in Fig. 4, where the nine coefficients of A are presented over
+time for patient s0404lrem from the database. It is clear that
+coefficients change their values periodically and that the rate
+of change is approximately ten cycles/min. We speculated that
+the coefficients are changing to compensate for the periodic
+changes in signal propagation conditions from the heart to the
+electrodes caused by breathing. We evaluated the stationarity of
+ICs by finding the correlation between ICs from beats across
+the breathing cycle and found that it is close to one. This is
+suggestive that the ICs are rather stationary. More research is
+
+The proposed method relies on efficient implementation of
+the ICA algorithm. A known problem with ICA is that the
+mixing matrix, which translates the observations to the ICs, is
+not unique. Many matrices would result in the same set of ICs
+ordered differently. This is known as the ICA sorting problem.
+In this paper, we resolved the sorting problem by reordering the
+ICs based on their correlations with the ICs from the training
+beat. A more efficient way can be sought by utilizing constrained
+ICA (cICA). cICA takes advantage of prior information on the
+ICs to help the ICA convergence process. New reconstruction
+algorithms may be developed where the ICs from training are
+used as prior knowledge.
+Another problem with ICA is that the convergence to ICs can
+sometimes fail. Although ICA convergence was not a limiting
+problem in the analysis we performed over the database, the
+issue of convergence could be looked into by assessing performance of other ICA convergence algorithms.
+The proposed method requires online computational power
+for implementing ICA since the ICs need to be found for every
+beat. Our implementation was in MATLAB on a standard PC
+and we noticed that finding ICs takes less than half a second.
+Since future systems can implement ICA much more efficiently
+using C or Field programmable gate array (FPGA), we do not
+identify a complexity problem in implementing our proposed
+method.
+The ability to fully evaluate the adaptability of the proposed
+transform depends on the variability of propagation conditions
+and subject’s posture during the ECG recordings. Available
+databases provide ECG data taken from stationary subjects assuming a relaxed position. It follows that recordings were performed under relatively unchanging signal propagation conditions. The only perceived change can be attributed to breathing
+of the subject. All past work (including the work presented in
+this paper) relied on such databases.
+Training any reconstruction transform while the subject is
+in a specific posture might provide a transform inadequate for
+reconstructing leads when the patient assumes a different posture. This is especially true for the majority of transforms which
+are fixed after training and therefore do not have the capability
+to adapt to varying propagation conditions due to posture. The
+problem of posture extends beyond ECG reconstruction. Direct
+12-lead measurements using a full set of electrode are strongly
+affected by posture. In most cases, ECG is observed while the
+patient is in a supine position. Despite its apparent importance,
+we are unaware of past work looking at the effect of posture on
+reconstruction. This could prove to be a very interesting topic
+for future research on adaptive transforms. When considering
+the proposed method in this paper the central question is: Are
+ICs obtained from data gathered in different postures always the
+same? If so, then our proposed method has the required adaptability to compensate for posture: ICA would reach same ICs
+regardless of posture and the trained transform would present a
+
+482
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 2, MARCH 2014
+
+12-lead ECG. If not, then our proposed method might be posture
+specific as all past methods are.
+Further research is required into the effect of changing subject
+postures and motion on reconstruction accuracy. It would require
+large studies designed to obtain sufficient data. We postulate that
+adaptive transforms would present performance gains in such
+conditions and could potentially advance cardiac monitoring for
+mobile subjects.
+VI. CONCLUSION
+An adaptive patient-specific method of reconstructing a 12lead ECG from reduced sets was proposed. The method was
+investigated using two sets of three leads: I, II, and V2 and
+Frank’s XYZ leads. Performance was evaluated over a publicly
+available database of 549 ECG recordings.
+The proposed method was shown to generate highly similar
+and reproducible ICs and provided accurate reconstruction from
+both sets of leads. The ability to accurately reconstruct a 12-lead
+ECG using Frank’s XYZ leads is particularly promising due
+to its applicability in wireless ECG systems where differential
+measurements must be taken without common ground.
+Not only does the proposed method utilize a patient-specific
+transform from the ICs to the conventional leads, but the transform from observation points to ICs were shown to adapt over
+time. This property is useful in compensating for changes caused
+by breathing and could potentially compensate for patient posture. It could also prove useful for extracting vital signs such as
+respiration rate.
+REFERENCES
+[1] G. E. Dower, H. B. Machado, and J. A. Osborne, “On deriving the electrocardiogram from vectorcardiographic leads,” Clin. Cardiol., vol. 3, no. 2,
+pp. 87–95, 1980.
+[2] S. P. Newlan, J. A. Kors, S. H. Meij, J. H. van Bemmel, and
+M. L. Simoons, “Reconstruction of the 12-lead electrocardiogram from
+reduced lead sets,” J. Electrocardiol., vol. 37, no. 1, pp. 11–18, 2004.
+[3] D. Q. Feild, C. L. Feldman, and B. M. Horáček, “Improved EASI coefficients: Their derivation, values, and performance,” J. Electrocardiol.,
+vol. 35, pp. 23–33, 2002.
+[4] D. Dawson, H. Yang, M. Malshe, S. T. Bukkapatnam, B. Benjamin, and
+R. Komanduri, “Linear affine transforms between 3-lead (Frank XYZ
+leads) vectorcardiogram and 12-lead electrocardiogram signals,” J. Electrocardiol., vol. 42, pp. 622–630, 2009.
+[5] D. Q. Feild, S. H. Zhou, E. D. Helfenbein, R. E. Gregg, and J. M Lindauer,
+“Technical challenges and future directions in lead reconstruction for
+reduced-lead systems,” J. Electrocardiol., vol. 41, pp. 466–473, 2008.
+[6] R. J. A. Schijvenaars. (2000, Sep. 6). Intra-Individual Variability of the
+Electrocardiogram: Assessment and Exploitation in Computerized ECG
+Analysis. Erasmus MC: Univ. Med. Center Rotterdam. Retrieved from
+http://hdl.handle.net/1765/20458.
+[7] R. E. Gregg, S. H. Zhou, J. M. Lindauer, E. D. Helfenbein, and
+D. Q. Feild, “Limitations on the re-use of patient specific coefficients
+for 12-lead ECG reconstruction,” Comput. Cardiol., vol. 35, pp. 23–33,
+2002.
+
+[8] B. M. Horáček, J. W. Warren, and J. J. Wang, “On designing and testing
+transformations for derivation of standard 12-lead/18-lead electrocardiograms and vectorcardiograms from reduced lead sets of predictor leads,”
+J. Electrocardiol., vol. 41, pp. 220–229, Jan. 2008.
+[9] A. Hyvärinen and E. Oja, “Independent component analysis: Algorithms
+and applications,” Neural Netw., vol. 13, no. 4/5, pp. 411–430, 2000.
+[10] C. J. James and C. W. Hesse, “Independent component analysis for
+biomedical signals,” Physiol. Meas., vol. 26, pp. R15–R39, 2005.
+[11] T. He, G. Clifford, and L. Tarassenko, “Application of independent component analysis in removing artefacts from the electrocardiogram,” Neural
+Comput. Appl., vol. 15, pp. 105–116, 2006.
+[12] J. Lee, K. L. Park, and K. J. Lee, “Temporally constrained ICA-based
+fetal ECG separation,” Electron. Lett., vol. 41, no. 21, pp. 1158–1160,
+Oct. 2005.
+[13] M. H. Ostertag and G. R. Tsouri, “Reconstructing ECG precordial leads
+from a reduced lead set using independent component analysis,” in Proc.
+IEEE 33rd Int. Conf. Eng. Med. Biol. Soc., Aug. 30, 2011–Sep. 3, 2011,
+pp. 4414–4417.
+[14] A. L. Goldberger, L. A. N. Amaral, L. Glass, J. M. Hausdorff,
+P. C. Ivanov, R. G. Mark, J. E. Mietus, G. B. Moody, C. K. Peng, and
+H. E. Stanley, “PhysioBank, PhysioToolkit, and PhysioNet: Components
+of a new research resource for complex physiologic signals,” Circulation,
+vol. 101, no. 23, pp. e215–e220, Jun. 2000.
+[15] T. W. Parks and J. H. McClellan, “Chebyshev approximation for nonrecursive digital filters with linear phase,” IEEE Trans. Circuit Theory, vol. 19,
+no. 2, pp. 189–194, Mar. 1972.
+[16] P. Kligfield, L. S. Gettes, R. Childers, E. W. Hancock, G. V. Herpen,
+P. Macfarlane, O. Pahlm, and S. Galen, “Recommendations for the standardization and interpretation of the electrocardiogram, Part I: The electrocardiogram and its technology,” Heart Rhythm, vol. 3, no. 3, pp. 394–412,
+Mar. 2007.
+[17] J. Pan and W. J. Tompkins, “A real-time QRS detection algorithm,” IEEE
+Trans. Biomed. Eng., vol. BME-32, no. 3, pp. 230–236, Mar. 1985.
+
+Gill R. Tsouri received the B.Sc., M.Sc., and Ph.D.
+degrees in electrical and computer engineering from
+Ben-Gurion University, Israel, in 2000, 2004, and
+2008, respectively.
+In 2008, he joined the Rochester Institute of
+Technology, New York, USA, where he established
+the Communications Research Laboratory. His current research interests include body area networks,
+biomedical signal processing, and wireless physical
+layer security.
+
+Michael H. Ostertag is currently working toward
+the M.Sc. degree in electrical engineering at the
+Rochester Institute of Technology, New York, USA.
+In 2013, he joined BlackBox Biometrics where he
+is now Lead Electrical Engineer. His current interests
+include developing new technologies for physiological monitoring.
+
+

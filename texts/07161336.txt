@@ -1,0 +1,1181 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+359
+
+Theoretical Optimization of Stimulation Strategies
+for a Directionally Segmented Deep Brain
+Stimulation Electrode Array
+YiZi Xiao, Edgar Peña, and Matthew D. Johnson∗ , Member, IEEE
+
+Abstract—Programming deep brain stimulation (DBS) systems
+currently involves a clinician manually sweeping through a range of
+stimulus parameter settings to identify the setting that delivers the
+most robust therapy for a patient. With the advent of DBS arrays
+with a higher number and density of electrodes, this trial and error process becomes unmanageable in a clinical setting. This study
+developed a computationally efficient, model-based algorithm to
+estimate an electrode configuration that will most strongly activate
+tissue within a volume of interest. The cerebellar-receiving area
+of motor thalamus, the target for treating essential tremor with
+DBS, was rendered from imaging data and discretized into grid
+points aligned in approximate afferent and efferent axonal pathway orientations. A finite-element model (FEM) was constructed
+to simulate the volumetric tissue voltage during DBS. We leveraged the principle of voltage superposition to formulate a convex
+optimization-based approach to maximize activating function (AF)
+values at each grid point (via three different criteria), hence increasing the overall probability of action potential initiation and
+neuronal entrainment within the target volume. For both efferent and afferent pathways, this approach achieved global optima
+within several seconds. The optimal electrode configuration and
+resulting AF values differed across each optimization criteria and
+between axonal orientations. This approach only required a set of
+FEM simulations equal to the number of DBS array electrodes, and
+could readily accommodate anisotropic-inhomogeneous tissue conductances or other axonal orientations. The algorithm provides an
+efficient, flexible determination of optimal electrode configurations
+for programming DBS arrays.
+Index Terms—Computational models, deep brain stimulation
+(DBS), electrode arrays, essential tremor (ET), optimization,
+Parkinson’s disease (PD), programming.
+
+I. INTRODUCTION
+EEP brain stimulation (DBS) is an effective surgical procedure for the treatment of a number of neurological
+and neuropsychiatric disorders, including medication-refractory
+Parkinson’s disease (PD), essential tremor (ET), dystonia, and
+severe obsessive compulsive disorder [1]. The procedure involves the placement of a lead of electrodes into a precise brain
+region to modulate abnormal neuronal activity with various
+
+D
+
+Manuscript received December 24, 2014; revised March 16, 2015 and June 2,
+2015; accepted July 13, 2015. Date of publication July 17, 2015; date of current
+version January 16, 2016. This work was supported by the NIH (R01-NS081118)
+and the Michael J. Fox Foundation. Asterisk indicates corresponding author.
+Y. Z. Xiao and E. Peña are with the Department of Biomedical Engineering,
+University of Minnesota.
+∗ M. D. Johnson is with the Department of Biomedical Engineering, University
+of Minnesota, Minneapolis, MN 55455, USA (e-mail: john5101@umn.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2457873
+
+forms of pulsatile electrical stimulation. Successful treatment
+is characterized by both symptom suppression and lack of side
+effects. Such success requires accurate lead placement as well
+as spatially targeted stimulation settings to avoid activating regions that elicit, for example, adverse motor [2], sensory [3],
+and cognitive [4] side effects for the patient. Traditional designs
+of the DBS lead implant (for example, the Medtronic model
+3387/3389) use four cylindrical electrodes to deliver the current
+in an omnidirectional fashion around the lead. A major improvement to this existing design would be enabling one to direct or
+steer the current both along and around the DBS lead. This
+feature would be especially useful in cases of off-target DBS
+implants [5], [6] and for small or complex-shaped brain targets, such as the pedunculopontine nucleus [7], [8] for treating
+freezing of gait in patients with PD.
+Several designs for high-density DBS arrays (DBSAs) with
+circumferentially segmented electrodes have been advanced in
+recent years through computational studies [5], [8], [9] and in
+vivo studies in nonhuman primates (NHPs) [6] and humans
+[10]–[12]. Here, we modeled DBS leads with 32 oval-shaped
+electrodes arranged in eight rows of four electrodes each, radially separated by 90° [5], [6], [8]. The surface areas of the DBSA
+electrodes were a fraction of the size of cylindrical electrodes
+found on commercial leads and have potential for improving the
+spatial resolution of targeting modulation of neuronal activity
+within the brain to improve overall therapy.
+The safety and efficacy of current-shaping technology have
+recently been investigated clinically using leads with annular
+[12] and circumferentially segmented [10], [11] designs. In the
+latter case, therapeutic current thresholds were 43% lower with
+a radially directed stimulation scheme compared to the omnidirectional scheme [10]. Furthermore, the “therapeutic window”
+(difference in current thresholds to produce a meaningful symptom suppression and to sustain a side effect) was the widest when
+using radially directed stimulation [10], [11]. Current shaping
+along the length of the DBS lead in patients with ET has also
+been shown to better alleviate stimulation-induced dysarthria
+while preserving tremor control [12]. The challenge with such
+current shaping approaches, however, especially in the case of
+DBSAs, is the number of possible electrode configurations and
+the size of the stimulation amplitude, frequency, and pulse width
+parameter space [5].
+Optimal programming of a DBSA has potential to improve
+treatment benefit and expedite the programming process. The
+current framework for programming the stimulation settings of
+DBS leads with four annular electrodes typically begins with
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+360
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+evaluation of each contact using monopolar stimulation at fixed
+frequencies and pulse widths [13], [14]. The setting that requires the lowest stimulation amplitude to maximize therapy
+and/or has the widest therapeutic window is set for chronic
+stimulation unless persistent adverse side effects are observed,
+in which case bipolar or multipolar stimulation configurations
+may be explored by combining the chosen contact with adjacent contact(s). The programming process can be time consuming [15], especially in cases when low-threshold side effects
+appear. Furthermore, relying on the direct patient feedback for
+programming may not be feasible for disorders in which the
+therapeutic benefits may not emerge for weeks to months after
+starting stimulation [16], [17]. The efficacy of this programming
+method is also influenced by other factors, such as the intuition
+and experience of the DBS programmer, as well as the time allotted to each patient [18]. To explore the vast parameter space
+of the DBSA using this manual method of programming would
+not be feasible, since each additional electrode would prolong
+programming time in a nonlinear fashion and also pose a steeper
+learning curve. In addition, this method of programming fourelectrode leads may underutilize the full potential of the DBSA
+to deliver optimal stimulation through a combination of active
+electrodes [19], [20].
+Alternative programming approaches have been proposed
+aimed at increasing the efficiency of the process. One such
+approach uses a probabilistic efficacy atlas derived from intraoperative microstimulation response data [21]. The atlas is
+nonlinearly warped onto the preoperative magnetic resonance
+imaging (MRI) data [coregistered to postoperative computed
+tomography (CT)] to guide programming. This approach requires substantial accumulation of intraoperative patient data
+which are not readily accessible to the larger neuromodulation
+community. In addition, individual brain anatomy can vary substantially [22] and an entirely empirical approach may not be
+adequate.
+Another proposed method estimates the volume of tissue activated (VTA) [23], [24], [25] from a particular DBS setting
+by simulating an activating function (AF) [26] derived from a
+finite-element model (FEM) solution of the tissue voltages along
+the neuron membrane compartments during DBS. In this case,
+DBS lead positions within the nucleus or fiber tract are dictated
+by the coregistration of a patient’s preoperative magnetic resonance (MR) brain imaging with postoperative MR imaging or
+CT scan data. The benefit of this approach is that it provides direct visualization of the neuronal pathways that are modulated
+for a given stimulation setting [27].
+The second spatial derivative of the extracellular voltage potential, or AF, generated through the DBS lead is the driving
+force behind action potential initiation in neuronal processes
+[26] and can be used to predict the VTAs [28]. However, AF
+thresholds for neuronal activation depend on axon orientation
+and distance from the stimulation source [29]. An alternative
+approach is to apply the AF to compartment neuron models
+[30] in a target region, which can have detailed morphologies and biophysical parameters, and then find the stimulus
+amplitudes to initiate an action potential [28]. Such biophysical models, usually performed in the NEURON programming
+
+Fig. 1. Three-dimensional thalamic nuclei reconstructions were generated
+from (A) NHP susceptibility-weighted imaging and (B) warped brain atlas
+overlays. (C) Sagittal and (D) coronal view of the reconstructed VPLo and
+VPLc with the implanted DBSA.
+
+environment [31], can provide additional information about neuronal activation that AF alone may not describe, but this process
+can be time consuming and computationally intensive. In order to obtain the patient-specific stimulation strategy solutions,
+thousands of such simulations using different electrode configurations, axon orientations, and locations must be run ahead of
+time, and the VTA solutions must be precompiled and stored
+[27]. Due to the resource-intensive and time-consuming nature
+of this approach, it may not be readily accessible to the broader
+research and clinical community.
+In this study, we propose an algorithm that leverages the superposition of the AF, thus requiring only a set number (equal to
+the number of electrodes) of anatomical FEM simulations to be
+run. By combining this with the principles of convex optimization, we formulate an approach that maximizes the AF values in
+the volume of interest. We consider three separate optimization
+criteria that may be used with this approach. Overall, the methods presented here bypass the need to run extensive simulations
+of neuronal activation, providing an automated, computationally efficient way to patient-specific programming of a DBSA
+implant.
+II. METHODS
+We constructed a computational model of motor thalamic
+DBS using current-controlled stimulation using NHP MRI data
+(see Fig. 1). High-frequency stimulation of the ventral intermediate nucleus of thalamus (Vim) in humans can suppress tremor,
+while persistent paresthesias is thought to emerge from activation of the adjacent sensory thalamic nucleus (ventral posterolateral nucleus of thalamus/VPL) [32]. In the NHP, the equivalent nuclei to Vim and VPL are the oral (VPLo) and caudal
+
+XIAO et al.: THEORETICAL OPTIMIZATION OF STIMULATION STRATEGIES FOR A DIRECTIONALLY SEGMENTED DBS ELECTRODE ARRAY
+
+361
+
+extracted. These contours were imported into a B-spline modeling program (Rhinoceros) and arranged serially at an interval of
+0.4 mm (voxel size) along the anterior–posterior direction. The
+contours were then lofted into 3-D surfaces.
+B. FEM of Stimulation Through the DBSA
+
+Fig. 2. Procedural flowchart for this study. Three different optimization criteria (MD, QP, and LP) were considered separately.
+
+(VPLc) ventral posterior lateral nuclei of thalamus, respectively
+[33]. We reconstructed both VPLo and VPLc, and modeled independent current-controlled stimulation through each DBSA
+electrode (n = 32). Volumes were discretized into points arranged in a grid pattern, with anatomically realistic afferent and
+efferent fiber orientations. We show a theoretical maximum AF
+value for each grid point, which forms a theoretical maximum
+curve (Max Curve) that cannot be surpassed. We take advantage
+of the principle of voltage superposition to achieve AF values as
+close as possible to this Max Curve through the use of convex
+optimization algorithms (see Fig. 2).
+A. Reconstruction of Thalamic Nuclei and DBSA
+High-field MRI (7T, Magnex Scientific) was performed on a
+female rhesus macaque monkey (Macaca mulatta) under isoflurane anesthesia at the University of Minnesota’s Center for
+Magnetic Resonance Research using a Siemens console. All
+procedures were approved by the University of Minnesota’s
+Institutional Animal Care and Use Committee and complied
+with United States Public Health Service policy on the humane
+care and use of laboratory animals. A customized head coil
+was developed with 16-channel transmit and 16 + 6 receive
+channels, in which four coils mounted on top of the subject’s
+head and two ear-loop coils were added to enhance signal detection from subcortical structures [34]. Susceptibility-weighed
+imaging (SWI) data were acquired with a three-dimensional (3D) flow-compensated gradient echo sequence. SWI data were
+aligned to the anterior commissure (AC)–posterior commissure
+(PC) plane (Analyze 11.0, AnalyzeDirect) and resliced into serial coronal sections with 40 coronal images spanning the thalamus. Matching plates from a rhesus macaque brain atlas [35]
+were nonlinearly deformed [36], [37] to the coronal MR images, and the contours of VPLo and VPLc within each were
+
+The DBSA (NeuroNexus, Ann Arbor, MI, USA) consisted
+of eight rows of four elliptical electrodes (semimajor axis:
+0.265 mm; semiminor axis: 0.14 mm). The lead was 0.5 mm in
+diameter and 40 mm in length. The angular distance between
+adjacent electrodes in the same row was 90° and the distance between two adjacent rows of electrodes was 0.75 mm. A 0.1 mm
+× 40 mm (thickness × height), 0.18-S/m homogeneous encapsulation layer, and a 100 mm × 100 mm (diameter × height),
+0.3-S/m cylinder of homogeneous bulk tissue surrounded the
+lead [38]–[40]. The DBSA electrodes and insulation were assigned conductance values of 106 S/m and 10−12 S/m, respectively. The electrode surfaces were designated as boundary current sources and the walls of the bulk tissue cylinder were set to
+ground. The voltage distributions resulting from electrical stimulus perturbations were calculated via the finite-element method
+solving Poisson’s equation in COMSOL Multiphysics (v4. 3b).
+Simulations of monopolar cathodic (−1 mA) stimulation were
+performed with each of the electrodes acting as the cathode
+(n = 32).
+C. Discretization of Thalamic Volumes
+A 3-D reconstruction of the DBSA geometry was created in
+Rhinoceros and placed within the VPLo close to its lateral border with VPLc such that the electrodes spanned the length of
+the VPLo. The trajectory of the lead was 77° above the horizontal plane and 10° from the sagittal plane [41] (see Fig. 1).
+The electrodes were assigned indices from 1 to 32, such that
+the contacts facing posterior, medial, anterior, and lateral were
+labeled 1, 2, 3, and 4, respectively. This order of labeling was
+maintained in every row, with indices increasing along the vertical direction. The lead, VPLo, and VPLc were then rotated
+together such that the center of the first row of electrodes was
+consistent with the FEM model. The rotation matrix (TAF ) was
+stored for this change in a coordinate system from AC–PC to
+FEM model coordinates.
+The afferent fiber orientations into VPLo and VPLc are about
+45° from the intercommissural line in the coronal plane and 60°
+in the sagittal plane [42]. The efferent fiber orientation from
+VPLo and VPLc to cortex follows a ventral-medial to dorsallateral direction approximately 45° from the intercommissural
+plane in the coronal direction [43], [44]. At the scale of the grid
+spacing used in this study, the thalamus is generally considered
+to be an isotropic structure [40]. The surfaces of the DBSA,
+VPLo, and VPLc were generated in Rhinoceros and the vertices
+of these surfaces were imported into the MATLAB programming environment (v201 3b, MathWorks) using the AC–PC coordinate system. The vertices of thalamic volumes were rotated
+(rotation matrix Tf ) such that either the afferent or efferent fiber
+directions were oriented in the z-direction. A 3-D rectangular
+grid consisting of multiple layers spanning the z-direction was
+
+362
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+calculated using the following formula:
+V (x + Δx) − 2V (x) + V (x − Δx)
+∂2 V
+=
+(1)
+2
+∂x
+Δx2
+where x is a position along the direction of fibers, V is the
+voltage value as a function of position, and Δx is the internodal
+distance. The AF values for grid points within the layers at
+either end cannot be calculated and these points are therefore
+discarded. Points that overlap spatially with the DBSA are also
+discarded. The AF values for the remaining n points can be
+stored in a 32 × n matrix C
+⎛ 2
+⎞
+∇1,1 · · · ∇21,n
+⎜
+⎟
+⎜
+.. ⎟
+..
+(2)
+C = ⎜ ...
+.
+. ⎟
+⎝
+⎠
+∇232,1
+
+Fig. 3. Discretization of thalamic volumes. The top row (A) and (B) show the
+discretization process for the efferent direction, while the bottom row (C) and
+(D) show the process in the afferent direction. Both the VPLo and VPLc are
+shown in coronal orientation. In either case, the left image shows grid points
+arranged in serial layers spanning either volumes. The red arrow indicates the
+orientation of the neuronal processes. The right image shows only those grid
+points that fall within the volume (red points). The internodal distance between
+successive layers of grid points are shown. (A) and (C): VPLo. (B) and (D):
+VPLc.
+TABLE I
+VOLUME DISCRETIZATION DATA
+Efferent Data
+
+VPLo
+VPLc
+
+Total Grid Points
+17 × 104
+17 × 104
+
+Number of Grid Points in C matrix
+27173
+34059
+
+Afferent Data
+
+VPLo
+VPLc
+
+Total Grid Points
+11 × 104
+14 × 104
+
+Number of Grid Points in C matrix
+20836
+25010
+
+constructed for each volume. Each layer spanned the maximal
+extent of the volume in the x- and y-directions and consisted
+of 10 000 points (100 × 100) in total. An additional layer was
+added to either side of the existing grid for calculating AF values. These grid points were arranged in this way to represent
+axonal node compartments. The distance between layers of grid
+points was 0.5 mm in both the efferent and afferent directions,
+consistent with internodal distances of myelinated axons used
+in previous studies [19]. The coordinates of these grid points
+were transformed into AC–PC space by multiplying Tf−1 (see
+Fig. 3) and then were transformed into the FEM model space by
+multiplying TAF . Data regarding the discretization process are
+listed in Table I.
+D. AF Values and Construction of the Max Curve
+Using each FEM model solution stored previously, the AF
+values for each grid point along the fiber direction were
+
+···
+
+∇232,n
+
+where the ith row contains the AF values resulting from stimulation through the ith electrode alone, delivering –1-mA monopolar cathodic current. Poisson’s equation in electrostatics dictates
+that the tissue voltage distribution is related to the current by
+∇ · σ∇V = −I
+
+(3)
+
+where σ is the tissue conductance and I is the current. From
+2
+(3), it is possible to derive that ∂∂ xV2 ∝ I. Along with (1), it can
+be shown that the AF values resulting from multiple voltage
+sources can be linearly superimposed. To find the maximum
+possible AF value at a given grid point from any possible electrode configuration (subject to a 1-mA power constraint), we
+can consider the following thought experiment: suppose there
+are n different categories of items that can be manufactured,
+each with the same cost but different profit margins. For a given
+manufacturing budget, the highest profit achievable occurs when
+the entire budget goes into manufacturing the most profitable
+item. Likewise, it can be readily shown that the highest possible AF value achievable at each grid point is obtained when
+stimulating through a single electrode using the entire 1 mA of
+current. Therefore, the maximum value in each column (j) of
+the C matrix is the theoretical maximum AF value possible for
+grid point j. The maximum AF values are sorted in ascending
+order and arranged into the Max Curve. Each grid point represents the center of a membrane compartment. Positive AF values
+are responsible for directly depolarizing the cell membrane and
+considered here as potential initiation sites for action potential
+generation [26]. Negative AF values represent direct hyperpolarization of the cell membrane and thus limit the likelihood of
+generating action potentials. The goal as defined in this study
+was to obtain the highest AF value possible at each grid point
+within VPLo. This corresponds to maximizing proximity to the
+Max Curve.
+E. Convex Optimization
+The volume activation problem can thus be framed conceptually as follows: “How do we bring as many of the grid points as
+close as possible to their corresponding maximum AF values on
+the Max Curve?” To formulate this problem mathematically, we
+applied the principle of superposition to denote the AF values
+
+XIAO et al.: THEORETICAL OPTIMIZATION OF STIMULATION STRATEGIES FOR A DIRECTIONALLY SEGMENTED DBS ELECTRODE ARRAY
+
+363
+
+due to a given electrode configuration
+AFj = CjT I
+
+(4)
+
+where I is the 32 × 1 vector of currents through each electrode,
+and AFj and Cj are the AF value and column of C, respectively,
+corresponding to grid point j. Together, the AF values resulting
+from stimulation at each grid point can form another curve called
+the Actual Curve. At each grid point j, the difference between the
+maximum AF value and the actual AF value from stimulation
+with I is given by the following:
+AFj,m ax − AFj = Cj,m ax − CjT I.
+
+(5)
+
+Using (6) as a measure of discrepancy between the Max
+Curve and the Actual Curve, we can set the objective to minimize discrepancy. Specifically, we considered three different
+optimization criteria using three different measures of discrepancy between the two curves. For simplicity, we have used
+constraints in all three cases that the currents through any of
+the 32 electrodes be greater or equal to zero and that the sum
+of all currents through the electrodes be equal to 1 mA. The
+latter constraint was arbitrarily defined and can be adjusted as
+necessary in the context of using total current amplitudes that
+do not express stimulation-evoked side effects. Using only the
+difference between the Max Curve and Actual Curve as a measure, the problem can be solved by linear programming (LP) as
+follows:
+
+minimize :
+(Cj,m ax − CjT I)
+
+subject to:
+Ik = 1 and Ik ≥ 0, for all k.
+Using the square of the difference between the two curves,
+the problem can be solved by quadratic programming (QP):
+
+minimize:
+(Cj,m ax − CjT I)2
+
+subject to:
+Ik = 1 and Ik ≥ 0, for all k.
+Finally, the maximum deviation (MD) between the two curves
+as a criterion to minimize is given by
+minimize: maxj (Cj,m ax − CjT I)
+
+subject to:
+Ik = 1 and Ik ≥ 0, for all k.
+For LP, QP, and MD minimization via convex optimization,
+the problem is well-posed and has a unique, global minimum.
+Here, we considered all three of these criteria separately (LP,
+QP, and MD), and implemented the optimization in MATLAB
+(v2013b) using the cvx package for solving convex optimization
+problems [45]. All computations and performance assessments
+were run on a PC with eight cores, 64-bit operating system,
+24.0-GB RAM, and an Intel Core i7 processor at 3.40 GHz. To
+verify optima were reached, one million random electrode configurations were generated, and their corresponding discrepancy
+measures were obtained to construct noise histograms for each
+of the three methods.
+
+Fig. 4. Algorithm-generated electrode configurations for the thalamic efferent
+pathway approximations. The left, middle, and right columns show outcomes
+from the MD, QP and LP optimization criteria, respectively. Active contacts
+(> 1 μA) in each case are shown in red (top row) with the precise amount of
+current calculated by the algorithm shown in indexed colors (second row). Axial
+views (third row) and oblique views (fourth row) of VPLo and VPLc are shown
+in the context of the DBSA with active contacts shown in red.
+
+F. Runtime and Sampling Robustness
+We ran the algorithms on random subsets of grid points to assess (1) the algorithm’s runtime with respect to number of grid
+points used, and (2) the robustness of electrode configuration
+solutions with respect to sampling. Each of the three optimization criteria (MD, QP, LP) was used on random subsets of the
+efferent VPLo grid points. The random subsets consisted of
+eight sampling levels: 1/2, 1/4, 1/8, 1/16, 1/32, 1/64, 1/128, and
+1/256 of the total number of grid points within the volume. We
+obtained and ran 31 random subsets of grid points for each sampling level. The resulting electrode configurations were assessed
+based on the average height and angle of the active electrodes.
+The runtime was also measured. This yielded 31 measurements
+of height, angle, and runtime for each sampling level.
+III. RESULTS
+A. Electrode Configurations
+The optimal current output in the efferent and afferent cases
+is shown graphically in Figs. 4 and 5, respectively. In both
+cases, MD had the most active contacts, while LP had the least
+
+364
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+TABLE II
+AF VALUES
+Efferent VPLo
+2
+
+MD
+QP
+LP
+
+Mean (V/mm )
+7.763 × 10−4
+15 × 10−4
+22 × 10−4
+
+Std (V/mm2 )
+0.022
+0.04
+0.091
+
+Max (V/mm2 )
+0.445
+1.362
+3.573
+
+Min (V/mm2 )
+–0.287
+–1.172
+–2.953
+
+Efferent VPLc
+
+MD
+QP
+LP
+
+Mean (V/mm2 )
+–9.31 × 10−4
+–8.867 × 10−4
+–8.605 × 10−4
+
+Std (V/mm2 )
+0.002
+0.007
+0.012
+
+Max (V/mm2 )
+0.009
+0.049
+0.119
+
+Min (V/mm2 )
+–0.046
+–0.186
+–0.381
+
+Afferent VPLo
+
+MD
+QP
+LP
+
+Mean (V/mm2 )
+–15 × 10−4
+14 × 10−4
+39 × 10−4
+
+Std (V/mm2 )
+0.027
+0.045
+0.069
+
+Max (V/mm2 )
+0.576
+1.599
+3.912
+
+Min (V/mm2 )
+–0.342
+–0.809
+–0.785
+
+Afferent VPLc
+2
+
+MD
+QP
+LP
+
+Fig. 5. Algorithm-generated electrode configurations for the thalamic afferent
+pathway approximations. Labeling is identical to that described for Fig. 4.
+
+(contacts delivering 1 μA or more current were considered active). The distribution of the current among the active contacts
+was fairly uniform in the MD criterion solutions and less so in
+the QP criterion solutions. In the efferent case, the mean current
+output was 0.067 ± 0.037 mA per electrode (mean ± std.) for
+the MD solution and 0.091 ± 0.104 mA per electrode for the
+QP solution. In the afferent case, the mean current output was
+0.072 ± 0.043 mA per electrode for the MD solution and 0.2
+± 0.147 mA per electrode for the QP solution. In the efferent
+case, the active electrode contacts faced the anterior or posterior
+directions primarily. In the afferent case, most active electrodes
+faced medially or laterally. In the case of the LP solution, for
+both efferent and afferent cases, the entire 1-mA current was applied through only one contact, as expected from the previously
+mentioned thought experiment.
+B. AF Values
+The algorithm AF solutions were based on grid points in
+VPLo and were optimized to achieve proximity to the VPLo
+Max Curve. The resulting AF values for both VPLo and VPLc
+are summarized in Table II and shown graphically in Fig. 6
+and 7. Not surprisingly, higher AF values were concentrated near
+the active electrodes. In both the efferent and afferent cases, the
+
+Mean (V/mm )
+–8.835 × 10−5
+2.174 × 10−4
+4.975 × 10−4
+
+Std (V/mm2 )
+0.003
+0.001
+0.001
+
+Max (V/mm2 )
+0.043
+0.012
+0.009
+
+Min (V/mm2 )
+–0.022
+–0.004
+–0.003
+
+MD, QP, and LP solutions produced successively tighter concentrations of larger AF values along the length of the thalamic
+nuclei. The MD solution AF values exhibited the least amount
+of spread both spatially and numerically. The LP solution, on
+the other hand, exhibited the most spread, the largest mean, and
+the largest maximum AF values, but also produced the lowest
+AF values within VPLo. Fig. 6 illustrates the proximity of the
+actual AF values to the Max Curve for VPLo grid points. The LP
+solution had many points that achieved their maximum value,
+though a relatively large variation in AF values was once again
+evident across grid points. In contrast, very few grid points from
+the MD and QP solutions achieved their maximum values, but
+there was relatively less variation in AF values compared to the
+results using the LP criterion.
+C. Optimization Results
+Fig. 8 shows three different measures comparing the performances of the MD, QP, and LP solutions to one million random
+(chance) electrode configurations. Stimulating electrode configurations I (three separate criteria solutions and one million random solutions) were used to calculate the model predicted actual
+AF values using (5). The results were arranged into the Actual
+Curve. The MD, sum of differences, and square of the sum of differences between the Actual Curve and the Max Curve were calculated. As expected, the MD solution achieved the lowest MD,
+the QP solution achieved lowest sum of square of deviations,
+and LP solution achieved the lowest sum of deviations. Furthermore, within each of these categories, the best-performing solution performed significantly better than chance. While no single
+optimization solution yielded better-than-chance results across
+all three measures, MD tended to perform better relative to
+
+XIAO et al.: THEORETICAL OPTIMIZATION OF STIMULATION STRATEGIES FOR A DIRECTIONALLY SEGMENTED DBS ELECTRODE ARRAY
+
+365
+
+Fig. 6. Comparison of Max Curve (red) to solutions obtained by MD, QP, and LP for efferent (top) and afferent (bottom) data. Grid points in the region of
+interest are sorted based on their maximum achievable values. For each optimization criterion, the actual value at each grid point is plotted underneath its maximum
+possible value. Therefore, the closeness of the grid points to the Max Curve is a measure of optimization performance. (A)–(C) and (G)–(I): AF values at all grid
+points are presented in units of voltage per square millimeters. (D)–(F) and (J)–(L): Grid points with AF values less than −0.01 V/mm2 were omitted in these
+plots. The remaining AF values were made positive by adding 0.01, and the natural logarithm of the resulting values was computed.
+
+chance in all categories. QP and LP showed better-than-chance
+performance for all except the MD category. The p-values for
+each category are listed in Table III.
+D. Runtime and Sampling Robustness
+In terms of runtime (see Fig. 9: C,F,I), mean duration for
+27 173 efferent VPLo grid points was 3.0 s for the MD solution,
+
+3.4 s for the QP solution, and 0.2 s for the LP solution. Runtime
+scaled nonlinearly with respect to number of grid points, such
+that sampling half the grid points reduced runtime by more than
+half. Using subsets of the full-grid points for the computation
+yielded active electrodes with similar mean height (see Fig. 9:
+A, D, G) and mean angular direction (see Fig. 9: B, E, H).
+However, smaller subsets yielded larger standard deviations of
+the active electrode heights and directions.
+
+366
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+density DBSAs, current steering technology has the potential
+to significantly improve DBS therapy by shaping the electric
+field toward a target volume while avoiding regions that could
+induce adverse side effects [1]. In this study, we presented a
+computationally efficient, mathematically flexible optimization
+formulation to optimize and shape current delivery through a 32channel DBSA in order to enhance the probability of neuronal
+activation within VPLo thalamus. This approach is readily extensible to other DBS lead designs and other DBS targets within
+the brain.
+A. Predicting Neuronal Activation
+
+Fig. 7. AF values resulting from DBSA stimulation using algorithm-generated
+electrode configurations. (A)–(C): Efferent data, axial view of the AF values
+resulting from stimulation configurations generated using the MD, QP, and LP
+criteria, respectively. (D)–(F): Coronal view of the AF values shown in (A)–(C).
+(G)–(I): Afferent data, axial view of the AF values resulting from stimulation
+configurations generated using the MD, QP, and LP criteria, respectively. (J)–
+(L): Coronal view of the AF values shown in (J)–(L). For visualization purposes,
+all AF values greater than −0.01V/mm2 were made positive by adding 0.01 and
+the natural logarithm of the resulting values was computed. The logarithm values
+were used as indexed colors. The color bar in this figure ranges from −6 to −3 in
+logarithm values. Points with values outside of this range were directly assigned
+the values of −6 or −3. Points with AF values less than −0.01V/mm2 were
+assigned logarithm values of −6. Refer to Fig. 1(D) for borders between VPLo
+and VPLc in the coronal view. Refer to Figs. 4 or 5 for the border in the axial view.
+
+IV. DISCUSSION
+Current steering has shown promise for improved therapy in
+other electrical stimulation technologies such as cochlear implants [46], retinal prostheses [47], spinal cord stimulation [48],
+and nerve cuff electrodes [49]. With the introduction of higher
+
+Several computational methods have been used to predict
+neuronal activation. The first spatial derivative along the neuronal process has been shown to be appropriate for modeling
+activation near the vicinity of the soma [50]. However, computational studies have also shown that the waveforms used in
+DBS applications are likely to elicit action potentials first in the
+axons [51], [52] based upon the second spatial derivative of the
+extracellular voltage along the axonal processes [26], [53]. Such
+calculations can be performed using spatially distributed multicompartment neuron models [54] to obtain a VTA. However,
+this process is computationally intensive. A more efficient approach, as described in this study, is to use the AF values along
+the estimated direction of neuronal processes to predict the VTA.
+This method is widely used [6], [28], [55], [56] but still requires
+large amounts of simulations to be run and the results stored
+in order to account for different orientations and displacements
+of neuronal processes from the source(s) of stimulation [19].
+Studies have pointed out the limitations to this approach [57]
+and a novel method for VTA prediction using artificial neural
+networks (ANNs) has been proposed [58], although substantial
+amounts of simulations are still needed to generate different
+stimulation scenarios to train the ANN.
+Our goal here was to increase the probability of neuronal
+activation instead of determining the exact activation profile
+using VTA prediction. We do this by maximizing AF values
+and taking advantage of well-established theories associating
+higher AF values with neuronal activation [26], [53]. It is not
+straightforward to set an exact threshold AF value due to the
+variation in reported values [6], [9], and the dependence on factors such as fiber orientation and distance of compartments to
+the active electrode(s) [29]. Nevertheless, the method presented
+here circumvents such limitations by determining a theoretical
+maximum AF value at each grid point (Max Curve) given a
+current input limit. These grid points represent neuronal compartments, each with the ability to initiate an action potential.
+The goal of our superposition and optimization-based framework is to achieve proximity between the stimulation-induced
+AF values and the Max Curve. This ultimately aims to increase
+the probability for action potential initiation or other forms of
+subthreshold modulation.
+While we used the Max Curve, the algorithm can be readily adapted to activation thresholds, such as a constant AF
+threshold used in some studies [6], [9], [28] or a nonlinear AF
+threshold fall-off with respect to distance from the stimulating
+
+XIAO et al.: THEORETICAL OPTIMIZATION OF STIMULATION STRATEGIES FOR A DIRECTIONALLY SEGMENTED DBS ELECTRODE ARRAY
+
+367
+
+Fig. 8. Performance comparison of MD, QP, and LP to one million random electrode configurations (gray-normalized histogram) in efferent and afferent data.
+The three measures considered (max deviation, sum of squares, and sum), each indicates deviation from maximum possible AF values. Thus, lower values
+correspond to better performance.
+
+electrode [29]. Here, we selected the Max Curve as the target
+criteria to compare each grid point against its own theoretical
+maximum AF value. This avoids certain issues that constant AF
+thresholds may introduce, such as weighting the discrepancies
+due to grid points far from the electrodes too heavily. Furthermore, it is possible that certain AF values on the Max Curve
+are negative, which means that the hyperpolarizing effect would
+elicit an indirect depolarizing influence on the axons. These
+points can be omitted from the C matrix so that the algorithm
+can focus on the remaining points with positive AF values on the
+Max Curve. Here, we chose to keep these points in this study.
+
+TABLE III
+P-VALUES
+Efferent Data
+
+MD
+QP
+LP
+
+Max Deviation
+< 0.001
+0.8348
+0.8593
+
+Sum of Square of Differences
+< 0.001
+< 0.001
+0.0037
+
+Sum of Differences
+0.001
+< 0.001
+< 0.001
+
+Afferent Data
+
+MD
+QP
+LP
+
+Max Deviation
+< 0.001
+0.2758
+0.2758
+
+Sum of Square of Differences
+< 0.001
+< 0.001
+< 0.001
+
+Sum of Differences
+0.0583
+< 0.001
+< 0.001
+
+B. Algorithm and Performance
+Finding the optimal stimulation strategy for high-density
+electrode arrays remains a challenge in various electrical stimulation technologies. Manipulation of the amounts of current
+delivered through each electrode has been shown to shape the
+spatial distribution of voltage potentials, their gradients [59],
+and ultimately the VTA [60].
+Algorithms for automatic generation of stimulating electrode
+configurations require well-defined neuronal response measures
+and an understanding of the underlying mechanisms of action.
+In cochlear implant studies, the goal is to minimize current
+spread from activating multiple electrodes so as to reduce the
+effects of interfering stimulation. Studies have proposed using
+psychophysical measurements to find the optimal electrode configuration in order to selectively activate a particular neural site
+[61], [62]. In DBS, the goal has been viewed as one to maximize
+
+modulation of neuronal spike activity within a target brain region, while avoiding activation of pathways implicated in the
+manifestation of side effects. In terms of the former, one of the
+established approaches is to search through precompiled solutions to find the settings that give the most overlap between
+the VTA and the target volume [63]. For DBSAs, this approach
+would require massively large computational resources to calculate this solution. The computational efficiency of our approach
+arises from circumventing VTA prediction, while maintaining
+simplicity in user inputs: the power constraint (1 mA in this
+study), the target volume, and fiber orientations (in order to discretize the volume into grid points aligned in that orientation).
+From Table II, the mean AF values differed depending on
+the orientation of the fibers. However, this difference was not
+significant. Within VPLo (see Fig. 6/Table II), the LP solution
+
+368
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+Fig. 9. Comparison of runtime and sampling robustness for MD, QP, and LP. The original number of grid points for efferent data was 27 173. For each level of
+sampling (½, ¼, etc.), a random subset of the original points were selected. (A), (D), and (G) Average height of active electrodes with respect to multiple sampled
+subsets. Standard deviation of the height progressively increases as smaller subsets of original points are used. (B), (E), and (H) Average angular direction of active
+electrodes. Similar to average height, standard deviation increases toward random distribution. (C), (F), and (I) Runtime and logarithm of runtime with respect to
+sampling.
+
+achieved the highest mean AF values, but also resulted in the
+largest spread of data (about 2.5–4 times larger than the MD
+solution and 1.5–2.3 times larger than the QP solution). Meanwhile, the QP solution produced slightly larger mean AF values
+than the MD solution in both efferent and afferent cases, and
+only had a slightly larger spread.
+
+Based on this analysis, the LP criterion would be selected
+if one was interested in optimizing for the average AF value
+in the region of interest. Indeed, the LP solution converges on
+a single electrode, which has the greatest influence on the AF
+mean value. The LP criterion is mathematically equivalent to
+maximizing the mean AF values across all grid points. As such, it
+
+XIAO et al.: THEORETICAL OPTIMIZATION OF STIMULATION STRATEGIES FOR A DIRECTIONALLY SEGMENTED DBS ELECTRODE ARRAY
+
+is expected that some grid points from the LP solution will lie on
+the Max Curve (as shown in Fig. 6) since all the current is applied
+to a single electrode and thus certain grid points will achieve
+their maximum AF and lie on the Max Curve by definition. On
+the other hand, if one considers generating a more uniform AF
+value of the region of interest, the QP and MD criteria would be
+more appropriate. It is important to note that each criterion is
+meant to be used independently. What remains is performing the
+electrophysiological investigation to ascertain which criterion
+yields the most robust therapeutic effect with DBS.
+There are other considerations to factor into this calculation.
+For one, charge density limits of stimulation at a given electrode
+may impact the LP approach more than the other two curvefitting approaches, since the LP solution converges on a single
+electrode. Additionally, the QP and MD criteria require multiple
+electrodes with independent current-controlled stimulators that
+are not yet widespread clinically.
+The optimization approach with MD, QP, and LP criteria each
+outperformed one million random electrode configurations in
+their respective measures of proximity to the Max Curve (see
+Fig. 8). However, no single criterion solution yielded betterthan-chance performance for all three measures. Indeed, while
+the LP solution clearly achieved the best performance for sum
+of deviations, it also had the worst performance for the other two
+measures. It is thus important to recognize that the efficiency
+and mathematical flexibility of these algorithms must be coupled
+with a clear goal of what are the desired criteria for the resulting AF values. These criteria may depend on patient-specific
+parameters (e.g., modulating a target uniformly or leveraging
+activation of a pathway that can have broad synaptic influence
+over the entire region [5].
+The algorithm runtime for each of the MD, QP, and LP criteria
+was on the order of several seconds for the number of grid points
+used here, making it feasible for on-site patient-specific clinical
+use. Runtime scaled nonlinearly with respect to number of grid
+points (i.e., halving the number of grid points reduced runtime
+by more than half). However, this nonlinear relation was not
+very strong. Randomly sampling half the grid points yielded a
+similar average height and angle of active electrodes indicating
+that the algorithm is robust to changes in grid point resolution.
+However, very small samples (corresponding to low grid point
+resolutions) resulted in chance electrode configurations, since
+the spatial extent of the samples was sparse relative to the spatial features of the electric field. The algorithm presented here
+also allows for fast computation of multiple stimulating electrode configurations using the same DBSA to target different
+neuronal subpopulations within a target region, as in the case of
+coordinated reset stimulation [64], [65] to desynchronize pathological oscillations.
+C. Study Limitations and Future Work
+This study applied the optimization concept using relatively
+simplistic models to create a controlled environment. One important limitation to this study is the simplicity of the tissue
+model and its underlying neuron morphologies. For example,
+the volumes of VPLo and VPLc were discretized in two fixed
+directions, and the grid points were arranged in serial layers. A
+
+369
+
+more realistic way to discretize the volumes would be to populate them with grid points that are more morphologically realistic
+[5], [43], [52], [66], [67]. Second, while the AF was computed
+with potentials constrained to the approximate axonal trajectories within thalamus, the voltage distribution itself was obtained
+under the assumption of a homogeneous and isotropic tissue
+medium. This approximation is reasonable at the grid point spacing considered here [40], though a more realistic model would
+incorporate conductance inhomogeneity as well as anisotropy
+through diffusion tensor imaging [68]. The changes would take
+place in the initial construction of the FEM (e.g., extracting
+anisotropic and inhomogeneous tissue conductivities from diffusion tensor imaging data), but would not impact the overall
+efficiency of the algorithm. As such, this framework enables one
+to readily adapt the model with changing implant environments
+(e.g., to model edema in acute implants versus encapsulation
+in chronic implants). Third, we did not model the voltage drop
+or capacitance of the electrode–electrolyte interface. Such considerations are important [69], and the optimization algorithms
+developed in this study are amenable to the inclusion of such
+complexities as part of future iterations of the algorithm. Another important consideration is that the algorithm in its current
+form does not include minimization of the AF values in regions
+deemed to elicit side effects when stimulated, such as VPLc [5],
+[70], [71]. Such an algorithm, which optimizes both cathodic
+and anodic currents delivered through the DBSA, is part of a
+subsequent study.
+Validation studies exploring these parameters are needed to
+clarify this relation between the AF criteria and both electrophysiological changes in the brain and behavioral outcomes in
+the subject. Studies in the fields of cochlear and retinal implants have demonstrated that current steering can create “virtual electrodes” by differential distribution of the current between physical electrodes to elicit percepts intermediate to those
+produced using monopolar configurations [46], [72]. In DBS,
+clinical validation studies have shown that stimulation strategies
+based on computational models can be superior to clinically derived strategies to limit cognitive deficiencies [23] and improve
+therapeutic outcomes [25]. Electrophysiological studies to validate the model predictions are important and have been limited
+to date. For one, it is important to consider the spatial distribution of the modulated neuronal firing patterns around the DBS
+lead [73], [74] and how this varies among algorithm-generated
+stimulus settings and the setting derived from a clinical exam.
+It is also important to validate the models at a circuit level [75]
+to compare the ability for a given set of settings to modulate
+neuronal activity throughout the affected network. Ultimately,
+it is important to directly measure behavioral outcomes, such
+as motor capsule side effects [63] and symptom reduction [10],
+[11], in a clinical setting to determine if the algorithm-generated
+stimulation is more effective and efficient.
+V. CONCLUSION
+In this study, we have described an efficient computational
+algorithm for programming high-density DBSAs using convex
+optimization. The algorithm departs from the traditional approach of VTA prediction by solely aiming to achieve higher
+
+370
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 63, NO. 2, FEBRUARY 2016
+
+probabilities of neuronal activation within a target volume. The
+FEM-based nature of this approach allows it to readily accommodate any patient-specific, anisotropic/inhomogeneous data.
+A limited number of simulations (equal to the number of electrodes) are all that is needed to compute the optimization routine,
+which in itself requires seconds to compute. Together, this convex optimization-based framework for electrode configuration
+selection presents a novel approach for on-site patient-specific
+clinical application.
+ACKNOWLEDGMENT
+The authors would like to thank Drs. N. Harel, E. Yacoub,
+and G. Adriany for help with the imaging and Dr. A. Banerjee
+for technical assistance.
+REFERENCES
+[1] M. D. Johnson et al., “Neuromodulation for brain disorders: Challenges
+and opportunities,” IEEE Trans. Biomed. Eng., vol. 60, no. 2, pp. 610–624,
+Mar. 2013.
+[2] F. Tamma et al., “Anatomo-clinical correlation of intraoperative
+stimulation-induced side-effects during HF-DBS of the subthalamic nucleus,” Neurol. Sci., vol. 23, no. 2, pp. S109–S110, Sep. 2002.
+[3] E. Papavassiliou et al., “Thalamic deep brain stimulation for essential
+tremor: Relation of lead location to outcome,” Neurosurgery, vol. 54,
+no. 5, pp. 1120–1130, May 2004.
+[4] P. Krack et al., “Postoperative management of subthalamic nucleus stimulation for Parkinson’s disease,” Movement Disorders, vol. 17, no. 3,
+pp. S188–S197, 2002.
+[5] M. Keane et al., “Improved spatial targeting with directionally segmented
+deep brain stimulation leads for treating essential tremor,” J. Neural. Eng.,
+vol. 9, no. 4, pp. 046005–46014, Aug. 2012.
+[6] H. C. Martens et al., “Spatial steering of deep brain stimulation volumes using a novel lead design,” Clin. Neurophysiol., vol. 122, no. 3,
+pp. 558–566, Mar. 2011.
+[7] P. Mazzone et al., “Implantation of human pedunculopontine nucleus: A
+safe and clinically relevant target in Parkinson’s disease,” Neuroreport,
+vol. 16, no. 17, pp. 1877–1881, Nov. 2005.
+[8] L. M. Zitella et al., “Computational modeling of pedunculopontine nucleus
+deep brain stimulation,” J. Neural. Eng., vol. 10, no. 4, pp. 045005–45016,
+May. 2013.
+[9] J. Buhlmann et al., “Modeling of a segmented electrode for desynchronizing deep brain stimulation,” Front. Neuroeng., vol. 4, no. 5, pp. 1–8,
+2011.
+[10] C. Pollo et al., “Directional deep brain stimulation: An intraoperative
+double-blind pilot study,” Brain, vol. 137, no. 7, pp. 2015–2026, Jul.
+2014.
+[11] M. F. Contarino et al., “Directional steering: A novel approach to deep
+brain stimulation,” Neurology, vol. 84, no. 13, pp. 1163–1169, Sep. 2014.
+[12] M. T. Barbe et al., “Individualized current-shaping reduces DBS-induced
+dysarthria in patients with essential tremor,” Neurology, vol. 82, no. 7,
+pp. 614–619, Feb. 2014.
+[13] J. Volkmann et al., “Introduction to the programming of deep brain stimulators,” Mov. Disord., vol. 17, no. S3, pp. S181–S187, 2002.
+[14] R. Kumar, “Methods for programming and patient management with
+deep brain stimulation of the globus pallidus for the treatment of advanced Parkinson’s disease and dystonia,” Mov. Disord., vol. 17, no. 3,
+pp. S198–S207, 2002.
+[15] K. Hunka et al., “Nursing time to program and assess deep brain stimulators in movement disorder patients,” J. Neurosci. Nurs., vol. 37, no. 4,
+pp. 204–210, Aug. 2005.
+[16] J. K. Krauss et al., “Deep brain stimulation for dystonia,” J. Clin. Neurophysiol., vol. 21, no. 1, pp. 18–30, 2004.
+[17] J. L. Houeto et al., “Tourette’s syndrome and deep brain stimulation,” J.
+Neurol. Neurosurg. Psychiatry, vol. 76, no. 7, pp. 992–995, Jul. 2005.
+[18] E. Moro et al., “Subthalamic nucleus stimulation: Improvements in outcome with reprogramming,” Arch. Neurol., vol. 63, no. 9, pp. 1266–1272,
+Sep. 2006.
+
+[19] C. R. Butson and C. C. McIntyre, “Current steering to control the volume
+of tissue activated during deep brain stimulation,” Brain. Stimul., vol. 1,
+no. 1, pp. 7–15, Jan. 2008.
+[20] A. Chaturvedi et al., “Current steering to activate targeted neural pathways
+during deep brain stimulation of the subthalamic region,” Brain. Stimul.,
+vol. 5, no. 3, pp. 369–377, Jul. 2012.
+[21] F. T. Phibbs et al., “Use of efficacy probability maps for the post-operative
+programming of deep brain stimulation in essential tremor,” Parkinsonism
+Related Disorders , vol. 20, pp. 1341–1344, Dec. 2014.
+[22] P. Plaha et al., “Stimulation of the caudal zona incerta is superior to
+stimulation of the subthalamic nucleus in improving contralateral parkinsonism,” Brain, vol. 129, no. Pt 7, pp. 1732–1747, Jul. 2006.
+[23] A. M. Frankemolle et al., “Reversing cognitive-motor impairments in
+Parkinson’s disease patients using a computational modelling approach
+to deep brain stimulation programming,” Brain, vol. 133, no. Pt 3,
+pp. 746–761, Mar. 2010.
+[24] C. C. McIntyre et al. (2009). Customizing deep brain stimulation to the
+patient using computational models. presented at the IEEE Annu. Int.
+Conf. Eng. Med. Biol. Soc. [Online]. Available: http://ieeexplore.ieee.org/
+xpl/articleDetails.jsp?arnumber = 5334592
+[25] C. C. McIntyre et al. (2011). “Improving postural stability via computational modeling approach to deep brain stimulation programming,”
+presented at the IEEE Annu. Int. Conf. Eng. Med. Biol. Soc. [Online].
+Available: http://ieeexplore.ieee.org/xpl/articleDetails.jsp?arnumber=
+6090151
+[26] F. Rattay, “Analysis of models for external stimulation of axons,”
+IEEE Trans. Biomed. Eng., vol. BME-33, no. 10, pp. 974–977,
+Oct. 1986.
+[27] C. R. Butson et al., “StimExplorer: Deep brain stimulation parameter
+selection software system,” Acta. Neurochir. Suppl., vol. 97, no. Pt 2,
+pp. 569–574, 2007.
+[28] C. C. McIntyre et al., “Electric field and stimulating influence generated by
+deep brain stimulation of the subthalamic nucleus,” Clin. Neurophysiol.,
+vol. 115, no. 3, pp. 589–595, 2004.
+[29] C. R. Butson and C. C. McIntyre, “Role of electrode design on the volume
+of tissue activated during deep brain stimulation,” J. Neural Eng., vol. 3,
+no. 1, pp. 1–8, 2006.
+[30] C. C. McIntyre et al., “Modeling the excitability of mammalian nerve
+fibers: Influence of after potentials on the recovery cycle,” J. Neurophysiol.,
+vol. 87, no. 2, pp. 995–1006, Feb. 2002.
+[31] M. L. Hines and N. T. Carnevale, “The NEURON simulation environment,” Neural Comput., vol. 9, no. 6, pp. 1179–1209, Aug. 1997.
+[32] A. L. Benabid et al., “Long-term suppression of tremor by chronic stimulation of the ventral intermediate thalamic nucleus,” Lancet, vol. 337,
+no. 8738, pp. 403–406, Feb. 1991.
+[33] G. Macchi and E.G. Jones, “Toward an agreement on terminology of
+nuclear and subnuclear divisions of the motor thalamus,” J. Neurosurg.,
+vol. 86, no. 4, pp. 670–685, Apr. 1997.
+[34] G. Adriany et al., “A 21 channel transceiver array for non-human primate
+applications at 7 Tesla,” presented at the 18th Annu. Meeting ISMRM,
+Stockholm, Sweden, 2010
+[35] G. Paxinos et al., The Rhesus Monkey Brain in Stereotaxic Coordinates.
+San Diego, CA, USA: Academic, 2000, p. 163.
+[36] S. Schaefer et al., “Image deformation using moving least squares,” ACM
+Trans. Graph., vol. 25, no. 3, pp. 533–540, Jul. 2006.
+[37] B. Tiddeman et al., “A general method for overlap control in image warping,” Comput. Graph., vol. 25, no. 1, pp. 59–66, Feb. 2001.
+[38] J. B. Ranck Jr., “Analysis of specific impedance of rabbit cerebral cortex,”
+Exp. Neurol., vol. 7, pp. 153–174, Feb. 1963.
+[39] A. L. Sances and S. J. Larson, “Impedance and current density studies,” in
+Electroanesthesia: Biomedical and Biophysical Studies. New York, NY,
+USA: Academic, 1975, pp. 114–147.
+[40] S. Miocinovic et al., “Experimental and theoretical characterization of the
+voltage distribution generated by deep brain stimulation,” Exp. Neurol.,
+vol. 216, no. 1, pp. 166–176, Mar. 2009.
+[41] K. Kobayashi et al., “Effects of electrode implantation angle on thalamic
+stimulation for treatment of tremor,” Neuromodulation, vol. 13, no. 1,
+pp. 31–36, Jan. 2010.
+[42] M. N. Gallay et al., “Human pallidothalamic and cerebellothalamic tracts:
+anatomical basis for functional stereotactic neurosurgery,” Brain Struct.
+Funct., vol. 212, no. 6, pp. 443–463, Aug. 2008.
+[43] S. Kakei et al., “Thalamic terminal morphology and distribution of
+single corticothalamic axons originating from layers 5 and 6 of the
+cat motor cortex,” J. Comp. Neurol., vol. 437, no. 2, pp. 170–185,
+Aug. 2001.
+
+XIAO et al.: THEORETICAL OPTIMIZATION OF STIMULATION STRATEGIES FOR A DIRECTIONALLY SEGMENTED DBS ELECTRODE ARRAY
+
+[44] R. L. Crouch and J. K. Thompson, “The efferent fibers of the thalamus
+of Macacus rhesus: I—Lateral ventral nuclei,” J. Comparative Neurol.,
+vol. 69, no. 2, pp. 255–271, 1938.
+[45] M. Grant and S. Boyd, CVX: Matlab software for disciplined convex
+programming, version 2.0 beta. http://cvxr.com/cvx, September 2013.
+[46] B. H. Bonham and L. M. Litvak, “Current focusing and steering: Modeling, physiology, and psychophysics,” Hear. Res., vol. 242, no. 1–2,
+pp. 141–153, Aug. 2008.
+[47] J. D. Weiland and M. S. Humayun, “Retinal prosthesis,” IEEE Trans.
+Biomed. Eng., vol. 61, no. 5, pp. 1412–1424, May 2014.
+[48] K. M. Alo and J. Holsheimer, “New trends in neuromodulation for
+the management of neuropathic pain,” Neurosurgery, vol. 50, no. 4,
+pp. 703–704, Apr. 2002.
+[49] C. Veraart et al., “Selective control of muscle activation with a multipolar nerve cuff electrode,” IEEE Trans. Biomed. Eng., vol. 40, no. 7,
+pp. 640–653, Jul. 1993.
+[50] D. M. Whiten, “Electro-anatomical models of the cochlear implant,” Ph.D.
+dissertation, Harvard-MIT Div. Health. Sci. Tech., Massachusetts Inst.
+Technol.MIT., Cambridge, MA, USA, 2007.
+[51] J. B. Ranck Jr., “Which elements are excited in electrical stimulation of
+mammalian central nervous system: a review,” Brain Res., vol. 98, no. 3,
+pp. 417–440, Nov. 1975.
+[52] C. C. McIntyre et al., “Cellular effects of deep brain stimulation: Modelbased analysis of activation and inhibition,” J. Neurophysiol., vol. 91,
+no. 4, pp. 1457–1469, Apr. 2004.
+[53] F. Rattay, “Analysis of models for extracellular fiber stimulation,” IEEE
+Trans. Biomed. Eng., vol. 36, no. 7, pp. 676–682, Jul. 1989.
+[54] D. R. McNeal, “Analysis of a model for excitation of myelinated nerve,”
+IEEE Trans. Biomed. Eng., vol. 23, no. 4, pp. 329–337, Jul. 1976.
+[55] N. Yousif et al., “Evaluating the impact of the deep brain stimulation
+induced electric field on subthalamic neurons: A computational modelling
+study,” J. Neurosci. Methods, vol. 188, no. 1, pp. 105–112, Apr. 2010.
+[56] C. Schmidt et al., “Influence of uncertainties in the material properties of
+brain tissue on the probabilistic volume of tissue activated,” IEEE Trans.
+Biomed. Eng., vol. 60, no. 5, pp. 1378–1387, May 2013.
+[57] E. J. Peterson et al., “Predicting myelinated axon activation using spatial
+characteristics of the extracellular field,” J. Neural Eng., vol. 8, no. 4, pp.
+46030-46041, Aug. 2011.
+[58] A. Chaturvedi et al., “Artificial neural network based characterization of
+the volume of tissue activated during deep brain stimulation,” J. Neural
+Eng., vol. 10, no. 5, pp. 056023–56030. Oct. 2013.
+[59] L. M. Litvak et al., “Loudness growth observed under partially tripolar
+stimulation: Model and data from cochlear implant listeners,” J. Acoust.
+Soc. Amer., vol. 122, no. 2, pp. 967–981, Aug. 2007.
+[60] E. Toader et al., “Steering deep brain stimulation fields using a high
+resolution electrode array,” presented at the IEEE Annu. Int. Conf.
+Eng. Med. Biol. Soc., Buenos Aires, Argentina, Aug. 31–Sep. 4, 2010,
+pp. 2061–2064.
+[61] B. Townshend and R. L. White, “Reduction of electrical interaction in
+auditory prostheses,” IEEE Trans. Biomed. Eng., vol. BME-34, no. 11,
+pp. 891–897, Nov. 1987.
+[62] R. C. Ross, “Channel interaction cancellation within a multichannel neural
+stimulation system,” U.S. Patent 7 110 821 B1, Sep. 19, 2006.
+[63] C. R. Butson et al., “Patient-specific analysis of the volume of tissue
+activated during deep brain stimulation,” Neuroimage, vol. 34, no. 2,
+pp. 661–670, Jan. 2007.
+[64] P. A. Tass, “A model of desynchronizing deep brain stimulation with
+a demand-controlled coordinated reset of neural subpopulations,” Biol.
+Cybern., vol. 89, no. 2, pp. 81–88, Aug. 2003.
+[65] P. A. Tass et al., “Long-lasting desynchronization in rat hippocampal slice
+induced by coordinated reset stimulation,” Phys. Rev. E., vol. 80, no. 1,
+pp. 011902-1–011902-4, 2009.
+[66] C. Darian-Smith et al., “Comparing thalamocortical and corticothalamic
+microstructure and spatial reciprocity in the macaque ventral posterolateral
+nucleus (VPLc) and medial pulvinar,” J. Comparative Neurol., vol. 410,
+no. 2, pp. 211–234, 1999.
+[67] K. Kultas-Ilinsky et al., “Reevaluation of the primary motor cortex connections with the thalamus in primates,” J. Comparative Neurol., vol. 457,
+no. 2, pp. 133–158, 2003.
+[68] V. A. Coenen et al., “Individual fiber anatomy of the subthalamic region
+revealed with diffusion tensor imaging: A concept to identify the deep
+brain stimulation target for tremor suppression,” Neurosurgery, vol. 68,
+no. 4, pp. 1069–1076, Apr. 2011.
+[69] A. Chaturvedi et al., “Patient-specific models of deep brain stimulation:
+Influence of field model complexity on neural activation predictions,”
+Brain Stimul., vol. 3, no. 2, pp. 65–67, Apr. 2010.
+
+371
+
+[70] A. M. Kuncel and S. E. Cooper, “A method to estimate the spatial extent
+of activation in thalamic deep brain stimulation,” Clin. Neurophysiol.,
+vol. 119, no. 9, pp. 2148–2158, Sep. 2008.
+[71] F. A. Lenz et al., “Thermal and pain sensations evoked by microstimulation
+in the area of human ventrocaudal nucleus,” J. Neurophysiol., vol. 70,
+no. 1, pp. 200–212, Jul. 1993.
+[72] G. Dumm et al., “Virtual electrodes by current steering in retinal prostheses,” Invest. Ophthalmol. Vis. Sci., vol. 55, no. 12, pp. 8077–8085, Dec.
+2014.
+[73] J. Schlag and J. Villablanca, “A quantitative study of temporal and spatial
+response patterns in a thalamic cell population electrically stimulated,”
+Brain Res., vol. 8, no. 2, pp. 255–270, May 1968.
+[74] J. O. Dostrovsky et al., “Microstimulation-induced inhibition of neuronal firing in human globus pallidus,” J Neurophysiol., vol. 84, no. 1,
+pp. 570–574, Jul. 2000.
+[75] L. A. Johnson et al., “Modulation of motor cortex neuronal activity and
+motor behavior during subthalamic nucleus stimulation in the normal
+primate,” J. Neurophysiol., vol. 113, no. 7, pp. 2549–2554, Apr. 2015.
+
+YiZi Xiao received the B.S. degree in bioengineering from the University of California, Berkeley, CA,
+USA, in 2010. He is currently working toward the
+Ph.D. degree in biomedical engineering at the Neuromodulation Research and Technology Laboratory,
+University of Minnesota, Minneapolis, MN, USA.
+His primary research interests include neural engineering with specific research interests in signal
+processing, optimization algorithms, computational
+modeling, and electrophysiology.
+
+Edgar Peña received the B.S. degree in biomedical and electrical engineering from the University of
+California, Irvine, CA, USA, in 2013. He is currently
+working toward the Ph.D. degree in biomedical engineering at the Neuromodulation Research and Technology Laboratory, University of Minnesota, Minneapolis, MN, USA.
+His research interests include developing algorithms for enhancing targeting and understanding
+mechanisms of neuromodulation.
+
+Matthew D. Johnson (M’03) received the S.B. degree in engineering sciences from Harvard University, Cambridge, MA, USA, in 2002, and the M.S.
+and Ph.D. degrees in biomedical engineering from
+the University of Michigan, Ann Arbor, MI, USA, in
+2003 and 2007, respectively.
+From 2007 to 2009, he was with the Lerner Research Institute of the Cleveland Clinic, where he
+completed an NIH-NRSA Postdoctoral Fellowship.
+In 2009, he joined the Faculty in the Department of
+Biomedical Engineering, University of Minnesota,
+Minneapolis, MN, USA, as an Assistant Professor, where he currently directs the
+Neuromodulation Research and Technology Laboratory. His primary research
+interests include neural engineering with specific interests in the application
+of signal processing, control engineering, and neural interface technology to
+neuromodulation therapies.
+
+

@@ -1,0 +1,832 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 10, OCTOBER 2013
+
+2887
+
+Automatic Delineation of the Myocardial Wall From
+CT Images Via Shape Segmentation and Variational
+Region Growing
+Liangjia Zhu∗ , Yi Gao, Vikram Appia, Anthony Yezzi, Chesnal Arepalli, Tracy Faber, Arthur Stillman,
+and Allen Tannenbaum, Fellow, IEEE
+
+Abstract—Prognosis and diagnosis of cardiac diseases frequently
+require quantitative evaluation of the ventricle volume, mass, and
+ejection fraction. The delineation of the myocardial wall is involved
+in all of these evaluations, which is a challenging task due to large
+variations in myocardial shapes and image quality. In this paper, we
+present an automatic method for extracting the myocardial wall of
+the left and right ventricles from cardiac CT images. In the method,
+the left and right ventricles are located sequentially, in which each
+ventricle is detected by first identifying the endocardium and then
+segmenting the epicardium. To this end, the endocardium is localized by utilizing its geometric features obtained on-line from a
+CT image. After that, a variational region-growing model is employed to extract the epicardium of the ventricles. In particular,
+the location of the endocardium of the left ventricle is determined
+via using an active contour model on the blood-pool surface. To
+localize the right ventricle, the active contour model is applied on
+a heart surface extracted based on the left ventricle segmentation
+result. The robustness and accuracy of the proposed approach is
+demonstrated by experimental results from 33 human and 12 pig
+CT images.
+
+Manuscript received December 22, 2012; revised May 18, 2013; March 18,
+2013; accepted May 22, 2013. Date of publication June 4, 2013; date of current
+version September 14, 2013. This work was supported in part by the grants from
+the NIH, AFOSR, ARO, ONR, and MDA, in part by the National Alliance for
+Medical Image Computing, funded by the National Institutes of Health through
+the NIH Roadmap for Medical Research under Grant U54 EB005149 (information on the National Centers for Biomedical Computing can be obtained from
+http://nihroadmap.nih.gov/bioinformatics), in part by the National Center for
+Research Resources under Grant P41-RR-013218, in part by the National Institute of Biomedical Imaging and Bioengineering under Grant P41-EB-015902
+of the National Institutes of Health, and in part by the NIH under Grant R01
+HL085417. T. Faber receives royalties from the sale of the Emory Cardiac
+Toolbox and has an equity position in Syntermed, Inc., which markets ECTb.
+The terms of this arrangement have been reviewed and approved by Emory
+University in accordance with its conflict of interest policies. Asterisk indicates
+corresponding author.
+∗ L. Zhu is with the School of Electrical and Computer Engineering, Georgia
+Institute of Technology, Atlanta, GA 30303 USA (e-mail: lzhu@gatech.edu).
+Y. Gao is with the Psychiatry Neuroimaging Laboratory, Harvard Medical
+School, Boston, MA 02115 USA (e-mail: gaoyi@bwh.harvard.edu).
+V. Appia and A. Yezzi are with the School of Electrical and Computer Engineering, Georgia Institute of Technology, Atlanta, GA 30303 USA (e-mail:
+vikram.appia@gatech.edu; ayezzi@ece.gatech.edu).
+C. Arepalli, T. Faber, and A. Stillman are with the Department of Radiology, Emory University, Atlanta, GA 30322 USA (e-mail: carepal@emory.edu;
+tfaber@emory.edu; aestill@emory.edu).
+A. Tannenbaum is with the Comprehensive Cancer Center/ECE, UAB,
+Birmingham, AL 35294 USA (e-mail: arobertan@gmail.com).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2013.2266118
+
+Index Terms—Left ventricle (LV), myocardial wall segmentation, right ventricle (RV), salient component, shape segmentation,
+variational region growing.
+
+I. INTRODUCTION
+ELINEATING the myocardial wall of the left (LV) and
+right (RV) ventricles is an important step in the prognosis and diagnosis of cardiac diseases. This topic has been
+investigated for decades [1], and it is still an active research
+field [2]–[4]. The main challenges include wide shape variability between different cardiac cycles and between different
+patients, weak edges between epicardium and heart fat or soft
+tissues, and thin thickness of the RV wall.
+Model-based methods have become dominant in this research [1] to get an accurate and robust segmentation. Typically,
+a heart model is built by learning the geometric or intensity features of the heart from cardiac images. While in segmentation, a
+commonly used framework is first globally aligning the model
+to an image and then deforming this model to fit image content.
+Global localization is achieved by detecting the geometric or intensity features of the heart. Local deformations are performed
+by optimizing an objective function defined between the model
+parameters and image features. In particular, the model-based
+methods can be roughly categorized based on whether these
+models are applied explicitly or implicitly for segmentation. In
+the first type of methods, typically a heart surface model is fitted
+to images for segmentation. For example, in active shape models (ASMs) [5], [6], a statistical shape model called the point
+distribution model is learned from a set of aligned shapes using the principal component analysis (PCA) technique, which is
+then iteratively aligned to image boundaries. Active appearance
+models (AAMs) extend this idea by incorporating gray level
+information [7] and were used in segmenting the left and right
+ventricles from MR images [8]. The deformations allowed in
+the parametric models such as ASMs and AAMs are restricted
+to the shape space where the heart models are embedded. A
+more sophisticated way of representing the shape space is by
+using 3-D diffusion wavelets [9], which encode shape variations
+hierarchically. Using deformable models, the authors in [10]
+and [11] provided a way to incorporate shape priors that allows
+adaptivity for local variations. In these methods, an annotated
+heart surface model is deformed to match image content by optimizing affine or similarity transformations defined between the
+model parameters and image features. In particular, landmark
+
+D
+
+0018-9294 © 2013 IEEE
+
+2888
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 10, OCTOBER 2013
+
+points on the interventricular septum were used to guide the
+segmentation in [11]. Instead of deforming a prealigned model,
+atlas-based methods use shape information implicitly by directly
+registering atlas image to a target image. Then, either the labels
+from multiple atlases are fused [12] or registered atlases are
+deformed [13] to extract the heart chambers. However, the segmentation of the myocardial wall of the RV has been neglected
+in these state-of-the-art model-based methods [10], [11], [13].
+Model-free methods are also widely used to explore the characteristics of heart geometry or intensity distribution from other
+perspectives. For example, the random forests method was used
+to model the geometric and intensity features in the myocardial
+region for delineating the myocardium [14]. For a comprehensive literature review of heart segmentation, see [1] and [2] and
+references therein.
+How to localize the model initially is a less studied topic,
+especially for these methods using deformable models, which
+tend to get stuck in undesirable local extrema when started
+without a good initialization. Typically, the geometric features
+of the heart are used for localization. For example, in [15],
+the LV endocardium was initialized by searching for a circular
+structure in a blood pool mask obtained via thresholding. A
+similar empirical rule was used in identifying the left ventricle
+cavity [16]. Examples of more advanced localization methods
+include the generalized Hough transform [10] and optimization
+of similarity transformation for a heart model [11]. Atlas-based
+registration has also been used for coarse initialization [9], [13].
+One observation that may be utilized for the localization is
+that the ventricles are salient components on the heart surface.
+This is where the shape decomposition/segmentation technique
+can be utilized to cluster the surface into meaningful components
+based on some given criteria as in computer graphics and geometric modeling [17], [18]. For example, a surface may be hierarchically decomposed into regions of deep concavities by using
+fuzzy clustering and graph partition techniques [19]. Applications of shape segmentation in medical imaging can be found in
+heart modeling from images [20] and aneurysm neck detection
+on vessel surfaces [21]. Active contour models have also been
+applied on surfaces to refine coarse segmentations [22] or extract objects of interest [23]. The Shape segmentation technique
+would be a powerful tool for ventricle localization because ventricles are prominent components on the heart surface. Among
+the few applications of this technique in cardiac image segmentation, the narrowing of vessels around the left atrium was
+detected by merging local features based on given criteria to
+extract the left atrium [24].
+In this paper, we propose a method for automatically extracting the myocardial wall from cardiac CT images, which
+integrates region growing with shape segmentation in a natural
+way. In this framework, the shape segmentation provides seed
+regions for region growing while the latter reconstructs a heart
+surface for the shape segmentation. Specifically, the segmentation process starts by localizing the LV endocardium. Unlike the
+localization methods described so far, our method is based on
+the observation that the LV is a salient component on the blood
+pool surface, which can be identified on the surface by utilizing
+shape segmentation techniques. After that, a variational region-
+
+growing method [25], driven by the robust statistics of a seed
+region around the endocardium is applied to localize the epicardium. Once the LV is determined, the RV is localized based
+on the segmentation of the LV. The RV epicardium is initialized
+in the same way as in localizing the LV epicardium. Finally,
+these myocardial surfaces are refined by employing an active
+contour model using the initial segmentations as a constraint.
+The contributions of the proposed method are as follows:
+1) we present an automatic localization method for both ventricles with high accuracy. Unlike other methods that only
+use low level information from voxels, our method captures a global geometric characteristic of the ventricles.
+Hence, it is not sensitive to such issues as variability in
+ventricle shapes and volume coverages. Note that, as an
+initialization step, this localization method can be easily
+incorporated into other model-based frameworks.
+2) The proposed method is able to segment thin-layer structures like the myocardium of the RV, which has been
+neglected by some of these latest methods [10], [11], [13].
+3) The overall system is complete in that all the active contour
+models involved are initialized automatically and robustly,
+other than in those systems where active contours are either used as a single component or initialized manually.
+In addition, no training image is required in our method,
+which works in the cases where the number of images
+available is limited.
+The rest of this paper is organized as follows. In Section II,
+we describe the details of the overall framework, including the
+localization of the ventricles and wall structure extraction. In
+Section III, we provide some experimental results to demonstrate the robustness and accuracy of the proposed method. Finally, in Section IV, we draw some conclusions and outline
+some future research directions.
+II. PROPOSED METHOD
+The flowchart of the proposed method is shown in Fig. 1. The
+overall segmentation process consists of ventricle localization
+and myocardial wall extraction. First, the LV is localized by using shape segmentation techniques. Then, the RV is identified on
+a heart surface constructed based on the segmentation of the LV.
+Finally, the myocardial wall, lying between the epicardial and
+endocardial surfaces of the ventricles, is refined by employing
+an active contour model with a constraint based on the localization results. The main steps are described in the following
+sections.
+A. Localize the LV
+Assume that the orientation of a CT image is given and there
+is sufficient contrast between blood pool and myocardium. The
+localization of the LV is determined via searching for a deep
+concave boundary on the blood pool surface as follows.
+1) Extract Blood Pool Surface: Since CT images have calibrated gray levels, the source image is thresholded to highlight
+the blood pool region. Then, a morphological opening operator
+is applied to remove noisy arteries and cut spines that may be
+residing in the same connected component of the heart. The
+
+ZHU et al.: AUTOMATIC DELINEATION OF THE MYOCARDIAL WALL FROM CT IMAGES
+
+Fig. 1.
+
+2889
+
+Flowchart of the proposed approach.
+
+Fig. 2. Orientation of (a) human and (b) pig blood pool surfaces in the source
+image coordinate system. The reference directions are left(L), right(R), posterior(P), anterior(A), inferior(I), and superior(S). The ROIs are highlighted in
+green.
+
+largest connected component is chosen and triangulated as the
+blood pool surface.
+2) Detect Apex Point: Suppose the coordinate system of the
+source image is left–posterior–inferior (LPI) as shown in Fig. 2.
+The anatomy of the pig heart is almost identical to human’s
+but with a different long-axis orientation [26]. As shown in
+the figure, the long axis of the human heart is pointing toward
+the anterior plane, while the pig’s is tilted in the inferior direction. Thus, to narrow down the search space, the left-most
+point in a predefined region of interest (ROI) is first determined.
+Then, a neighborhood of this point is explored so that it is large
+enough to cover the apex point. After that, the most anterior
+and inferior points within the neighborhood N (plv ) are selected
+as the human and pig apex points, respectively. See Fig. 3. A
+human data point will be used to demonstrate the rest of the
+steps.
+3) Find an Initial Cut Contour: An initial cut contour, de0
+, can be found by analyzing the distance field
+noted by Clv
+starting from the apex point. As can be seen from Fig. 4, the
+lengths of isocontours on the distance field increase gradually,
+and then drop slightly. After a certain point, they are growing
+rapidly followed by sharp reductions. An explanation of this
+pattern is that the LV has an overall ellipsoid-like shape, which
+is concave around the base area. Thus, the total length of an
+
+Fig. 3. Apex detection of (a) human and (b) pig hearts. The color map shows
+the distance field within N (p lv ).
+
+Fig. 4. Detection of the initial cut contour. (a) Distance field from the apex
+with isocontours. The initial cut contour C 0 is marked in red. (b) Length of
+isocontours versus distance, and the determination of the optimal dj ∗ .
+
+isocontour at distance d may be modeled as
+
+c0 + c1 d + c2 d2 if d ≤ d˜
+˜
+h(d, d) =
+( d −μ ) 2
+ae− 2 σ 2
+if d > d˜
+
+(1)
+
+where the first equation captures the behavior as the isocontours travel on the LV, and the second one models this relation
+when the isocontours propagate further away; here, d˜ serves as
+a turning point for these two modes. Let (di , li ), i = 1 . . . n, be
+a pair consisting of a sampled distance and its corresponding
+isocontour length, where n is the number of samples over the
+
+2890
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 10, OCTOBER 2013
+
+Fig. 6. Segmentation of the endocardium (red) (a) before and (b) after removing the papillary muscles.
+0 and its narrow band. (b) SegFig. 5. LV localization. (a) Initial contour C lv
+mented endocardial surface.
+
+distance field. Then, the initial cut contour is approximated by
+searching for the optimal turning point dj ∗ , where j ∗ minimizes
+the least-squares fitting error.
+
+j
+
+∗
+(h(di , dj ) − li )2
+j = arg min arg min
+c 0 ,c 1 ,c 2
+
+j
+
++ arg min
+
+a,μ,σ
+
+n
+
+
+i=1
+
+(log h(di , dj ) − log li )
+
+
+2
+
+. (2)
+
+i=j +1
+
+Here, dj is a sample point serving as a trial turning point. The
+optimal turning point dj ∗ is obtained by exhausting all the elements in {dj }, j = 1 . . . n.
+4) Refine the Cut Contour: The geometric active contour
+0
+.
+model [27], [28] is used to refine the initial cut contour Clv
+Suppose a contour on the blood pool surface Mbp is represented by the zero level set of a function U : Mbp → R with
+U (C(p, t)) = 0, where C(p, t) is a family of contours on Mbp .
+Let g : Mbp → R+ be a positive function that attracts an active
+contour to a conceptually desired boundary [22].
+g(p) =
+
+1
+1 + (|κ(p)|/S)2
+
+noise and papillary muscles, the morphological closing operator
+is applied inside the convex hull of the endocardial surface. An
+example of papillary muscle removal is shown in Fig. 6.
+6) Segment the LV Epicardium: One way of initializing the
+epicardium mask is by dilating the endocardium to a given
+lv
+may be determined
+distance. For example, the elements of I˜epi
+lv
+by choosing voxels within a certain distance range to the I˜endo
+boundary. This works well for a myocardial wall with a nearly
+uniform thickness. Here, another way is proposed to initialize
+lv
+I˜epi
+by utilizing a variational region-growing method that is
+driven by the robust statistics of image intensities. Similar to
+lv
+is computed
+dilation-based methods, a distance field from I˜endo
+and a small strip region lying between din and dout is chosen as
+the seed region for the epicardium mask. Typically, the values are
+set to din = 2 mm and dout = 4 mm. The blood pool voxels are
+excluded from this region. Once the seed region is determined,
+the robust-statistics-based energy functional [25] is then defined
+as
+
+−p(f (x))H(φ(x))dx
+ERS (φ) = λRS
+Ω
+
++ (1 − λRS )
+
+Mbp
+
+where δ(U ) is the Dirac delta function. The energy E(U ) evaluates a weighted contour length. Gradient descent technique is
+employed to solve (4). See the Appendix for details.
+To reduce the effect of local noise, the contour evolution
+process described previously may be applied twice. In the first
+round, set g = 1 so that it shortens the initial contour by the
+geodesic curvature flow. Then, the feature function defined in
+(3) is utilized to refine the contour so that it stops at expected
+locations. An illustration of the LV localization process is shown
+in Fig. 5.
+5) Extract the LV Endocardium: The endocardial surface
+lv
+is closed by triangulating the points along the cut contour
+Mendo
+lv
+. To remove
+Clv , which is rasterized to get a mask image I˜endo
+
+δ(x)|∇φ(x)|dx
+
+(5)
+
+Ω
+
+(3)
+
+where κ(p) is the mean curvature at p, and S is a constant for
+scales that was empirically set as S = 0.01. As in [22], κ is set
+to zero if it is positive. The geometric active contour model on
+the surface Mbp is defined as
+
+E(U ) =
+g(p)δ(U (p))|∇M b p U (p)|dp
+(4)
+
+
+
+where φ is the signed distance function from the epicardium
+mask and H is the Heaviside function. Here, p(f (x)) is the
+probability density function of a feature vector f (x) that evaluates the intensity median, interquartile range, and median absolute deviation, respectively, around a neighborhood of a point
+x ∈ Ω. This probability function p(f (x)) can be learned from
+the intensities inside the seed region via kernel regression. The
+first term in this equation measures the intensity homogeneity
+inside the contour, and the second term is the length of the contour that controls the smoothness of the final result. In practice,
+λRS was set as λRS = 0.2.
+lv
+lv
+and I˜end
+, provide a good localThe myocardial masks, I˜epi
+ization of the epicardium and endocardium, which impose a
+shape constraint for local refinement, especially on regions of
+low contrast or poor edges.
+B. Localize the RV
+The same strategy is used to localize the RV as follows.
+1) Reconstruct the Heart Surface: The intensity inside the
+RV blood pool may not be as homogeneous as the LV. To identify
+the RV, a smooth heart surface is first reconstructed by taking
+
+ZHU et al.: AUTOMATIC DELINEATION OF THE MYOCARDIAL WALL FROM CT IMAGES
+
+Fig. 7.
+
+2891
+
+Variational region-growing process for segmenting the heart surface.
+
+the LV endocardium as a seed region to start the variational
+region-growing process defined in (5). In implementation, the
+parameter λRS was set as λRS = 0.9 so that the intensity homogeneity force term plays a leading role while competing with
+the smoothing force to explore the entire heart region. The surface is represented as a triangulated surface, denoted by Mht .
+An example of the region-growing process is shown in Fig. 7.
+Since the blood pool occupies the majority of the LV endocardial
+mask, the growing process shows a higher tendency to expand
+brighter regions than the darker ones. Combining the effect of
+the smoothing term, the growing process gradually captures a
+smooth heart region.
+2) Find an Initial Cut Contour: The closest point from Mht
+to the LV apex papx is used as a starting point to reconstruct the
+distance field on Mht . Then, the distance field is sampled evenly
+at an interval of 2 mm. Let {p̃i }, i = 1 · · · m, be the points of
+a given isocontour C. The distance between the isocontour and
+the cut contour Clv of Mbp is approximated by
+1 
+|Nlv · (p̃i − pc )|
+m i=1
+m
+
+d(C, Clv ) =
+
+(6)
+
+where Nlv and pc are the unit normal of the best fitting plane
+and centroid of Clv , respectively. Then, the isocontour with the
+minimal distance to Clv is selected as the initial contour that
+identifies the ventricles on Mht .
+0
+3) Segment the RV Endocardium: The initial cut contour Cvs
+is refined by using the geometric active contour model described
+in Section II-A4. The surface determined by Cvs includes both
+the LV and RV, which is rasterized to get a mask for the ventricles, denoted by I˜vs . The RV endocardium mask is obtained by
+removing the LV and blood pool voxels from I˜vs . Fig. 8 shows
+the process of segmenting the RV endocardium.
+4) Segment the RV Epicardium: The same procedure as in
+Section II-A6 is applied to generate the RV epicardium mask
+rv
+I˜epi
+.
+
+0 and its
+Fig. 8. Segmentation of the RV endocardium. (a) Initial contour C rv
+narrow band. (b) Ventricles (red) determined by C lv on the heart surface M ht .
+(c) Ventricles in the source image. (d) RV endocardium.
+
+C. Extract the Myocardial Wall
+To extract the myocardial wall, the mask images of the ventricles are refined by employing an active contour method with
+a shape constraint that allows local variations around the segmented masks. After that, the outlier voxels are excluded to get
+a complete wall structure.
+1) Refine the Myocardial Masks: Given a mask image I˜ ∈
+lv
+rv
+lv ˜rv
+˜
+, I˜endo
+, I˜epi
+, Iepi } of a myocardial surface, the energy
+{Iendo
+functional for refinement is designed as
+
+
+E(φ) = λ
+δ(φ(x))
+B(x, y)F (I(y), φ(y))dydx
+Ωx
+
+
+
++ (1 − λ)
+
+Ωy
+
+g̃(φ̃(x))δ(x)|∇φ(x)|dx
+
+(7)
+
+Ω
+
+where B(x, y) is a ball centered at x with radius r, F (I(y), φ(y))
+is a generic internal energy term defined over Ω, and g̃ is a modified Sigmoid function to rescale the signed distance function φ̃
+˜
+of I.
+
+ −|φ̃| − β −1
++ dm in .
+g̃(φ̃) = (dm ax − dm in ) 1 + exp
+α
+(8)
+Here, dm in and dm ax control the range of the signed distance,
+α and β determine the shape of the function. Typically, we
+set α = 1, β = 5, dm in = 0.02 mm and dm ax = 1.0 mm. The
+first term in (7) is a localized region-based energy [29]. In this
+study, the Chan–Vese energy [30] is used for F (I(y), φ(y)). The
+second term is essentially the geometric active contour energy
+[27], [28] using the feature image g̃ to allow local deformations
+around the initial contour.
+2) Extract the Myocardial Wall: The myocardial wall is defined as the volume between the endocardium and epicardium
+masks. The majority of the wall can be determined by performing the logic XOR operation between the endocardium and
+epicardium masks of the LV and RV, respectively. Note that
+
+2892
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 10, OCTOBER 2013
+
+Fig. 9. Segmentation of the myocardial wall. (a) Refined myocardial masks.
+(b) Extracted myocardial wall. (c) Wall in 3-D view.
+
+the contour evolution process returns closed surfaces. Thus, the
+voxels inside the blood pool are excluded to extract a complete
+myocardial wall. An example of extracting the myocardial wall
+is given in Fig. 9.
+III. EXPERIMENTAL RESULTS
+This study was approved by the Institutional Review Board.
+We tested the robustness and accuracy of the proposed method
+using 33 human and 12 pig cardiac CT images. The data include
+anomaly cases (hypertrophic cardiomyopathy and aneurysm)
+and volumes with different scanning quality.
+A. Implementation
+The overall framework was implemented in C++. Open
+source packages ITK [31] and VTK [32] were used for basic
+image processing tasks and 3-D visualization, respectively.
+In extracting the blood pool, the source image was downsampled to a voxel resolution of 2.0 mm × 2.0 mm × 2.0 mm.
+The shape of the LV is well preserved at this resolution. The
+thresholds of 180 and 350 in Hounsfield units were used for the
+human and pig datasets, respectively, so that the ventricles can
+be separated after thresholding.
+In detecting the apex point, the ROI for the human data was set
+as a rectangular box located at the left–anterior–inferior corner,
+which is one-eighth of the size of its corresponding bounding
+box of Mbp . The ROI for the pig data was defined similarly but
+centered in the left-to-right direction. The neighborhood size
+N (plv ) is controlled by a threshold, which was empirically set
+as 50 mm.
+To find the isocontour length model, the distance field was
+sampled evenly at an interval of 2 mm. In refining the cut contour, the size of the narrow band is controlled by a threshold
+φm ax , which is typically set as φm ax = min(10, 4lm ax ) mm,
+where lm ax is the length of the longest edge on Mbp . The time
+step dt = 1 was used in implementation.
+To remove the papillary muscles, the structure element size
+depends on that of the papillary muscles, which was empirically set as 3 mm. To extract the LV epicardium, a parameter
+dw is used to control the maximum distance allowed in the
+region-growing process. The value of this parameter is related
+to the maximal thickness of the myocardial wall, which typically
+ranges from 6 to 16 mm [2]. Thus, dw was set as dw = 16 mm.
+For the RV epicardium, typically, the seed region is controlled
+by dout = 2 mm and dout = 3 mm, and set dw = 5 mm.
+
+Fig. 10.
+points.
+
+Evolution of cut contours generated from ten randomly sampled apex
+
+The sparse level set method [33] was utilized to implement
+gradient descent flows derived from the active contour models
+in (5) and (7) for its efficiency. In particular, the upwind scheme
+was used in discretizing |∇(·)| (see [34] for details). The endocardium and epicardium masks were refined separately. The
+radius of the ball B(x, y) was set as r = 4 mm.
+B. Robustness Test
+Locating the LV is a key step in the overall framework. To
+test the robustness of this step, sample points randomly selected
+from a neighborhood within 30 mm of the apex point were used
+as trial apex points to start the localization process. To quantify
+errors, the distance between the cut contours obtained using
+different sample points and the original contour was measured
+as
+	
+C̃ (s) D(C)ds
+	
+.
+(9)
+Dist(C, C̃) =
+C̃ (s) ds
+Here, C, C̃, and D are the original cut contour, the cut contour
+obtained from a sample point, and the distance between them,
+respectively. In our implementation, D(C) was evaluated at
+triangle vertices. The evolution process of Dist(C, C̃) for 10
+sample points is shown in Fig. 10. All of the curves converge
+to the original C within a tolerable numerical error. In addition,
+the averages of the turning point d˜ are 94 ± 9 mm and 76 ±
+6 mm for the human and pig data, respectively. This shows that
+the feature used for identifying the cut contour is stable despite
+of the variability in heart shapes.
+Our method succeeded in localizing the LV and RV for all
+of the testing data with wide shape variations and different
+volume coverages. Typical segmentation results returned by the
+proposed method are shown in Fig. 11 displayed with manual
+segmentations. The first row is a normal human case with small
+field of view (FOV) and the second is a pig case with wide FOV.
+
+ZHU et al.: AUTOMATIC DELINEATION OF THE MYOCARDIAL WALL FROM CT IMAGES
+
+2893
+
+Fig. 11. Comparison of automatic (red) and manual (green) segmentations of normal cases from human (top row) and pig (second row) data. From left to right
+are myocardial wall in axial, coronal, and sagittal views, respectively.
+
+Fig. 12. Comparison results of challenging cases from automatic (red) and manual (green) segmentations. Top: human case with hypertrophic cardiomyopathy;
+Bottom: pig case with papillary muscles and low SNR boundaries (the middle bottom figure). From left to right are the myocardial wall in axial, coronal, and
+sagittal views, respectively.
+
+Fig. 12 shows results from challenging cases. The first row
+is for a human case with hypertrophic cardiomyopathy, and
+the second is for a pig case with large papillary muscles and
+low SNR boundaries around the pericardium. As can be seen
+from these results, the papillary muscles and soft tissues were
+successfully excluded from the myocardium.
+
+C. Quantitative Analysis
+The segmentation results from the proposed method were validated by two doctors who were blind to the method. One doctor delineated the human dataset, the other did the pig dataset.
+To make a fair comparison, all testing datasets were resampled to the same resolution of the manual segmentations at
+
+2894
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 60, NO. 10, OCTOBER 2013
+
+TABLE I
+MEAN AND STANDARD DEVIATION OF THE POINT-TO-SURFACE ERRORS IN
+LOCALIZATION AND REFINEMENT (IN MM)
+
+TABLE II
+COMPARISON BETWEEN THE PROPOSED METHOD AND LOCALIZED PCA FOR
+THE SEGMENTATION OF PIG VENTRICLES(IN MM)
+
+detected by first identifying the endocardium and then segmenting the epicardium. In addition, the LV segmentation results
+are used to localize the RV. The local variations of the heart
+are naturally handled by utilizing features obtained online. Its
+performance has been evaluated by measuring the errors between automatic and manual segmentations. In these tests, the
+proposed method achieves high accuracy as well as strong robustness for segmenting the myocardial wall from both human
+and pig datasets with large shape variabilities and different volume coverages. In future work, we plan to apply the segmentations from the proposed approach to clinical applications such
+as evaluating the myocardial mass at risk caused by stenoses.
+APPENDIX
+
+1.0 mm × 1.0 mm × 1.0 mm. The mean and standard deviation
+of the point-to-surface errors for the human and pig datasets
+at the localization and refinement steps are summarized in Table I. These results demonstrate that the localization step locates
+the endocardium and epicardium masks with high precision as
+compared to the manual segmentations, which are further refined by applying the active contour model with the shape constraint. Note that the accuracy of the endocardium segmentation
+is better than the epicardium segmentation as the former is better defined due to the higher contrast between the blood pool
+and the myocardium, while in the latter case, poor contrast and
+weak edges are present between the epicardium and background
+tissues.
+In addition, the proposed method was compared to a stateof-the-art active contour method, i.e., the localized PCA-based
+method [35], [36], for segmenting pig ventricles using the same
+dataset. The point-to-surface errors are summarized in Table II.
+In addition, the statistical differences between these two methods were analyzed by utilizing the two-sample t-test, with null
+hypothesis as “the PCA-based method has a smaller mean error
+than the proposed method,” for LV-Endo, LV-Epi, RV-Endo, and
+RV-Epi. The test rejects the null hypothesis at the 1% significance level for all of the four cases. As indicated by these results,
+the proposed method statistically has a higher accuracy for segmenting both ventricles as it captures more local image content
+than the PCA-based method, which relies on the subspace where
+the heart shape is embedded.
+Though it is hard to make a fair comparison between different methods for human ventricle segmentation by using different datasets, the accuracy of the proposed method seems
+to be competitive with some latest results: 1.13 ± 0.55 and
+1.21 ± 0.41 mm [11], 0.98 ± 1.32 and 0.82 ± 1.07 mm [10] for
+LV endocardium and epicardium, respectively. Note that, the
+comparison was only made to the LV segmentation because the
+approaches being compared model the RV endocardium and
+epicardium as a single component.
+
+GEOMETRIC ACTIVE CONTOURS ON SURFACES
+The gradient descent flow for solving (4) is
+
+
+⎧
+∇M b p U
+∂U
+⎪
+⎪
+= |∇M b p U |∇M b p · g(p)
+⎪
+⎪
+|∇M b p U |
+⎪
+⎨ ∂t
+(10)
+∂U
+⎪
+|∂ M b p = 0
+⎪
+−
+→
+⎪
+∂n
+⎪
+⎪
+⎩
+0
+)
+U (0) = U (Clv
+→
+where ∂Mbp is the boundary of Mbp and −
+n is the intrinsic out-
+
+ward normal of ∂Mbp . Here, ∇M b p is the del operator on Mbp .
+A narrow band method is applied to implement the gradient
+flow. Specifically, U is realized as the signed distance function
+0
+, which decomposes Mbp into several regions. The sign
+from Clv
+of U is positive in the region that contains the apex point.
+
+The key step is to numerically approximate the gradient and
+divergence operators on a surface. The discretization schemes
+of [23] were adopted as they naturally capture the geometric
+properties of surfaces.
+ACKNOWLEDGMENT
+
+IV. CONCLUSION AND FUTURE RESEARCH
+We have presented an automatic method for segmenting the
+ventricles from cardiac CT images. The method sequentially
+segments the LV and RV via integrating shape segmentation
+with region-growing techniques. In particular, each ventricle is
+
+We especially wish to acknowledge our deep gratitude to Dr.
+Faber who had helped to push this research forward and devoted
+her life to cardiac image analysis. We would also like to thank
+Dr. Ernest Garcia of Emory from some useful discussions about
+the topic of this paper.
+
+ZHU et al.: AUTOMATIC DELINEATION OF THE MYOCARDIAL WALL FROM CT IMAGES
+
+REFERENCES
+[1] J. S. Suri, “Computer vision, pattern recognition and image processing in
+left ventricle segmentation: The last 50 years,” Pattern Anal. Appl., vol. 3,
+no. 3, pp. 209–242, 2000.
+[2] C. Petitjean and J. N. Dacher, “A review of segmentation methods in short
+axis cardiac MR images,” Med. Image Anal., vol. 15, no. 2, pp. 169–184,
+2011.
+[3] (2009). MICCAI Workshop—Cardiac MR Left Ventricle Segmentation Challenge, [Online]. Available: http://smial.sri.utoronto.ca/LV
+Challenge/Home.html
+[4] (2012). MICCAI Workshop—3D Cardiovascular Imaging Segmentation
+Challenge, [Online]. Available: http://grand-challenge2012.bigr.nl/
+[5] T. F. Cootes, C. J. Taylor, D. H. Cooper, and J. Graham, “Active shape
+models-their training and application,” Comput. Vis. Image Understand.,
+vol. 61, no. 1, pp. 38–59, 1995.
+[6] D. Fritz, R. Unterhinninghofen, R. Dillmann, D. Rinck, and
+M. Scheuering, “Automatic segmentation of the left ventricle and computation of diagnostic parameters using region growing and a statistical
+model,” in Proc. SPIE Med. Imag., 2005, vol. 5747, pp. 1844–1854.
+[7] T. F. Cootes, G. J. Edwards, and C. J. Taylor, “Active appearance models,”
+IEEE Trans. Pattern Anal. Mach. Intell., vol. 23, no. 6, pp. 681–685, Jun.
+2001.
+[8] S. C. Mitchell, B. Lelieveldt, R. J. van der Geest, J. G. Bosch,
+J. H. C. Reiber, and M. Sonka, “Multistage hybrid active appearance
+model matching: Segmentation of left and right ventricles in cardiac MR
+images,” IEEE Trans. Med. Imag., vol. 20, no. 5, pp. 415–423, 2001.
+[9] S. Essafi, G. Langs, and N. Paragios, “Hierarchical 3D diffusion wavelet
+shape priors,” in Proc. Int. Conf. Comput. Vis., 2009, pp. 1717–1724.
+[10] O. Ecabert, J. Peters, H. Schramm, C. Lorenz, J. von Berg, M. Walker,
+M. Vembar, M. E. Olszewski, K. Subramanyan, G. Lavi, and J. Weese,
+“Automatic model-based segmentation of the heart in CT images,” IEEE
+Trans. Med. Imag., vol. 27, no. 9, pp. 1189–1201, Sep. 2008.
+[11] Y. Zheng, A. Barbu, B. Georgescu, M. Scheuering, and D. Comaniciu,
+“Four-chamber heart modeling and automatic segmentation for 3D cardiac
+CT volumes using marginal space learning and steerable features,” IEEE
+Trans. Med. Imag., vol. 27, no. 11, pp. 1668–1681, Nov. 2008.
+[12] E. M. van Rikxoort, I. Isgum, Y. Arzhaeva, M. Staring, S. Klein,
+M. A. Viergever, J. P. W. Pluim, and B. van Ginneken, “Adaptive local
+multi-atlas segmentation: Application to the heart and the caudate nucleus,” Med. Image Anal., vol. 14, no. 1, pp. 39–49, 2010.
+[13] X. Zhuang, K. S. Rhode, R. R., D. J. Hawkes, and S. Ourselin, “A
+registration-based propagation framework for automatic whole heart segmentation of cardiac MRI,” IEEE Trans. Med. Imag., vol. 29, no. 9,
+pp. 1612–1625, Sep. 2010.
+[14] V. S. Lempitsky, M. Verhoek, J. A. Noble, and A. Blake, “Random forest
+classification for automatic delineation of myocardium in real-time 3D
+echocardiography,” in Proc. 5th Int. Conf. Funct. Imag. Model. Heart,
+2009, pp. 447–456.
+[15] M. Jolly, “Automatic segmentation of the left ventricle in cardiac MR and
+CT images,” Int. J. Comput. Vis., vol. 70, no. 2, pp. 151–163, 2006.
+[16] M. Lynch, O. Ghita, and P. Whelan, “Automatic segmentation of the
+left ventricle cavity and myocardium in MRI data,” Comput. Biol. Med.,
+vol. 36, no. 4, pp. 389–407, Apr. 2006.
+[17] A. Shamir, “A survey on mesh segmentation techniques,” Comput. Graph.
+Forum, vol. 27, no. 6, pp. 1539–1556, 2008.
+[18] M. Attene, S. Katz, M. Mortara, G. Patanè, M. Spagnuolo, and A. Tal,
+“Mesh segmentation—A comparative study,” in Proc. IEEE Int. Conf.
+Shape Model. Appl., 2006, pp. 14–25.
+
+2895
+
+[19] S. Katz and A. Tal, “Hierarchical mesh decomposition using fuzzy clustering and cuts,” ACM Trans. Graph., vol. 22, no. 3, pp. 954–961, Jul.
+2003.
+[20] C. Bajaj, S. Goswami, Z. Yu, Y. Zhang, Y. Bazilevs, and T. Hughes,
+“Patient specific heart models from high resolution CT,” in Proc. Int.
+Symp. Comput. Model. Objects Represent. Images: Fund., Methods, Appl.,
+2006.
+[21] R. Cárdenes, J. Pozo, H. Bogunovic, I. Larrabide, and A. Frangi, “Automatic aneurysm neck detection using surface voronoi diagrams,” IEEE
+Trans. Med. Imag., vol. 30, no. 10, pp. 1863–1876, Oct. 2011.
+[22] L. Kaplansky and A. Tal, “Mesh segmentation refinement,” Pacif. Graph.,
+vol. 28, no. 7, pp. 1995–2003, 2009.
+[23] R. Lai and T. F. Chan, “A framework for intrinsic image processing on
+surfaces,” Comput. Vis. Image Understand., vol. 115, no. 12, pp. 1647–
+1661, 2011.
+[24] M. John and N. Rahn, “Automatic left atrium segmentation by cutting the
+blood pool at narrowings,” in Medical Image Computing and ComputerAssisted Intervention (Lecture notes in Computer Science). Berlin,
+Germany: Springer, 2005, pp. 798–805.
+[25] Y. Gao, R. Kikinis, S. Bouix, M. Shenton, and A. Tannenbaum, “A 3D interactive multi-object segmentation tool using local robust statistics driven
+active contours,” Med. Image Anal., vol. 16, no. 6, pp. 1216–1227, 2012.
+[26] S. J. Crick, M. N. Sheppard, S. Y. Ho, L. Gebstein, and R. H. Anderson,
+“Anatomy of the pig heart: comparisons with normal human cardiac structure,” J. Anatomy, vol. 193, pp. 105–119, 1998.
+[27] S. Kichenassamy, A. Kumar, P. Olver, A. Tannenbaum, and A. Yezzi,
+“Conformal curvature flows: From phase transitions to active contours,”
+Arch. Rational Mech. Anal., vol. 134, pp. 275–301, 1996.
+[28] V. Caselles, R. Kimmel, and G. Sapiro, “Geodesic active contours,” Int.
+J. Comput. Vis., vol. 22, no. 1, pp. 61–79, 1997.
+[29] S. Lankton and A. Tannenbaum, “Localizing region-based active contours,” IEEE Trans. Image Process., vol. 17, no. 11, pp. 2029–2039, Nov.
+2008.
+[30] T. F. Chan and L. A. Vese, “Active contours without edges,” IEEE Trans.
+Image Process., vol. 10, no. 2, pp. 2029–2039, Feb. 2001.
+[31] Insight Segmentation and Registration Toolkit (ITK), [Online].
+Available: http://www.itk.org/
+[32] Visualization Toolkit (VTK), [Online]. Available:http://www.vtk.org/
+[33] R. T. Whitaker, “A level-set approach to 3D reconstruction from range
+data,” Int. J. Comput. Vis., vol. 29, no. 3, pp. 203–231, Sep. 1998.
+[34] G. Aubert and P. Kornprobst, Mathematical Problems in Image Processing: Partial Differential Equations and the Calculus of Variations (Applied
+Mathematical Sciences). New York, NY, USA: Springer-Verlag, 2006.
+[35] V. Appia, B. Ganapathy, A. Abufadel, A. Yezzi, and T. Faber, “A regions
+of confidence based approach to enhance segmentation with shape priors,”
+in Proc. SPIE Med. Imag., 2010, pp. 753302-1–753302-12.
+[36] V. Appia, B. Ganapathy, A. Yezzi, and T. Faber, “Localized principal component analysis based curve evolution: A divide and conquer approach,”
+in Proc. IEEE Int. Conf. Comput. Vis., 2011, pp. 1981–1986.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

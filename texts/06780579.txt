@@ -1,0 +1,609 @@
+660
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Robust Automatic Measurement of 3D Scanned
+Models for Human Body Fat Estimation
+Andrea Giachetti, Christian Lovato, Francesco Piscitelli, Chiara Milanese, and Carlo Zancanaro
+
+Abstract—In this paper, we present an automatic tool for estimating geometrical parameters from 3-D human scans independent on pose and robustly against the topological noise. It is based
+on an automatic segmentation of body parts exploiting curve skeleton processing and ad hoc heuristics able to remove problems due to
+different acquisition poses and body types. The software is able to
+locate body trunk and limbs, detect their directions, and compute
+parameters like volumes, areas, girths, and lengths. Experimental
+results demonstrate that measurements provided by our system
+on 3-D body scans of normal and overweight subjects acquired in
+different poses are highly correlated with the body fat estimates obtained on the same subjects with dual-energy X-rays absorptiometry (DXA) scanning. In particular, maximal lengths and girths, not
+requiring precise localization of anatomical landmarks, demonstrate a good correlation (up to 96%) with the body fat and trunk
+fat. Regression models based on our automatic measurements can
+be used to predict body fat values reasonably well.
+Index Terms—Body fat, dual-energy X-rays absorptiometry
+(DXA), geometry processing, three-dimensional (3-D) anthropometry, whole-body scanner.
+
+I. INTRODUCTION
+HREE-dimensional whole-body scanners can provide a lot
+of information about the human body shape that is not only
+useful for applications like the clothing design or ergonomic
+studies, but also for healthcare. Anthropometric measurements
+are, in fact, widely used both for computing simple parameters
+related to the body fitness, e.g., the waist-to-hip (W/H) ratio,
+and for indirect estimation of body composition (e.g. body fat)
+using regression models [1]. Specific measurements as the waist
+circumference and the abdominal sagittal diameter correlates
+well with the body fat and can be used as predictors for metabolic
+disorders and cardiovascular risk [2]–[5].
+The availability of an automatic processing system able to
+derive robust measurements from 3-D scans, possibly not depending too much on the pose and mesh quality could therefore
+
+T
+
+Manuscript received October 4, 2013; revised January 31, 2014; accepted
+March 25, 2014. Date of publication March 28, 2014; date of current version
+March 2, 2015. The work of C. Lovato and F. Piscitelli was supported by the
+Doctoral Programme in Multimodal Imaging in Biomedicine of the University
+of Verona.
+A. Giachetti and C. Lovato are with the Department of Computer Science,
+University of Verona, 37134 Verona, Italy (e-mail: andrea.giachetti@univr.it;
+chrlovato@yahoo.it).
+F. Piscitelli, C. Milanese, and C. Zancanaro are with the Department of Neurologic and Movement Sciences, University of Verona, 37134
+Verona, Italy (e-mail: francesco.piscitelli@univr.it; chiara.milanese@univr.it;
+carlo.zancanaro@univr.it).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2314360
+
+be extremely useful to develop easy and reliable healthcare applications.
+Three-dimensional scanners are able to provide complete digital models of the subjects’ bodies, encoding a huge amount of
+information that can be processed automatically making it easier for physicians to evaluate compact descriptors that can be
+correlated with the body composition or diagnostic variables.
+From the digital models, in fact, it is possible to extract not only
+a wide set of measurements usually picked up from manual anthropometry, but also, using geometry processing techniques, to
+derive other parameters (e.g., curvatures, statistical variations
+of local and global properties, salient points location) encoding
+relevant shape variability in the analyzed population.
+There are, however, several issues with an health-related analysis of scanned digital bodies. The quality of the scans is not
+uniform, and measurement systems often depend heavily on the
+subject pose. Furthermore, it is difficult to compare manual and
+digital anthropometric measurements, because the former are
+based on the identification of anatomical landmarks, obtained
+through observation and palpation by expert anthropometrists
+which are difficult to locate only through marker-less digital
+acquisitions.
+In this paper, we present a pipeline for the automatic extraction of health-related geometrical parameters from heterogeneous body scans. Special aspects of this study are the use a
+geometry processing pipeline capable of dealing with models
+acquired by different scanners in different poses and the computation of parameters independent of the precise location of
+poorly characterized landmarks (e.g., maximal girths).
+With our system, we were also able to estimate relevant parameters robustly with challenging body types (e.g., obese subjects). These parameters have been correlated with the body fat
+values estimated on the same subjects with a dual- energy X-rays
+absorptiometry (DXA) scanner. Experimental results demonstrate that several computed values are highly correlated with
+total body less head (TBLH) fat and trunk fat.
+II. RELATED WORK
+Digital anthropometry is widely used to collect sets of measurements for different applications. Especially in fields like the
+clothing design and ergonomy, the use of automatic measurements on 3-D digital models is going to replace the traditional
+and time-consuming tape-based measurements. Several papers
+describe methods to process 3-D scans to recognize and measure body parts, even if with different approaches, constraints,
+practical purposes, and accuracy. Industrial solutions are often
+closed and strictly related to specific acquisition devices, providing different sets of body parameters and measurements.
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+GIACHETTI et al.: ROBUST AUTOMATIC MEASUREMENT OF 3D SCANNED MODELS FOR HUMAN BODY FAT ESTIMATION
+
+661
+
+Fig. 1. Basic idea of our system: 3-D scan is automatically processed extracting simple measurements based on skeletonization and body partitioning.
+These measurements can be used to derive health indicators and composition
+parameters.
+
+An overview of several methods to analyze and model the human body is presented in [6]. Recent works on automatic landmarking try to make the automatic analysis more robust, for example against pose variation [7] and different body types [8]. Accuracy in automatic landmarking with methods non-optimized
+for scanner and poses seems, however, still an open problem.
+An approach to derive geometric descriptors of a body consists of creating a statistical model of shape and pose from
+annotated examples. This method has been proposed, for example in [9] and [10]. Principal Component Analysis (PCA) is
+applied and PCA space directions correlated with features like
+the body fat or muscledness have been recovered with regression
+techniques. However, it is quite hard to create an accurate statistical model decoupling shape and pose due to the necessity of
+annotating a large set of models with corresponding landmarks.
+The use of 3-D body scanners for studying obesity is not
+new; several scanner manufacturers provide software tools to
+collect sets of measurements that can be used to analyze the
+body shape, and these anthropometric data have been recently
+correlated with metabolic parameters in validation studies [11],
+[12], [13], [14]. Methods used to extract measurements in these
+studies are, however, not standardized, usually require standard
+posture and compute girths at landmarks derived by markers or
+manually corrected in case of failure of automatic detection. A
+dedicated index, designed to be a potential replacement to the
+body mass index (BMI), and called body volume index [15] has
+been proposed to evaluate obesity. It is computed, however, with
+a closed software solution and is currently being validated.
+The novelty of our approach is that we propose a system generating fully automatic measurement of parameters independent
+of precise landmarking that can be obtained even with limitedquality models and few pose-related constraints. The software
+tool and the experimental study described here are designed as
+first steps in the development of an open system for the analysis
+of body shape features related to obesity and other diseases.
+III. PROPOSED SYSTEM
+We designed a processing pipeline (roughly described by
+Fig. 1) able to estimate selected shape parameters on models
+acquired by different devices and in different poses. The pipeline
+is based on a robust body partitioning relying on curve skeleton
+
+Fig. 2. First identification of limbs is made analyzing curve skeleton paths and
+scalar values of the radius and eccentricity across them. These features allow the
+identification of wrists and ankles and a first rough location of limb attachments
+to the trunk.
+
+extraction and evaluation of volumetric features to refine the
+placement of body parts boundaries.
+Given the model and knowledge of the acquisition reference
+system, we first remove outliers and floor points from the acquired point cloud and then remesh models to ensure a uniform
+quality using the Poisson method [16]. The resulting watertight
+models are then simplified with quadric edge collapse algorithm in order to obtain meshes with a controlled number of
+faces (20 K). These first steps are implemented using Meshlab
+scripting [17]. Together with the triangulated mesh, we also create a voxelized version of the geometry, discretized with cubes
+with side of 4 mm. In this voxelized volume, we compute some
+parameters like the distance from the border and the multiscale
+area projection transform (MAPT) [18] that are used in the further processing.
+The following step is the estimation of the curve skeleton of
+the model, e.g., a connected set of lines that are well centered
+in the tubular part of the model [19]. We apply the method
+described in [20] providing a smooth and centered connected
+tree, and also the estimated values computed at the skeletal
+points. If the legs are not in contact under the knee and arms are
+not adherent to the trunk under the elbow, this curve skeleton
+allows the recognition of limbs and of the head without further
+constraints on subject’s pose.
+The recognition of these body parts is performed as follows.
+The curve skeleton is a tree structure where line junctions are
+the nodes and lines with single connections are the leaves (see
+Fig. 2). We remove iteratively from it the shortest leaf with
+related connections, until only five leaves still remain: these lines
+should represent, at least partially, the skeleton of the limbs and
+the head. A simple decision tree based on the length and distance
+functions of the leaves is able to label them according to the
+structure included (arm, leg, and head). Leaves, i.e., candidate
+skeleton branches that should include limbs and head/neck are
+then processed in order to find a possibly accurate position of
+
+662
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fig. 3. (a) and (b) Skeletal lines segmented at radius discontinuities correspond
+to limbs sufficiently well only if arms and legs are not adherent to each other or
+to the body. (c) This happens also in routine health-related scanning, especially
+for overweight people.
+Fig. 4.
+
+the features that approximately define the segmentation of the
+main body parts, e.g., limbs and neck attachments to the trunk,
+knee, and elbow joints, wrist and ankle joints. In order to locate
+these points on the curve skeleton, we considered the behavior of
+three selected scalar values along the leaf points: local average
+diameter, eccentricity (computed throwing radii perpendicular
+to the local line direction and finding intersections with the
+border), and local curvature.
+Salient points roughly corresponding to ankles and wrists are
+placed where, going from the center to the extremity of the limb,
+the derivative of the average radius has a sign change. Attachments of legs and arms to the trunk are roughly placed where,
+going from the center of the leaf towards the trunk, there is a
+sudden change of the average radius or of the local eccentricity.
+Fig. 2 shows example plots of scalar values along the centerlines
+and the related feature positions detected. The heuristic on curve
+skeleton branches and the subsequent segmentation provides a
+reasonable partitioning of the human body, even in nonstandard
+poses [see Figs. 3 (a) and (b)], but only if the topology of the
+mesh is good. This is not the case for many routine acquisitions, especially if performed in healthcare practice. Especially
+studying overweight subjects, we have models where arms are
+partially attached to the trunk and legs that are in contact above
+the knees [see Fig. 3(c)]. We developed specific methods to
+overcome this problem.
+In order to adjust the body segmentation, we first obtain a
+rough estimate of the trunk axial direction, taken as the direction
+of the line joining the midpoints of legs and arms attachment. We
+similarly obtain a rough estimation of the transversal direction
+(joining the leg attachments) and of the coronal direction as
+the vector product of the first two. We then move iteratively
+upward the leg attachments along the axial direction and check
+the local section of the body locally perpendicular to it. We stop
+the procedure when the front-to-back distance computed in the
+points moved from the original attachments is higher than the
+maximal front-to-back distance computed near the center of the
+segment joining the two landmarks (see Fig. 4).
+Leg attachments are then refined centering them in the leg
+section. Starting from the leg attachment and going upward,
+along the trunk axis, we detect attachments of the arms to the
+trunk (not necessarily corresponding to armholes, if arms are
+close to it), located where distances of the points from left and
+
+Heuristic applied to find the corrected leg attachments.
+
+Fig. 5. Heuristic used to locate shoulders. (a) Initial landmarks location
+based on arm attachments and axis estimation. (b) Landmarks moved upward.
+(c) Landmarks moved in the MAPT. MAPT is shown using volume rendering
+inside the body shapes.
+
+right borders along the transversal direction present a sudden
+discontinuity. We use then the sections of the trunk under these
+point to refine the estimated trunk axis direction, as the direction optimally fitting the sections centroids. The trunk width
+measured at the detected attachments is also used to define lateral boundaries of the trunk in the upper region, avoiding the
+inclusion of the arm size in the trunk segmentation.
+To estimate approximate landmarks corresponding to the
+shoulders, we proceed as follows: first, we initialize two points
+near the position of the upper arms joints, with the distance
+from the axis equal to the distance of leg attachments from the
+trunk axis [see Fig. 5(a)]. We move the points upward along the
+trunk axis direction until they are close to the geometry border
+[see Fig. 5(b)]. Finally, we refine the landmarks’ positions by
+searching in a neighborhood of the reached positions the maximum of the MAPT [18], a volumetric function measuring the
+amount of spherical symmetry in a defined radius range (here,
+approximately corresponding to that of human shoulders’one).
+The function is computed by estimating the amount of the surface area projected at the selected distance around the centers
+of the voxels of a discretized grid. The final shoulder landmarks
+[see Fig. 5(c)] are finally connected to the previously extracted
+internal endpoints of the arms skeletons following paths maximizing the border distance. A further segmentation of knees and
+
+GIACHETTI et al.: ROBUST AUTOMATIC MEASUREMENT OF 3D SCANNED MODELS FOR HUMAN BODY FAT ESTIMATION
+
+663
+
+TABLE I
+LIST OF AUTOMATICALLY ESTIMATED MEASUREMENTS
+
+Fig. 6. Examples of centerline extraction and partitioning with stick figure extraction and corresponding approximate body partitioning derived. The method
+is robust to relevant body type variations and nonnegligible pose variations.
+
+elbows is performed searching near the expected position the
+maxima of smoothed curvature, if sufficiently large, otherwise
+(limbs not flexed), using the local values of the derivative of the
+radius.
+This procedure is able to segment the body parts even for
+nonstandard poses and different body types. Fig. 6 shows the
+example of skeletons and segmented bodies derived by our procedure. Stick figures are obtained by joining the salient points
+extracted, labeled surfaces shown here are obtained by first segmenting the voxelized volume with a region growing approach
+starting from the labeling of the segmented skeleton, then propagating labels to the mesh nodes.
+The whole segmentation and measurement pipeline is implemented as a C++ code, loading the preprocessed mesh,
+and computing and saving rough and segmented curve skeletons with associated parameters, stick figure, labeled mesh, and
+measurements without human feedback.
+IV. MEASUREMENT OF SHAPE FEATURES
+The accuracy of the placement of body sections boundaries is,
+however, clearly limited. Furthermore, we do not have specific
+anatomical markers identified on the mesh. It is very difficult
+to locate automatically anatomical landmarks with high precision, and it is indeed rather difficult to recognize corresponding body points in different subjects with different body types.
+Location of landmarks used in tape-based anthropometry is then
+done by palpation, so that it is often not possible to identify
+these points using pure geometrical information. Actually, even
+manually placed landmarks present relevant problems related
+to interoperators variability in location and measurements as
+shown, for example, in [21]. For these reasons, we decided to
+follow a novel approach, not trying to reproduce classical anthropometric measurements on digital models but attempting
+to find a body characterization not depending on precise landmarks placement. The idea is to compute simple parameters that
+can be estimated well with the available information, validating
+the results without a comparison with manual measurements,
+but directly correlating the values with body fat estimates. For
+example, from the model partitioning, trunk and limbs axes,
+transversal and coronal direction in the trunk, we can easily
+compute geometrical values that according to the tape-based
+
+anthropometry literature are probably correlated with the body
+fat. Maximal lengths and girths in selected slices/directions are
+particularly interesting not depending on the precise localization
+of anatomical landmarks. We believe that their measurement can
+be much more stable and relevant for the health-based analysis
+than classical point-based measurements.
+Table I shows the set of measurements that we computed on
+the 3-D models acquired. On the same subjects we acquired
+as well body composition parameters using a DXA scanner so
+that we could realize the study presented in the following sections demonstrating the value of the automatic shape analysis
+performed with our software. Note that breasts region is segmented with a simple gender-independent heuristic based on
+the location of the minimal girth under the arm attachments.
+V. AUTOMATIC MEASUREMENTS AND BODY FAT
+To understand if these measurements can be really useful
+for the indirect estimation of body composition parameters,
+we computed them on 3-D scans of subjects also undergoing different acquisition procedures. We analyzed a group of
+25 obese otherwise healthy female subjects, aged 20–60 years
+(BMI 30–40 kg/m2 ). The subjects underwent DXA scanning,
+optical 3-D scanning, and standard anthropometric procedures.
+During scanning and anthropometry, subjects wore close-fitting
+underwear. During DXA examination, subjects wore light garment, transparent to X-rays. For every subject, 3-D scanning,
+DXA, and manual anthropometry were performed sequentially
+in one session. Another group of subjects was comprised of 25
+nonobese females, undergoing 3-D scanning in multiple poses
+(see Fig. 7) and DXA scanning. Data come from a previous
+
+664
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+TABLE II
+PEARSON CORRELATION COEFFICIENTS OF THE ESTIMATED VALUES WITH
+DXA-BASED MEASUREMENTS FOR THE COMPLETE SET OF SUBJECTS
+(OBESE/NONOBESE SUBJECTS)
+
+Fig. 7.
+
+Three different poses used for the nonobese subject acquisition.
+
+study which received approval from the proper local ethical
+body.
+
+TABLE III
+PEARSON CORRELATION COEFFICIENTS OF THE ESTIMATED VALUES WITH
+DXA-BASED ESTIMATES FOR THE SET OF OBESE SUBJECTS
+
+A. DXA Scanning
+DXA represents the de facto standard measuring tool for body
+composition analysis. It allows to assess the body composition
+in terms of fat, lean, and mineral mass at the total body as well
+as regional level [23]. The device used in this experiment is a
+DXA QDR Explorer W (Hologic, MA, USA) available at the
+Department of Neurologic and Movement Sciences, University
+of Verona, Verona, Italy. The body composition assessment consists of an acquisition step and a subsequent definition of body
+regions on the 2-D acquisition performed by the same operator
+(CM) to ensure consistency. Main results of this analysis consist
+of whole-body composition parameters and regional composition data.
+In our experiments, we evaluated correlation of body measurements with three parameters evaluated by the DXA scanner:
+trunk fat, TBLH fat and trunk fat percentage. Trunk fat is the
+total fat measured in the trunk region (as defined by the operator
+according to manually placed standard anatomical landmarks
+on the 2-D acquisition); TBLH fat refers to the fat of the whole
+body without the head; the reason for that is the large amount of
+the mineralized tissue in the skull, preventing reliable evaluation
+of the head fat component. These parameters are well-known
+risk factors for metabolic alterations and disease.
+VI. EXPERIMENTAL RESULTS
+A. Measure Repeatability on Same or Variated Poses
+We first exploited multiple acquisitions to evaluate the repeatability of geometric measurements described in Table I. For
+most of the values, the standard deviation of the differences
+between the corresponding measurements in the paired acquisitions is indeed negligible and not significantly changed by
+pose variations. Only for a few measurement types, this value is
+higher and worse in case of different pose, e.g., minimum trunk
+width, that is difficult to evaluate when arms are attached to
+the body, or values computed in limbs. In any case, performing
+paired T-tests comparing all the sets of measurements of the
+
+same 25 subjects in same or in different poses (see Fig. 7), we
+always found that the differences are not statistically significant.
+B. Correlation of Measurements With DXA Parameters
+The correlation between the estimated values and the three
+fat indexes estimated with the DXA scanner is shown in Table II. Here, the Pearson coefficients for the correlation between
+measurements are shown for the three fat-related values.
+Because the correlation coefficients depend on the range of
+the body fat within the group, we also analyzed the coefficients
+for the two groups (obese/nonobese) separately. Results are reported in Tables III and IV. The correlations for the subgroups
+are lower, but still highly significant for selected measurements.
+For the obese subjects, we can also compare the correlation of the automatically extracted measurements with available
+data from manual anthropometry. It is particularly interesting
+fact that the correlation of automatic measurements with trunk
+and TBLH fat (see Table III) is higher than that with manual
+anthropometric measurements. If the manually estimated hip
+
+GIACHETTI et al.: ROBUST AUTOMATIC MEASUREMENT OF 3D SCANNED MODELS FOR HUMAN BODY FAT ESTIMATION
+
+665
+
+TABLE IV
+PEARSON CORRELATION COEFFICIENTS OF THE ESTIMATED VALUES WITH
+DXA-BASED ESTIMATES FOR THE SET OF NONOBESE SUBJECTS
+
+circumference presents a Pearson coefficient similar to the one
+obtained with the maximal average radius of the trunk section,
+the correlation of all the manual measurements with TBLH fat
+or trunk fat percentage is relevantly lower than those obtained
+with many automatic measurements. We explain this fact with
+the difficulty in precisely localizing the landmarks used in manual procedures. The search for the maximal size with automatic
+procedures on the 3-D mesh partially overcomes this problem.
+Automatic measurements also seem much more informative on
+the body composition than the BMI.
+C. Indirect Fat Estimation
+We finally tried to evaluate the indirect body fat estimates that
+can be obtained from the automatic measurements on the full
+set of models. The idea is simply to compute the coefficients of
+a regression formula and use the regression model obtained to
+estimate the body fat.
+We tested different regression functions using MATLAB implementations provided in PRTools (http://www.37steps.com),
+e.g., ridge regression, LASSO, support vector regression, Gaussian process regression. The best results were obtained with the
+usual linear regression. On the set of 50 subjects, the regression error (absolute residual error divided by the target value) is
+0.052 for TBLH fat, 0.060 for trunk fat, and 0.064 for trunk fat
+percentage.
+To evaluate the real error of an automatic measure-based fat
+estimation, we should, however, separate training and test sets.
+Due to the limited number of subjects available, we validated
+the estimator using a leave-one-out cross-validation procedure,
+computing the regression parameters on all but one subject and
+estimating with the obtained coefficients the fat parameters of
+the remaining one.
+Fig. 8 shows Bland–Altman plots representing differences
+between DXA-estimated fat parameters (trunk fat, trunk fat percentage, and TBLH fat) and corresponding values computed by
+linear regression with the leave-on-out procedure. Plots show a
+reasonable agreement of the two measurements, and the accuracy of the estimate does not seem to change with the amount
+of the fat. The differences of the means divided by the average
+
+Fig. 8. Bland–Altman plots representing the difference between the DXAestimated fat values and the predictions obtained with the regression coefficients
+(in the leave-one-out cross-validation) as a function of the average of the two
+estimates. Almost, all the values are within the lines representing the conventional two standard deviations distance from the average, and the behavior does
+not seem to depend on the individual fat mass.
+
+values are 1.0%, 1.1%, and 0.9%, respectively, and performing
+a paired T-test, by conventional criteria, they are not statistically
+significant.
+D. Feature Selection
+The different measurements tested are not independent and
+may not be all useful to improve the fat predictability. Different
+approaches can be used to try to figure out an optimal subset
+of measurements. We applied for the task a backward feature
+selection procedure, removing iteratively the features leaving
+the lowest regression error for the remaining ones. Fig. 9 shows
+plots of the changes in the regression residual error when less
+relevant features are iteratively removed. It is possible to see
+that dropping some measurements from the original list with
+14 elements, the quality of the fit remains almost unchanged.
+It seems that good predictability for each parameter can be
+obtained with a subset of eight to nine measurements, and further
+addition of features does not change relevantly the result. The
+
+666
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+for epidemiological studies due to its easiness and low cost, it
+does not convey information about the body composition and
+has limitations in assessing the risk of obesity-related health
+problems [26], [27]. Since 3-D scanning has already been used
+with success in epidemiological surveys [28], the development
+of reliable 3-D measurements correlating with, and/or predicting
+health-related body fat parameters would represent a significant
+improvement over BMI.
+If we consider that our measurement pipeline actually works
+on a simplified model at a modest resolution (voxelized on a grid
+with 4-mm spacing) and acquisitions with this accuracy can be
+performed also with cheap devices like Microsoft Kinect; the
+proposed body evaluation could be practical in the near future,
+with cheap and portable setups at home or in a medical doctor’s
+office.
+ACKNOWLEDGMENT
+
+Fig. 9. Changes in regression errors obtained in a backward feature selection,
+e.g., removing iteratively less relevant features from the model.
+
+last feature left in the backward selection is always the body
+volume. The addition of trunk section maximal measurements
+is always effective in relevantly improving the accuracy, and
+also measurements in the limbs are able to improve the fat
+predictability, even if with a smaller effect.
+VII. DISCUSSION
+We have presented an automatic system able to extract simple measurements from 3-D human body scans. Special aspects
+of our systems are the ability to work with models of different
+quality, resolution, and pose. The set of measurements extracted,
+including maximal lengths and diameters in trunk sections, is
+not critically depending on specific landmarks that are difficult
+to be located and makes usual digital and even manual anthropometry subject to nonnegligible interoperator errors. These
+measurements do not correspond to classical anthropometric
+measurements, but encode even more reliable information on
+body composition than classical values.
+Our tests, in fact, showed that these automatically extracted
+body measurements strongly correlate with the DXA-measured
+total body and trunk fat, which are recognized health risk factors
+[24], and reasonably predict body fat parameters in regression
+equations thereby providing indirect evidence that 3-D scanning
+may have medical value.
+These findings are supported by previous results showing that
+3-D body scanning measurement of conventional anthropometric parameters (e.g., W/H ratio) is of use in forecasting metabolic
+disorders [25], [2]. Furthermore, research directly correlating
+automatic measurements presented herein and clinically relevant parameters is needed to fully validate our approach.
+We also showed that automatically extracted body measurements from 3-D scans might perform equally or better than BMI
+in correlating with body fat parameters. While BMI is practical
+
+The authors would like to thank Prof. P. Moghetti and Dr.
+M.G. Zenti, Department of Medicine, University of Verona,
+Verona, Italy, for recruiting obese subject. Prof. E. Trucco
+checked the English.
+REFERENCES
+[1] J. A. Hodgdon, “Body composition in the military services: Standards and
+methods,” in Body Composition and Physical Performance: Applications
+for the Military Services. Washington, DC, USA: National Academies
+Press, 1992, pp. 57–70.
+[2] J. D. Lin, W. K. Chiou, H. F. Weng, J. T. Fang, and T. H. Liu, “Application of three-dimensional body scanner: Observation of prevalence of
+metabolic syndrome,” Clin. Nutrition, vol. 23, no. 6, pp. 1313–1323, 2004.
+[3] M. K. Tulloch-Reid, D. E. Williams, H. C. Looker et al., “Do measures of
+body fat distribution provide information on the risk of type 2 diabetes in
+addition to measures of general obesity?” Diabetes Care, vol. 26, no. 9,
+pp. 2556–2561, 2003.
+[4] E. Turcato, O. Bosello, V. Di Francesco et al., “Waist circumference and
+abdominal sagittal diameter as surrogates of body fat distribution in the elderly: Their relation with cardiovascular risk factors,” Int. J. Obes. Related
+Metabolic Disorders, vol. 24, no. 8, pp. 1005–1010, 2000.
+[5] M. Zamboni, E. Turcato, F. Armellini et al., “Sagittal abdominal diameter
+as a practical predictor of visceral fat,” Int. J. Obesity Related Metabolic
+Disorders: J. Int. Assoc. Study Obesity, vol. 22, no. 7, pp. 655–660, 1998.
+[6] N. Werghi, “Segmentation and modeling of full human body shape from
+3-D scan data: A survey,” IEEE Trans. Syst., Man, Cybern. C, Appl. Rev.,
+vol. 37, no. 6, pp. 1122–1136, Nov. 2007.
+[7] S. Wuhrer, Z. B. Azouz, and C. Shu, “Posture invariant surface description and feature extraction,” in Proc. IEEE Conf. Comput. Vision Pattern
+Recog., 2010, pp. 374–381.
+[8] H. Han and Y. Nam, “Automatic body landmark identification for various
+body figures,” Int. J. Ind. Ergonomics, vol. 41, no. 6, pp. 592–606, 2011.
+[9] D. Anguelov, P. Srinivasan, D. Koller, S. Thrun, J. Rodgers, and J. Davis,
+“SCAPE: shape completion and animation of people,” ACM Trans.
+Graph., vol. 24, no. 3, pp. 408–416, Jul. 2005.
+[10] N. Hasler, C. Stoll, M. Sunkel, B. Rosenhahn, and H. P. Seidel, “A statistical model of human pose and body shape,” Comput. Graphics Forum,
+vol. 28, no. 2, pp. 337–346, 2009.
+[11] T. N. Garlie, J. P. Obusek, B. D. Corner, and E. J. Zambraski, “Comparison of body fat estimates using 3-D digital laser scans, direct manual
+anthropometry, and DXA in men,” Amer. J. Human Biol., vol. 22, no. 5,
+pp. 695–701, 2010.
+[12] R. Heuberger, T. Domina, and M. MacGillivray, “Body scanning as a
+new anthropometric measurement tool for health-risk assessment,” Int. J.
+Consumer Studies, vol. 32, no. 1, pp. 34–40, 2008.
+[13] J. Wang, D. Gallagher, J. C. Thornton, W. Yu, M. Horlick, and F. X.
+Pi-Sunyer, “Validation of a 3-D photonic scanner for the measurement
+of body volumes, dimensions, and percentage body fat,” Amer. J. Clin.
+Nutrition, vol. 83, no. 4, pp. 809–816, 2006.
+
+GIACHETTI et al.: ROBUST AUTOMATIC MEASUREMENT OF 3D SCANNED MODELS FOR HUMAN BODY FAT ESTIMATION
+
+667
+
+[14] J. C. K. Wells, T. J. Cole, D. Bruner, and P. Treleaven, “Body shape in
+American and British adults: Between-country and inter-ethnic comparisons,” Int. J. Obesity, vol. 32, no. 1, pp. 152–159, 2007.
+[15] A. Tahrani, K. Boelaert, R. Barnes et al., “Body volume index: time to
+replace body mass index?” Endocrine Abstracts, vol. 15, p. 104, 2008.
+[16] M. Kazhdan, M. Bolitho, and H. Hoppe, “Poisson surface reconstruction,”
+in Proc. 4th Eurographics Symp. Geometry Process., 2006, pp. 61–70.
+[17] P. Cignoni, M. Callieri, M. Corsini et al., “MeshLab: An open-source
+mesh processing tool,” in Proc. Eurographics Italian Chapter Conf., 2008,
+pp. 129–136.
+[18] A Giachetti and C Lovato, “Radial symmetry detection and shape characterization with the multiscale area projection transform,” Comput. Graphics Forum, vol. 31, pp. 1669–1678, 2012.
+[19] N. D. Cornea and P. Min, “Curve-skeleton properties, applications, and
+algorithms,” IEEE Trans. Visualization Comput. Graphics, vol. 13, no. 3,
+pp. 530–548, May/Jun. 2007.
+[20] C. Lovato, U. Castellani, and A. Giachetti, “Automatic segmentation
+of scanned human body using curve skeleton analysis,” in Computer
+Vision/Computer Graphics Collaboration Techniques, Lecture Notes
+in Computer Science, Berlin, Heidelberg, Germany: Springer, 2009,
+vol. 5496, pp. 34–45.
+[21] M. Kouchi and M. Mochimaru, “Errors in landmarking and the evaluation
+of the accuracy of traditional and 3-D anthropometry,” Appl. Ergonomics,
+vol. 42, no. 3, pp. 518–527, 2011.
+[22] D. M. Thomas, C. Bredlau, A. Bosy Westphal et al., “Relationships between body roundness with body fat and visceral adipose tissue emerging
+from a new geometrical model,” Obesity, 2013.
+[23] C. V. Albanese, E. Diessel, and H. K. Genant, “Clinical applications of
+body composition measurements using DXA,” J. Clin. Densitometry,
+vol. 6, no. 2, pp. 75–85, 2003.
+[24] W. V. Brown, K. Fujioka, P. W. F. Wilson, and K. A. Woodworth, “Obesity: Why be concerned?” Amer. J. Med., vol. 122, no. 4, p. I–CO4, 2009.
+[25] W.-K. Chiou, J.-D. Lin, H.-F. Weng et al., “Correlation of the dysmetabolic
+risk factors with different anthropometric measurements,” Endocrine J.,
+vol. 52, no. 1, pp. 139–148, 2005.
+[26] F. B. Madeira, A. A. Silva, H. F. Veloso et al., “Normal weight obesity is
+associated with metabolic syndrome and insulin resistance in young adults
+from a middle-income country,” PloS One, vol. 8, no. 3, p. e60673, 2013.
+[27] R. Thibault and C. Pichard, “The evaluation of body composition: A useful
+tool for clinical practice,” Ann. Nutrition Metabolism, vol. 60, no. 1, pp. 6–
+16, 2011.
+[28] J. C. K. Wells, P. Treleaven, and S. Charoensiriwath, “Body shape by 3-d
+photonic scanning in Thai and UK adults: Comparison of national sizing
+surveys,” Int. J. Obesity, vol. 36, no. 1, pp. 148–154, 2011.
+
+Christian Lovato, Ph.D., is postdoctoral fellow at
+the Department of Computer Science of the University of Verona, Verona, Italy. He worked in several
+projects related to Digital Anthropometry and 3D
+modelling.
+
+Andrea Giachetti, Ph.D., is Associate Professor at
+the Department of Computer Science of the University of Verona, Verona, Italy. He received Master’s degree in Physics, in 1993 and Ph.D. degree in
+Physics in 1997, from the University of Genova, Genova, Italy. His research activity is mainly focused on
+Computer Vision, Computer Graphics, Medical image processing and Shape Analysis.
+
+Carlo Zancanaro, M.D., is Full professor of Human
+Anatomy at the University of Verona, Verona, Italy.
+His research interests are mainly focused on Anthropometry and Body Composition.
+
+Francesco Piscitelli, Ph.D. works at the Department
+of Neurological and Movement Sciences, University
+of Verona, Verona, Italy. His main research area is
+Body Composition and Body Dimensions in correlation with team sport activity.
+
+Chiara Milanese is Research Assistant at the Department of Neurological and Movement Sciences,
+University of Verona, Verona, Italy. Her current research is focused on kinanthropometry and body
+composition correlated to physical activity, sport as
+well as healthy and disease conditions, and in kinematics and dynamics analysis of sport activities.
+
+

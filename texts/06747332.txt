@@ -1,0 +1,664 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 1, JANUARY 2015
+
+325
+
+SleepAp: An Automated Obstructive Sleep Apnoea
+Screening Application for Smartphones
+Joachim Behar, Aoife Roebuck, Mohammed Shahid, Jonathan Daly, Andre Hallack, Niclas Palmius,
+John Stradling, and Gari D. Clifford, Senior Member, IEEE
+
+Abstract—Obstructive sleep apnoea (OSA) is a sleep disorder
+with long-term consequences. Long-term effects include sleeprelated issues and cardiovascular diseases. OSA is often diagnosed
+with an overnight sleep test called a polysomnogram. Monitoring
+can be costly with long wait times for diagnosis. In this paper,
+a novel OSA screening framework and prototype phone application are introduced. A database of 856 patients that underwent
+at-home polygraphy was collected. Features were derived from audio, actigraphy, photoplethysmography (PPG), and demographics,
+and used as the inputs of a support vector machine (SVM) classifier.
+The SVM was trained on 735 patients and tested on 121 patients.
+Classification on the test set had an accuracy of up to 92.2% when
+classifying subjects as having moderate or severe OSA versus being healthy or a snorer based on the clinicians’ diagnoses. The
+signal processing and machine learning algorithms were ported to
+Java and integrated into the phone application—SleepAp. SleepAp
+records the body position, audio, actigraphy and PPG signals, and
+implements the clinically validated STOP–BANG questionnaire. It
+derives features from the signals and classifies the user as having
+OSA or not using the SVM trained on the clinical database. The
+resulting software could provide a new, easy-to-use, low-cost, and
+widely available modality for OSA screening.
+Index Terms—Actigraphy, audio, mHealth, obstructive sleep
+apnoea (OSA), PPG, sleep disorders.
+
+I. INTRODUCTION
+BSTRUCTIVE sleep apnoea (OSA) is a disorder characterized by periods of breathing cessation (apnoea) and
+periods of reduced breathing effort (hypopnoea) during sleep
+due to the complete or partial collapse of the upper airway.
+
+O
+
+Manuscript received August 11, 2013; revised November 17, 2013 and February 2, 2014; accepted February 16, 2014. Date of publication February 24, 2014;
+date of current version December 30, 2014. The work of JB was supported by
+the UK Engineering and Physical Sciences Research Council and the Balliol
+French Anderson scholarship fund. The work of AR, JD, NP, and AH was supported by the RCUK Digital Economy Programme under Grant EP/G036861/1.
+The work of AH was supported by the Capes Foundation, Ministry of Education
+of Brazil (Proc. No BEX 0725/12-9). The work of GC was supported by the
+Wellcome Trust under the Centre Grant 098461/Z/12/Z for The University of
+Oxford Sleep and Circadian Neuroscience Institute and under the Engineering
+and Physical Sciences Research Council Grant EP/K020161/1.
+J. Behar, A. Roebuck, M. Shahid, J. Daly, A. Hallack, N. Palmius, and
+G. D. Clifford are with the Institute of Biomedical Engineering, Department
+of Engineering Science, University of Oxford, Oxford OX1 2JD, U.K. (e-mail:
+joachim.behar@eng.ox.ac.uk).
+J. Stradling is with the Sleep Unit, Oxford Centre for Respiratory Medicine,
+Oxford Biomedical Research Centre, Churchill Hospital, Oxford, Oxfordshire
+OX3 7LE, U.K.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2307913
+
+This leads to deoxygenation (as there is no air going into the
+lungs, the arterial oxygen levels drop and the carbon dioxide
+levels rise) and consequent arousal caused by a surge of sympathetic nervous system activity. Long-term consequences include
+sleep-related issues and cardiovascular diseases. OSA is often
+diagnosed with an overnight sleep study or polysomnogram
+(PSG) which is considered to be the gold standard for OSA diagnosis. Subjects fall into a number of categories based on the
+average number of apnoea and hypopnoea events (AHI) or the
+average number of oxygen desaturation events (ODI) they have
+per hour of sleep: healthy/snorer: AHI/ODI < 5; mild OSA: 5
+≤ AHI/ODI ≤ 15; moderate OSA: 15 < AHI/ODI ≤ 30; severe
+OSA: AHI/ODI > 30.
+Monitoring can be costly (between $1000 and $1217 [1]) and
+the wait time for diagnosis can be long. In addition, patients
+with undiagnosed OSA are high users of healthcare services
+with expenditure estimated to be almost double of that of the
+age and gender-matched controls [2]. OSA is a common disorder affecting anywhere from 2% to 7% of the adult population
+globally [3]–[9] but with a high variance across ethnic groups.
+It is estimated that up to 90% of subjects with the disorder are
+undiagnosed and untreated [10].
+There are many home sleep recording systems that aim to
+reduce the financial burden of in-hospital PSG. Examples include the type II Sleepscan Netlink Traveller (Bio-Logic Systems, Mundelein, Illinois, USA); the type II Vitaport-4 PSG
+(TEMEC Instruments, Kerkrade, Netherlands); the type IV Grey
+Flash (Stowood Scientific Instruments, Oxford, U.K.); WatchPAT (Itamar Medical Ltd, Tel Aviv, Israel); and Nox T3 (Yorba
+Linda, California, USA). However, patients who may be unfamiliar with medical instrumentation have to set up the equipment
+by themselves and the data needs to be reviewed by a sleep professional which is costly and time consuming. This could be
+avoided with an automated diagnosis algorithm.
+The recent increase in adoption of smartphones along with
+the inclusion of high-quality internal sensors has led to the proliferation of sleep screening smartphone applications (apps).
+The computational platform and sensors provided by such devices have been used for sleep screening by many recentlyreleased apps. Behar et al. [11] reviewed more than 40 sleep
+apps available on the Android market and Apple App Store and
+concluded that none of the apps were based on clear scientific
+evidence (with the exception of apps implementing simple sleep
+questionnaires). The research question addressed in this work
+is whether a simple, cheap, and effective framework can be
+created using the capabilities provided by a modern smartphone
+to screen for and/or monitor OSA.
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+326
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 1, JANUARY 2015
+
+TABLE I
+CLINICAL DATABASE
+
+patients (50.1% nonOSA and 49.9% OSA) and tested on 121
+patients (36.4%–63.6% split). This experiment is denoted as
+EXP-1. In a second run, denoted EXP-2, the SVM was trained
+and tested on the data set excluding the mild OSA patients.
+B. Framework Motivation
+
+In this paper, a novel OSA screening framework and associated Android phone application, ‘SleepAp’ are introduced.
+SleepAp uses internal phone sensors and an external pulse
+oximeter to record audio, activity, body position, and oxygen
+saturation during sleep. The algorithms implemented in the app
+are motivated by signal processing and machine learning algorithms validated on a clinical database. Section II-A introduces
+the clinical database used to motivate the app framework and
+validate the algorithms, while Section II discusses the recording
+of the signals on the phone. Section III presents the results obtained on the clinical database and the new Android SleepAp.
+Finally, Section IV discusses the phone app, future work, and
+provides a conclusion.
+II. METHODS
+A. Clinical Database
+In order to train and validate the signal processing and
+machine learning algorithms to be ported to the smartphone
+platform, 856 randomly chosen patients from the Respiratory Medicine Unit (Churchill Hospital, Oxford, U.K.) were
+recorded in a home environment using the Grey Flash home
+polygraphy recording device (Stowood Scientific Instruments
+Ltd, Oxford, U.K.). Patient records were collected over a three
+year period (2010 to 2013). Overall, the recordings of 1354
+subjects were collected; however, they had been referred to the
+respiratory medicine unit and so many of the diagnoses were not
+relevant (e.g., lung cancer, hypoventilation) or the recordings
+failed (technical failure or recording less than four continuous
+hours). Further details of the database used in this analysis can
+be found in [12]. Each subject’s recording was analyzed by an
+experienced clinician and a diagnosis given based on the ODI,
+sound recording, sleep disturbance from movement, heart rate,
+pulse transit time (PTT), and respiratory effort from PTT. It
+should be noted that there can be considerable sleep disturbance
+even when the ODI is low, for example in upper airway resistance syndrome, so that a subject with an ODI of 7 could be classified as moderate if there are many snoring related arousals as
+well. Therefore, the classification is based on the ODI but modified according to the medical expert’s reading/interpretation.
+Thus, true numerical thresholds are not optimal and in the sleep
+clinic, where the data were recorded and diagnosed, they are regarded as less useful than a more global interpretation. A more
+complete description of the diagnosis process can be found in
+Craig et al. [13]. Patients were randomly separated into training and test sets (see Table I). Features were derived from the
+audio, actigraphy, and photoplethysmogram (PPG) signals and
+a support vector machine (SVM) classifier was trained on 735
+
+The ultimate goal of the developed phone application is to
+provide an accurate screening tool for OSA by providing the
+probability of a user belonging to one of the following two
+classes: nonOSA (healthy and snorers) and OSA (mild, moderate and severe). Audio, actigraphy, body position, and PPG can
+be recorded on the phone and sleep-related features extracted
+from those signals. Using the sleep-related features in combination with the answers from a clinically validated questionnaire,
+the patients are classified as belonging to one of the two classes.
+Fig. 1 gives an example of the signals of interest for a patient
+who was diagnosed with (a) severe OSA and for a patient who
+was diagnosed as (b) nonOSA .
+1) Features: Many alternative algorithms for deriving features from sleep time series exist (see [14] for a review). Based
+on the work of Roebuck et al. [15], Behar et al. [16], and Higgins
+et al. [17], multiscale entropy (MSE) which corresponds to sample entropy calculated over varying time scales was chosen to
+quantify the irregularity in the audio and actigraphy recordings
+with extremes of entropy indicating pathological physiology. In
+this paper, using the entropy computed at multiple scales improved classification between the OSA and nonOSA individuals
+when compared to using only one scale for entropy. As such,
+multiple MSE-based features were used for audio and actigraphy (see Table II). MSE was implemented using Physionet’s
+open-source C code [18]. The ODI (derived from the PPG signal) and available demographics were used as features for the
+SVM classifier. Table II lists all the features.
+2) Machine Learning: We used an SVM classifier (libSVM
+library [19], [20]) with a Gaussian (nonlinear) kernel with two
+parameters: C (controls the tradeoff between minimizing training errors and the model complexity [21]) and γ (width of the
+Gaussian kernel). Based on cross-validation performed on the
+training data set, C and γ were optimized for each combination of features using a grid search. The decision boundary of
+the resulting SVM classifier corresponds to y(x) = 0, where x
+is the feature vector and the classification confidence increases
+with respect to the magnitude of the decision function y. As a
+consequence, the pairwise probability (i.e., the probability of an
+occurrence x belonging to class 1 knowing that i ∈ {−1, 1})
+is calculated using a sigmoid function whose output value is in
+[0 1] and with the decision boundary corresponding to the point
+where the sigmoid function is equal to 0.5. Outputting a probability estimate (i.e., the likelihood of having OSA) instead of
+performing a classification based on decision value is preferable
+in the context of the app as it will be used for screening purposes.
+For the statistics reported in this paper, the decision threshold
+is taken to be 0.5. All features were normalized by subtracting
+the mean and dividing by the standard deviation computed on
+the training set data. The probability estimate computation is
+described in [22].
+
+BEHAR et al.: SLEEPAP: AN AUTOMATED OBSTRUCTIVE SLEEP APNOEA SCREENING APPLICATION FOR SMARTPHONES
+
+327
+
+Fig. 1. Illustration of the signals of interest as well as the airflow signal from the clinical database for (a) a patient with severe OSA; and (b) a nonOSA patient.
+OSA events can be clearly identified on the plots for the patient with severe OSA; multiple drops in oxygen saturation by more than 3% –4% of the baseline, no
+airflow for long intervals and no breathing sounds.
+TABLE II
+LIST OF FEATURES
+
+C. Operating System and General Setup
+There are a number of suitable mobile phone operating systems (OS) available with the most common including Android,
+iOS, Windows Phone, and BlackBerry. As pointed out by Behar
+et al. [11], the choice of the OS is subject to two criteria: 1)
+how widespread it is, and 2) the homogeneity of the hardware.
+Android is the best choice considering the first criterion given
+its large market share but iOS better satisfies the second. For
+this study, we decided to work with Android (versions 2.3.3
+to 4.2.2, covering over 95% of Android devices [23]) due to
+its open-source licensing and recent growth in market share,
+particularly in developing countries [24]. However, there are
+challenges due to the nonhomogeneous hardware which will
+need to be evaluated further.
+D. Recorded Signals
+1) Actigraphy: Actigraphy consists of monitoring human
+activity. Its measurement during sleep has been shown to be a
+valid tool in helping to differentiate healthy adult patients from
+those suffering from some sleep disorders [25]. Accelerometers
+in mobile phones can be used to record the patient’s movement
+over the night; these sensors come with a variety of different
+precisions and sensitivities. The framework described here contains an actigraphy analysis module which extracts movement
+information and transforms it into features which can be used
+
+to assess the likelihood of the patient having OSA. The app
+samples motion at 4 Hz which is in the range of some devices
+currently used in medical practice for diagnosis of OSA (e.g.,
+1 and 4 Hz for VISI and Grey Flash, respectively, both from
+Stowood Scientific Instruments Ltd, Oxford, U.K.).
+The accelerometer measures the acceleration applied to the
+→
+device (−
+a ). Conceptually, thiswas done by measuring forces
+→
+−
+→
+−
+→
+−
+applied to the sensor (Fi ) with N
+i=1 Fi = m a , where N is the
+number of external forces applied to the system, m is the mass of
+the device. Gravity always influences
+acceleration;
+N the measured
+→
+−
+→
+−
+→
++
+m
+g = m−
+a.
+F
+thus, we may rewrite it as:
+i=1= gravity i
+This phenomenon can be observed by leaving the phone on a flat
+→
+−
+surface (∀i ∈ N = gravity, Fi = 0), where the accelerometer
+gives a value of magnitude g = 9.8 ms−2 . To access the acceleration of the device caused only by the patient’s movement, the
+contribution of the force of gravity needs to be removed. This
+can be achieved by applying a high-pass filter to the accelerometer time-series. A finite impulse response band-pass filter was
+implemented in Java for filtering the raw data on the phone (with
+cut-off frequencies at 0.75 and 1.65 Hz). The higher cut-off frequency serves to filter out noise. The discrete model used for
+the filter is given by
+wk [j] =
+
+vk [j] − vk [j − 1] − vk [j − 2] + vk [j − 3]
+,
+2
+
+where vk [j] is the input acceleration signal for direction k (from
+the three cardinal directions x, y, and z) and wk [j] is the filtered
+acceleration signal. The lower cut-off frequency property of
+this filter ensures that most of gravity component in the acquired
+signal is removed. The composite acceleration is then computed
+as
+
+M [j] = wx2 [j] + wy2 [j] + wz2 [j].
+The computed acceleration magnitude signal is grouped every
+one second and the logarithm of the variance within this second
+is computed as
+
+
+
+
+Yac (n) = log Var M (n) + 1 ,
+
+328
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 1, JANUARY 2015
+
+TABLE IV
+SVM CLASSIFICATION ON CLINICAL DATA: EXP-2, {NORMAL, SNORER}
+VERSUS {MODERATE AND SEVERE OSA}
+
+Fig. 2. Body position with respect to Pitch (X) and Roll (Y) angles. 1=prone,
+2=right, 3=left, 4=suppine, 5=sitting up.
+TABLE III
+EXP-1, SVM CLASSIFICATION ON CLINICAL DATA: {NORMAL, SNORER}
+VERSUS {MILD, MODERATE, AND SEVERE OSA}
+
+where Yac is the actigraphy processed signal and M (n) =
+{M (t), ∀t ∈ T : nΔT ≤ t < (n + 1)ΔT } , M is the computed
+acceleration magnitude signal, t is the signal acquisition time
+and ΔT = 1 s. The last processing stage consists of calculating
+MSE for Yac .
+2) Body Position Assessment: It has been shown that there
+is a correlation between the severity of apnoeic events and body
+position during sleep [26]. As a consequence, body position
+could be used as a diagnostic feature during the referral stage.
+The developed framework measures the proportion of time spent
+during the night on each of the following positions: supine,
+sitting, prone, and laying sideways (left or right).
+Body position can be computed on a mobile phone by taking
+complimentary measures from two sensors commonly found in
+smartphones: an accelerometer and a geomagnetic field sensor
+[27]. SleepAp uses pitch and roll angles to determine in what
+positions the patient is resting while assuming the phone is worn
+on an armband oriented parallel to the reference coronal plane.
+The phone is worn in an armband for convenience. Fig. 2 shows
+the body position mapping with the pitch and roll angles. The
+body position was assessed every 0.25 s (4 Hz). Each change of
+the patient’s position was recorded and the overall proportion
+of time spent in each of the different positions overnight was
+computed. The accelerometer-derived angles can be imprecise
+in the case of a nonquasi-static system. However, for the activity
+being produced during sleep, these measures are good enough
+to provide the proportion of time spent in each of the different
+positions during the night.
+3) Audio: Recorded audio of the patient’s breathing during
+sleep is an efficient tool for OSA diagnosis. Snoring sounds from
+healthy and sleep apnoea patients have significant differences
+and may be used alone to provide accurate classification be-
+
+tween these two groups [28]. It is important, particularly when
+dealing with low-cost equipment, to ensure that the acquired signals retain their relevant diagnostic features. There are multiple
+parameters in the audio acquisition workflow that have an impact on the audio quality [11]: frequency response of the phone’s
+sound card; the format of the recorded audio file (i.e., the encoding and associated compression algorithms); type/quality of
+microphone, and the location of the microphone in relation to
+the subject (e.g., on-body or off-body).
+Current sleep apnoea audio recording systems acquire the
+signal with a broad range of sampling rates (5 kHz [28],
+20 kHz [29], 44.1 kHz [30]). OSA patients’ snoring sounds
+present a wide range of frequency response spectra depending
+on the physical phenomenon causing it. In general, obstruction
+snores have at least 75% of their energy restricted to frequency
+components under 2 kHz [31]. Since memory is a limited resource when performing recordings with smartphones, audio is
+acquired in the proposed framework with a sampling rate of 8
+kHz. The signal is recorded using uncompressed single-channel
+(mono) 16-bit pulse-code modulation. The microphone is attached to the face using surgical tape, plasters, or any other
+medical adhesive. The acquired audio signal is processed in a
+similar way to the accelerometer data (Section II-D1).
+
+
+
+
+Yau (n) = log Var S(n) + 1 ,
+where Yau is the audio processed signal and S(n) =
+{S(t), ∀t ∈ T : nΔT ≤ t < (n + 1)ΔT } , S is the acquired
+audio signal, t is the signal acquisition time, and ΔT = 1 s.
+Finally, MSE is run on Yau .
+4) PPG: PPG was recorded using the WristOx2 3150 pulse
+oximeter (Nonin Medical Inc., MN, USA). The pulse oximeter
+is connected to the app via Bluetooth and records PPG at a
+sampling frequency of 75 Hz. The WristOx2 is attached to the
+subject’s wrist and one finger (index, middle, or ring) is inserted
+into the finger cuff. The pulse oximeter is powered by two
+1.5-V AAA batteries and its operating life is given as “24 hours
+minimum” in the model specification. ODI was derived from the
+recorded oxygen saturation data with a desaturation event being
+defined as a decrease of at least 4% from the average oxygen
+saturation (calculated from the previous 120 s) and lasting for
+at least 10 s.
+E. Feature Extraction and Classification
+Once the features have been derived—from audio, actigraphy, PPG, and the questionnaire—the features are classified
+using a trained SVM. The implementation draws upon the
+
+BEHAR et al.: SLEEPAP: AN AUTOMATED OBSTRUCTIVE SLEEP APNOEA SCREENING APPLICATION FOR SMARTPHONES
+
+329
+
+TABLE V
+PER GROUP CLASSIFICATION ACCURACY (%) FOR EXP-1 USING VARIOUS SENSOR CONFIGURATIONS
+
+Fig. 3.
+
+SleepAp screenshots. From left to right: main menu, STOP–BANG questionnaire, recording, and analysis modules.
+
+Fig. 4.
+
+Setup of the equipment; (a) attaching armband, (b) and (c) microphone setup, (d) pulse oximeter setup, (e) final setup.
+
+multiplatform open-source software library LIBSVM [32], as
+Android uses standard Java libraries. Development of the classifier took place in MATLAB (using LIBSVM) to generate
+a structure containing the SVM type, kernel type, number of
+classes, total number of support vectors, offset, class labels, and
+the support vectors (see [17] for details). This structure was then
+saved as a text file to allow the Android application to import
+it in a standardized format. Since recording PPG requires the
+user to have a pulse oximeter—which might be relatively expensive or simply unavailable (and, thus, not realistic for mass
+screening)—and recording actigraphy requires the user to have
+an armband, multiple SVM structures were trained on all possible combinations of signals. This means that a prediction can
+be obtained with any combination of recorded signals (audio,
+actigraphy, PPG, and demographics).
+III. RESULTS
+A. Results on the Clinical Database
+Tables III and IV present the result obtained when training
+and testing six representative SVM classifiers on the clinical
+database. Each of the SVM classifiers use a different combination of signals. Table V provides the per group classification accuracy for EXP-1. Best results on the test set for EXP-1
+
+and EXP-2 were obtained using a combination of audio, actigraphy, and ODI, achieving a test accuracy accuracy (Ac) of
+Ac = 88.4% and Ac = 92.3%, respectively.
+B. Application Framework
+1) General Description: SleepAp is composed of five modules as shown in Fig. 3 which shows sample screens of the app:
+1) “About apnoea” includes information about the disease, its
+manifestation, and treatments. This module also allows the patient to listen to healthy, snoring, and OSA breathing sounds; 2)
+“Questionnaire” is an adapted version of the clinically-validated
+STOP–BANG questionnaire1 [33] which provides individuals
+with an initial screening tool for assessing their chance of having
+OSA; 3) “Record” guides the user through the setup of the microphone, armband, and pulse oximeter and records the signals
+of interest (audio, body movement, body position, and PPG).
+The recorded signals and the answers from the questionnaire
+are stored on the phone; 4) “Analyze” applies signal processing algorithms to extract features from the signals and outputs
+a probability of the patient having OSA or not. The outcome
+1 Although the STOP–BANG questionnaire is the standard questionnaire used
+in medical practice for OSA screening, it suffers from low specificity in spite of
+its high sensitivity. Additionally, the questionnaire was evaluated on a specific
+population (surgical patients).
+
+330
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 1, JANUARY 2015
+
+can also be broken down to give the ODI and STOP–BANG
+questionnaire score; 5) “View previous” displays the output of
+previous recordings, allowing for treatment monitoring.
+2) “Record” Module: Since SleepAp will be used by individuals with no background in physiological recording, a setup
+tutorial is provided. The images used in the tutorial are shown in
+Fig. 4. The user goes through the following steps; Step 1: place
+the phone in the armband on your preferred arm. Make sure the
+phone is facing directly forward as shown in the picture. Step 2:
+use your headphone microphone and place it next but not under
+the nose as shown in the picture. You can attach it with surgical
+tape or any other medical adhesive. Pull headphone cable up
+through your pyjama sleeve before taping next to your nose.
+Make sure that the microphone hole is not directed toward your
+skin. Step 3: attach the pulse oximeter on your preferred wrist.
+Place your finger (index, middle or ring) in the finger cuff as
+shown in the picture. Make sure that the cable is on the back of
+your hand. Step 5: some recommendations before starting:
+1) It is preferable to remove any third party sources of noise
+such as TV, radio, opened window. It is also best to sleep
+in a room on your own.
+2) If you manually stop the recording at any time before the
+app has finished, you will need to perform the test again.
+3) The recording is going to start after you press ‘Start’.
+SleepAp applies the signal processing algorithm to the physiological signal recorded 30 min after the ‘Start’ button is pressed
+and for a period of four hours. This is to allow the user time
+to fall asleep. This time lapse is accounted for when deriving
+features from the signals.
+C. Signals & Machine Learning
+Average time for MSE calculation was 9.8 s ± 1.0 for audio
+and 12.2 s ± 1.0 for actigraphy. Tests were performed with
+Google Nexus 7 device on 20 clinical recordings of audio and
+actigraphy, each lasting four hours. The entire process of loading
+recordings as well as performing MSE calculations and SVM
+classification was completed in 13.2 s ± 1.2 when computing
+MSE in parallel processing for audio and actigraphy.
+IV. DISCUSSION AND CONCLUSION
+The SVM performance was reported with and without the
+mild OSA patients. EXP-2 (i.e., excluding mild OSA patients
+in the training and test sets) was performed since in the context
+of SleepAp the consequences associated with wrongly classifying a mild OSA patient are minimal compared to the consequences of referring healthy users to the sleep clinic (which
+would dramatically increase costs) or not referring OSA users
+with moderate to severe OSA (which could have adverse health
+consequences). Classifying mild OSA was the most difficult
+task and had the lowest accuracy. When using the SVM structure trained in EXP-2 (i.e., without the mild-OSA patients) on
+all mild-OSA patients, 3/4 of the patients from this group were
+classified as nonOSA.
+According to Table V, actigraphy and audio did not provide
+any extra useful information for moderate OSA (Ac∼ 50% on
+the test sets), but they did for all other classes.
+
+The system was designed for two types of users: 1) individuals
+who want to screen themselves because they believe that they
+are at risk of OSA, 2) medical professionals who want to use the
+system in the same manner as a home sleep recording system in
+order to diagnose patients with OSA.
+The framework was designed to be modular in that classification can be obtained from any subset of the signals that are
+recorded. This is particularly important for two reasons: 1) if
+the microphone, pulse oximeter, or armband become dislodged
+overnight, then the analysis can still be performed on the signals
+that have been correctly recorded; 2) considering the first type
+of user, many individuals might not have an armband or pulse
+oximeter readily available. For these users, the app should be
+a low-cost system using the sensors already available in smartphones, and it should be easy to use (since the user is likely
+to have no training in physiological monitoring). If a pulse
+oximeter were essential, the proposed sleep monitoring system
+would dramatically increase in price and accessibility would be
+reduced (except if a low-cost pulse oximeter that can be connected to the phone were to be released), particularly for users
+in developing countries.
+There is also room for improvement by integrating signal
+quality indices, allowing flagging or removal of noisy sections
+of the PPG that are likely to affect the ODI computation, as
+in [34].
+It was important to consider that Android does not ensure
+high temporal precision on the acquisition of sensor data. Thus,
+to increase the sampling rate precision of the accelerometer, the
+acquisition rate was set to 10 times greater than the desired one
+(i.e., 40 Hz for a 4-Hz recording) and then down-sampled by
+choosing samples with time stamps closer to the desired 4-Hz
+rate. This extra step decreased the mean absolute error from
+the desired sampling rate (4 Hz) from 0.99 to 0.35 Hz in tests
+performed with a Samsung Galaxy S3 device.
+Recording the audio signal on the phone requires a microphone, the location of which is important to record good quality
+sound, particularly if an average headset microphone is used
+(as opposed to the high-end quality microphones used in sleep
+clinics). The natural idea of placing the microphone under the
+nose is not actually optimal for this type of analysis; the noise
+induced by airflow in this location was found to dominate over
+the respiration pattern, compromising the analysis of the frequency content. On the other hand, placing the microphone too
+far from the nose (e.g., on the clothing or next to the ear) fails
+to acquire quieter breathing sounds. For these reasons, ‘next to
+but not under the nose’ was identified as a good compromise
+between sound amplitude and noise.
+Although body position is recorded overnight using SleepAp,
+it was not possible to add it as a feature to the SVM since this
+feature was not recorded in the clinical database that was used
+to train the classifiers. This is also true of some of the answers in
+the STOP–BANG questionnaire that were not available for the
+clinical database and, as a consequence, were not considered
+as features to train the classifier. Inclusion of this additional
+information could further improve classification.
+The sample size used to develop this application was relatively small, all patients were referred for screening by their
+general practitioner and most importantly the data were not
+
+BEHAR et al.: SLEEPAP: AN AUTOMATED OBSTRUCTIVE SLEEP APNOEA SCREENING APPLICATION FOR SMARTPHONES
+
+recorded using smartphones. As such, this does not represent
+the typical user and recording setting so retraining of the classifiers is likely to be required before any such system is used in
+practice.
+The mobile phone app presented in this paper is a first step
+towards a clinically-validated automated sleep screening system which is available on a mass scale and at negligible cost
+to smartphone users. The general approach of selecting features
+which can be recorded from smartphones and training a machine learning algorithm to screen populations is likely to be of
+tremendous help in low resource countries with little access to
+expensive screening procedures.
+To our knowledge, this is the first fully-automated smartphone medical diagnostic system that uses more than simple
+logic branching and decision support. Novel signal processing
+techniques together with a machine learning approach provide
+a simple home-use system which can output a probability of
+a user requiring further hospital screening for OSA. Such software provides a new, easy-to-use, low-cost, and widely available
+modality for OSA screening for smartphone users for the cost
+of a pulse oximeter (which can be as low as $20) or at negligible
+cost (when no oximeter is used). Moreover, it provides a generic
+framework for health screening in low-resource environments.
+We are releasing the code under an open source license so as
+to encourage other users to test it on subpopulations and continue to develop the platform. The source code is available at
+http://code.google.com/p/sleep-ap/.
+ACKNOWLEDGMENT
+This paper is dedicated to the memory of L. Davies who
+provided excellence in insight, equipment, and dedication to the
+field.
+REFERENCES
+[1] L. J. Epstein and G. R. Dorlac, “Cost-effectiveness analysis of nocturnal
+oximetry as a method of screening for sleep apnea–hypopnea syndrome,”
+CHEST J., vol. 113, no. 1, pp. 97–103, 1998.
+[2] M. Vishesh Kapur, R. E. Sandblom, R. Hert, B. James, and D. Sean, “The
+medical cost of undiagnosed sleep apnea,” Sleep, vol. 22, no. 6, 1999.
+[3] H. Bearpark, L. Elliott, R. Grunstein, S. Cullen, H. Schneider, W. Althaus,
+and C. Sullivan, “Snoring and sleep apnea: A population study in Australian men,” Am. J. Resp. Crit. Care, vol. 151, no. 5, pp. 1459–1465,
+1995.
+[4] E. O. Bixler, A. N. Vgontzas, H.-M. Lin, T. Ten Have, J. Rein, A. VelaBueno, and A. Kales, “Prevalence of sleep-disordered breathing in women:
+Effects of gender,” Am. J. Resp. Crit. Care, vol. 163, no. 3, pp. 608–613,
+2001.
+[5] M. S. Ip, B. Lam, I. J. Lauder, K. W. Tsang, K. F. Chung, Y. W. Mok,
+and W. K. Lam, “A community study of sleep-disordered breathing in
+middle-aged Chinese men in Hong Kong,” Chest, vol. 119, no. 1, pp. 62–
+69, 2001.
+[6] B. Lam, D. Lam, and M. Ip, “Obstructive sleep apnoea in Asia,” Int. J.
+Tuberc. Lung D, vol. 11, no. 1, pp. 2–11, 2007.
+[7] Z. F. Udwadia, A. V. Doshi, S. G. Lonkar, and C. I. Singh, “Prevalence of
+sleep-disordered breathing and sleep apnea in middle-aged urban Indian
+men,” Am. J. Resp. Crit. Care, vol. 169, no. 2, pp. 168–173, 2004.
+[8] T. Young, M. Palta, J. Dempsey, J. Skatrud, S. Weber, and S. Badr, “The occurrence of sleep-disordered breathing among middle-aged adults,” New
+Engl. J. Med., vol. 328, pp. 1230–1235, Apr. 1993.
+[9] S. K. Sharma, S. Kumpawat, A. Banga, and A. Goel, “Prevalence and
+risk factors of obstructive sleep apnea syndrome in a population of Delhi,
+India,” Chest, vol. 130, no. 1, pp. 149–156, 2006.
+[10] T. Young, L. Evans, L. Finn, and M. Palta, “Estimation of the clinically
+diagnosed proportion of sleep apnea syndrome in middle-aged men and
+women,” Sleep, vol. 20, no. 9, pp. 705–706, 1997.
+
+331
+
+[11] J. Behar, A. Roebuck, J. S. Domingos, E. Gederi, and G. D. Clifford,
+“A review of current sleep screening applications for smartphones,” Phy.
+Meas., vol. 34, no. 7, p. R29, 2013.
+[12] A. Roebuck and G. D. Clifford, “A comparative analysis of polysomnographic signals for classifying obstructive sleep apnoea,” Ph.D. dissertation, Univ. Oxford, Oxford, U.K., 2013.
+[13] S. E. Craig, M. Kohler, D. Nicoll, D. J. Bratton, A. Nunn, R. Davies, and
+J. Stradling, “Continuous positive airway pressure improves sleepiness but
+not calculated vascular risk in patients with minimally symptomatic obstructive sleep apnoea: The mosaic randomised controlled trial,” Thorax,
+vol. 67, no. 12, pp. 1090–1096, 2012.
+[14] A. Roebuck, V. Monasterio, E. Gederi, M. Osipov, J. Behar, A. Malhotra,
+T. Penzel, and G. D. Clifford, “A review of signals used in sleep analysis,”
+Phys. Meas., vol. 35, no. 1, p. R1, 2014.
+[15] A. Roebuck and G. D. Clifford, “Multiscale entropy applied to audio data
+for classifying obstructive sleep apnoea patients,” in Proc. Am. Thor. Soc.
+2012 Conf., May 2012.
+[16] J. Behar supervied by G. D. Clifford, “Analysis of accelerometer data
+for apnea screening,” M.Sc. Thesis, Univ. Oxford, Oxford, U.K., Aug.
+2011.
+[17] N. Higgins and G. D. Clifford, “The detection of obstructive sleep apnoea
+using a mobile phone,” M.Eng. Thesis, Univ. Oxford, Oxford, U.K., May
+2012.
+[18] M. Costa. (2004, Aug.). “Multiscale entropy analysis.” [Online]. Available: http://physionet.org/physiotools/mse/
+[19] C. Hang and C. Lin, “LIBSVM: A library for support vector machines,”
+ACM Trans. Intell. Syst. Technol., vol. 2, no. 3, pp. 27:1–27:27, 2011.
+[20] C. Chang and C. Lin, “Libsvm—A library for support vector machines.”
+[Online]. Available: http://csie.ntu.edu.tw/cjlin/libsvm/
+[21] C. M. Bishop and N. M. Nasrabadi, Pattern Recognition and Machine
+Learning. vol. 1, New York, NY, USA: Springer-Verlag, 2006.
+[22] T.-F. Wu, C.-J. Lin, and R. C. Weng, “Probability estimates for multiclass classification by pairwise coupling,” J. Mach. Learn. Res., vol. 5,
+pp. 975–1005, 2004.
+[23] Android, Platform Versions. (2013, Jul.). [Online]. Available:
+http://developer.android.com/about/dashboards/index.html.
+[24] Canalys. (2011, Jan.). “Google’s Android becomes the world’s leading
+smart phone platform.” [Online]. Available: http://canalys.com
+[25] T. Morgenthaler, C. Alessi, L. Friedman, J. Owens, V. Kapur,
+B. Boehlecke, T. Brown, A. Chesson, J. Coleman, T. Lee-Chiong,
+J. Pancer, and T. J. Swick, “Practice parameters for the use of actigraphy in the assessment of sleep and sleep disorders: An update for 2007,”
+Sleep, vol. 30, pp. 519–529, May 2007.
+[26] A. Oksenberg, I. Khamaysi, D. S. Silverberg, and A. Tarasiuk, “Association of body position with severity of apneic events in patients with severe
+nonpositional obstructive sleep apnea,” Chest, vol. 118, no. 4, pp. 1018–
+1024, 2000.
+[27] B. Kemp, A. J. Janssen, and B. van der Kamp, “Body position can be
+monitored in 3D using miniature accelerometers and earth-magnetic field
+sensors,” Electroen. Clin. Neuro, vol. 109, pp. 484–488, Dec. 1998.
+[28] J. Solà-Soler, J. A. Fiz, J. Morera, and R. Jané, “Multiclass classification of subjects with sleep apnoea–hypopnoea syndrome through snoring
+analysis,” Med. Eng. Phys., vol. 34, pp. 1213–1220, Dec. 2012.
+[29] N. Ben-Israel, A. Tarasiuk, and Y. Zigel, “Nocturnal sound analysis for the
+diagnosis of obstructive sleep apnea,” Annu. Int. Conf. IEEE Eng. Med.
+Biol. Soc., vol. 2010, pp. 6146–6149, Jan. 2010.
+[30] E. Dafna, A. Tarasiuk, and Y. Zigel, “Sleep-quality assessment from full
+night audio recordings of sleep apnea patients,” Int. Conf. IEEE Eng. Med.
+Biol. Soc., vol. 2012, pp. 3660–3663, Jan. 2012.
+[31] H. Xu, W. Huang, L. Yu, and L. Chen, “Sound spectral analysis of snoring
+sound and site of obstruction in obstructive sleep apnea syndrome.,” Acta
+Oto-Laryngologica, vol. 130, pp. 1175–1179, Oct. 2010.
+[32] C. Chang and C. Lin. (2011). LIBSVM: A library for support vector
+machines. ACM Trans. Int. Sys. Tech. [Online]. 2, pp. 27:1–27:27. Software
+available at: http://www.csie.ntu.edu.tw/cjlin/libsvm
+[33] F. Chung, B. Yegneswaran, P. Liao, S. Chung, S. Vairavanathan, S. Islam,
+A. Khajehdehi, and C. Shapiro, “Stop questionnaire: A tool to screen
+patients for obstructive sleep apnea,” Anesthesiol, vol. 108, pp. 812–821,
+2008.
+[34] Q. Li and G. D. Clifford, “Dynamic time warping and machine learning
+for signal quality assessment of pulsatile signals,” Phy. Meas., vol. 33,
+no. 9, p. 1491, 2012.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

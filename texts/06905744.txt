@@ -1,0 +1,1605 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+511
+
+Strain Analysis From 4-D Cardiac CT Image Data
+Yechiel Lamash∗ , Anath Fischer, Shemy Carasso, and Jonathan Lessick
+
+Abstract—Strain is a discriminative parameter of regional myocardial dysfunction. Despite the large body of research on myocardial strain analysis in echocardiography and MR images, such
+techniques have not often been applied to cardiac CT data. Reasons for this include the challenges of sparse image deformation
+clues and the low temporal resolution. In the current study, we
+propose an algorithm that uses cardiac CT data to evaluate the
+mechanical function of the left ventricle. The algorithm is based
+on a deformable LV model that contains both the myocardium
+and the blood pool regions and that accounts for the elasticity and
+incompressibility of the myocardium with the rapid contraction
+of the blood pool. Our algorithm uses the image intensities of the
+trabeculle and papillary muscles as well as the border edges in
+an optical flow manner to extract the 3-D velocities. The resulting
+strains and rotational values derived from a set of normal patients
+correlate highly with values from the research literature. We validated our algorithm against 2-D speckle tracking analysis and
+against visual scores obtained by an expert. Our study shows that
+strain analysis using CT data can be used in clinical practice.
+Index Terms—Cardiac CT, deformable model, left ventricle
+tracking, left ventricle twist, strain analysis.
+
+I. INTRODUCTION
+ARDIAC pathologies, the main cause of morbidity and
+mortality in the western world, are generally associated
+with regional ventricular dysfunction. Noninvasive techniques
+such as echocardiography and magnetic resonance imaging
+(MRI) are currently used for clinical evaluation of left ventricle
+(LV) function. MRI applied to the in vivo heart facilitates the
+tagging of virtual dark lines on the tomographic image [1]. These
+virtual lines are attached to the myocardium and deform with it,
+facilitating visualization and measurement of the deformation.
+Cine MR has also been proposed for LV function estimation [2].
+Yet MRI is slow, not widely available, and cannot be used for
+the rapidly growing population of patients with implanted pacemakers or defibrillators. Echocardiography is widely used in
+clinics for cardiac function assessment. However, the variance
+of repeated echocardiography measures is fairly high owing to
+dependence on operator experience, machine setting, available
+acoustic window, and angle of incidence effect [3].
+
+C
+
+Manuscript received February 11, 2014; revised June 12, 2014; accepted
+September 9, 2014. Date of publication September 19, 2014; date of current
+version January 16, 2015. Asterisk indicates corresponding author.
+Y. Lamash is with the Technion—Israel Institute of Technology, Haifa 3200,
+Israel (e-mail: shilikster@gmail.com).
+A. Fischer is with the Technion—Israel Institute of Technology, Haifa 3200,
+Israel (e-mail: meranath@tx.technion.ac.il).
+S. Carasso and J. Lessick are with the Rambam Healthcare Campus,
+Haifa 35254, Israel (e-mail: shemy.carasso@gmail.com; j_lessick@rambam.
+health.gov.i).
+This paper has supplemental material available at http://ieeexplore.ieee.org
+(File size: 3 MB).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2359244
+
+Multidetector Computed tomography (MDCT) is becoming
+increasingly more important in the diagnosis of cardiac diseases.
+For example, the decision to perform coronary revascularization
+is best informed by delineating objective evidence of inducible
+myocardial ischemia. Cardiac CT is now an established technique for assessing coronary heart disease [4]. Nevertheless,
+this anatomical visualization fails to provide the more important functional information about the myocardial tissue. Major
+recent advancements in MDCT temporal resolution, scanning
+coverage, and dose reduction algorithms have led to the possibility of a “one-stop-shop” for cardiovascular imaging that would
+provide information on anatomy, function, perfusion, and viability [5]. Regional myocardial strains have direct or indirect
+relationships with cardiac diseases [6] as they encapsulate the
+basic mechanical function of the myocardium [2]. Despite the
+large body of research on myocardial strain analysis in echocardiography and MR images [2], [6], [7] , such techniques have
+not often been applied to cardiac CT data. The problem of tracking the LV from cardiac CT images is difficult for the following
+reasons. First, the relatively low temporal resolution allows for
+the reconstruction of only about ten independent phases. Second, while in echocardiography speckles are located all over the
+myocardium, the only markers in CT are the edge of the endocardial border, the trabeculle, and the papillary muscles. Third,
+in order to reduce the scan radiation dose, a dose modulation is
+generally used, which reduces the X-ray tube current in phases
+(frames) with large motion. This process significantly reduces
+the SNR in a significant number of phases. The aim of the current study is to develop a method that overcomes these issues
+and enables strain analysis from cardiac CT image data.
+A. LV Regional Function Using Cardiac CT
+Several studies have estimated regional myocardial function
+from MDCT data using the motion and thickening of the heart’s
+wall during contraction. Model-based methods [8] fit the heart
+model to different phases, after which the velocity and the wall
+thickening are calculated. Yet these methods, which were originally meant for segmentation, are incapable of extracting motion
+components that are tangential to the model surface. Song et al.
+[9] proposed an optical flow technique with divergence-free and
+incompressibility constraints to construct the 3-D velocity field
+from 4-D cardiac-CT data. Yet the technique was never validated
+on CT patient data. Feature-matching methods [3], [10] aim at
+finding a correspondence between local features. Simon et al.
+[10] used a surface-volume matching process based on Markov
+random fields to extract cardiac motion, although their method
+has not been validated against ground truth. Another study [3]
+proposed a new regional function measurement based on local changes in the triangular areas of a fitted surface mesh. This
+study used nonrigid surface registration based on local curvature
+of the endocardium to warp a surface mesh of one phase into
+another. Yet, this research is at a very preliminary stage, and the
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+512
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+relationship between this new functional measurement and standard strain and twist parameters has not yet been established.
+Recently, two clinical studies that use 2-D image registration
+algorithms for calculating strain analysis from cardiac CT were
+proposed [11], [12]. However, both methods are 2-D based and
+do not utilize the unique 3-D isotropic resolution of cardiac CT
+image data and thus ignore the velocity components outside the
+image plane.
+Biomechanical models have attracted much attention during
+the last decade and have also been suggested for 4-D cardiac
+image analysis [13]. In this framework, a biomechanical heart
+model is initially registered into the first time frame of patientspecific data. Then, information concerning tissue deformation,
+such as elastic properties and myocardial fiber orientation, is
+used as prior knowledge. Papademetris et al. [14] suggested a
+modality-independent method for estimating 3-D LV deformation from 3-D image sequences using a biomechanical model.
+The method is initialized with a shape-based tracking algorithm that tries to follow points on successive surfaces using
+a shape similarity metric. Thereafter, a biomechanical model
+with a transversely isotropic, linear-elastic model that accounts
+for the muscle fiber directions is used to achieve a probabilistic
+estimate of the complete deformation field. This method was
+applied to human cine-MR images, and canine cine-CT images
+were validated against surgically implanted markers. Our approach is similar to that of Papademetris et al. [14] in that we
+also register an LV mesh model to a reference phase and then
+estimate the deforming forces to the rest of the phases. Nevertheless, our method differs in several ways. First, our mesh model
+contains both the myocardium and the blood pool. The myocardium is represented as an isotropic incompressible elastic
+material, while the blood pool elements have only smoothness
+constraints to allow rapid motion of the endocardial surface.
+The blood pool region with its trabeculle and papillary muscles
+is used as important image clues for capturing the rotational
+velocities. Second, the deformation forces are generated by the
+image intensities only with respect to optical flow. Third, we use
+data from dual source CT that has doubled temporal resolution.
+Finally, our algorithm is dedicated to regular scans of cardiac
+CT images with dose modulation from human patients.
+B. Deformable Models Versus Image Registration
+Imaging the LV requires a dedicated tracking algorithm that
+can express the ventricle’s unique kinematics. The LV consists
+of blood and muscle, which have different material properties
+and exhibit two different mechanical behaviors. The endocardial surface moves rapidly, while the epicardial surface is nearly
+static. Our algorithm uses a deformable LV mesh with defined
+myocardium and blood pool regions and labeled endocardial and
+epicardial surfaces to derive the deforming forces. The algorithm
+can also be considered to be a parametric image registration (or
+optical flow) algorithm as it uses the image intensities to extract
+the dense velocities. However, while most image registration
+algorithms work on a regular (rectilinear) grid, they cannot effectively separate blood and myocardium. In addition, the rapid
+motion of the endocardial surface toward the center is difficult
+to model using basis functions that are represented on a regular
+grid. Radial basis functions such as thin plate spline [15], which
+does not work on a regular grid, cannot model continuous mo-
+
+tion with two separated regional properties. Variational image
+registration for a domain with spatial varying properties was also
+proposed [16]. Nevertheless, variational methods generally use a
+multiresolution scheme. The regular pixel grid of the coarse
+level images cannot effectively split materials, and convergence
+may not be guaranteed for objects with narrow thickness (such
+as the myocardium). Linear basis functions, commonly used in
+finite element (FE) analysis, can model continuous motion of
+freeform shapes with their material properties. These functions
+that are not represented on a regular grid can be used as parametric image registration. Image registration using the linear basis
+function has previously been used for registering brain images
+[17]. Our method performs parametric image registration with
+geometrical separation to account for different material properties of the domain.
+C. Contributions
+The main contribution of our research is a 3-D tracking
+method for performing strain analysis on regular dosemodulated cardiac CT image data. To the best of our knowledge,
+our approach is the first to show regional strains with rotational
+velocities from such image data.
+Another contribution is the introduction of a parametric image registration method with geometrical separation, which accounts for the different material properties of the domain.
+The remainder of this paper is organized as follows. Section II
+describes the method, including the motivation and mathematical formalism of the registration functional. It also details the
+optimization, including an inverse compositional approach for
+faster runtime. Sections III and IV describe the validation experiments and results, respectively. Section V provides the discussion and conclusions.
+II. METHOD
+A. LV Mesh Model for the Myocardium and Blood Pool
+The current section describes our LV mesh model for the myocardium and blood pool and its registration to the first phase before the tracking is initiated. We initialize the algorithm by first
+segmenting the LV blood pool, performing triangular meshing
+of the endocardial and epicardial surfaces, and then generating a
+tetrahedral volume mesh of the blood pool and myocardium. The
+papillary muscles and trabeculle are included in the blood pool
+region and serve as important clues (together with the curved
+endocardial border) for capturing the endocardial rotational velocities. In order to fine tune the mesh nodes at the epicardial
+surface, we construct a volumetric template with representative intensities on the myocardium and blood HU values and
+perform registration to align the volumetric template to the first
+3-D frame. Finally, we allow interactive user modification of the
+mesh nodal points for optimal accuracy of the nodal positions.
+Despite the major interest in modeling LV deformation using
+fiber orientation, the effective improvement in terms of modeling
+cardiac electromechanics is still unclear. Geerts et al. [18] conducted a sensitivity study by evaluating changes in predicted
+mechanics in a model of the LV. They concluded that the benefit of accounting for patient-specific geometry is questionable
+when using experimental data on fiber orientation. Carapella
+et al. 2013 [19] evaluated the improvement in predictive power
+
+LAMASH et al.: STRAIN ANALYSIS FROM 4-D CARDIAC CT IMAGE DATA
+
+513
+
+gained by introducing subject-specific fiber models within an
+electromechanical model of left ventricular contraction in rats.
+They compared both global rule-based fiber models with a locally optimized image-based fiber model. Their results showed
+large differences between predicted and measured values. They
+concluded that further study of the constitutive behavior and
+architecture of cardiac tissue is required before electromechanical models can fully benefit from the introduction of subjectspecific fibers. In addition, subject-specific fiber models are
+currently based on atlases derived from normal patients, and
+their benefit for quantification of regional pathology of the
+myocardium compared to regular methods has not been reported. Moreover, models that include the fiber orientation require meshes with tens of thousands elements [20]. Because the
+dose-modulated CT data has low SNR and sparse image clues
+and because the effective improvement of the fiber orientation
+is unclear, our model contains 413 nodes and 1680 tetrahedral elements, where the myocardial elements have isotropic
+elastic properties that account for myocardium elasticity and
+incompressibility.
+
++μ
+
+
+Ωb p
+
+(1)
+
+where the barycentric coordinates (α, β, γ) ∈ (0, 1) are the volume ratios between each subtetrahedron and tetrahedron T
+det(e, ej , ek )
+det(ei , e, ek )
+det(ei , ej , e)
+α=
+β=
+γ=
+det(ei , ej , ek )
+det(ei , ej , ek )
+det(ei , ej , ek )
+(2)
+ei , ej , ek are the tetrahedron edge vectors with respect to
+vertex v.
+The warping within each tetrahedral element is given by
+W (α, β, γ) = v + αei + βej + γek .
+
+(3)
+
+To ensure that the global orientation is consistent (i.e., the Jacobians have equal signs), the ordering of the three vertices
+i, j, k when looking from vertex v should be either clockwise or
+counterclockwise for all tetrahedra.
+C. Image Registration Functional
+Denote the vector of the vertex coordinates by x̂, i.e.,
+x̂ = (x̂1 , ŷ1 , ẑ1 , x̂2 , ŷ2 , ẑ2 , . . . , x̂n , ŷn , ẑn )T .
+The global warping function W (x, y, z) is given by
+W (x, y, z) = N x̂.
+where N is a matrix of basis functions N =
+[N1 , N2 , . . . , N3n ].
+The general image registration functional can be
+formulated by
+
+
+J=
+(I(N x̂) − T )2 + λ
+(DT σ)2
+Ω
+
+Ωm y o
+
+t(x̂ − x̂0 )2
+
+(4)
+
+Γe p i
+
+⎡
+
+∂/∂x
+
+0
+
+⎢
+⎢
+⎢0
+⎢
+⎢
+⎢
+⎢0
+⎢
+D=⎢
+⎢
+⎢ ∂/∂y
+⎢
+⎢
+⎢0
+⎢
+⎣
+
+⎤
+
+0
+
+∂/∂y
+0
+∂/∂x
+∂/∂z
+
+∂/∂z
+
+Image registration algorithms perform image warping in each
+iteration. The current section describes the implementation of
+the our image warping model.
+Given a tetrahedron T , any point p ∈ T divides it into four
+subtetrahedrons.
+The vector e of the point p with respect to vertex v can be
+expressed by
+
+
+
+where
+I, T are the reference and template 3-D images.
+Ω, Ωm y o , and Ωbp are the LV, myocardium, and blood pool
+regions, respectively.
+The elastic regularization term is given by DT σ, where σ is
+the [6 × 1] stress vector [σxx , σy y , σz z , σxy , σy z , σxz ]T , and D
+is given by
+
+B. Image Warping Using Barycentric Coordinates
+
+e = αei + βej + γek
+
+(L(x̂ − x̂0 ))2 + ω
+
+0
+
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+∂/∂z ⎥
+⎥
+⎥
+⎥
+0 ⎥
+⎥
+⎥
+∂/∂y ⎥
+⎥
+⎦
+0
+
+∂/∂x
+
+L is the Laplacian matrix.
+Γepi is the epicardial surface.
+t is the traction force that models the external surrounding
+interaction with the epicardial surface.
+D. Regularization Terms Using Linear Basis Functions
+Elastic regularization [21] is the most common regularizer in
+nonrigid image registration. It is derived from the linear elasticity theorem. The strain–displacement relation is given by
+⎤
+u
+ε=D·⎣v ⎦
+w
+⎡
+
+where ε is [6 × 1] strain vector [εxx , εy y , εz z , εxy , εy z , εxz ]T
+The strain–stress relation is given by
+σ =C ·ε
+
+(5)
+
+where C[6 × 6] is the material stiffness tensor.
+For isotropic material
+C=
+⎡
+
+E
+(1 + ν)(1 − 2ν)
+
+1−ν
+
+⎢
+⎢
+⎢ν
+⎢
+⎢
+⎢
+⎢ν
+⎢
+×⎢
+⎢
+⎢0
+⎢
+⎢
+⎢0
+⎢
+⎣
+0
+
+⎤
+
+ν
+
+ν
+
+0
+
+0
+
+0
+
+1−ν
+
+ν
+
+0
+
+0
+
+0
+
+ν
+
+1−ν
+
+0
+
+0
+
+0
+
+0
+
+0
+
+1/2 − ν
+
+0
+
+0
+
+0
+
+0
+
+0
+
+1/2 − ν
+
+0
+
+0
+
+0
+
+0
+
+0
+
+1/2 − ν
+
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎥
+⎦
+(6)
+
+514
+
+Fig. 1.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Segmentation and generation of the patient’s LV mesh model.
+
+where E and ν are the material Young’s modulus and Poisson’s
+ratio, respectively.
+The global elastic regularization matrix K is given by applying the assembly operator on the elements
+
+ 	
+
+T
+K=
+(B CB)
+(7)
+em y o
+
+V
+
+e
+
+where B is strain–displacement matrix that relates nodal strain,
+ε, to nodal displacement x̂ as ε = B x̂. For tetrahedral element,
+B is as follows:
+B = [ B1
+
+B2
+
+B3
+
+B4 ]
+
+term is given by
+
+
+(DT σ)2 = (x̂ − x̂0 )T K(x̂ − x̂0 ).
+
+(8)
+
+Ωm y o
+
+The smoothness constraint on the blood pool elements was
+implemented using a weighted Laplacian matrix. In each matrix row, i refers to the nodes of the blood pool elements, the
+mesh neighbor indices j get the normalized Euclidean distances
+d(i,j )
+
+and the diagonal value gets −1.
+j ∈N e ( i ) (d(i,j ))
+The global epicardial traction matrix M is given by assigning
+a value of one to the diagonal for the epicardial nodes and zero
+elsewhere. The matrix is then multiplied by global parameter t
+to represent the global traction force on the epicardial nodes.
+
+where each submatrix Bi is as follows:
+⎡
+
+Ni,x
+⎢
+⎢
+⎢0
+⎢
+⎢
+⎢
+⎢0
+⎢
+Bi = ⎢
+⎢
+⎢ Ni,y
+⎢
+⎢
+⎢0
+⎢
+⎣
+Ni,z
+
+0
+Ni,y
+0
+Ni,x
+Ni,z
+0
+
+0
+
+⎤
+
+⎥
+⎥
+0 ⎥
+⎥
+⎥
+⎥
+Ni,z ⎥
+⎥
+⎥
+⎥
+0 ⎥
+⎥
+⎥
+Ni,y ⎥
+⎥
+⎦
+Ni,x
+
+E. Optimization
+To find a solution using the Gauss–Newton minimization
+scheme, we first develop the first-order Taylor expansion
+around x̂:
+J(x̂ + Δx̂) ≈
+
+
+
+(I(N x̂) + ∇I · N Δx̂ − T )2
+
+Ω
+
++ (x̂ + Δx̂ − xˆ0 )T [λK + μLT L + ωM ]
+(9)
+× (x̂ + Δx̂ − xˆ0 )
+
+∂J
+= 2
+[∇I · N ]T · [I(N x̂) + ∇I · N Δx̂ − T ]
+∂Δx̂
+Ω
+
+where Ni (i = 1, . . . , 4) is the i-th shape function. The computation of matrix B using matrix manipulation on the element
+coordinates can be found in the appendix. The global elastic
+
++ 2[λK + μLT L + ωM ] · (x̂ − xˆ0 )
++ 2[λK + μLT L + ωM ] · Δx̂.
+
+(10)
+
+LAMASH et al.: STRAIN ANALYSIS FROM 4-D CARDIAC CT IMAGE DATA
+
+515
+
+Setting the expression to zero and solving yields the updating
+formula:
+	
+Δx̂ = −H −1
+[I(N x̂) − T ][∇I · N ]T + [λK + μLT L
+Ω
+
+
++ ωM ](x̂ − xˆ0 )
+
+(11)
+
+TABLE I
+MATHEMATICAL PHANTOM PARAMETERS
+Parameter
+
+Value
+
+unit
+
+Field of view
+Rotation time
+Reconstruction window
+Tube Current
+
+250
+0.27
+75
+350
+
+mm
+sec
+msec
+mAs
+
+where H is the Gauss–Newton approximation to the Hessian.
+
+[∇I · N ]T [∇I · N ] + λK + μLT L + ωM.
+H=
+Ω
+
+F. Inverse Update
+Baker and Mathews [22] realized that for transformations that
+form a group, a significant amount of computation time can be
+saved when switching the role of the image and the template in
+the objective function and using an inverse compositional update scheme. In this case, the Jacobian and Hessian matrices are
+constant and therefore can be precomputed. Later, Mathews and
+Baker [23] used first-order approximation of the inverse compositional update using the backward update for AAM. Here,
+by implementing the backward update using the linear functions, we also obtained good convergences with precomputed
+Jacobian and Hessian matrices. The backward updating term:
+	
+−1
+Δx̂ = −H
+[I(N x̂) − T ][∇T · N ]T
+Fig. 2.
+
+Ω
+
+
++ [λK + μLT L + ωM ](x̂ − xˆ0 )
+
+(12)
+
+where H is the Gauss–Newton approximation to the Hessian.
+
+H=
+[∇T · N ]T [∇T · N ] + λK + μLT L + ωM.
+Ω
+
+The backward update
+x̂ ← x̂ − Δx̂.
+G. Implementation Issues
+We implement the image warping as follows. For each tetrahedron, we find the barycentric coordinates (α, β, γ) of its inner
+pixels that reside on the image grid. We then find the respective
+value in the reference image and insert it in the warped image.
+To find the grid pixels of each tetrahedron, we took the grid pixels of the minimal box that bounds the tetrahedron and looked
+up the pixels whose barycentric coordinates apply: α, β, γ ≥ 0
+and α + β + γ ≤ 1.
+We perform phase-to-phase registration, starting from phase
+0% toward the end systolic phase forward and from phase 0%
+backward to the first diastolic phase.
+The current runtime of the algorithms is about 5 min in the
+MATLAB workspace on a standard computer with five cores.
+We expect that by implementing the algorithm in C + +, and by
+running each frame-to-frame registration on different cores in
+parallel, the overall runtime will be in the order of seconds and
+will thus be highly attractive to physicians in clinical practice.
+
+Mathematical phantom of a dynamic cardiac CT short-axis slice.
+
+H. Experiments
+1) Mathematical Phantom of Cardiac CT: In order to test
+our approach on cardiac CT image data, with reference to common image registration algorithms, we have generated a dynamic mathematical phantom of a cardiac CT short-axis slice.
+We measured the distances of a set of landmark points transformed by the registration method to their true locations. The
+contraction was set to simulate normal circumferential and radial strains with endocardial and epicardial rotations of 10◦ and
+5◦ , respectively. A forward projection of the attenuation image
+was used to create a realistic image with motion artifacts and
+typical Poissonic noise, by simulating cardiac motion and taking into account the systems temporal resolution. We assumed a
+heart rate of 60 beat per minute. The virtual scan parameters are
+shown in Table I. Nine phases of the virtual phantom are shown
+in Fig. 2. We compared the results of the proposed algorithm
+to the B-spline registration [24] and to the variational-based
+elastic image registration [25] that was performed between images of subsequent phases. For the proposed method, the elastic
+regularization potential was operated on the myocardial region.
+The B-spline registration was performed with a grid of 8 × 8.
+The elastic image registration was performed in a multiresolution framework. The comparison was performed on the LV
+pixels only.
+2) Cardiac CT Dataset: To validate our algorithm on real
+world data, we used retrospective cardiac CT datasets from 27
+patients, of whom 15 and 12 patients were diagnosed as normal
+and abnormal, respectively. The studies were imaged by a dual-
+
+516
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+source Siemens SOMATOM definition flash scanner with dose
+modulation. For each study, ten phases were reconstructed and
+used for analysis. Of the described group, ten patients also had
+echocardiography speckle tracking (EST) analysis within one
+month. The CT and EST examinations were performed under
+similar conditions and without any intervention or clinical event
+between them. We performed three types of analyses. In the
+first analysis, we compared the results of 15 normal patients to
+respective normal values from the literature. In the second analysis, we compared individual CT and EST results. In the third
+analysis, we compared the strain results of the entire group to
+visual scores obtained by an expert (experienced cardiologist).
+The scores, 1 normal, 2-hypokinetic, 3-dyskinetic or akinetic,
+were mapped using standard AHA 17 segments [26]. For the
+EST analysis, we used the velocity vector imaging (VVI) software (Siemens Medical Systems, Mountain View, CA, USA)
+because it is the only software which is able to analyze data
+from different vendors and because it is the only software to provide subendocardial and subepicardial strains. For calculating
+the various strain and rotation parameters, we used conventional
+definitions from the literature [27], [28].
+The parameter values were 75 kPa and 0.45 for Young’s modulus and Poisson’s ratio, respectively. Since a fully incompressible material has a Poisson ratio of 0.5, an acceptable Poisson
+ratio for the myocardium by many studies is 0.45 [29]. Literature values of Young’s modulus for the myocardium range from
+20 kPa to 500 kPa. The myocardiums stiffness varies among patients and during the heart cycle. In the current study, we used
+the data of two normal patients for tuning the Young’s modulus
+and epicardial traction force that will produce acceptable strains
+and rotation values. Thereafter, the total set of normal and abnormal patients was used for validation. The traction t was 15 k.
+Both ω and λ had a value of 1, and μ had a value of 10 k.
+As a postprocessing step, the contribution and effect of each
+of the functional ingredients on the measured strains and twist
+were evaluated. We interchangeably eliminated and reweighted
+the different terms in the registration functional and measured
+the effect on the measured strains and twist.
+III. RESULTS
+Exemplar results of strains and rotations of a normal patient
+are shown in Fig. 3.
+
+Fig. 3. Algorithm results of strains and rotations of a normal patient. The
+subplots contain 16 segmental strain curves (basal-green, mid-red, apex-blue)
+and rotational curves of 15 axial slices.
+TABLE II
+COMPARISON OF THE PROPOSED METHOD TO THE COMMON B-SPLINE AND
+ELASTIC REGISTRATION ALGORITHMS
+
+A. Mathematical Phantom
+We compared the proposed method to the common B-spline
+[24] and elastic registration [25] algorithms on a simulated phantom. The proposed method results show 24% and 8% lower L2
+errors and 39% and 11% lower L∞ errors compared to the
+B-spline and elastic registration algorithms, respectively. The
+mean and STD of the L2 and L∞ norms of the distances to
+the true locations are summarized in Table II.
+
+L 2 [mm]
+L ∞ [mm]
+
+B-spline
+
+Elastic
+
+Proposed
+
+0.99 ± 0.52
+2.31 ± 1.22
+
+0.82 ± 0.44
+1.60 ± 0.76
+
+0.76 ± 0.55
+1.42 ± 0.61
+
+The table lists the mean and STD of the L 2 and L ∞ norms of the distances to
+the true locations.
+
+and rotational velocities of the 15 normal patients to these values
+(see Fig. 4; Table III).
+
+B. Comparison to Literature Values
+The EST was validated against sonomicrometry [30]. For
+reference normal strain and rotation values, we selected Carasso
+et al. [27] which is the largest EST study on a population of
+normal patients in the literature. We compared the LV strains
+
+C. Validation Against EST
+We compared both the peak and the temporal values of circumferential and radial strains (see Fig. 5), as well as apical rotation and twist (see Fig. 6). For the temporal compar-
+
+LAMASH et al.: STRAIN ANALYSIS FROM 4-D CARDIAC CT IMAGE DATA
+
+517
+
+TABLE III
+COMPARISON OF STRAINS AND ROTATIONAL VELOCITIES OF NORMAL
+PATIENTS TO RESPECTIVE VALUES FROM THE LITERATURE [27]
+
+circ. strain[%]
+radial strain[%]
+long strain[%]
+circ. strain rate[1/s]
+radial strain rate[1/s]
+long strain rate[1/s]
+rotation[deg]
+
+endo
+epi
+endo
+epi
+endo
+epi
+endo
+epi
+base endo
+base epi
+mid endo
+mid epi
+apex endo
+apex epi
+
+EST [27]
+
+proposed method
+CT
+
+−27 ± 4
+−11 ± 2.3
+30 ± 7.5
+−19 ± 2
+NA
+−1.66 ± 0.33
+−0.62 ± 0.12
+1.33 ± 0.28
+−0.6 ± 0.27
+NA
+−3.4 ± 2.1
+−1.5 ± 1
+2.2 ± 2
+0.8 ± 1.2
+7 ± 3.3
+2.9 ± 1.5
+
+−26 ± 6.8
+−10 ± 4.5
+33 ± 11
+−14 ± 6.7
+−13 ± 6.7
+−1.2 ± 0.4
+−0.52 ± 0.2
+1.5 ± 0.5
+−0.6 ± 0.2
+−0.6 ± 0.2
+−1.3 ± 1.23
+−1.25 ± 0.6
+3.34 ± 1.38
+0.76 ± 0.7
+5.7 ± 2.3
+2.1 ± 0.8
+
+mal and abnormal, respectively). The strains mean, STD, and
+p-values between the normal, hypokinetic, and a/dys-kinetic
+segments with respect to the expert’s labeling are summarized
+in Table VI.
+E. Effect of the Regularization on the Measured Strains
+and Twist
+
+Fig. 4. Comparison of the algorithm strain and rotation results on normal
+patients with respective values from the literature [8].
+
+ison, ten values at 0%, 10%, . . . , 90% were sampled along the
+heart cycle for each territory. By setting thresholds on the EST
+strain data, normal and abnormal territories were set, and the
+algorithm-resulted strain’s ability to classify the territories was
+evaluated. The thresholds for endocardial circumferential strain,
+radial strain, epicardial circumferential strain, and circumferential strain rate were −20, 25, −8, and −1.15, respectively. The
+results are summarized in Table IV.
+
+The contribution and effect of each of the different ingredients in the registration functional on the measured strains and
+twist were analyzed. We univariately changed the λ, μ, and ω
+parameters and measured the effect on the mean values of the
+main strains and twist parameters (Changing λ or ω is equivalent
+to changing E or t, respectively). Eliminating the Laplacian term
+of the blood pool region (by setting μ = 0) reduced the mesh
+stability and caused the blood pool vertices to fluctuate outside
+the LV mesh. However, as the strain and twist parameters are
+calculated in the myocardial region, changes in μ values had a
+negligible effect on the measured strains and twist. The change
+in the lambda parameter, which regulates the stiffness of the
+myocardium, had the strongest effect on the strains and twist
+(see Fig. 7, left). Reduction in either μ or λ results in larger
+strain values whereas an increase in either parameter results in
+decreased strains. Changes are relatively small within a range of
+−40% to +100% for all parameters. The ω parameter, that controls the motion of the epicardial surface, had an opposite effect
+on the radial strain with respect to the rest of the parameters.
+As ω increases, the radial strain increases, whereas the absolute
+values of the circumferential strain, long strain, and twist decrease (see Fig. 7, Fig. 8 right). The analysis is summarized in
+Table VII.
+IV. DISCUSSION
+
+D. Validation Against Expert Visual Analysis
+The per segment performance analysis with respect to expert’s visual scores are detailed in Table V. The analysis was
+performed on 429 LV segments of 27 patients (15 and 12 nor-
+
+In the current study, we propose an algorithm for estimating
+strains and rotational mechanics from cardiac CT image data.
+We compared the proposed method to other common techniques
+using a mathematical phantom. For validating our method on
+
+518
+
+Fig. 5.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+Comparison of temporal (phases 0%, 10%, . . . , 90%) and peak circumferential and radial strains between the proposed method and EST.
+
+TABLE V
+PERFORMANCE BY SEGMENT WITH RESPECT TO EXPERTS VISUAL SCORES
+
+Endo circ. strain
+Radial strain
+Epi circ. strain
+circ. strain rate
+
+sensitivity
+
+specificity
+
+PPV
+
+NPV
+
+accuracy
+
+AUC
+
+0.75
+0.73
+0.72
+0.69
+
+0.78
+0.81
+0.67
+0.72
+
+0.41
+0.44
+0.3
+0.32
+
+0.93
+0.93
+0.92
+0.92
+
+0.77
+0.8
+0.68
+0.69
+
+0.85
+0.85
+0.79
+0.75
+
+The analysis was performed on 429 LV segments of 27 patients (15 and 12 normal and
+abnormal patients, respectively.
+
+third analysis, we compared the strain results of the entire group
+to visual scores obtained by an expert.
+A. Mathematical Phantom Study
+
+Fig. 6. Comparison of apical rotation and twist between the proposed method
+and EST.
+TABLE IV
+PERFORMANCE OF THE PROPOSED ALGORITHM WITH RESPECT
+TO EST ANALYSIS
+
+Endo circ. strain
+Radial strain
+Epi circ. strain
+circ. strain rate
+
+sensitivity
+
+specificity
+
+PPV
+
+NPV
+
+accuracy
+
+AUC
+
+0.9
+0.89
+0.8
+0.84
+
+1
+0.82
+0.8
+0.8
+
+1
+0.89
+0.8
+0.95
+
+0.8
+0.81
+0.8
+0.5
+
+0.93
+0.86
+0.8
+0.83
+
+0.95
+0.89
+0.84
+0.87
+
+The analysis was performed on 30 LV territories of ten Patients.
+
+real world data, we performed three types of analyses. In the
+first analysis, we compared the results of 15 normal patients
+to respective normal values from the literature. In the second
+analysis, we compared individual CT and EST results. In the
+
+The LV consists of two types of tissue, blood and muscle,
+each having different material properties and different mechanical behaviors. For example, the myocardium is nearly incompressible while the blood pool region is highly compressible. In
+order to enable these two distinct behaviors, the myocardium
+and blood pool must be separated and be assigned with appropriate material properties. The proposed method results show
+24% and 8% lower L2 errors and 39% and 11% lower L∞ errors compared to the B-spline [24] and elastic registration [25]
+algorithms, respectively. The main reason is that image registration algorithms with a motion field that is modeled using a
+regular grid of control points cannot effectively differentiate between these two mechanical behaviors. On the other hand, linear
+basis functions with control points (mesh vertices) positioned
+on the boundaries can model motion field with several different
+mechanical behaviors.
+B. Comparison to Literature Values
+The ability to capture the complex kinematics of the LV is an
+important major step toward quantification of a patients LV mechanical function. The results of strains and rotations correlate
+
+LAMASH et al.: STRAIN ANALYSIS FROM 4-D CARDIAC CT IMAGE DATA
+
+519
+
+TABLE VI
+MEAN, STD, AND P-VALUES BETWEEN GROUPS WITH DIFFERENT EXPERT VISUAL SCORE
+Normal
+−25 ± 7.6
+
+Endo circ. strain
+
+30.7 ± 12.4
+
+Radial strain
+Epi circ. strain
+circ. strain rate
+
+−10.4 ± 4.4
+−1.2 ± 0.38
+
+Hypokinetic
+
+p = 5.0E − 14
+p = 4.5E − 14
+p = 6.0E − 08
+p = 8.7E − 06
+
+−17 ± 6.8
+16.6 ± 8
+
+A/Dys-kinetic
+
+p = 7.0E − 05
+
+−9.6 ± 7.4
+12.7 ± 9.8
+
+p = 0.07
+−6.9 ± 3.1
+
+−4.2 ± 4.4
+p = 0.005
+
+−0.88 ± 0.36
+
+−0.7 ± 0.45
+p = 0.07
+
+value (NPV) were obtained by comparing the results of the
+proposed algorithm to those obtained by EST (see Table IV).
+The territories (rather than segments) were compared to minimize the optional misalignment between the compared regions
+of the 3-D CT results and the 2-D EST results. Reasonable
+correlations were obtained between the twist and apical rotation of the algorithm results on CT data and the respective
+EST values.
+D. Validation Against Expert Visual Analysis
+
+Fig. 7
+
+Results with respect to expert’s visual scores.
+
+Fig. 8 The effect of the Effect of the λ (left) and ω (right) parameters on the
+measured strains and twist.
+
+well with respective values obtained by other imaging modalities (see Table II). Our algorithm captures the clockwise and
+counterclockwise basal and apical rotational velocities. Modelbased methods [8] that segment the LV phases separately are
+incapable of extracting motion components that are tangential
+to the models surface. Unlike other approaches [14], our LV
+model contains the blood pool region wherein the trabeculle
+and papillary muscles are used as important image clues in capturing the rotational velocities.
+C. Validation Against EST
+Good correlations (see Fig. 5) and excellent sensitivity, specificity, positive predictive value (PPV), and negative predictive
+
+The ability of the current algorithm to classify the segments into a diagnostically meaningful group was tested. Good
+sensitivity, specificity, and negative predictive value (NPV) were
+obtained by comparing the algorithm results to visual scores
+obtained by cardiologists (see Tables V and VI). The relative
+low PPV is due to the small ratio of impaired segments. The
+better agreement obtained in the comparison to EST suggests
+that the proposed algorithm has added value over visual assessment with respect to diagnosis. The superior agreement of
+radial strain to visual score and the superior agreement of circumferential strain to EST strains suggest that it is easier to
+diagnose the myocardial thickening visually, while the circumferential shortening is better estimated by the algorithm. The
+large variance of radial strains obtained by different EST vendors [31] and the superior agreement between the radial strains
+obtained by the proposed algorithm on CT data suggest that
+the better contrast-to-noise ratio in CT data (due to the contrast media) leads to better estimation of radial strain compared
+to EST.
+E. Effect of the Regularization on the Measured Strains
+and Twist
+The contribution and effect of each of the different ingredients in the registration functional on the measured strains and
+twist were analyzed. We univariately changed the λ, μ, and ω
+parameters and measured the effect on the mean values of the
+main strains and twist parameters. The center of the blood pool
+is generally a homogenous region without meaningful motion
+clues. The Laplacian operator prevents fluctuations of vertices
+located in the center of the blood pool. In general, the Laplacian puts a quadratic penalty on both the curl and divergence
+of a vector field. However, here the Laplacian is operated on
+the blood pool mesh region that undergoes a global rotation
+and contraction. As the Laplacian operator approximates the
+second-order derivative, linear transformations including con-
+
+520
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 2, FEBRUARY 2015
+
+TABLE VII
+CONTRIBUTION AND EFFECT OF THE DEFORMATIONS HYPERPARAMETERS ON MESH STABILITY, MEASURED STRAINS, AND TWIST
+parameter change [%]
+μ : −100, +100
+λ/E : −90, −80, −50, +100
+ω /t : −100, +100, +400
+
+circ. strain[%]
+
+radial strain[%]
+
+long strain[%]
+
+twist[%]
+
+Mesh is stable
+
+< 1, < 1
++28, +19, +9, −9
+14, −9, −19
+
+< 1, < 1
++120, +78, +27, −20
+−3, +2, +6
+
+< 1, < 1
+−3, +2, +3, −10
++7, −5, −17
+
+< 1, < 1
++102, +70, +26, −24
++13, −6, −14
+
+No, Yes
+always Yes
+always Yes
+
+traction and rotation are not penalized by it. This enables the
+endocardial vertices to rotate around the central axis while suppressing the relative motion of vertices in the center of the blood
+pool.
+The edge between the myocardium and fat is less pronounced
+than the edge between the myocardium and blood. The epicardial traction force prevents pulling of the epicardial vertices by
+the endocardial vertices and together with the data term keeps
+them within the epicardial boundary.
+Selection of Youngs modulus as 75 kPa with λ = 1 turned
+out to be a good choice in term of stability: Within the range
+of [−40%, +80%], all mean strains and twist change by less
+than 20% with a maximal standard deviation of 6% while also
+having good agreement to literature values [27]. Lowering the
+stiffness parameter λ increases the difference between values of
+normal and abnormal segments (i.e., the between group variability) while increasing the within group variability and vice
+versa, so that the overall statistical difference between normal
+and abnormal segments is preserved.
+
+linear function:
+u h = d1 + d2 x + d3 y + d4 z
+
+(13)
+
+where di are constants to be defined such that the FE approximation satisfies the following condition:
+uh (xi , yi , zi ) = ui ,
+
+i = 1, 2, 3, 4
+
+(14)
+
+where (xi , yi , zi ), i = 1, 2, 3, 4, are the global coordinates of the
+tetrahedron vertices.
+This condition leads to the following system of linear
+equations:
+⎡ ⎤ ⎡
+⎤⎡ ⎤
+1 x1 y1 z1
+d1
+u1
+⎢ ⎥ ⎢
+⎥⎢ ⎥
+⎢ ⎥ ⎢
+⎥⎢ ⎥
+⎢ u2 ⎥ ⎢ 1 x2 y2 z2 ⎥ ⎢ d2 ⎥
+⎢ ⎥ ⎢
+⎥⎢ ⎥
+⎢ ⎥=⎢
+⎥⎢ ⎥.
+⎢ ⎥ ⎢
+⎥⎢ ⎥
+⎢ u3 ⎥ ⎢ 1 x3 y3 z3 ⎥ ⎢ d3 ⎥
+⎢ ⎥ ⎢
+⎥⎢ ⎥
+⎣ ⎦ ⎣
+⎦⎣ ⎦
+u4
+1 x4 y4 z4
+d4
+
+V. CONCLUSION
+In the current study, we propose analyzing LV strain and
+rotational analysis using cardiac CT image data. The current
+study is novel and quite applicable in clinical practice, where
+it can have a major impact. Typically, echocardiography or MR
+imaging techniques are used to compute mechanical cardiac parameters such as strain, rotation, or twist. The current study is
+the first to show that strain analysis can be obtained by regular
+MDCT data. Cardiac CT is the only noninvasive modality able
+to image the coronary arteries. The addition of strain analysis
+to the existing capabilities may decrease unnecessary examinations, promote cardiac CT as a “one-stop shop” method [5], and
+facilitate cardiac patient workflow.
+
+APPENDIX A
+COMPUTATION OF MATRIX B
+Equation (7) yields the equation shown at the bottom of the
+page. An FE approximation over four nodes of tetrahedron is a
+⎡
+
+N1,x
+⎢0
+⎢
+1 ⎢
+⎢0
+B=
+6V e ⎢
+⎢ N1,y
+⎣0
+N1,z
+
+0
+N1,y
+0
+N1,x
+N1,z
+0
+
+0
+0
+N1,z
+0
+N1,y
+N1,x
+
+N2,x
+0
+0
+N2,y
+0
+N2,z
+
+0
+N2,y
+0
+N2,x
+N2,z
+0
+
+Let us define a matrix of coefficients to solve the constants di :
+⎡ ⎤
+⎡
+⎤⎡ ⎤
+u1
+d1
+a1 a2 a3 a4
+⎢ ⎥
+⎢
+⎥⎢ ⎥
+⎢ ⎥
+⎢
+⎥⎢ ⎥
+⎢ d2 ⎥
+⎢ b1 b2 b3 b4 ⎥ ⎢ u 2 ⎥
+⎢ ⎥
+⎢
+⎥⎢ ⎥
+1
+⎢ ⎥=
+⎢
+⎥⎢ ⎥.
+⎢ ⎥ 2V e ⎢
+⎥⎢ ⎥
+⎢ d3 ⎥
+⎢ c1 c2 c3 c4 ⎥ ⎢ u3 ⎥
+⎢ ⎥
+⎢
+⎥⎢ ⎥
+⎣ ⎦
+⎣
+⎦⎣ ⎦
+d4
+d1 d2 d3 d4
+u4
+Starting with the following matrix of coordinates:
+⎡
+⎤
+1
+1
+1
+1
+⎢
+⎥
+⎢
+⎥
+⎢ x1 x2 x3 x4 ⎥
+⎢
+⎥
+⎥
+J =⎢
+⎢
+⎥
+⎢ y1 y2 y3 y4 ⎥
+⎢
+⎥
+⎣
+⎦
+z1 z2 z3 z4
+
+0
+0
+N2,z
+0
+N2,y
+N2,x
+
+N3,x
+0
+0
+N3,y
+0
+N3,z
+
+0
+N3,y
+0
+N3,x
+N3,z
+0
+
+0
+0
+N3,z
+0
+N3,y
+N3,x
+
+N4,x
+0
+0
+N4,y
+0
+N4,z
+
+0
+N4,y
+0
+N4,x
+N4,z
+0
+
+⎤
+0
+0 ⎥
+⎥
+N4,z ⎥
+⎥
+0 ⎥
+⎥
+N4,y ⎦
+N4,x
+
+LAMASH et al.: STRAIN ANALYSIS FROM 4-D CARDIAC CT IMAGE DATA
+
+The linear coefficients are obtained by
+⎡
+⎤
+| a1 b1 c1
+⎢
+⎥
+⎢
+⎥
+⎢ | a2 b2 c2 ⎥
+⎢
+⎥
+⎢
+⎥ = J −1 |J|.
+⎢
+⎥
+⎢ | a3 b3 c3 ⎥
+⎢
+⎥
+⎣
+⎦
+| a4 b4 c4
+
+521
+
+[11] V. Tavakoli and N. Sahba, “Cardiac motion and strain detection using 4D
+CT images: Comparison with tagged MRI, and echocardiography,” Int. J.
+Cardiovasc. Imag., pp. 1–10, 2013.
+[12] S. J. Buss, F. Schulz, D. Mereles, W. Hosch, C. Galuschky, G. Schummers,
+D. Stapf, N. Hofmann, E. Giannitsis, S. E. Hardt et al., “Quantitative
+analysis of left ventricular strain using cardiac computed tomography,”
+Eur. J. Radiol., vol. 83, pp. e123–e130, 2014.
+[13] A. Sotiras, D. Christos, N. Paragios et al., “Deformable medical image
+registration: A survey,” IEEE Trans. Med. Imag., vol. 32, no. 7, pp. 1153–
+1190, 2013.
+[14] X. Papademetris, A. J. Sinusas, D. P. Dione, R. T. Constable, and J. S.
+Duncan, “Estimation of 3-D left ventricular deformation from medical
+images using biomechanical models,” IEEE Trans. Med. Imag., vol. 21,
+no. 7, pp. 786–800, Jul. 2002.
+These coefficients are the nonzero elements of matrix B e
+[15] J. Lim and M.-H. Yang, “A direct method for modeling non-rigid motion
+with thin plate spline,” in Proc. IEEE Comput. Soc. Conf. Comput. Vis.
+1
+B=
+Pattern Recog., 2005, vol. 1, pp. 1196–1202.
+e
+6V
+Kabus, A. Franz, and B. Fischer, “Variational image registration with
+⎤ [16] S.
+⎡
+local properties,” in Biomedical Image Registration. New York, NY, USA:
+a1 0 0 a2 0 0 a3 0 0 a4 0 0
+Springer, 2006, pp. 92–100.
+⎥ [17] M.
+⎢
+Ferrant, S. K. Warfield, C. R. Guttmann, R. V. Mulkern, F. A. Jolesz,
+⎥
+⎢
+⎢ 0 b1 0 0 b 2 0 0 b 3 0 0 b 4 0 ⎥
+and R. Kikinis, “3D image matching using a finite element based elas⎥
+⎢
+tic deformation model,” in Proc. Med. Image Comput. Comput-Assisted
+⎥
+⎢
+⎥
+⎢
+Intervention, 1999, pp. 202–209.
+⎢ 0 0 c1 0 0 c2 0 0 c3 0 0 c4 ⎥ [18] L.
+Geerts, R. Kerckhoffs, P. Bovendeerd, and T. Arts, “Towards patient
+⎥
+⎢
+⎥.
+specific models of cardiac mechanics: A sensitivity study,” in Proc. 2nd
+×⎢
+⎥
+⎢
+Int. Conf. Funct. Imag. Model Heart, 2003, pp. 81–90.
+⎢ b1 a1 0 b2 a2 0 b3 a3 0 b4 a4 0 ⎥
+⎥ [19] V. Carapella, R. Bordas, P. Pathmanathan, J. E. Schneider, P. Kohl, K.
+⎢
+⎥
+⎢
+Burrage, and V. Grau, “Effect of fibre orientation optimisation in an elec⎥
+⎢
+⎢ 0 c1 b1 0 c2 b2 0 c3 b3 0 c4 b4 ⎥
+tromechanical model of left ventricular contraction in rat,” in Proc. 2nd
+⎥
+⎢
+Int. Conf. Funct. Imag. Model. Heart, 2013, pp. 46–53.
+⎦
+⎣
+[20] H. Gao, B. E. Griffith, D. Carrick, C. McComb, C. Berry, and X. Luo,
+c1 0 a1 c2 0 a2 c3 0 a3 c4 0 a4
+“Initial experience with a dynamic imaging-derived immersed boundary
+model of human left ventricle,” in Proc. Funct. Imag. Model. Heart, 2013,
+pp. 11–18.
+REFERENCES
+[21] B. Zitova and J. Flusser, “Image registration methods: A survey,” Image
+Vis. Comput., vol. 21, no. 11, pp. 977–1000, 2003.
+[1] H. Azhari, J. L. Weiss, W. J. Rogers, C. Siu, E. Zerhouni, and E. Shapiro, [22] S. Baker and I. Matthews, “Lucas-kanade 20 years on: A unifying frame“Noninvasive quantification of principal strains in normal canine hearts
+work,” Int. J. Comput. Vis., vol. 56, no. 3, pp. 221–255, 2004.
+using tagged MRI images in 3-D,” Amer. J. Physiol.-Heart Circulatory [23] I. Matthews and S. Baker, “Active appearance models revisited,” Int. J.
+Physiol., vol. 264, no. 1, pp. H205–H216, 1993.
+Comput. Vis., vol. 60, no. 2, pp. 135–164, 2004.
+[2] H. Wang and A. A. Amini, “Cardiac motion and deformation recovery [24] R. S. Szeliski and J. M. Coughlan, “Spline-based image registration,” U.S.
+from MRI: A review,” IEEE Trans. Med. Imag., vol. 31, no. 2, pp. 487–
+Patent 5 611 000, Mar. 11, 1997.
+503, Feb. 2012.
+[25] J. Modersitzki, Numerical Methods for Image Registration (Numerical
+[3] A. Pourmorteza, K. Schuleri, D. Herzka, A. Lardo, and E. McVeigh, “A
+Mathematics and Scientific Computation). London, U.K.: Oxford Univ.
+new method for cardiac computed tomography regional function assessPress, 2004.
+mentclinical perspective stretch quantifier for endocardial engraved zones [26] M. D. Cerqueira, N. J. Weissman, V. Dilsizian, A. K. Jacobs, S. Kaul,
+(squeez),” Circulation, Cardiovasc. Imag., vol. 5, no. 2, pp. 243–250,
+W. K. Laskey, D. J. Pennell, J. A. Rumberger, T. Ryan, and M. S. Ve2012.
+rani, “AHA scientific statement,” Circulation, vol. 105, pp. 539–542,
+[4] D. B. Mark, D. S. Berman, M. J. Budoff, J. J. Carr, T. C. Gerber, H.
+2002.
+S. Hecht, M. A. Hlatky, J. M. Hodgson, M. S. Lauer, J. M. Miller,
+[27] S. Carasso, P. Biaggi, H. Rakowski, D. Mutlak, J. Lessick, D. Aronson, A.
+et al., “Accf/acr/aha/nasci/saip/scai/scct 2010 expert consensus document
+Woo, and Y. Agmon, “Velocity vector imaging: Standard tissue-tracking
+on coronary computed tomographic angiography: A report of the Amerresults acquired in normals—The VVI-STRAIN study,” J. Amer. Soc.
+ican College of Cardiology foundation task force on expert consensus
+Echocardiography, vol. 25, pp. 543–552, 2012.
+documents,” J. Amer. Coll. Cardiol., vol. 55, no. 23, pp. 2663–2699, 2010. [28] S. Carasso, H. Yang, A. Woo, M. A. Vannan, M. Jamorski, E. D. Wigle, and
+[5] M. Williams, J. Reid, G. McKillop, N. Weir, E. van Beek, N. Uren, and
+H. Rakowski, “Systolic myocardial mechanics in hypertrophic cardiomyD. Newby, “Cardiac and coronary CT comprehensive imaging approach
+opathy: Novel concepts and implications for clinical status,” J. Amer. Soc.
+in the assessment of coronary heart disease,” Heart, vol. 97, no. 15,
+Echocardiography, vol. 21, no. 6, pp. 675–683, 2008.
+pp. 1198–1205, 2011.
+[29] R. F. Janz and A. F. Grimm, “Finite-element model for the mechanical
+[6] A. A. Amini and J. L. Prince, Measurement of Cardiac Deformations From
+behavior of the left ventricle prediction of deformation in the potassiumMRI: Physical and Mathematical Models, vol. 23. New York, NY, USA:
+arrested rat heart,” Circulation Res., vol. 30, no. 2, pp. 244–252, 1972.
+Springer, 2001.
+[30] B. H. Amundsen, T. Helle-Valle, T. Edvardsen, H. Torp, J. Crosby, E. Ly[7] A. F. Frangi, W. J. Niessen, and M. A. Viergever, “Three-dimensional
+seggen, A. Støylen, H. Ihlen, J. A. Lima, O. A. Smiseth et al., “Noninvasive
+modeling for functional analysis of cardiac images: A review,” IEEE
+myocardial strain measurement by speckle tracking echocardiographyvalTrans. Med. Imag., vol. 20, no. 1, pp. 2–5, Jan. 2001.
+idation against sonomicrometry and tagged magnetic resonance imaging,”
+[8] J. Peters, O. Ecabert, H. Schmitt, M. Grass, and J. Weese, “Local cardiac
+J. Amer. Coll. Cardiol., vol. 47, no. 4, pp. 789–793, 2006.
+wall motion estimation from retrospectively gated CT images,” Funct. [31] P. Biaggi, S. Carasso, P. Garceau, M. Greutmann, C. Gruner, W. Tsang, H.
+Imag. Model. Heart, vol. 5528, pp. 191–200, 2009.
+Rakowski, Y. Agmon, and A. Woo, “Comparison of two different speckle
+[9] S. M. Song and R. M. Leahy, “Computation of 3-d velocity fields from
+tracking software systems: Does the method matter?” Echocardiography,
+3-D cine CT images of a human heart,” IEEE Trans. Med. Imag., vol. 10,
+vol. 28, no. 5, pp. 539–547, 2011.
+no. 3, pp. 295–306, Sep. 1991.
+[10] A. Simon, M. Garreau, D. Boulmier, J.-L. Coatrieux, and H. Le Breton,
+“A surface-volume matching process using a Markov random field model
+for cardiac motion extraction in MSCT imaging,” in Functional Imaging and Modeling of the Heart. New York, NY, USA: Springer, 2005,
+Authors’, photographs and biographies not available at the time of publication.
+pp. 457–466.
+
+

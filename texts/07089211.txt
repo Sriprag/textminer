@@ -1,0 +1,1128 @@
+2296
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 9, SEPTEMBER 2015
+
+Global and Local Panoramic Views for Gastroscopy:
+An Assisted Method of Gastroscopic Lesion
+Surveillance
+Jiquan Liu∗ , Member, IEEE, Bin Wang, Weiling Hu, Pan Sun, Jieyu Li, Huilong Duan, Member, IEEE, and Jianmin Si
+
+Abstract—Gastroscopy plays an important role in the diagnosis
+of gastric disease. In this paper, we develop an image panoramic
+system to assist endoscopists in improving lesion surveillance and
+reducing many of the tedious operations associated with gastroscopy. The constructed panoramic view has two categories: 1)
+the local view broadens the endoscopist’s field of view in real time.
+Combining with the original gastroscopic video, this mosaicking
+view enables the endoscopist to diagnose the lesion comprehensively; 2) the global view constructs a large-area panoramic scene
+of the internal gastric surface, which can be used for intraoperative surgical navigation and postoperative scene review. Due to the
+irregular texture and inconsistent reflection of the gastric internal
+surface, common registration methods cannot accurately stitch this
+surface. Thereby, a six degree of freedom position tracking endoscope is devised to accommodate for the accumulated mosaicking
+error and provide efficient mosaicking results. For the global view,
+a dual-cube constraint model and a Bundle Adjustment algorithm
+are incorporated to deal with the mosaicking error caused by the
+irregular inflation and nonrigid deformation of the stomach. Moreover, texture blending and frame selection schemes are developed to
+make the mosaicking results feasible in real-clinical applications.
+The experimental results demonstrate that our system performs
+with a speed of 7.12 frames/s in a standard computer environment,
+and the mosaicking mean error is 0.43 mm for local panoramic
+view and 3.71 mm for global panoramic view.
+Index Terms—Gastroscopy, image mosaicking, image processing, video processing.
+
+I. INTRODUCTION
+A. Clinical Motivation
+ASTRIC cancer is the second most common deadly disease in the world, and is more severe in Asia than in
+anywhere else in the world [1]–[3]. Reported data indicate that
+Japan has the highest annual incidence of gastric cancer in the
+world, and this disease causes more death in China than any
+other cancer [4]. The traditional treatment for this disease is
+gastroscopy, and the surveillance of premalignant lesions may
+
+G
+
+Manuscript received October 31, 2014; revised March 1, 2015 and April
+14, 2015; accepted April 14, 2015. Date of publication April 20, 2015; date
+of current version August 18, 2015. The work was supported by the National
+Natural Science Foundation of China under Grant 31470955. Asterisk indicates
+corresponding author.
+∗J. Liu is with the College of Biomedical Engineering and Instrument Science, Zhejiang University, and the Key Laboratory for Biomedical Engineering,
+Ministry of Education, Hangzhou 310027, China (e-mail: liujq@zju.edu.cn).
+B. Wang, P. Sun, J. Li, and H. Duan are with the College of Biomedical
+Engineering and Instrument Science, Zhejiang University.
+W. Hu and J. Si are with the Sir Run Run Shaw Hospital, Zhejiang University.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2424438
+
+improve the survival rate [5]. During examination, the endoscopist manipulates a flexible gastroscope through the patient’s
+esophagus into the stomach, and steers the gastroscope to screen
+the gastric internal surface. However, due to the restricted field
+of view (FOV), endoscopists must operate the gastroscope over
+the surface to ensure all suspicious lesions are encountered as
+well as specific tissue sites are often reobserved. Once a lesion is
+discovered, a biopsy maybe performed, and a follow up examination should be scheduled after several months [6]. The narrow
+FOV increases the operation inefficiency and misdiagnosis rate.
+Thus, a broader FOV surveillance method is desired to improve
+the efficiency of gastroscopy and guide endoscopists as they
+manipulate surgical instruments around anatomical structures.
+
+B. Previous Work
+To compensate for the restricted FOV imposed by the scope,
+many computer vision techniques are utilized to construct wide
+operation scenarios. Some researchers have focused on recovering the inspected organ’s 3-D surface, and the reconstructed
+model renders a wide FOV, which provides a reality augment
+scene for the endoscopist. Some studies elaborate 3-D visualization methods based on the structure from motion [7], [8]. The
+reconstructed model is considered as a multiple-view geometries recovery problem generated from the moving endoscope,
+which is a commonly studied topic in the computer vision field
+[9]. Stoyanov and Mountney proposed a soft organ surface recovery method to represent the tissue deformation during minimally invasive surgery [10], [11]. In their method, the 3-D
+scenario and the motion of the scope are calculated using simultaneous localization and mapping [12]. Their approaches
+can be applied to laparoscopic cholecystectomy and endoscopic
+coronary artery bypass surgery, and the results show promising
+potential for further application. Nevertheless, for soft tissue
+organs, the inconsistent brightness, irregular texture, large deformation, and severe occlusion bring difficulties for accurately
+recovering the surface using endoscopy. For example, the inconsistent brightness and irregular texture always leads to feature
+matching failures. Additionally, the severe occlusion and deformation cause missing data problems in the reconstruction
+process, which makes the recovered depth to be incorrectly calculated [13]. Accompanying technical reports are presented to
+solve these problems, for example, adopting a robust estimator [14] (e.g., RANSAC,ASKC etc.), SFM factorization [15],
+or singular value decomposition [16] to estimate the feature
+set and remove outliers; utilizing the bundle adjustment (BA)
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+LIU et al.: GLOBAL AND LOCAL PANORAMIC VIEWS FOR GASTROSCOPY
+
+algorithm [17] to refine the reconstructed model; furthermore,
+taking advantage of artificial intelligence to solve the missing
+data problem [18], whereas, no robustness methods can be suitable for clinical gastroscopic practice. In addition, 3-D recovery
+methods also require tremendous computational effort that is
+not possible for real-time requirements. Moreover, researchers
+also focused on utilizing a priori model for virtual navigation to
+broaden the FOV [19], [20]; however, the required additional CT
+or MRI scans increases the medical cost, and more importantly
+that the static preoperative model cannot guarantee the accuracy of the organ’s intraoperative deformation. In summary, to
+the best of our knowledge, the application of 3-D surface reconstruction to broaden the FOV under gastroscopy is challenging,
+and remains an open issue.
+Panorama is another promising methodology to solve the
+narrow FOV problem using endoscopy, and many encouraging
+techniques have been applied to different endoscopic environments, such as the esophagus [21], bladder [22], [23], retina
+[24], and brain [25]. In these techniques, the panoramic scenario is constructed through the detection of feature matching
+between individual images, the estimation of their homographic
+relationship (or affine transform), the projection of individual
+images onto an assumed planar structure, and blending a composite image. Although distortion may occur in the mosaicking
+result, the panorama can be highly beneficial for intraoperative navigation, overall tumor surveillance, and postoperative
+review.
+Despite these advantages, the traditional panoramic view also
+has its limitations. First, the panorama is a 2-D representation of
+a 3-D anatomic structure, which indicates that the mosaicking
+result may be distorted. The greater curvature of the anatomic
+area that the stitched images span over, the greater the distortion of the view due to an increased mosaicking effects [26].
+To solve the problem of distortion, Behrens et al. introduced a
+hemicubic model to map the organ’s surface [27]. The reconstructed global panoramic view contains five local panoramic
+patches that correspond to faces of the hemicubic model. This
+paper validates that the hemicubic model’s distortion is smaller
+than that of the planar model. Nevertheless, this method requires
+manual intervention to determine the start and the end of each
+local mosaicking sequence, which complicates the diagnostic
+flow. Soper et al. addressed another potential scheme to solve
+this problem [22]. In their work, the bladder’s global panoramic
+view is projected into spherical coordinates, and then the spherical mosaicking result is unfolded into a panoramic view. This
+study provides validation that the projection error is less than 2
+pixels and the cover rate is 99.6%, which is a great improvement
+from previous methods. However, to the best of our knowledge,
+the spherical mosaicking approach has a high accuracy due to
+the bladder’s sphere-shape structure, and for the other irregular organs (e.g., stomach), the spherical projection maybe not
+reasonable.
+The second limitation of using the traditional panoramic
+views is that the mosaicking result is seriously reliant on the
+individual image stitching algorithms, and a lot of approaches
+utilize feature-based methods to stitch individual images [28]–
+[30]. In these approaches, many straightforward registration
+
+2297
+
+methods, such as SIFT, Lucas–Kanade, so on are employed.
+However, in the endoscopic environment, due to the existing
+noise and uncertainty of the texture, misregistration may occur
+after feature-based stitching, and the caused accumulate error is
+difficult to deal with [31].
+Third, the computational cost is a critical problem for intraoperative applications [31]. To minimize the computational expense, a high-performance computing architecture is used [32];
+for example, Liao et al. proposed an image fusion solution based
+on GPU [33], and Behrens et al. utilized a multithread mechanism to optimize the image registration process [23], which
+made intraoperative bladder mosaicking feasible. Moreover,
+Soper et al. proposed a novel image matching process to select valuable frames for mosaicking [26], which accelerates the
+performance, and provides a scheme for rejecting accumulate
+error. In our opinion, although many encouraging optimization
+solutions already exist to optimize the computational cost, there
+is no universal approach for the many panoramic cases. As a
+result, when a novel approach is presented, the computational
+effort should be estimated.
+C. Objectives
+In this paper, we develop a system to provide local and global
+panoramic views using gastroscopy. This paper has three main
+contributions: First, a six degree of freedom (6-DOF) position
+tracking endoscope device is employed to select valuable frames
+for stitching and to estimate the stitching transformation between the selected frames. Second, the local panoramic view is
+made accessible and is updated in real time on the workstation.
+Combining with the native view of the scope, the constructed
+panoramic view facilitates endoscopists to diagnose the lesions
+overall without cumbersome endoscope operations. Third, the
+global panoramic view is extended as the tracking endoscope
+device captures more native images, which can be applicable
+for intraoperative navigation and postoperative scene review. To
+improve the accuracy and robustness of the global panoramic
+view, a dual-cubic projection method and an optimized BA are
+devised, and the results show that this projection solution has a
+good performance for gastroscopic environment. Additionally,
+it is shown that the local panoramic view can be implemented
+in real time in the current workstation, as well as for global
+panoramic view, the proposed frame selection can accelerate
+the performance, which is potentially suitable for the necessary
+of clinical requirements.
+D. Method Overview
+The system consists of a tracking gastroscope and a
+panoramic system installed on the gastroscopic workstation.
+The tracking gastroscope integrates a 6-DOF position sensor and
+a standard gastroscope device. A hand-eye calibration solution
+which we proposed in [34] is applied to calculate the position relationship between the sensor and the tip of the endoscope. As a
+consequence, the tracking gastroscope device does not only capture video from the gastric internal surface, but can also record
+the motion of the gastroscopic camera. The panoramic system
+constructs a local panoramic view and a global panoramic view
+
+2298
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 9, SEPTEMBER 2015
+
+Fig. 1. Schematic diagram of the proposed system pipeline. System calibration includes gastroscopic image calibration and device calibration, and is used
+in both local panoramic view and global panoramic view.
+
+based on the obtained image sequence and 6-DOF position information of the camera (see Fig. 1).
+The local panoramic view is stitched in real time. During the
+gastroscopic procedure, the tracking gastroscope transmits the
+camera’s motion and images to the workstation, and then the
+panoramic system utilizes the 6-DOF position information of
+the camera to model a perspective projection. To strengthen the
+constraints in the perspective model, a projection plane with a
+special direction is involved, and finally, the images around the
+FOV are projected onto the plane to create a local panoramic
+view. The calculation standard of the projection plane’s direction
+is to ensure it is parallel with the 6-DOF positions of corresponding camera’s scopes as much as possible, which indicates the
+integral projection error is minimal.
+To construct a global panoramic view, a dual-cubic projection
+model is introduced. Once the tracking endoscope enters the gastric internal cavity, the captured position information is matched
+with the dual-cubic model, and the corresponding captured images are projected onto dual-cube’s faces. The dual-cubic model
+provides a constraint to the global panoramic view, which can
+reduce the error caused by gastric deformation motion, irregular
+inflation, and various sizes from different patients. To accelerate
+the performance, a frame selection scheme takes effect to select
+valuable frames to stitch panoramic views on the faces of the
+dual-cubic model. Moreover, the BA algorithm is adopted to
+refine the stitching results.
+II. SYSTEM CALIBRATION
+Prior to real-clinical applications, the system needs to be calibrated. There are three main reasons for calibration: First, the
+originally captured images are subject to serious image distortion caused by the scope’s fisheye effect [35]. Thus, the native
+images should be corrected before mosaicking. Second, the endoscope’s internal parameters should be calculated to construct
+
+Fig. 2. Gastroscopic camera calibration results. (a) Native captured chessboard images. The red line criterion shows that the straight boarder is highly
+distorted. (b) Calibrated chessboard images. After the camera calibrated, the
+straight boarder nearly coincides with the criterion line, which indicates the
+calibration result is sufficient. (c) Schematic diagram for the tracking system.
+To obtain the camera’s position in the world coordinate system, the position
+relationship between sensor and gastroscopic camera should be calculated. (c)
+[34] is included for reader’s convenience.
+
+a perspective model. Finally, the 6-DOF position sensor is integrated into the gastroscopic device. For the purpose of obtaining
+the 6-DOF position of the endoscopic camera in real time, a
+hand-eye calibration should be applied to calculate the position
+relationship between the endoscopic camera and the sensor.
+In this paper, the image distortion and internal parameter calculations are solved using Zhang’s method [36]. In Zhang’s theory, the calibrated camera’s internal and distortion parameters
+can be estimated using a series of chessboard images, and the
+images can be corrected by projecting them using the internal
+parameters and removing the interference caused by the distortion parameters. We developed the gastric calibration program
+based on OpenCV and integrated it into our panoramic system.
+Here, it should be noted that this calibration should be computed only once prior to the first application of the endoscope
+because the distortion and internal parameters are constant for
+each endoscope [see Fig. 2(a) and (b)].
+Before the gastroscopic procedure, the sensor is attached
+to the tip of the endoscope through the working channel [see
+Fig. 2(c)]. The related coordinate system consists of the transmitter coordinate system, the sensor coordinate system, and the
+endoscopic camera coordinate system. During gastroscopy, the
+sensor system and the camera system vary with the motion of the
+endoscope, whereas the transmitter system remains steady. As a
+result, we consider the transmitter coordinate to be a world system, and the 6-DOF positions of the camera and sensor should be
+
+LIU et al.: GLOBAL AND LOCAL PANORAMIC VIEWS FOR GASTROSCOPY
+
+2299
+
+calculated in the transmitter coordinate system. As is discussed
+in [37], a parallel binocular stereo vision algorithm was developed to estimate the coordinate relationship between the camera
+and sensor. Here, it is important to note that for robotic research,
+this calibration problem can be considered as a hand-eye calibration problem, and many sophisticated techniques have been
+reported to overcome this problem [38], [39]. However, these
+techniques deal with the calibration of robotics by imposing
+special requirements on camera’s movement or special robotics’
+action, which are difficult to perform in clinical environments
+due to the narrow space of gastric cavity and strict instrument
+requirements. Besides, Behrens et al. also proposed a low-cost
+navigation endoscope, and demonstrated promising results in
+cystoscopic interventions [40]; however, this tracking device is
+used in a hard-tube endoscope environment.
+
+III. LOCAL PANORAMIC VIEW
+A. Frame Stitch
+During gastroscopic procedure, captured images around the
+FOV are stitched to broaden the scope’s view. We utilize the obtained endoscopic camera’s position information to implement
+the stitching process, and construct a perspective model for each
+camera position.
+In the perspective camera model, given a set of 3-D
+points Pi = (Xi , Yi , Zi )T with associated image points pi =
+(xi , yi )T , the relationship can be conducted as a projection
+matrix A3∗3 in a homogeneous coordinate system
+⎡
+
+Xi
+A3∗3 ⎣ Yi
+Zi
+
+⎤
+
+⎡
+
+xi
+⎦ = ⎣ yi
+KZi
+
+⎤
+⎦
+
+A3∗3 = M13∗3 M23∗3
+
+(1)
+⎡
+
+a0,0 , a0,1 , a0,2
+= ⎣ a1,0 , a1,1 , a1,2
+0, 0, K
+
+⎤
+⎦ . (2)
+
+In (1), K denotes a constant ratio, and A3∗3 represents the endoscopic camera model, and can be derived into two matrixes:
+M13∗3 and M23∗3 as (2). M13∗3 denotes the internal parameters
+(e.g., focal length, optical center) of the endoscope as well as
+M23∗3 denotes the external parameters (e.g., translation and rotation). As the description detailed, M13∗3 and M23∗3 are estimated
+in the system calibration process.
+To stitch frames, we assume a projection plane in the global
+coordinates, and images around the FOV are projected onto the
+plane based on (1). In (1), two linear independent equations can
+be derived to calculate Xi , Yi and Zi , nevertheless, uncertainty
+exists because there are three unknown variables. The two linear
+independent equations can determine a ray in the global space,
+where the point (Xi , Yi , Zi ) is reliant. In this case, an assumed
+plane is used to strengthen the constraint, and afterward, the
+intersection point between the ray and the plane is considered
+as the projection point. Assuming the plane as A0 X + B0 Y +
+C0 Z + D0 = 0, by combining (1) and (2), the stitching result
+
+Fig. 3. Projection error of the stitching process. L denotes captured images as
+well as L ∗ Cosθ denotes the projection result. As the figure illustrates the cross
+angle of the projection plane and captured image is θ and the depth information
+vertical to assumed plane is lost in the projection result. Consequently, the
+perfect assumed plane should be parallel with the captured image (corresponding
+camera’s position), in which condition θ is zero.
+
+can be represented as
+⎡
+⎤ ⎡
+Xi
+a0,0 , a0,1 , a0,2
+⎣ Yi ⎦ = ⎣ a1,0 , a1,1 , a1,2
+Zi
+A0 , B0 , C0
+
+⎤−1 ⎡
+
+⎤
+
+⎦
+
+⎦.
+
+xi
+⎣ yi
+−D0
+
+(3)
+
+When we project the related frames onto the assumed plane,
+projection error may occur for the reason that planar projection
+will lose the depth information along the direction vertical to the
+plane (see Fig. 3). To solve this problem, we construct the plane
+in a special direction. In (3), A0 , B0 , C0 represent the normal
+vector’s direction of the projection plane, and it is computed
+as the average normal direction of all endoscopic camera’s corresponding 6-DOF positions. In clinical applications, the local
+panoramic view only stitches the frames adjacent to the current
+displayed frame, and these frames are captured using an endoscope with a very small skew angle. As a result, the computed
+projection plane can be considered to be parallel with the all related positions of endoscopic camera, enabling it to prevent any
+projection error. Moreover, D0 represents the distance between
+the gastroscopic camera and the projection plane, and it determines the composited image’s size and resolution. Generally
+speaking, D0 is a user-specified parameter, and it can be set to a
+large value when the user requires a high image resolution, and
+can be set a small value when the user projects a stitching result
+onto a limited canvas to reduce document size. In our system,
+D0 is set as the average of the related endoscope’s displacements
+by default.
+B. Texture Blending
+After stitching the images, the composited image should be
+mapped with the texture information from the native gastroscopic images. There are three main problems that should be
+addressed here: First, the overlay regions may be blurred or
+represent visual edge artifacts. Second, deformation and noise
+may distort the anatomic shapes. Third, the direct projection
+
+2300
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 9, SEPTEMBER 2015
+
+result is in discontinuity, and the mosaicking interpolation process should be implemented. For our system, we typically employ the multiresolution pyramidal algorithm to blend the composited images [41].
+Loewke et al. used their multiresolution pyramidal blending
+algorithm in microimage mosaicking [29]. Our blending strategy is similar with this method. However, their method only
+initialized the decomposed frequency bands of the overlay regions by the Laplacian pyramids, and the final blended image
+was a sum of all levels of the pyramid. This method efficiently
+preserves sharp details, but generates apparent visual edge artifacts due to the inhomogeneous light illumination effect on
+different anatomic sites. To solve this problem, an appropriate
+normalization method should be applied to eliminate the visual
+artifacts. In our system, all related images are transformed from
+the RGB format to the HSI format, and are normalized in the
+Ii
+. Ii denotes intensity information of
+intensity channel as m ax(I
+i)
+the native gastroscopic images, max(Ii ) denotes the maximum
+intensity, and the multiresolution composition is applied to the
+normalized intensity
+
+  Ii
+L
+(4)
+Li (Iblend ) = 255 ∗
+Gi (Im ask ) .
+i
+max(Ii )
+In (4), Im ask denotes a blending mask, which is used to
+select
+frequency bands from Laplacian pyramid
+
+
+	 the desired
+Ii
+.
+Finally,
+the composited image’s Laplacian model
+L m ax(I
+i)
+is reconstructed as Li (Iblend ) by extending the intensity normalization result from 0 to 255.
+After that the hue and saturation elements are composited
+as the same Laplacian decomposition as (4) just without the
+normalization process. Then, the blended image is constructed
+by expanding and summing all levels of the multiresolution
+pyramid, and converting the HSI format to the RGB format.
+Finally, the discontinuity of the blended image is solved by
+using cubic interpolation.
+IV. GLOBAL PANORAMIC VIEW
+A. Model Registration
+To construct a global panoramic view, a standard projection
+constraint model should be used. For example, a sphere model is
+used for sphere-shaped organs (such as bladder). However, the
+sphere model is not suitable for stomach due to its bean shape.
+A dual-cubic model is employed to constrain the mosaicking
+projection, and a registration method is applied to match the
+6-DOF position set of endoscopic camera with the dual-cubic
+model. In the proposed system, the endoscopist is required to
+touch the cardiac orifice, angular incisures, and pylorus, and
+then, the locations of these anatomic sites are transmitted to the
+workstation and marked as landmarks. Afterward, a closed-form
+method [42] is adopted to facilitate the registration by exploring
+the most reasonable rigid transformation that optimizes the least
+squares residual between the position set and dual-cubic model
+(see Fig. 4). The reason these landmarks are chosen is that
+they are easily found and touched by the endoscopist during
+examination.
+
+Fig. 4. Schematic diagram of the dual-cubic projection. The touched anatomic
+sites are registered with corresponding points on the dual-cubic model. In this
+way, the stomach body and the antrum are located and constrained in a respective
+cubic space. The green circles indicate the camera’s position set, and the blue
+markers indicate the selected landmarks in the two models. After registration,
+virtual cameras are created in both cubic boxes, and the native gastroscopic
+images under conditions of parallelism and reasonable overlay area are projected
+onto the cubic faces.
+
+B. Frame Selection
+1) Parallelism Selection: Real gastroscopic video contains
+tens of thousands of images that cover the entire gastric internal
+surface. These images are captured from arbitrary views and
+positions, which cause distortion in the final result when they
+are projected directly onto the faces of a dual-cubic model. As
+a consequence, after model registration, frames that are parallel
+with the corresponding dual-cubic faces are selected from the
+total video frame set to reduce the distortion error in the stitching. Finally, the selected frames are projected onto the corresponding face according to (3). To implement this, two virtual
+camera view (Xc1 , Yc1 , Zc1 ) and (Xc2 , Yc2 , Zc2 ) are assumed
+at the center of the two cubes, and virtual rays are transmitted
+from (Xc1 , Yc1 , Zc1 ) and (Xc2 , Yc2 , Zc2 ) to the faces of the
+dual-cubic model. The rays go through the endoscopic camera’s
+6-DOF position set, and we select the reasonable positions by
+estimating their directions. The best candidates show the highest
+levels of parallelism with the corresponding faces (see Fig. 3).
+2) Overlay Selection: Subsequently, in common cases, the
+overlay area between successive frames is very large, which
+results in high computational cost associated with the texture
+blending process, and requires a great number of frames to recover a large area of gastric internal surface. However, if the
+overlay area is too small, the stitching result is insufficiently
+
+LIU et al.: GLOBAL AND LOCAL PANORAMIC VIEWS FOR GASTROSCOPY
+
+constrained and creates an ambiguous final panoramic view. As
+a result, to ensure the accuracy and expediency of the mosaicking process, maximum and minimum overlay percentages are
+chosen to select proper frames for stitching.
+Assuming the frames set after parallelism selection as I para ,
+as well as the frame set after overlay selection is I over , and
+the elements of I over are selected from I para . First, we initialize
+I over with the first frame in I para and recorded as I1over = I1para .
+During the selection process, we assume that the last selected
+para
+, and can be recorded as
+frame Ikover from set I para is Im
+over
+para
+Ik = Im . The next frame in overlay set can be denoted
+para
+para
+is Im
+as Ikover
++1 , and a candidate from set I
++Δ n where Δn
+represents the increasing frame index in parallelism frame set.
+Δn is initialized as one at the beginning, and updated as Δn =
+para
+over
+is matched with Im
+Ikover − Ikover
+−1 . Then, Ik
++Δ n by attempting
+para
+to project Ikover and Im
+onto
+the
+corresponding
+plane. If the
++Δ n
+para
+will
+be
+appended
+into the
+overlay area is reasonable, Im
++Δ n
+selected sequence I over ; otherwise, if the overlay area is bigger
+than the maximum percentage or smaller than the minimum
+percentage, the Δn will be increased or decreased; in this way,
+Ikover
++1 is reselected until overlay area meets the requirement.
+Finally, the overlay area is mapped with texture by the same
+method used in the local panoramic process.
+In this way, the frame selection strategy selects parallel frames
+to decrease the final projection error, and selects proper overlay
+areas to accelerate the performance. Moreover, the frame selection is performed concurrently with the stitching process, and
+is implemented in real time. In [26], a similar frame selection
+strategy is proposed, but our method is different from it due to
+the different objectives; our method’s aim is to select proper
+overlay frames, whereas their method is to select frames that
+can be matched.
+C. BA Refinement
+From previous steps, images are projected onto respective
+face of the dual-cubic model to construct a global panoramic
+view. During this procedure, tissue deformation occurs, which
+results in the stitching parallelism not always being available, and causes stitching error. Moreover, the calibration result
+should also be estimated and refined to provide an accurate measurement for the final panoramic view. To improve the stitching
+accuracy, we adopt the BA algorithm to refine the stitching
+result. BA is a common solution for optimizing reconstructed
+structures in the computer vision field. It is advantageous for
+the tolerance of noise, and it simultaneously provides accurate
+camera parameters and reconstruction structures by minimizing
+the reprojection error [9]. In our BA algorithm, the pixels in images are always projected on to the faces of the dual-cube, and
+the reprojection error is minimized during the BA algorithm.
+In our system, a set of stitching points on the faces are
+pixels in imP = {p1 , p2, p3 , . . . , pn}, and the corresponding
+
+age Ik are set as X = xk1 , xk2 , xk3 , . . . , xkn . First, the projection result P is reprojected
+every image 
+plane Ik using
+ onto
+
+
+
+
+(1), and the result is X  = xk1 , xk2 , xk3 , . . . , xkn . Afterward, a
+
+summed reprojection errorbetween X and X 
+is estimated, and
+1
+2
+3
+k
+recorded as a vector D = d , d , d , . . . , d , and dk denotes
+
+2301
+
+Fig. 5. Schematic diagram of the proposed system’s components. (A). Workstation, where the software is installed. (B). Traditional gastroscopic system.
+(C). Magnetic transmitter. (D). Preamplifier of the tracking sensor. (E). Electronics unit device. (F). Tracking sensor and electric cable. The tracking sensor is
+attached to the gastroscope’s tip. During examination, the workstation receives
+6-DOF position information from transmitter as well as receives native gastroscopic images from the traditional gastroscopic system, and then the panoramic
+view is constructed and rendered in the workstation.
+
+the summed reprojection error in image k, and can be recorded
+as
+n
+
+ 	
+
+
+
+1	 k
+ T
+
+xki − xki .
+(5)
+xi − xki
+dk =
+2
+i=1
+Generally speaking, (5) is a function related
+
+ to some variables.
+We record the variables as vector C k = c1 , c2 , c3 , . . . , cm ,
+which consists of the stitching information and the entire camera’s parameters, given by
+ck = {P k , Rk , T k , M }
+
+(6)
+
+where P k denotes the projection results of image Ik , Rk , and
+T k denote the rotation parameters and translation parameters of
+image Ik , and M denotes the internal parameters of the gastroscopic camera.
+Here, dk (ck ) can be considered as a nonlinear function that
+represents the relationship between the reprojection error and the
+variables. To minimize the reprojection error, quadratic Taylor
+series approximation is applied to dk (ck ). The normal equation
+can be conducted as
+ 
+(7)
+J T JΔ ck = J T dk
+ k
+where J denotes the Jacobian matrix, and Δ c denotes the
+iterative optimal element that indicates a better estimation. In
+clinical gastroscopic applications, thousands of stitching points
+and camera parameters are involved, rendering (7) a highdimensional problem. In this case, the BA potentially progresses
+toward a local optimal solution, which requires a good starting
+initialization point. In our system, the refinement is first initialized by the frame selection strategy as was discussed before.
+Following frame selection, frames that are parallel with the projection faces are selected, and the overlay areas are estimated.
+This corrects most skew error and distortion, suggesting that the
+results of a frame selection strategy provide a well-conditioned
+initialization for the starting of a BA algorithm.
+
+2302
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 9, SEPTEMBER 2015
+
+set is sampled by an interval ΔnBA , and can be recorded
+sel
+sel
+sel
+as I sub 1 = {I1sel , I1+Δ
+n B A , I1+2∗Δ n B A , I1+3∗Δ n B A , . . .}, and
+then, the BA algorithm estimates the stitching result and gastroscopic camera’s parameters based on I sub 1 .
+Next another subset is sampled and recorded asI sub 2 =
+sel
+sel
+sel
+{I2sel , I2+Δ
+n B A , I2+2∗Δ n B A , I2+3∗Δ n B A , . . .}. The stitching results and the camera’s parameters are refined based on I sub 1
+and I sub 2 . The procedure is repeated until all images are processed.
+It is important to note that although BA works in an incremental scheme to create a higher quality refinement result, it comes
+at a great computational cost. Two strategies are developed to
+improve the computational efficiency: First, a dual-cubic model
+constrains the stitching scene, and each point is projected onto
+the dual-cube’s face. As a greater number of subset images are
+used, the recovered sections on the faces are expanded. Thus,
+the BA algorithm can be completed as long as the faces are
+fully recovered before all subset images are estimated. Second,
+the proposed incremental BA algorithm is an iterative process,
+and in each refinement process, a new subset of images are appended to optimize the variables in (6). We divide the iterative
+process into the odd and even processes. Instead of estimating
+all variables in each loop process, we estimate the camera parameters in the odd process, and estimate the stitching result
+in the even process. In this way, we reduce the computational
+burden greatly and maintain a high level of accuracy.
+Fig. 6. Creation of a virtual gastroscopic scene and stitching results. (a) Virtual
+scene and initial virtual camera’s position. (b) Triangular mesh of the virtual
+scene. (c) Stitching result of the stomach body, and the red rectangles indicate
+the corresponding faces of the cube. The mean and stand deviation (SD) of the
+stitching error result is 1.87 ± 0.33 mm, which indicates the proposed method
+has an acceptable performance dealing with deformation problems.
+
+TABLE I
+STITCHING ERROR OF PHANTOM DATA
+Biopsy Location
+Angularis
+Antral lesser curvature
+Antral greater curvature
+Stomach body posterior wall
+Stomach body anterior wall
+
+Accuracies:(mean ± SD) mm
+2.1 ± 0.81
+1.3 ± 0.23
+1.3 ± 0.18
+1.5 ± 0.42
+1.0 ± 0.26
+
+The BA algorithm is always designed as an incremental
+scheme to avoid a local minimum solution. The general idea
+is that initializing reconstruction with a small set of data, and
+then additional data are added for further iterative estimation.
+For instance, an incremental BA algorithm has been used to
+reconstruct a 3-D structure from unordered datasets [43]. In
+this study, new frames are inserted into the optimization process one by one, and a good starting initialization is obtained
+from an unordered image sequence. In [44], a triple group selection strategy is used for scene reconstruction and camera
+parameter estimation, and the results show promising potential for challenging endoscopic images. In our system, BA is
+also designed in an incremental fashion. For the frame set
+after frame selection I sel = {I1sel , I2sel , I3sel , . . . , Iksel }, a sub-
+
+V. EXPERIMENTS AND RESULTS
+In this section, we apply our approach to the simulated stomach phantom as well as in vivo data, and validate the accuracy
+of the stitching results. For the proposed system, the following main factors influence the accuracy of the panoramic view:
+First, the gastroscopic camera’s hand-eye calibration determines
+if the tracking system transmits accurate 6-DOF position information of the gastroscopic camera to the workstation. Second,
+the projection error occurs when the projection plane is not perfectly parallel with the relative gastroscopic images. Third, the
+deformation and occlusion of the stomach causes difficulties
+in obtaining accurate model registrations. The experiment of
+the simulated data validates the performance of the proposed
+method for deformation problems, and the phantom data experiment validates the calibration accuracy and projection error.
+The workstation’s configuration is CPU: Intel(R) Core(TM)
+i5-3570 3.40 GHz, RAM: 8.00 GB, OS: Windows 7 (64 bit),the
+endoscope used is Olympus QX 260, and the 6-DOF tracker
+is produced by Ascension Technology Company (Burlington,
+VT, USA). The system components are illustrated in Fig. 5. The
+tracking sensor is 1.3 mm in diameter and 6.5 mm in length.
+The electric cable connected with the sensor is 0.6 mm in diameter and 1.8 m in length. The system is developed and tested
+in [20]. The system calibration process is conducted prior to
+the experiments. The calculated focal length in vertical direction is almost equal with the value in horizontal direction (fx =
+265.161 pixel/mm, fy = 263.005 pixel/mm), which is identify
+with the real-gastroscopic images. The calculated cross point of
+the principal optic axis and image plane is cx = 219.155 pixels
+
+LIU et al.: GLOBAL AND LOCAL PANORAMIC VIEWS FOR GASTROSCOPY
+
+2303
+
+TABLE II
+CLINICAL PATIENT CHARACTERISTICS
+Characteristic
+Median age, year (range)
+Male
+Smoking
+Alcohol use
+Grading of IM (Mild/Moderate/Severe)
+
+Number = 25
+57 (40–62)
+18 (72%)
+17 (68%)
+8 (32%)
+(0/4/21)
+
+IM: Intestinal Metaplasia.
+
+Fig. 7. Panoramic results of phantom data. (a) Stomach phantom model.
+(b) Mark touching process by the 6-DOF tracker device. (c) Panoramic view on
+stomach body. Images in the bottom row are some key frames used for stitching,
+and image in the top row is the panoramic view.
+
+and cy = 185.847 pixels, and it is almost near the center of the
+image (the original image size is 420 pixels in width and 368
+pixels in height). The radial distortion parameters are (−0.4222,
+0.1802, −0.0361) as well as the tangential distortion parameters are (−0.0018, −0.0017). These parameters can be proved
+reasonable from the chessboard experiment [see Fig. 2(a), (b)].
+A. Simulated Data Experiment
+The simulated data experiment is subject to evaluate the proposed method’s stitching accuracy for deformation. Prior to the
+experiment, a virtual gastric internal scene is reproduced from
+simulated data, and all the simulated points are meshed using
+the Delaunay triangular algorithm [see Fig. 6(a) and (b)]. To
+simulate the stomach deformation, each point is moved periodically from its original location to a new location that was five
+pixels along the average of corresponding triangles’ positive
+normal direction. Additionally, a virtual tracking camera system is placed in the gastric cavity, as well as the tracking system
+has the same parameters with the Olympus QX 260. Because
+the computer creates the ideal tracking camera, no calibration
+error occurs in simulation experiment, and the major stitching
+error is caused by the simulated deformation.
+During the procedure, the virtual camera translates and rotates in the mesh model, and sends the position information and
+captured images to the workstation, and then local panoramic
+view and global panoramic view are constructed. Finally, the
+stitched points are reprojected onto the virtual scene, and the
+Euclidean distances for corresponding points are regarded as
+the accuracy (see Fig. 6).
+
+Fig. 8. Local panoramic results for different autonomic sites, (a) Antral.
+(b) Stomach body. (c) Pylorus. (d) Angularis. The left top images are the local
+panoramic views. The right top images are the FOV images, and they are projected onto the center of the canvas. The other images are the selected frames
+by proposed method. The D 0 is set as the mean of the related endoscope’s
+displacements, and the mean error is 0.43 mm for local panoramic view.
+
+B. Phantom Data Experiment
+The phantom model is made of silicone rubber that is
+180 mm × 70 mm × 70 mm in size. It is produced by 3B Scientific Company (Hamburg, Germany). The integrated tracking
+gastroscopic device is employed to implement local and global
+panoramic views. In this experiment, the phantom model is
+static; thus, no deformation existed, and the main stitching error
+resulted from the system calibration and a dual-cubic projection
+process.
+To create global truth in this experiment, some black landmarks are marked on the phantom’s surface [see Fig. 7(a)].
+Prior to stitching, the landmarks are touched by the tracking
+system [see Fig. 7(b)], as well as the distances between every two markers are calculated and recorded as dreal . After
+stitching, the corresponding distances in the panoramic view
+are also calculated and recorded as dstitch , and the differences
+between |dreal − dstitch | are regarded as a stitching error. Fur-
+
+2304
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 9, SEPTEMBER 2015
+
+Fig. 9. Unfolded view of a real-clinical data. The dual -cubic represents the unfold fashion, and corresponding faces are marked by numbers. The two black areas
+emphasized by green-dash circles are the makers made by surgeons. These lesions can be much easier to screen in this global view than that in the native video.
+
+thermore, to validate the skew error in the dual-cubic projection,
+the stitching error is estimated at different anatomic sites.
+The mean stitching error is smaller than 2 mm in the stomach
+body and the antrum, whereas error for the angularis is larger
+(see Table I). The greater stitching error is due to the greater
+curvature of the angularis, which causes a more obvious distortion in the cubic projection process. The average accuracy of
+the overall stomach is 1.52 ± 0.43 mm, and the maximum error
+that occurred in our experiments is smaller than 3 mm.
+C. In Vivo Data Experiment
+In the following section, the proposed panoramic method is
+applied to real-clinical data. All volunteers participate in this experiment given their written consent for experimental evaluation
+and follow up medical data analysis. Further, no adverse events
+occur during the study. None of the volunteers has pacemakers
+or other medical devices that are sensitive to magnets. The study
+protocol conforms to the ethical guidelines of the 1975 declaration of Helsinki (6th revision, 2008) and is approved by the
+ethics committee of Sir Run Run Shaw Hospital in China before
+initiating this study. Additionally, the gastroscopic experiments
+are designed by an experienced clinician and performed by a
+skilled endoscopist in accordance to the conventional clinical
+protocol. A calibrated tracking gastroscope is used; moreover,
+the frame rate of the captured gastroscopic video is 25 frames/s
+as well as the resolution is 560 × 480, after cropping out the
+video area, the region of interest is 420 × 368. The patient
+characteristics are described in Table II.
+The local panoramic view is rendered in real time during
+the examination. A 1500 × 1500 pixels size canvas is created
+for stitching, which ensures the surrounding environment of the
+lesions can be depicted overall in the stitching results; neighbor
+
+TABLE III
+COMPUTATIONAL COST FOR STEPS
+Step
+
+Computational cost (s)
+
+Frame
+Selection
+
+Frame
+Projection
+
+BA
+Algorithm
+
+Texture
+Blending
+
+51
+
+17
+
+135
+
+28
+
+images are selected according to the camera’s motion and the
+D0 is described in (3). The local panoramic view is illustrated
+in Fig. 8.
+The final panoramic view seems much reasonable from human inspection, which indicates the proposed texture blending
+algorithm’s good performance.
+For constructing the global view, the endoscopist is required
+to touch the specified anatomic sites at the beginning of the
+examination. Afterward, the captured images are projected onto
+the faces of the dual-cubic model, and the panoramic view is
+constructed by unfolding the cubic model (see Fig. 9). The
+frame selection interval Δn is doubled or decreased in half,
+and the average frame number for each model is 750 frames
+as well as the construction required almost 230 s. The average
+computational cost for each step is given in Table III.
+To estimate the quality of texture blending, we adopt a fidelity
+score method [45] for panoramic images to assess the results.
+The method estimates panoramic view’s preserved quality compared with the input images, and the evaluation is likely consistent with human-visual inspection. The normalized score of our
+method is 0.78, which indicates a good visual result.
+To validate the performance of the global panoramic view,
+1000 points are randomly selected from the panoramic view
+manually, and are reprojected onto the original frames. Euclidean distances for the corresponding points are regarded as
+
+LIU et al.: GLOBAL AND LOCAL PANORAMIC VIEWS FOR GASTROSCOPY
+
+2305
+
+as more iterative times are required. As a consequence, we set
+ΔnBA as 8% in this experiment.
+VI. CONCLUSION AND DISCUSSION
+
+Fig. 10. BA algorithm’s performance. (a) Average error under different
+Δn B A levels. (b) Computational effort under different Δn B A levels. Combing
+the accuracy and computational effort, we set Δn B A as 8%.
+
+the accuracy, and the direct measured distance’s unit is the pixel.
+To measure clinical physical measure result, biopsy forceps with
+a span diameter of 6 mm is used to touch the stomach, and the
+captured images provided a standard for converting the accuracy
+from pixel to millimeter.
+The mean error for global panoramic view is 3.71 ± 0.35 mm,
+which is acceptable for clinical applications. We also evaluate
+the accuracy before a BA optimization process, and the mean
+error is 6.57 ± 4.41 mm. As a consequence, it is noted that although the BA strategy increases the computational cost greatly,
+it is necessary in our system due to its excellent performance
+for improving the accuracy and robustness of the final stitching
+result. Moreover, the proposed BA algorithm’s performance depends on the initialization of the starting dataset. In this paper,
+the starting dataset is initiated by ΔnBA , the BA’s performance
+with different ΔnBA is illustrated in Fig. 10.
+The average error increases with larger ΔnBA values [see
+Fig. 10(a)] because larger ΔnBA values indicate a smaller initialized dataset, and the refinement result is easier to return a
+local optimization. However, the error does not change significantly when the ΔnBA is less than 8%. When ΔnBA is smaller
+than 12%, the computational cost decreases as ΔnBA increases
+[see Fig. 10(b)], this is likely because the final stitching result
+can cover the dual-cubic model, and the BA algorithm is finished before all the frames are used. In this case, the performance
+mainly depends on the computational cost of each loop. When
+ΔnBA is bigger than 12%, the final stitch result cannot cover the
+dual-cubic model, and, thus, all frames are estimated in the BA
+algorithm. In this case, the computational cost becomes bigger
+
+Currently, in medical applications, the restricted FOV creates
+many challenges for gastroscopic diagnosis, and in this paper,
+we propose a panoramic view method to provide sufficient FOV
+for gastroscopic examination.
+Due to the irregular texture and inconsistent lighting characteristics, traditional feature-based mosaicking methods always
+create accumulated registration errors in the final result. Furthermore, the stomach’s deformation also causes missing data
+problem for the feature-based method. To solve these problems,
+a tracking gastroscopic device is employed, and a perspective
+model is constructed to implement mosaicking based on the
+camera perspective model. The experimental results suggest
+that this stitching method has a reasonable performance using
+a tracking device under gastroscopy, and the proposed stitching
+solution has potential applications in other endoscopic environment. The extra tracking device can be reused for multiple
+procedures. Finally, the developed tracking gastroscopic device
+is well tolerated by the patients without any adverse side effects. Besides the tracking gastroscope, a dual-cubic model is
+proposed to solve the problems of constructing panoramic view.
+As far as we know, for the stomach’s bean shape traditional
+spherical projection, which does not require human intervention, cannot generate global panoramic view for gastroscopy.
+In our method, the dual-cubic projection works well although
+human intervention is required.
+To be well suitable for clinical requirements, the constructed
+panoramic views have two categories: the local panoramic view
+stitches the frames around the current captured frame, and provides a broader FOV for the endoscopist to diagnose the lesions.
+In this way, the surgeons can screen the lesions overall with
+higher detail resolution than traditional gastroscopic procedure.
+With the local panoramic view, the surgeons do not need to operate the gastroscope back and forth frequently. In addition, the
+broader FOV is beneficial for showing hidden area, which is not
+visible from current scope’s viewpoint. The global panoramic
+view provides a large-area view of the gastric internal surface,
+which can be applicable for intraoperative navigation and postoperative scene review. For example, with the unfolded global
+view, surgeons can easily screen the all the lesions’ location
+(see Fig. 9). Moreover, compared to the native video, the global
+panoramic view has a higher data compression ratio for postinterventional documentation (the native video is more than 100 M
+in average, whereas the global panoramic view’s size is almost
+1 M); thus, the existed endoscopic system can preserve the patients’ panoramic view online for a longer time with the same
+storage capacity. The local panoramic view can be rendered in
+real time, to implement efficient performance, our system only
+initials stitching work when the captured frames are encoded as
+I frames in the native MPEG-2 format video, and the proposed
+system offers user interface for adjusting this parameters. For
+the global panoramic view, a dual-cubic projection model and a
+BA algorithm are used to improve the panoramic view’s accu-
+
+2306
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 9, SEPTEMBER 2015
+
+racy and robustness to stomach’s deformation and various sizes.
+Given our preliminary experimental results and discussion with
+clinical physicians, the proposed system provides a clinically
+acceptable outcome for real-gastroscopic applications.
+In real-clinical applications, the canvas size can be specified
+according to clinical requirements. Generally speaking, if the
+system sets a higher resolution and larger canvas, the endoscopist can obtain broader FOV, and smaller canvas is required
+for a snapshot to save storage space. To implement the entire
+global panoramic view, adequate manipulations of the scope are
+essential. In this way, the recovery rate of the global panoramic
+view is helpful in estimating the thoroughness of an examination, and the endoscopist can determine following anatomic
+sites need to examine according to this estimation. Moreover,
+to provide sufficient clinical evaluation for the endoscopist and
+avoid the failed mosaicking result, the original video captured
+from the gastroscope is available in the proposed system’s user
+interface.
+The limitations of the current system should be emphasized.
+First, the dual-cubic constraint for the global panoramic view
+is semiautomatic, and the endoscopist is requested to touch the
+special anatomic sites with the tracking gastroscope to complete
+the model registration. Thus, the accuracy is heavily reliant on
+the endoscopist’s skill. In the future, an automatic anatomy detection method will be developed. This will allow the model registration to be implemented automatically, as long as the scope
+captures images from corresponding anatomic sites. Furthermore, additional anatomic sites (e.g., stomach angle) could be
+served as reference points for more accurate model registration.
+The endoscopist can screen the detection result, and once detection fails, correction can be made manually. Second, the computational cost should be optimized. Although the local panoramic
+view can be constructed in real time by skipping the frame
+strategy, the performance for global panoramic view should be
+improved. In the future, we will utilize a k–d tree strategy to
+implement frame selection, and a high-performance architecture will be explored. Third, although quantitative validations
+are given, more volunteers and endoscopists should be enrolled,
+and further expert evaluation should be performed to ensure the
+feasibility in real-clinical applications in the future.
+REFERENCES
+[1] W. K. Leung et al., “Screening for gastric cancer in Asia: Current evidence
+and practice,” Lancet Oncol., vol. 9, no. 3, pp. 279–287, 2008.
+[2] J. Ferlay et al., “GLOBOCAN 2008, cancer incidence and mortality worldwide: IARC CancerBase No. 10,” Int. Agency Res. Cancer, Lyon, France,
+vol. 2010, p. 29, 2010.
+[3] A. Jemal et al., “Global cancer statistics,” CA, Cancer J. Clin., vol. 61,
+no. 2, pp. 69–90, 2011.
+[4] K. Kimura, “Gastritis and gastric cancer: Asia,” Gastroenterol. Clin. North
+Amer., vol. 29, no. 3, pp. 609–621, 2000.
+[5] C. Den Hoed et al., “Follow-up of premalignant lesions in patients at risk
+for progression to gastric cancer,” Endoscopy, vol. 45, no. 4, pp. 249–256,
+2013.
+[6] L. Sun et al., “The establishment and clinical appliance of technique of
+mucosa marking targeting biopsy,” Hepato-Gastroenterol., vol. 56, no.
+89, pp. 59–62, 2009.
+[7] R. Johnson et al., “Hierarchical structure from motion optical flow algorithms to harvest three-dimensional features from two-dimensional
+neuro-endoscopic images,” J. Clin. Neurosci., vol. 22, no. 2, pp. 378–382,
+2015.
+
+[8] A. Kaufman and J. Wang, “3D surface reconstruction from endoscopic
+videos,” in Visualization in Medicine and Life Sciences. New York, NY,
+USA: Springer, 2008, pp. 61–74.
+[9] R. Hartley and A. Zisserman, “Introduction—-A tour of multple view
+geometry,” in Multiple View Geometry in Computer Vision, vol. 2, 2nd ed.
+Cambridge, U.K.: Cambridge Univ. Press, 2000, pp. 6–19.
+[10] D. Stoyanov et al., “A practical approach towards accurate dense 3D depth
+recovery for robotic laparoscopic surgery,” Comput. Aided Surg., vol. 10,
+no. 4, pp. 199–208, 2005.
+[11] P. Mountney et al., “Simultaneous stereoscope localization and soft-tissue
+mapping for minimal invasive surgery,” in Proc. Med. Image Comput.
+Comput.-Assisted Intervention Conf., 2006, pp. 347–354.
+[12] A. J. Davison, “Real-time simultaneous localisation and mapping with
+a single camera,” in Proc. IEEE 9th Int. Conf. Comput. Vis., 2003, pp.
+1403–1410.
+[13] B. Wang et al., “Dynamic 3D reconstruction of gastric internal surface
+under gastroscopy,” J. Med. Imag. Health Informat., vol. 4, pp. 797–802,
+2014.
+[14] H. Wang et al., “Robust motion estimation and structure recovery from
+endoscopic image sequences with an adaptive scale kernel consensus
+estimator,” in Proc. IEEE Conf. Comput. Vis. Pattern Recog., 2008, pp.
+1–7.
+[15] A. Kaufman and J. Wang, “3D surface reconstruction from endoscopic
+videos,” in Visualization in Medicine and Life Sciences. New York, NY,
+USA: Springer, 2008, pp. 61–74.
+[16] L. De Lathauwer et al., “A multilinear singular value decomposition,”
+SIAM J. Matrix Anal. Appl., vol. 21, no. 4, pp. 1253–1278, 2000.
+[17] A. F. M. Vélez et al., “Structure from motion based approaches to 3D
+reconstruction in minimal invasive laparoscopy,” in Image Analysis and
+Recognition. New York, NY, USA: Springer, 2012, pp. 296–303.
+[18] M. Hu et al., “3D reconstruction of internal organ surfaces for minimal
+invasive surgery,” in Medical Image Computing and Computer-Assisted
+Intervention—MICCAI 2007. New York, NY, USA: Springer, 2007, pp.
+68–77.
+[19] J. Helferty et al., “Computer-based system for the virtual-endoscopic
+guidance of bronchoscopy,” Comput. Vis. Image Understanding, vol. 108,
+no. 1, pp. 171–187, 2007.
+[20] D. Sun et al., “Design of the image-guided biopsy marking system for
+gastroscopy,” J. Med. Syst., vol. 36, no. 5, pp. 2909–2920, 2012.
+[21] E. J. Seibel et al., “Tethered capsule endoscopy, a low-cost and highperformance alternative technology for the screening of esophageal cancer
+and Barrett’s esophagus,” IEEE Trans. Biomed. Eng., vol. 55, no. 3, pp.
+1032–1042, Mar. 2008.
+[22] T. D. Soper et al., “Constructing spherical panoramas of a bladder phantom
+from endoscopic video using bundle adjustment,” SPIE Med. Imag., vol.
+7964, pp. 12–17, 2011.
+[23] A. Behrens et al., “Real-time image composition of bladder mosaics in
+fluorescence endoscopy,” Comput. Sci.-Res. Dev., vol. 26, nos. 1/2, pp.
+51–64, 2011.
+[24] S. Slotnick and J. Sherman, “Panoramic autofluorescence: Highlighting
+retinal pathology,” Optometry Vis. Sci., vol. 89, no. 5, pp. E575–E584,
+2012.
+[25] D. Dey et al., “Automatic fusion of freehand endoscopic brain images
+to three-dimensional surfaces: Creating stereoscopic panoramas,” IEEE
+Trans. Med. Imag., vol. 21, no. 1, pp. 23–30, Jan. 2002.
+[26] T. D. Soper et al., “Surface mosaics of the bladder reconstructed from
+endoscopic video for automated surveillance,” IEEE Trans. Biomed. Eng.,
+vol. 59, no. 6, pp. 1670–1680, Jun. 2012.
+[27] A. Behrens et al., “Local and global panoramic imaging for fluorescence
+bladder endoscopy,” in Proc. Eng. Med. Biol. Soc. Conf., 2009, pp. 6990–
+6993.
+[28] A. Behrens, “Creating panoramic images for bladder fluorescence endoscopy,” Acta Polytechnica, vol. 48, no. 3, pp. 50–54, 2008.
+[29] K. E. Loewke et al., “In vivo micro-image mosaicing,” IEEE Trans.
+Biomed. Eng., vol. 58, no. 1, pp. 159–171, Jan. 2011.
+[30] B. Wang et al., “Gastroscopic image graph: Application to non-invasive
+multi target tracking under gastroscopy,” Comput. Math. Methods Med.,
+vol. 2014, no. 2014, pp. 1–9, 2014.
+[31] R. Miranda-Luna et al., “Mosaicing of bladder endoscopic image sequences: Distortion calibration and registration algorithm,” IEEE Trans.
+Biomed. Eng., vol. 55, no. 2, pp. 541–553, Feb. 2008.
+[32] R. Shams et al., “A survey of medical image registration on multicore
+and the GPU,” IEEE Signal Process. Mag., vol. 27, no. 2, pp. 50–60, Mar.
+2010.
+
+LIU et al.: GLOBAL AND LOCAL PANORAMIC VIEWS FOR GASTROSCOPY
+
+[33] H. Liao et al., “GPU-based fast 3D ultrasound-endoscope image fusion
+for complex-shaped objects,” in Proc. World Congr. Med. Phys. Biomed.
+Eng., Munich, Germany, Sep. 7–12, 2009, pp. 206–209.
+[34] D. Sun et al., “Surface reconstruction from tracked endoscopic video using
+the structure from motion approach,” in Augmented Reality Environments
+for Medical Imaging and Computer-Assisted Interventions. New York,
+NY, USA: Springer, 2013, pp. 127–135.
+[35] W. E. Smith et al., “Correction of distortion in endoscope images,” IEEE
+Trans. Med. Imag., vol. 11, no. 1, pp. 117–122, Mar. 1992.
+[36] Z. Zhang, “A flexible new technique for camera calibration,” IEEE Trans.
+Pattern Anal. Mach. Intell., vol. 22, no. 11, pp. 1330–1334, Nov. 2000.
+[37] J. Liu et al., “A non-invasive navigation system for retargeting gastroscopic
+lesions,” Bio-Med. Mater. Eng., vol. 24, no. 6, pp. 2673–2679, 2014.
+[38] F. Chun et al., “Combining camera calibration with hand-eye calibration
+and using in monocular vision,” in Proc. Int. Conf. Comput., Mechatron.,
+Control Electron. Eng., 2010, vol. 6, pp. 21–24.
+[39] V. Pradeep et al., “Calibrating a multi-arm multi-sensor robot: A bundle
+adjustment approach,” in Proc. Int. Symp. Exp. Robot., 2014, pp. 211–225.
+[40] A. Behrens et al., “Inertial navigation system for bladder endoscopy,” in
+Proc. IEEE Annu. Int. Conf. Eng. Med. Biol. Soc., 2011, pp. 5376–5379.
+
+2307
+
+[41] P. J. Burt and E. H. Adelson, “A multiresolution spline with application
+to image mosaics,” ACM Trans. Graph., vol. 2, no. 4, pp. 217–236, 1983.
+[42] B. K. Horn, “Closed-form solution of absolute orientation using unit
+quaternions,” J. Opt. Soc. Amer., vol. 4, no. 4, pp. 629–642, 1987.
+[43] M. Brown and D. G. Lowe, “Unsupervised 3D object recognition and
+reconstruction in unordered datasets,” in Proc. 5th Int. Conf. 3-D Digit.
+Imag. Model., 2005, pp. 56–63.
+[44] M. Hu et al., “Reconstruction of a 3D surface from video that is robust
+to missing data and outliers: Application to minimally invasive surgery
+using stereo and mono endoscopes,” Med. Image Anal., vol. 16, no. 3, pp.
+597–611, 2012.
+[45] A. Behrens et al., “Image quality assessment of endoscopic panorama
+images,” in Proc. IEEE 18th Int. Conf. Image Process., 2011, pp. 3113–
+3116.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

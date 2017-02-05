@@ -1,0 +1,706 @@
+1404
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+XDS-I Outsourcing Proxy: Ensuring Confidentiality
+While Preserving Interoperability
+Luı́s S. Ribeiro, Carlos Viana-Ferreira, José Luı́s Oliveira, and Carlos Costa
+
+Abstract—The interoperability of services and the sharing of
+health data have been a continuous goal for health professionals,
+patients, institutions, and policy makers. However, several issues
+have been hindering this goal, such as incompatible implementations of standards (e.g., HL7, DICOM), multiple ontologies, and
+security constraints. Cross-enterprise document sharing (XDS)
+workflows were proposed by Integrating the Healthcare Enterprise (IHE) to address current limitations in exchanging clinical
+data among organizations. To ensure data protection, XDS actors must be placed in trustworthy domains, which are normally
+inside such institutions. However, due to rapidly growing IT requirements, the outsourcing of resources in the Cloud is becoming
+very appealing. This paper presents a software proxy that enables
+the outsourcing of XDS architectural parts while preserving the
+interoperability, confidentiality, and searchability of clinical information. A key component in our architecture is a new searchable
+encryption (SE) scheme—Posterior Playfair Searchable Encryption (PPSE)—which, besides keeping the same confidentiality levels of the stored data, hides the search patterns to the adversary,
+bringing improvements when compared to the remaining practical
+state-of-the-art SE schemes.
+Index Terms—Cloud computing, cross-enterprise document
+sharing (XDS) for imaging (XDS-I), Integrating the Healthcare
+Enterprise (IHE), medical imaging, searchable encryption (SE).
+
+I. INTRODUCTION
+ROSS-ENTERPRISE document sharing (XDS) is a major proposal of the Integrating the Healthcare Enterprise
+(IHE) initiative, which has been led by healthcare professionals and industry to facilitate the sharing of healthcare information. Within this proposal, document-sharing communities—
+also known as affinity domains—allow the exchange of patient
+health information across several organizations, providing clinicians with more information about patients’ health, aiding the
+delivery of well-informed diagnosis, and ultimately improving
+the healthcare service itself [1]. The pertinence of such communities is greater when medical imaging is part of the treatment
+
+C
+
+Manuscript received April 9, 2013; revised July 9, 2013 and September 20,
+2013; accepted November 17, 2013. Date of publication November 26, 2013;
+date of current version June 30, 2014. This work was supported by project Cloud
+Thinking (CENTRO-07-ST24-FEDER-002031) and by QREN, “Mais Centro”
+program. The work of C. Viana-Ferreira was supported by FCT under Grant
+SFRH/BD/68280/2010.
+The authors are with the DETI/IEETA, University of Aveiro, Aveiro 3810193, Portugal (e-mail: luisribeiro@ua.pt; c.ferreira@ua.pt, jlo@ua.pt; carlos.
+costa@ua.pt).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2292776
+
+workflow. Small healthcare institutions do not have all the medical imaging modalities and specialists to diagnose a patient.
+Therefore, patients tend to move between several healthcare
+institutions to undergo all the required exams. This scenario
+generates large amounts of medical data spread over different organizations without being exchanged conveniently. XDS
+integration profile offers standard-based guidelines to deploy
+interoperable document-sharing communities, providing a centralized discovery mechanism for clinical documents. The XDS
+registry and repositories hold sensitive patient information that
+must not be disclosed and therefore they must be placed in trustworthy domains, typically within the hospital’s boundaries. As
+a consequence, the healthcare institution is typically responsible
+for planning and maintaining the IT infrastructure required to
+support the XDS architecture. Due to their importance, healthcare information networks have high requirements of availability, reliability and security, making their management complex.
+Computational requirements are often greater than available IT
+resources, and outsourcing server side XDS actors could be
+useful to replace or complement in-house servers [2].
+Computation as a utility service is no longer a dream envisioned by John McCarthy in 1961: “computation may someday
+be organized as a public utility” [3]. The appearance of Cloud
+computing made this a reality and nowadays an increasing number of organizations delegate IT services to the Cloud. A utility
+service in the Cloud follows the same approach as currently
+established utility facilities (e.g., electricity). Its business model
+is based on economy of scale where the benefit of the service
+provided increases as the number of services being delivered
+increases. Hence, the average unitary cost of the service decreases, because the fixed costs of the service are shared over all
+services provided. Outsourcing computational resources allows
+organizations to focus on their core business, while delegating
+or complementing the IT resources to third party companies
+specialized in computation as a service such as the Cloud. This
+brings management flexibility and financial benefits. Furthermore, inter-institutional distribution architectures may benefit
+from the fact that clinical resources are already deployed in a
+widely available online service. Nevertheless, outsourcing also
+represents a risk, especially when resources are as sensitive as
+clinical documents.
+In this paper we describe a solution that enables the outsourcing of standard XDS for imaging (XDS-I) actors such as document repository, document registry or imaging document source
+in the Cloud. Besides ensuring the privacy and confidentiality
+of the outsourced data, it maintains the searching capabilities
+of the XDS actor. This is accomplished with an original searchable encryption (SE) technique—Posterior Playfair Searchable
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+RIBEIRO et al.: XDS-I OUTSOURCING PROXY: ENSURING CONFIDENTIALITY WHILE PRESERVING INTEROPERABILITY
+
+1405
+
+Encryption (PPSE)—which will be detailed further on in this
+paper.
+A. Manuscript Organization
+The paper is organized as follows. Section II contextualizes
+the specificities of medical imaging networks. In Section III, we
+review the existent techniques for storing sensitive information
+in untrustworthy domains. In Section IV, we propose a new SE
+scheme: PPSE. Section V describes the implementation of a
+ready-to-use system, which enables outsourcing of the XDS-I
+actors in to the Cloud. The results obtained and their respective analysis appear in Section VI, and finally, conclusions are
+presented in Section VII.
+II. MEDICAL IMAGING NETWORKS
+Picture Archiving and Communication System (PACS) is
+currently the main paradigm for supporting medical imaging
+workflows. PACS embraces a set of technologies for the archiving, distribution, visualization, and acquisition of medical images [4]–[7]. To overcome the interoperability problem between
+distinct vendors’ equipment, the first version of Digital Imaging
+and Communication in Medicine (DICOM) was proposed in
+1992, which, since then, has become the standard for exchanging medical images in digital format [8], [9]. DICOM’s main
+components are the definition of objects (images, waveforms,
+studies, etc.), and operations applied to these objects, such as
+storing, moving, finding, creating, and printing. These operations, known as DICOM services, enable interoperability between different vendors’ equipment, and are already a commodity within health institutions. To allow the exchange of objects
+between several institutions, Web Access to DICOM Persistent
+Objects (WADO) [10] was also created, a DICOM subset that
+enables the retrieval of objects through web services. WADO
+follows a minimalistic approach in which access to a data object
+is enabled by specifying a URI that includes its DICOM unique
+identifier (UID). Nevertheless, despite these features, PACS remains essentially institution-centered. To overcome this, healthcare professionals, researchers, and industry around the world
+started an initiative known as IHE with the purpose of improving the way computer systems in healthcare share information
+and potentially achieve truly efficient interoperability in healthcare systems. Rather than defining new standards, IHE promotes and enhances the use of existing standards (e.g., DICOM,
+HL7, ISO, IETF). It provides integration profiles, i.e., guidelines
+to describe real-world scenarios or specific characteristics for
+building integration-ready systems, which allow understanding
+of how standards may be implemented to meet specific clinical needs. To represent real-world abstractions of healthcare
+information systems, each profile is composed of a set of actors
+and their transactions. While some transactions are traditionally performed by specific product categories (e.g., HIS, Electronic Patient Record, RIS, PACS, or imaging modalities), IHE
+intentionally avoids associating functions or actors with such
+product categories. The reason for defining actors and transactions is to provide a basis for defining the interactions among
+
+Fig. 1.
+
+Diagram of the XDS-I content profile (upon XDS blocks, in gray).
+
+functional components of the healthcare information system
+environment [11].
+A. Cross-Enterprise Document Sharing
+XDS integration profile provides core guidelines for sharing
+documents among all healthcare institutions, more precisely
+supporting querying, retrieving, publishing and registering EHR
+documents.
+XDS affinity domains are trust communities and authorized
+participants may access documents that healthcare providers
+have intentionally selected to be shared within the community.
+XDS transactions are based on ebXML messages developed
+by the OASIS1 standards. The exchanged XDS documents are
+wrapped in ebXML messages and the persistent metadata that
+describe the documents follow the ebXML RIM standard.
+XDS is content neutral, i.e., its architecture was designed to
+support any type of EHR document, making it more resilient
+to the appearance of future document standards and formats.
+On the other hand, such generality also raises challenges when
+dealing with more specialized domains (e.g., radiology, cardiology). To cope with this, it is possible to extend the XDS integration profile and create more specific profiles, entitled content
+profiles.
+B. XDS for Imaging
+XDS-I is a content profile scoped to the medical imaging
+domain, where systems like PACS, RIS or DICOM objects are
+taken into account on the XDS architecture.
+Fig. 1 shows the actors taking part in the XDS-I profile and
+the transactions between actors. The Imaging Document Source
+is the actor that provides or holds the clinical documents (e.g.,
+PACS) typically within healthcare institutions. It is responsible for pushing documents and their metadata to the respective
+Document Repository. For DICOM objects the Repository will
+only hold the DICOM key object selection (KOS). KOS objects
+are small DICOM objects containing a list of UID references
+(instead of the image data itself) that enable the Document
+Consumer to retrieve the images from the Imaging Document
+Sources. Besides being responsible for persistent documents,
+1 http://www.oasis-open.org
+
+1406
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+the Repository actor is also responsible for registering the document’s metadata in the appropriate Registry. The Registry actor
+is the central player of the entire XDS affinity domain. It maintains the metadata of each registered document, mapping to
+the respective Repository, where the actual document is stored.
+Furthermore, the Registry responds to queries from the Consumer actor with locations of the matching documents. The
+Consumer actor queries the Registry to find the location and
+identifier of the document. With this information, it contacts the
+respective Imaging Document Source requesting access to the
+DICOM object(s). If access is granted, the set of images is then
+typically retrieved through the WADO protocol. Finally, the Patient Identity Source, from the PIX integration profile, is the
+actor that provides a unique patient identifier within the affinity
+domain.
+C. Metadata Structure and Data Types
+The ebRIM standard [12] defines several fundamental data
+types and approximately 25 classes. XDS uses a subset of those
+resources with the respective specializations [13]. For instance,
+XDS submission set class and XDS folder class are specializations of the ebRIM registry package class. The registry package,
+in turn, is a composition of other ebRIM classes (e.g., extrinsic
+object class, slot class). These ebRIM classes are the containers of the actual searchable data that have specific data types,
+mostly HL7 data types like extended composite ID number and
+name (XCN). More details about the structure of XDS-I objects
+is available in [13], [14].
+XDS-I content profile makes a clear distinction between data
+and metadata. The data objects are, for instance, DICOM objects or CDA documents containing sensitive clinical information [15]. Although the data objects also contain a metadata part,
+XDS document registry and repository do not directly process
+that information. However, peripheral actors (e.g., imaging document source) commonly fill XDS metadata fields by analyzing
+the metadata present in the clinical document.
+The approach proposed in this paper makes use of the fact
+that the XDS-I content profile defines the metadata, data types,
+and queries. Therefore, it may apply a format-aware encryption
+strategy. This is the base of our metadata encryption: the object
+keeps its format, remaining a valid data type for the XDS-I actor
+but with its values ciphered. Fig. 2 illustrates this format-aware
+encryption process.
+III. CYPHERING AND SEARCHING SENSITIVE INFORMATION
+Cloud computing is considered semitrusted [16]–[18], i.e.,
+“honest-but-curious.” Honest because Cloud providers have no
+interest in disrupting message flows or corrupting the client’s
+resources. However, there are no guarantees that the Cloud
+provider does not apply data mining routines or analyze the
+message flow in order to extract usage patterns or ultimately
+leak information to unauthorized parties. Therefore, lack of confidentiality is a relevant risk of the Cloud paradigm. To tackle
+this problem, encryption schemes were created where the data is
+encrypted/decrypted on the client-side and stored on the server
+side as protected blobs of data. Objects may be ciphered with
+
+Fig. 2.
+
+Example of a KOS before and after encryption.
+
+Fig. 3.
+
+Document’s top 50 word count.
+
+a semantically secure probabilistic encryption scheme [19] assuring the two encrypted copies of the same object would be
+different. This approach brings high confidentiality protection
+but does not allow searching over the encrypted information. In
+order to enable search mechanisms over encrypted data there is
+always a tradeoff [18], [20].
+SE was introduced by Dawn et al. [21]. They proposed several algorithms based on splitting the searchable text into words,
+encrypting those words separately (client-side) and uploading
+them as a set of ciphered tokens (i.e., trapdoors). Therefore,
+to perform a search the client sends the trapdoor instead of
+the actual word he intends to query. The SE scheme offers
+complexity and relies on reduced memory and communication
+bandwidth. However, by allowing the server to search for a trapdoor, the scheme discloses potential locations where the word
+might occur. Through statistical techniques or access patterns
+it is possible to disclose confidential information. To exemplify
+this problem we built a simple word count histogram, listing
+the top 50 words in a set of document (see Fig. 3) and the
+
+RIBEIRO et al.: XDS-I OUTSOURCING PROXY: ENSURING CONFIDENTIALITY WHILE PRESERVING INTEROPERABILITY
+
+Fig. 4.
+
+Document’s top 50 trapdoor count.
+
+equivalent top 50 ciphered trapdoors (see Fig. 4). By analyzing the two histograms, word associations with the respective
+trapdoor may be deduced, allowing extraction of information
+that should be confidential (e.g., mapping the word/trapdoor
+peaks). In this example, we have presented the best-case scenario for the adversary where the plaintext and the respective
+ciphered text are known (commonly the adversary only knows
+the ciphered text). Nevertheless, we assume that in time the adversary might extract information by mapping access patterns
+with the ciphered documents.
+Other works (e.g., [22]–[25]) base their SE schemes on oblivious random access machines (O-RAMs [26]) in order to hide
+the access pattern from the adversary, making the information
+highly confidential. A SE scheme is oblivious if the access patterns for two different inputs cause the same number of accesses
+to the server in an indistinguishable manner. Nevertheless, the
+current state-of-the-art for practical O-RAMs suffers from several limitations: 1) high storage overhead—The O-RAM best
+approach needs 8–12 times more storage space than the plaintext data; 2) blocking periods for shuffling—it requires periodic
+shuffling of data locations and so the blocking period increases
+when the data increases; and 3) high latency in communications due to the additional sequential accesses to mask the operation. O-RAMs with practical usage are not yet a reality.
+Therefore, recent SE schemes, such as [16], [27], do not follow
+the O-RAM approach. Instead they follow the “as-strong-aspossible” approach, revealing the access pattern and the search
+pattern but nothing else. Cong et al. [16] proposed a ranked
+searchable symmetric encryption scheme based on order preserving SE (OPSE) techniques [28]. OPSE is a deterministic
+encryption scheme where the resulting ciphers respect the numerical order of the plaintext, allowing range queries over the
+ciphered data. Although useful, OPSE techniques leak more
+information than traditional SE schemes. Although these solutions conform to our SE scheme idea, they lack interoperability since they require ad hoc communication protocols to
+operate.
+Silva et al. [27] presented a system that enables secure interoperability across distinct organizations by converting documents into blobs of ciphered data. As a consequence, if the
+ciphered data is pushed into the PACS through the DICOM
+
+1407
+
+Fig. 5. Simplified example of the PPSE encryption process. In fact, AES
+encryption generates 32 B ciphers, not 4 B as in this example.
+
+storage service, the object will be rejected. Popa et al. [18]
+proposed a SQL-aware encryption strategy scheme. Although
+they followed a different SE scheme, they perform format-aware
+encryption, enabling SQL-capable servers to accept encrypted
+SQL-queries.
+IV. POSTERIOR PLAYFAIR SEARCHABLE ENCRYPTION
+In this section, we propose PPSE2 , a method inspired by the
+original idea of Charles Wheatstone [29] in which a letter replacement/shuffling is applied based on a secret text. PPSE does
+not apply any letter replacement or shuffling at a first stage—
+only at a later stage does it apply a shuffling routine based on
+the secret key, as illustrated in Fig. 5. First, the text is normalized, where punctuation is removed and the words are formed
+by capital letters (the metadata required to rebuild the original
+text is also retrieved). Each individual word is then encrypted
+independently with the AES algorithm. The resulting ciphered
+text has the same number of tokens as the original. Then, each
+individual cipher is divided into a subblock and the text is shuffled as a whole. Finally, the encrypted metadata is concatenated
+to the end of the ciphered text. Note that the encrypted metadata
+is always longer than any subblock. Therefore, the decryption
+algorithm may distinguish between data part and metadata part
+of the ciphered text.
+Moreover, in existing SE schemes the query trapdoor is sent as
+a whole. Therefore, the adversary may map incoming trapdoors
+to the resources and disclose confidential information. To avoid
+this, PPSE obfuscates the access pattern by querying the server
+only with a part of the trapdoor. Fig. 6 demonstrates the process
+of creating a querying trapdoor using the PPSE scheme. This
+process is similar to the encryption process described previously.
+However, after splitting the ciphers into subblocks instead of
+shuffling them, a percentage is randomly picked. Although the
+selection is random, each cipher will be represented by the
+same number of subblocks. Finally, the subblocks are combined:
+logical “AND,” if the subblocks are from the same cipher, and
+logical “OR,” otherwise.
+
+2 https://github.com/bioinformatics-ua/PPSE
+
+1408
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+TABLE I
+PSEUDO CODE OF THE BUILDINDEXENTRY ALGORITHM
+
+Fig. 6.
+
+Simplified example of the PPSE trapdoor querying process.
+
+A. Formal Description
+We will use the formal description approach proposed by
+Curtmola et al. [20].
+1) Notation and Preliminaries:
+1 D—The collection to be outsourced, i.e., a set of n documents D = (D1 , D2 , . . . , Dn ).
+2 Di —Each document that is a composition of two distinct
+parts, metadata Mi and data Fi .
+3 Mi —Set of w attributes of the metadata Mi , Mi =
+(Ai1 , Ai2 , . . . , Aiw ).
+4 Q—The search query collection, denoted as a set of m
+queries Q = (Q1 , Q2 , . . . , Qm ).
+5 K—Symmetrical secret key.
+6 εK (Fi )—Encryption of data Fi as a whole, using the
+semantic secure algorithm ε and secret K.
+7 b—Number of the cipher’s subblocks.
+8 p—Percentage of subblocks to be considered.
+9 RW —Enhancing data required to reconstruct the original
+text.
+2) Algorithms: PPSE scheme consists of ten algorithms:
+1 KeyGen—Probabilistic key generator algorithm returning
+the secret symmetric key K.
+2 BuildIndexEntry (see Table I)—Ciphers the metadata of
+the document in order to create a secure index entry on
+the document registry.
+3 TrapdoorGen (see Table II)—Transforms a plaintext
+search query in a ciphered query.
+4 SearchIndex—Runs the ciphered query over the ciphered
+index.
+5 Clone—Creates a copy of the original object.
+6 Extract—Extracts the word values of the metadata fields.
+7 Concat—Concatenates a set of strings.
+8 Shuffle—It shuffles a sequence of elements based on the
+secret key K.
+9 RandomPick—Randomly selects p% of the set’s elements.
+10 NormalizeText—Removes the text punctuations and sets
+all the text into upper case. Furthermore, it returns the
+data (RW ) required to cast the normalized data into the
+original text.
+
+TABLE II
+PSEUDO CODE OF THE TRAPDOORGEN ALGORITHM
+
+The SE scheme has three distinct phases—Setup, Publish,
+and Retrieval:
+1 Setup: The proxy is initialized and verifies if there is a
+secret key available. If not it executes KeyGen in order to
+get K.
+2 Publish: The document collection C is published through
+the proxy. For each submission Di , the proxy processes
+the Mi part with BuildIndexEntry algorithm and the Fi
+part using a bulk encryption εK (Fi ). Finally, the ciphered
+Di is uploaded to the document repository.
+3 Retrieval: In parallel, search queries of the Q set arrive
+to the proxy. Each Qj is processed with the TrapdoorGen
+algorithm, which submits the outcome to the document
+registry. In its turn, the XDS registry executes its own
+SearchIndex algorithm and returns the search results to the
+proxy. Finally, the proxy decrypts the results and forwards
+them to the workstation that issued Qj
+
+RIBEIRO et al.: XDS-I OUTSOURCING PROXY: ENSURING CONFIDENTIALITY WHILE PRESERVING INTEROPERABILITY
+
+1409
+
+TABLE III
+DATA TYPES PREPROCESSED WITH EXTRACTION HEURISTICS
+
+Fig. 7.
+
+XDS-I-compliant architecture.
+
+In the document retrieval, the proxy follows a similar approach to the querying process. However, the request is forwarded to the repository instead. The search query is also processed with the TrapdoorGen algorithm and the search result is
+the actual document—assuming that the searched document’s
+ID exists on the repository.
+V. XDS-I-COMPLIANT ARCHITECTURE
+To validate our SE proposal (PPSE), and as part of a major
+objective, we developed an XDS-I-compliant architecture based
+on a proxy, which works as a privacy middleware system converting plaintext flows into ciphered flows and vice versa (see
+Fig. 7). The proxy acts as a broker and as a security vault at the
+same time, since it contains the secret symmetric keys, required
+to encrypt and decrypt information flows. For that, we used a
+256-bit key Advanced Encryption Standard (AES) in the Cipher
+Block Chaining mode [30], [31].
+We have also implemented the following XDS/XDS-I actors:
+Image Document Source, Image Document Consumer, Document Repository and Document Registry. We used SOAP 1.2 as
+XDS (part B) imposes and for generating the respective stubs
+for the web-service consumers and the skeletons for the webservice providers we used IHE’s WSDL3 with the API JAX-WS
+2.6.
+In order to guarantee correct functioning of our solution, the
+proxy must be placed inside a trustworthy domain. For instance,
+the proxy may operate within the institution’s private network as
+a gateway serving the IHE-compliant workstations that need to
+interact with the actors holding encrypted data. However, as long
+it is placed in a trustworthy node, it may also be placed outside
+the institution’s boundaries, functioning as a bridge. This bridge
+approach is useful when the proxy is serving more than one site.
+The security model follows an SSL/TLS with client X.509
+certificates for authentication in accordance with the Audit Trail
+Node Authentication (ATNA) directives (transaction ITI-19)
+providing authentication, channel confidentiality, and integrity.
+After installation, certificates are used on the SSL/TLS handshake to exchange the session symmetric key to secure the communication channel between the IHE actors.
+A. Proxy Communications Interfaces
+The proxy implements the two roles of the XDS-I transactions: as a server or as a client. Currently it implements XDS-I
+3 ftp://ftp.ihe.net/TF_Implementation_Material/ITI/wsdl
+
+part B transactions: Provide and Register Imaging Document
+Set (RAD-68), Retrieve Document Set (ITI-43), Registry Stored
+Query (ITI-18), and WADO retrieve (RAD-55).
+B. Extraction and Encryption Heuristics
+XDS encapsulates several data types within the ebRIM wrapping structure, mainly HL7 V2 data types. Data types follow an
+encoding specification that must be taken into account in order
+to minimize the searchability loss due to encryption. Table III
+lists the data types that lose searchability if the field value is
+encrypted as a whole. Instead, extraction heuristics are applied
+with the goal of isolating the atomic values of the object. Then,
+the atomic values are ciphered and finally the object is rebuilt
+according to its data type.
+The searching nature carried over several data types also affects the applied encryption methods. The PPSE encryption
+method is mainly applied, allowing attributes to remain searchable after the encryption process. Nevertheless, there are two
+exceptions: surrogated identifiers (e.g., Patient ID) and range
+matching attributes (e.g., creation time). The surrogated IDs do
+not require natural language search capabilities as other metadata attributes might. Therefore, these atomic values are encrypted as a whole. On the other hand, it is not possible to
+mimic range matching attributes with our SE scheme since the
+ciphered outcome does not preserve the order of the original
+data. Hence, to support searches by range on some specific attributes we use an order-preserving encryption method, more
+precisely, DTM data types. Since order-preserving SE schemes
+weaken the security guarantees, sensitive patient information
+(date of birth) is ciphered with the default encryption method.
+In this case, we will lose the range matching functionality.
+As previously mentioned, PPSE performs format-aware encryption, choosing the encryption method depending on format.
+
+1410
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+Besides PPSE, we also use the date–time reference shift (DTRS)
+method for range searches over noncritical fields. DTRS is a
+simple encryption heuristic that shifts the zero reference of the
+date timeline, where the shifting is performed based on the secret key. For instance, consider that the standard date reference
+of 0000-01-01 was substituted by DTRS’ newly generated date
+reference of 1000–02-21. Therefore, the date object of 200001-01 will correspond to 3000-03-22. The generated references
+range between the year 2000 and 7000. DTRS is an OPSE, but it
+is not sufficiently robust to protect sensitive data. Nevertheless,
+security must be adjusted to the nature of the resource that is
+being protected. The attributes being protected with DTRS are
+times associated with: document creation, start service and stop
+service.
+VI. RESULTS AND DISCUSSION
+In order to evaluate our security proxy, we used a dataset from
+radiology studies. Client XDS-I actors (source and consumer)
+and the security proxy were placed in the same local machine.
+The core XDS actors (registry and repository) were deployed in
+Amazon’s Elastic Compute Cloud (EC2) in a virtual machine
+with four elastic compute units (ECU), two CPU cores, and
+8 GB of RAM. One ECU provides the equivalent CPU capacity
+of a 1.0–1.2 GHz 2007 Opteron or 2007 Xeon processor. For the
+following tests we consider that just the proxy and the peripheral
+actors are in a trustworthy domain.
+The dataset is composed of 130 000 imaging studies including CT, MRI, and CR. For each document, the respective XDSI metadata was generated, resulting in a metadata dataset of
+130 000 ebRIM extrinsic objects and 1300 XDS submission set
+objects, forming a total amount of 654.3 MB of plaintext XDS-I
+metadata. In turn, the document registry indexes the uploaded
+ebRIM objects using Lucene indexing server. Finally, we would
+like to clarify that ideally the performed tests would be carried
+over a benchmark dataset of XDS document entries. However,
+the lack of such dataset drove us to evaluate our scheme with the
+described dataset. Nevertheless, we reinforce the significance of
+our results since the dataset is representative with real patient
+data from three distinct institutions. The magnitude and heterogeneity of the dataset turns possible the generalization of the
+results to other datasets of XDS-I metadata.
+
+Fig. 8.
+
+Document’s subblocks count (b = 4).
+
+TABLE IV
+AVERAGE ENCRYPTION/DECRYPTION TIME OF AN EBRIM EXTRINSIC OBJECT
+
+word and different words will generate some similar subblocks.
+Therefore, the peaks of Fig. 8 do not relate to the word count
+peaks, since different words generate equal subblocks, adding
+a uniform noise to the hypothetic word sampling mechanism of
+the adversary.
+This strategy, allied to the partial search queries, obfuscates
+more effectively the access patterns to the document registry,
+since to perform a trapdoor search only a proportion of randomly
+picked subblocks are used.
+Furthermore, the encryption/decryption overhead of the metadata is relatively small because AES is an efficient algorithm.
+Table IV shows encryption/decryption average performance of
+the PPSE scheme. Note that the effort required by PPSE with
+b = 1 is equivalent to straightforward AES. Due to the shuffling
+phase there is an increase of the encryption/decryption effort,
+yet in the same order of magnitude of AES.
+B. Search Performance
+
+A. Document Registry Construction
+The BuildIndexEntry(K, Mi , b) method requires the definition of the number of subblocks (b) that each word will generate.
+For instance, if b = 4, then PPSE generates four subblocks of
+64 bit from each plaintext word. The parameter b directly affects
+the obscurity and searchability of the ciphered data. For higher
+values of b, better “camouflaged” the stored ciphered data will
+be. For instance, Fig. 4 represents the cipher word count after
+the encryption of a clinical document, which is equivalent to our
+ciphering method when b = 1. Comparing the two cipher histograms (see Figs. 4 and 8) with the word count histogram (see
+Fig. 3), it is visible that histogram of Fig. 4 leaks more information, since one word corresponds to one trapdoor. On the other
+hand, with b = 4, the algorithm generates four subblocks per
+
+We claim that our practical SE scheme improves the confidentiality of the protected data when comparing to the current state
+of the art since, to date, all other SE schemes send the entire
+trapdoor while querying the central repositories. Our scheme
+only sends random parts of the trapdoor obfuscating the search
+patterns and, as a consequence, always leaking less information
+to the possible adversary. Nevertheless, it is required to test if
+the partial trapdoor queries keep the same search accuracy, and
+the minimal amount of trapdoor necessary to keep the eventual
+accuracy.
+In order to evaluate the search accuracy of our SE scheme, we
+conducted a series of search tests. Besides comparing the difference between the search routine performance over the encrypted
+data and the plaintext data (gold standard), the test suit was also
+
+RIBEIRO et al.: XDS-I OUTSOURCING PROXY: ENSURING CONFIDENTIALITY WHILE PRESERVING INTEROPERABILITY
+
+TABLE V
+MEAN AVERAGE PRECISION OF THE INFORMATION RETRIEVAL PERFORMED
+OVER 130 000 CLINICAL DOCUMENTS
+
+1411
+
+as long as the query is performed with more than 25% of the
+trapdoor the scheme preserves the information retrieval outcome of the gold standard. Nevertheless, comparing with the
+gold standard (plaintext indexes) there is an increase on storage
+requirements as expected, yet not significant while comparing
+with the remaining SE schemes.
+VII. CONCLUSION
+
+intended to calibrate p and b parameters of the TrapdoorGen
+method. As mentioned previously, b affects the obscurity of the
+stored ciphered data. To the same extent p obfuscates the access
+pattern on the registry. When b > 1, a word W will have two
+or more subblocks associated, the idea behind the parameter p
+is that in order to perform a search routine it is not required
+to query the registry with all the subblocks to find documents
+containing W . Therefore, p is the percentage of subblocks that
+will be randomly picked for a querying episode. The higher
+the p percentage the higher will be the access pattern leakage.
+Hence, both parameters need to be combined in order to achieve
+an acceptable tradeoff between searchability and access pattern
+leakage.
+Our test suit tries to mimic the typical search queries over the
+document registry, classified into three categories: term queries,
+Boolean queries and range queries. The query set is composed of
+approximately 1000 queries divided into 35% term queries, 55%
+Boolean queries, and 10% of range queries. Range queries are
+performed over the fields: document’s creation time, start service time and stop service time. Moreover, the Boolean queries
+are conjugations (AND/OR operators) arranged between the remaining range and term queries. Finally, since the TrapdoorGen
+is stochastic we repeated four times the test experience and the
+following results are the average values of those four independent test episodes. Table V shows the mean average precision
+(MAP) of several p and b combinations. MAP is commonly
+used through the literature [32], [33] when the order of the retrieved information is relevant to evaluate the algorithm. From
+these results we observe that our scheme is capable of retrieving the same search results as if the queries were performed
+over plaintext collections. We obtained 100% MAP rates while
+finding documents on the registry (transaction Registry Stored
+Query [ITI-18]) for several p and b combinations. Note that the
+range queries had always a 100% MAP rate since all range able
+were dates which where ciphered with DTSR (besides patient’s
+date of birth). Range queries over the patient’s date of birth were
+excluded from our query set since by the XDS guidelines the patient demographic fields are not intended to be searchable on the
+document registry—they must be only used as a confirmation
+fields for triggering the document retrieval process.
+The overall results show that the search accuracy degrades
+when p ≤ 25%. For our heterogeneous and extensive dataset,
+
+It is expected that the production of clinical documents will
+continue to increase in the following decades, especially in the
+medical imaging field [2], [34]. The storage requirements of
+clinical documents are demanding and will be even more so in
+the future. The placement of the XDS-I central actors in the
+Cloud may be an interesting option for supporting XDS-I communities, leading to several advantages, e.g., high availability,
+elastic resource allocation, efficient storage/distribution workflows, and a simple business model for multiple institutions.
+Nevertheless, there are still several technical and legal barriers
+that imply that this kind of adoption needs to be evaluated case
+by case.
+Our proposal allows outsourcing of the XDS-I actors on semiuntrustworthy environments like the public Cloud. The solution
+is based on a novel searchable encryption scheme (PPSE) which
+grants the same searchability levels of other practical techniques
+yet hiding the access patterns of the searched documents to
+the adversaries. The encrypted documents keep their original
+format, allowing any XDS-I-compliant actor to be part of our
+confidentiality protection scheme (i.e., eliminating the vendor
+locking risk).
+ACKNOWLEDGMENT
+The authors would like to thank Prof. A. Zuquete and Prof.
+S. Matos for theoretical support and colleagues D. Campos, L.
+B. Silva, and P. Gaspar for brainstorming and fellowship.
+REFERENCES
+[1] P. Ross, R. Sepper, and H. Pohjonen, “Cross-border teleradiology—
+Experience from two international teleradiology projects,” Eur. J. Radiol.,
+vol. 73, no. 1, pp. 20–25, 2010.
+[2] L. S. Ribeiro, C. Costa, and J. L. Oliveira, in Current Trends in Archiving
+and Transmission of Medical Images, in Medical Imaging, O. F. Erondu,
+Ed.: InTech, 2011, pp. 89–106.
+[3] D. F. Parkhill, The Challenge of the Computer Utility. Reading, MA,
+USA: Addison-Wesley, 1966.
+[4] C. Costa, A. Silva, and J. L. Oliveira, “Indexing and retrieving DICOM
+data in disperse and unstructured archives,” 2009.
+[5] L. S. Ribeiro, C. Costa, and J. L. Oliveira, “Clustering of distinct PACS
+archives using a cooperative peer-to-peer network,” Comput. Methods
+Programs Biomed., vol. 108, no. 3, pp. 1002–1011, 2012.
+[6] S. Langer, “Issues surrounding PACS archiving to external, third-party
+DICOM archives,” J. Digital Imag., vol. 22, no. 1, pp. 48–52, 2009.
+[7] H. K. Huang, PACS and Imaging Informatics: Basic Principles and Applications. Hoboken, NJ, USA: Wiley, 2010.
+[8] N. E. M. Association, “Digital imaging and communications in medicine
+(DICOM) part 4: Service class specifications,” pp. 1–343, 2007.
+[9] H. Oosterwijk and P. Gihring, DICOM basic version 32005, OTech, Inc.
+[10] N. E. M. Association, “Digital imaging and communications in medicine
+(DICOM) part 18: Web access to DICOM persistent objects (WADO),”
+pp. 1–22, 2004.
+[11] IT Infrastructure (ITI) Technical Framework Integration Profiles, Revision
+9.0—Final Text, IHE, Oak Brook, IL, USA, 2012.
+
+1412
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 4, JULY 2014
+
+[12] S. Fuger, F. Najmi, and N. Stojanovic, “ebXML registry information model
+version 3.0,” OASIS, pp. 1–78, 2005.
+[13] IT Infrastructure Technical Framework Cross-Transaction Specifications
+and Content Specifications IHE, Oak Brook, IL, USA, 2009, pp. 1–72.
+[14] P. Seifert, “IHE radiology technical framework supplement XDS-I.b integration profile,” pp. 1–46, 2009.
+[15] K. W. Boone, The CDAtm Book. New York, NY, USA: Springer-Verlag,
+2011.
+[16] W. Cong, N. Cao, K. Ren, and W. Lou, “Enabling secure and efficient
+ranked keyword search over outsourced cloud data,” IEEE Trans. Parallel
+Distrib. Syst., vol. 23, no. 8, pp. 1467–1479, Aug. 2012.
+[17] L. Ming et al., “Scalable and secure sharing of personal health records in
+cloud computing using attribute-based encryption,” IEEE Trans. Parallel
+Distrib. Syst., vol. 24, no. 1, pp. 131–143, 2013.
+[18] R. A. Popa et al., “CryptDB: Protecting confidentiality with encrypted
+query processing,” in Proc. 23rd ACM Symp. Operating Syst. Principles,
+Cascais, Portugal, 2011, pp. 85–100.
+[19] J. Pieprzyk, T. Hardjono, and J. Seberry, Fundamentals of Computer
+Security. New York, NY, USA: Springer-Verlag, 2003.
+[20] R. Curtmola et al., “Searchable symmetric encryption: improved definitions and efficient constructions,” in Proc. 13th ACM Conf. Comput.
+Commun. Security, ACM: Alexandria, VA, USA, 2006, pp. 79–88.
+[21] S. Dawn Xiaoding, D. Wagner, and A. Perrig, “Practical techniques for
+searches on encrypted data,” in Proc. 2000 IEEE Symp. Security Privacy
+(S&P 2000), 2000.
+[22] M. T. Goodrich et al., “Oblivious RAM simulation with efficient worstcase access overhead,” in Proc. 3rd ACM Workshop Cloud Comput. Security Workshop, ACM: Chicago, IL, USA, 2011, pp. 95–100.
+[23] E. Shi et al., “Oblivious RAM with o((logn)3 ) worst-case cost,” in Proc.
+17th Int. Conf. Theory Appl. Cryptol. Inf. Security, 2011, pp. 197–214.
+[24] B. Pinkas and T. Reinman, “Oblivious RAM revisited,” in Proc. 30th
+Annu. Conf. Adv. Cryptology, Santa Barbara, CA, USA: Springer-Verlag,
+2010, pp. 502–519.
+
+[25] D. Boneh, D. Mazieres, and R. A. Popa, Remote Oblivious Storage:
+Making Oblivious RAM Practical, Massachusetts Institute of Technology,
+Cambridge, MA, USA, 2011, pp. 1–18.
+[26] O. Goldreich and R. Ostrovsky, “Software protection and simulation on
+oblivious RAMs,” J. ACM, vol. 43, no. 3, pp. 431–473, 1996.
+[27] L. B. Silva, C. Costa, and J. Oliveira, “A PACS archive architecture supported on cloud services,” Int. J. Comput. Assist. Radiol. Surg., vol. 7,
+no. 3, pp. 349–358, 2012.
+[28] A. Boldyreva et al., “Order-preserving symmetric encryption,” in Proc.
+28th Annu. Int. Conf. Adv. Cryptol. Theory Appl. Cryptographic Techn.,
+2009, pp. 224–241.
+[29] M. Gardner, Codes, Ciphers and Secret Writing. New York, NY, USA:
+Dover, 1972
+[30] J. Daemen and V. Rijmen, The Design of Rijndael: AES—The Advanced
+Encryption Standard. New York, NY, USA: Springer-Verlag, 2002.
+[31] L. Hathaway, National Policy on the Use of the Advanced Encryption Standard (AES) to Protect National Security Systems and National Security
+Information, 2003, pp. 1–3.
+[32] R. A. Baeza-Yates and B. Ribeiro-Neto, Modern Information Retrieval.
+vol. 513: Addison-Wesley/Longman, 1999.
+[33] G. G. Chowdhury, Introduction to Modern Information Retrieval. Facet,
+2010
+[34] H. K. Huang, PACS and Imaging Informatics : Basic Principles and Applications: Wiley-Blackwell, 2010.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

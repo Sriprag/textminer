@@ -1,0 +1,945 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 12, DECEMBER 2014
+
+2823
+
+A System for Counting Fetal and Maternal
+Red Blood Cells
+Ji Ge, Member, IEEE, Zheng Gong, Member, IEEE, Jun Chen, Jun Liu, Student Member, IEEE, John Nguyen,
+Zongyi Yang, Chen Wang, and Yu Sun∗ , Senior Member, IEEE
+
+Abstract—The Kleihauer–Betke (KB) test is the standard
+method for quantitating fetal-maternal hemorrhage in maternal
+care. In hospitals, the KB test is performed by a certified technologist to count a minimum of 2000 fetal and maternal red blood cells
+(RBCs) on a blood smear. Manual counting suffers from inherent
+inconsistency and unreliability. This paper describes a system for
+automated counting and distinguishing fetal and maternal RBCs
+on clinical KB slides. A custom-adapted hardware platform is used
+for KB slide scanning and image capturing. Spatial-color pixel
+classification with spectral clustering is proposed to separate overlapping cells. Optimal clustering number and total cell number
+are obtained through maximizing cluster validity index. To accurately identify fetal RBCs from maternal RBCs, multiple features
+including cell size, roundness, gradient, and saturation difference
+between cell and whole slide are used in supervised learning to
+generate feature vectors, to tackle cell color, shape, and contrast
+variations across clinical KB slides. The results show that the automated system is capable of completing the counting of over 60 000
+cells (versus ∼2000 by technologists) within 5 min (versus ∼15 min
+by technologists). The throughput is improved by approximately
+90 times compared to manual reading by technologists. The counting results are highly accurate and correlate strongly with those
+from benchmarking flow cytometry measurement.
+Index Terms—Automation, fetal-maternal hemorrhage (FMH)
+quantification, fetal red blood cells, image processing, Kleihauer–
+Betke (KB) test, maternal red blood cells.
+
+I. INTRODUCTION
+N North America, there are over 6 million pregnancies annually. Approximately 10% of all pregnancies in Caucasian
+populations are of an Rhesus D (RhD) negative woman with
+
+I
+
+Manuscript received April 5, 2014; revised May 8, 2014; accepted May 23,
+2014. Date of publication May 29, 2014; date of current version November
+18, 2014. This work was supported by the Natural Sciences and Engineering
+Research Council of Canada through an Idea to Innovation Grant, by the University of Toronto through a Connaught Innovation Award, by the Canada Research
+Chairs Program and in part by National Natural Science Foundation of China
+under Grant 61305019. Asterisk indicates corresponding author.
+J. Ge is with the Advanced Micro and Nanosystems Laboratory, University of
+Toronto, Toronto, ON M5S 3G8 ,Canada, and also with the College of Electrical
+Engineering and Automation, Jiangxi University of Science and Technology,
+Ganzhou 341000, China (e-mail: jige@mie.utoronto.ca).
+Z. Gong, J. Chen, J. Liu, J. Nguyen, and Z. Yang are with the Advanced Micro
+and Nanosystems Laboratory, University of Toronto, Toronto, ON M5S 3G8,
+Canada (e-mail: zgong@mie.utoronto.ca; junchen@mie.utoronto.ca; ljun@
+mie.utoronto.ca; jhn.nguyen@mail.utoronto.ca; yangzongyi@hotmail.com).
+C. Wang is with the Department of Pathology and Laboratory
+Medicine, Mount Sinai Hospital, Toronto, ON M5G 1X5, Canada (e-mail:
+cwang@mtsinai.on.ca).
+∗ Y. Sun is with the Advanced Micro and Nanosystems Laboratory, University
+of Toronto, Toronto, ON M5S 3G8, Canada (e-mail: sun@mie.utoronto.ca).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2327198
+
+an RhD positive baby. These pregnancies are at risk of RhD
+hemolytic disease of the newborn. During pregnancy or child
+birth, small amounts of fetal blood can enter the maternal circulation (an event called fetal-maternal hemorrhage or FMH).
+The presence of fetal RhD-positive cells in her circulation can
+cause a mother who is RhD negative to mount an immune response, generating small amounts of antibodies (including IgG)
+against the RhD antigen. The generated antibodies destruct the
+RhD positive fetal red blood cells (RBCs) by passing through
+the placenta into the fetal bloodstream and lead to hemolysis
+[1]. FMH can have devastating consequences for RhD positive
+fetus, such as anemia, neurologic injury, stillbirth, and neonatal
+death. Hence, quantification of FMH is necessary for physicians
+to make treatment decisions, for instance, the administration of
+an appropriate therapeutic dose of RhD immune globulin to
+suppress sensitization of the maternal immune system [2]–[4].
+Besides Rh diseases, FMH can also result from the loss of integrity of the normal physiological barrier between the fetal and
+maternal circulation, which must be quantified in pregnancy care
+for prompt treatment (e.g., blood transfusion) [5]. The standard
+clinical method of quantitating FMH is the Kleihauer–Betke
+(KB) test [6]. The test takes advantage of the differential resistance of fetal and adult hemoglobin (i.e., HbF and HbA) to acid
+(HbF is significantly more resistant). A standard blood smear
+is prepared from the mother’s blood (1:1 dilution with PBS).
+After drying, staining, and incubating, the blood smear slides
+are counted under a microscope by certified personnel. Since the
+fetal hemoglobin is resistant to the citrate buffer, the resulting
+bright-pink cells are classified as fetal cells [see Fig. 1(a)]. The
+percentage of FMH can then be calculated [7].
+In present clinical practice, fetal RBCs and total number of
+RBCs are manually estimated by certified technologists who
+look into the eyepieces of a microscope and count a minimum of
+2000 cells. Inherently, manual KB test is subjective and inconsistent, which can often result in underestimation/overestimation
+of fetal RBC count and wide variations across technologists and
+hospitals [8].
+Flow cytometry is an accepted benchmark technique for
+counting fetal and maternal RBCs, based on the fetal
+hemoglobin-specific antibody. The flow cytometric analysis of
+FMH involves multiple pretreatment steps, which requires more
+than 30-min preprocess and has high personnel skill requirements [9]. Due to these limitations, flow cytometry testing is
+typically unavailable during after hours in hospitals. The infrastructure cost along with operating and reagent costs also
+limits the clinical routine use of flow cytometry for KB tests
+[10]. The adoption of flow cytometry for fetal/maternal RBC
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+2824
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 12, DECEMBER 2014
+
+maternal
+RBC
+
+fetal
+RBCs
+(a)
+
+weak positive
+fetal RBC
+5μm
+
+neutrophil
+5μm
+
+(b)
+
+5μm
+
+(c)
+
+overlapping
+contaminant
+
+(d)
+
+5μm
+
+5μm
+
+(e)
+
+broken
+RBC
+
+5μm
+
+(f)
+
+Fig. 1. Sample images from clinical KB slides. (a) “Canonical” fetal and
+maternal RBCs. (b) Weak positive fetal RBC. (c) Neutrophils. (d) Contaminant.
+(e) and (f) Severally overlapping and broken RBCs.
+
+counting has been discussed for two decades in transfusion
+medicine [11]; however, the state-of-the-art practice in most
+hospitals for quantitating FMH is still manual KB test that relies on manual counting of fetal and maternal RBCs.
+Fig. 1(a) shows canonical fetal and maternal RBCs that can
+be easily counted and distinguished. However, many KB slides
+have more complex patterns that make the tasks difficult. As
+shown in Fig. 1(b)–(f), KB slide preparation often results in cell
+overlapping; the presence of random contaminants; variations in
+cell color, size, and shape; contrast variations between cells and
+slide background across KB slides. Fetal RBC identification is
+also made challenging due to the existence of neutrophils and
+weak positive fetal RBCs. Automated RBC counting requires
+the segmentation of overlapping cells and the identification of
+fetal RBCs to be properly and reliably handled. A few attempts
+were made to automate fetal and maternal RBC counting [8],
+[12], where automation in these works refers to the use of commercial motorized stage to capture cell images. Fetal RBCs
+were distinguished from maternal RBCs based on intensity and
+distribution patterns of staining by a technologist. The total cell
+number on a KB slide was also manually estimated. No system exists that is capable of automated counting of total RBC
+numbers and fetal RBCs.
+A number of image segmentation methods have been reported
+for cell counting. Nonmaximum suppression and seeded region
+growing were applied to segment corneal epithelial cells [6].
+A critical issue in automated cell counting is effective segment
+overlapping cells. Major approaches for separating overlapping
+cells include watershed [13], template matching [14]–[16], and
+color-texture-based segmentation [17]. Due to the existence
+of regional maxima, the watershed algorithm often leads to
+oversegmentation. Template matching has low efficiency and
+requires large quantities of cell samples to achieve reasonable
+accuracy. Overlapping cells with close colors or textures can be
+
+Fig. 2. System for automated image capturing and counting of fetal and
+maternal RBCs on clinical KB slides.
+
+clustered by color-texture-based segmentation [17]; however,
+they cannot be separated from each other for quantification.
+Due to the complex characteristics of RBCs on clinical KB
+slides, spectral clustering (SC) with spatial-color information is
+proposed in this paper to segment overlapping cells. Each cell
+can be considered a cluster, since the color within a cell is relatively homogeneous. Besides color values, spatial information
+of each cell is also added to construct features used for generating similarity matrices. Cluster validity index is then used for
+determining the number of clusters.
+To distinguish fetal RBCs from maternal RBCs, color information is the foremost cue. Due to variations in cell color,
+size, and the overlapping extent across KB slides, relying solely
+on saturation channel information is unreliable. Hence, the supervised clustering method is used in our system for fetal RBC
+identification, where feature vector is constructed with cell color,
+size, shape, gradient, and saturation difference between a cell
+and the whole slide.
+II. SYSTEM DESIGN
+As shown in Fig. 2, the system consists of a standard optical microscope, the manual stage of which was motorized
+with timing belts, pulleys, and stepping motors. The motorized
+stage has a positioning accuracy of ±19 and ±26 μm along the
+X- and Y-directions. The resolution is comparable for each direction and is 20 ± 3 μm. Travel distances for positioning a KB
+slide are 10 and 35 mm along X and Y, respectively.
+Due to the nonuniform distribution of RBCs on a KB slide,
+which is more severe on the far left and far right parts of the
+slide, images should be captured around the slide center. Hence,
+two motion limit switches along the X- and Y-directions are
+added for automatic slide centering. A Z-motor is also added
+to the microscope for keeping images in focus during KB
+slide scanning. Autofocusing is conducted with the normalized
+variance focus algorithm [18]. Under a 20× objective, the
+
+GE et al.: SYSTEM FOR COUNTING FETAL AND MATERNAL RED BLOOD CELLS
+
+2825
+
+Fig. 4. Cluster number determination. (a) Original image. (b) Regional maxima (blue arrow labeled). (c) Spurious maxima eliminated. (d) SC result with
+k = 4. (e) SC result with k = 3, maximal SV value is 0.5198. (f) Edge points
+with three clusters (labeled in red, blue, and black). (g) After ellipse fitting.
+
+Fig. 3.
+
+Flowchart of total RBC counting.
+
+system typically captures ∼120 images around the slide center (image size: 2560 × 1920) for automated counting.
+
+III. TOTAL RBC COUNTING
+Fig. 1(e) shows an example of cell overlapping that must be
+reliably handled to achieve accurate counting of the total number
+of RBCs. To begin with, a target needs to be determined to be
+an isolated cell or overlap with other cells. For this purpose,
+we use the concavity points searching method [19]. If a cell
+is isolated without any concavity points, the cell is counted as
+one cell directly. Otherwise, segmentation as discussed below
+is conducted.
+In overlapping RBCs, each cell forms a cluster due to the similar color within the same cell. Hence, segmenting overlapping
+cells can be considered cluster analysis. Among existing clustering methods, the k-means algorithm is effective only for clusters
+with similar sizes and densities, a condition that is not true in
+overlapping RBCs on a KB slide. Furthermore, the k-means algorithm is sensitive to initial centers and usually converges to a
+local optimum. In comparison, the SC algorithm [20] is capable
+of recognizing clusters with unusual shapes and obtaining global
+optimal solutions with eigendecomposition. Unfortunately, only
+depending on cell color, the SC algorithm can mistakenly group
+those pixels belonging to different RBCs, although they locate
+far from each other in the image.
+Hence, in our system, spatial information (i.e., pixel coordinates) besides color is used to generate feature vectors used for
+calculating the similarity matrix of SC. This spatial and colorbased SC approach is proven in our work effective in separating
+overlapping RBCs. Fig. 3 shows the sequence of processing for
+counting the total number of RBCs on a KB slide. Key steps are
+highlighted in blue and described in the following sections.
+
+A. Regional Maxima Preprocessing
+We observed that many extracted regional maxima in a distance image are located closely [see Fig. 4(b)]. If overlapping cells are segmented directly with the number of regional
+maxima, oversegmentation often occurs. Thus, we defined a
+distance-dependent rule to eliminate those spurious maxima.
+repeat
+∀m = (xm , ym ) ∈ S
+if ∃n = {(xn , yn )|D(m, n)  DT H )} then
+select p = {m, n|max(xm , xn )}
+update S
+end if
+until no changes in S
+where m and n are regional maxima within maxima set S, D
+is the Euclidean distance between two arbitrary maxima, and
+DTH is the minimal distance threshold. Considering that the
+radius of typical RBCs is approximately 20 pixels under a 20×
+microscope objective, DTH in our system is set to 10. If the
+Euclidean distance D(m, n) between point m and n is smaller
+than 10, the point with larger coordinate in the x-direction is
+selected into the set S (see Lines 3 and 4 of the rule). Fig. 4(c)
+shows that spurious maxima are removed after regional maxima
+preprocessing.
+B. Determination of Optimal Number of Clusters
+In cluster analysis of overlapping cells, the initial number
+of clusters is obtained through counting the number of local
+maxima after regional maxima preprocessing, and then, cluster
+validation is applied to determine the number of overlapping
+cells. Cluster validity index SV [21], consisting of two evaluation criteria of the cells (i.e., separation S and compactness V ),
+is
+k
+Sk
+=
+SV (k, V, P ) =
+Vk
+
+min
+d(vi , vj )
+j ∈[1,...,k ],i= j
+k
+i=1 max d(pj , vi )
+p j ∈C i
+
+i=1
+
+(1)
+
+2826
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 12, DECEMBER 2014
+
+TABLE I
+DIFFERENT SV VALUES AND NUMBER OF CLUSTERS DETERMINED
+S V (k = 4)
+
+S V (k = 3)
+
+S V (k = 2)
+
+0.3275 (1,2,3,4)
+/
+/
+/
+/
+/
+
+0.3581 (1,2,3)
+0.5198 (1,2,4)
+0.3862 (1,3,4)
+0.2723 (2,3,4)
+/
+/
+
+0.2758 (1,2)
+0.3212 (1,3)
+0.3849 (1,4)
+0.1431 (2,3)
+0.2770 (2,4)
+0.1380 (3,3)
+
+where P = {pj ; j = 1, 2, . . . , n} denotes the dataset with n
+data points. Dataset P can then be partitioned into k clusters Ci
+and each cluster has a centroid vi , here i = 1, 2, . . . , k. Separation measure Sk is the sum of pairwise minimal intercluster
+distances in a k-cluster structure, while compactness measure
+Vk indicates how different the members of each cluster are. The
+smaller the value of Vk , the compacter the clusters. The optimal
+cell number is obtained through maximizing the SV index.
+Fig. 4 shows an example, where SV values of the overlapping
+RBCs are calculated and summarized in Table I. For each SV
+value, corresponding cluster centroids are given in parentheses
+in the table. As shown in Table I, the maximal SV value is
+0.5198, with point 1, 2, and 4 (labeled in Fig. 4) determined as
+cluster centroids, representing proper segmentation. In Fig. 4(e),
+after determining the optimal number of clusters and generating
+features based on cell color and spatial coordinates, the system
+applies SC to classify the overlapping cells (labeled red, green,
+and yellow). Subsequently, contours in the overlapped areas are
+predicted via ellipse fitting [22] [see Fig. 4(g)], since most RBCs
+on a KB slide have circle-like or ellipse-like shapes.
+IV. FETAL RBC IDENTIFICATION
+In the manual KB test, fetal RBC identification is conducted
+through human visual inspection relying on cell patterns such as
+color, size, shape, and texture [8]. However, feature variations
+across KB slides exist, although hospital technologists closely
+follow slide preparation protocols. In our system, supervised
+learning is used, and the process is illustrated in Fig. 5.
+As shown in Fig. 5, all the 120 raw color images are read into
+the memory and converted to the hue saturation value (HSV)
+color space. An (N × 3)-dimensional matrix M1 constructed
+with all image pixels’ H, S, and V values is fit with a twocomponent Gaussian mixture distribution. Here, N is equal to
+2560 × 1920 × 120, and Model 1 is generated for separating
+all RBC pixels from background pixels. In the converted color
+space, fetal and maternal RBCs show significant differences in
+the saturation channel. Therefore, combining saturation values
+of the cells singled out by Model 1 forms NS cell × 1 matrix
+M2 . Model 2 is generated for separating fetal RBCs from maternal RBCs, fit with another two-component Gaussian mixture
+distribution.
+In captured color images, fetal RBCs appear red-colored, brilliant, shining, and smooth inside, while maternal ones appear
+light and pinkish. Therefore, color information is used to identify fetal cells. Due to cell variations across KB slides, besides
+
+Fig. 5. Flowchart of supervised learning for distinguishing fetal RBCs and
+maternal RBCs.
+
+color information, our system also integrates other features,
+such as cell size, roundness, gradient, and saturation difference
+between a cell and the whole slide, to distinguish fetal RBCs
+from maternal ones. Based on these features, the system applies
+a nonparametric learning algorithm [k-nearest neighbor (kNN)]
+via supervised learning to improve RBC classification accuracy. The kNN method is suitable for this purpose, since it is
+not certain whether the generated feature vectors of the fetal or
+maternal RBCs will satisfy such assumptions as Gaussian mixtures and linear separation. Additionally, the kNN method does
+not generalize the many training vectors and makes decisions
+based on the entire training feature vectors.
+In this paper, more than 3500 cells (labeled “positive” or
+“negative”) were calculated for generating feature vectors:
+Feature = (HSVi , RGBi , Gdi , Ai , Rdi , Di )
+⎛
+hsv1 rgb1 gd1 a1 rd1
+.
+..
+..
+..
+..
+= ⎝ ..
+.
+.
+.
+.
+hsvi
+
+rgbi
+
+gdi
+
+ai
+
+rdi
+
+⎞
+d1
+.. ⎠
+.
+
+(2)
+
+di
+
+where i = 3500; H, S, V , R, G, and B denote six channel
+values in HSV and RGB color space; Gd, A, and Rd are the
+gradient, area, and roundness of the cell, respectively; and D is
+the saturation difference between cell and whole slide.
+A kNN model (Model 3) is built after fitting the feature vector
+with the kNN algorithm. Features of extracted cells are calculated and predicted with Model 3, where similarity of RBCs is
+calculated and verified according to
+ i
+ςF C = 1, pi > T hf
+(3)
+ςFi C = 0, others
+i
+denotes the fetal RBC indicator of ith cell. pi reprewhere ςFC
+sents similarity between ith cell and labeled “positive” cells. Thf
+denotes the fetal RBC threshold value. Typically, this threshold value is set to 0.5 according to statistical characteristics
+
+GE et al.: SYSTEM FOR COUNTING FETAL AND MATERNAL RED BLOOD CELLS
+
+2827
+
+Fig. 7. Automated total RBC counting. The overlapping cells were segmented
+with proposed method, and their contours were labeled with blue ellipses. Those
+isolated RBCs, labeled with black plus symbols, were counted directly without
+segmentation procedures.
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+(e)
+
+(f)
+
+Fig. 6. Segmentation results using different algorithms. (1) Original image;
+(2) marker-controlled watershed [13]; (3) color- and texture-based segmentation
+[17]; (4) k-means algorithm; (5) and (6) our proposed spatial-color-based SC;
+and ellipse fitting on cell contours.
+
+gathered from more than 50 clinical
+slides. Therefore, fetal
+ KB
+i
+RBC number is determined by N
+i=1 ςFC , where N is the total
+cell number in the 120 images.
+V. EXPERIMENTAL RESULTS AND DISCUSSION
+A. Total RBC Counting
+Fig. 6 shows overlapping cells randomly selected from KB
+slides. Comparisons between marker-controlled watershed [13],
+color- and texture-based segmentation algorithm [17], k-means
+clustering algorithm, and our proposed spatial-color-based SC
+approach are made, as shown in Fig. 6.
+Columns (a)–(c) in Fig. 6 show slightly overlapping situations where almost all the algorithms segmented cells reasonably well, except that oversegmentation occurred in (2, a) and
+(2, b) due to the wrong markers that existed within the overlapping area. For the more severally overlapping situations [see
+columns (d)–(f)], marker-controlled watershed in row 2 yielded
+oversegmentation due to many spurious maxima that appeared
+in the overlapping areas. k-means clustering in row 4 divided
+the overlapping cells into several regions; however, it led to erroneous segmentations due to the incorrect initial centers and
+number of clusters.
+Most cell pixels were extracted with the color and texture
+clustering method, as shown in (3, a), (3, b), and (3, e). Unfortunately, only some scattered pixels or contours were picked out
+in other three columns in row 3, due to color and texture unevenness of the RBCs. This algorithm can extract the cells out but is
+not effective in separating them from each other. Our proposed
+algorithm (spatial-color-based SC) generates a new feature vector by adding spatial information into the original color matrix,
+
+which is proven effective in segmenting overlapping cells (see
+row 5 in Fig. 6). Furthermore, contour fitting on the overlapping
+cells generates clear ellipse-like contours for cell quantification.
+Fig. 7 shows the segmentation and counting results of one
+KB image. The overlapping cells were segmented, and their
+contours were labeled with blue ellipses. Those isolated cells,
+labeled with black plus symbols, were counted directly without segmentation procedures. To evaluate the accuracy of total RBC counting, 12 KB images were randomly selected and
+counted with the marker-controlled watershed method, our proposed spatial-color SC algorithm, and manual counting. Manual
+counting was conducted by a skilled technologist who used computer mouse clicking to count every cell in the images and then
+spent significant time carefully verifying every single cell. The
+manual counting results were used to calculate overcounting
+and undercounting rates summarized in Table II.
+The marker-controlled watershed algorithm resulted in much
+higher overcounting ratios, ranging from 9.7% to 18.32%, due to
+its nature in severe oversegmentation. Our proposed algorithm
+performed significantly better in terms of both overcounting
+and undercounting rates. Scrutinizing the segmentation results
+using our spatial-color SC approach, we observed that some
+undercounted cells were missed because of their significantly
+lower contrasts compared to surrounding cells. There were only
+two to seven cells overcounted, and verification revealed they
+were cells broken into more than one segment, as illustrated in
+Fig. 1(f).
+B. Fetal RBC Counting and Blind KB Tests
+To quantify the accuracy of fetal cell identification using
+supervised learning, 12 slides (three per group) with known fetal
+cell concentrations (0.1%, 0.25%, 0.5%, and 1%) were tested,
+in accordance with a research protocol approved by the Mount
+Sinai Hospital Review Board. These “artificial” KB slides were
+prepared through accurately controlled mixing of fetal blood
+
+2828
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 12, DECEMBER 2014
+
+TABLE II
+TOTAL CELL COUNTING (UC: UNDERCOUNTED; OC: OVERCOUNTED)
+technologist
+
+marker-controlled watershed
+
+proposed algorithm
+
+Image
+
+#total
+
+#UC/ratio
+
+#OC/ratio
+
+#total
+
+#UC/ratio
+
+#OC/ratio
+
+#total
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+
+648
+741
+607
+811
+615
+762
+625
+803
+505
+804
+678
+651
+
+15 / 2.08%
+12 / 1.44%
+11 / 1.67%
+20 / 2.15%
+16 / 2.38%
+22 / 2.65%
+14 / 2.03%
+16 / 1.76%
+19 / 3.19%
+21 / 2.23%
+15 / 1.92%
+16 / 2.13%
+
+89 / 12.33%
+105 / 12.59%
+64 / 9.70%
+138 / 14.85%
+72 / 10.73%
+91 / 10.95%
+80 / 11.58%
+123 / 13.52%
+109 / 18.32%
+157 / 16.70%
+120 / 15.33%
+115 / 15.33%
+
+722
+834
+660
+929
+671
+831
+691
+910
+595
+940
+783
+750
+
+7 / 1.09%
+10 / 1.36%
+8 / 1.33%
+12 / 1.49%
+6 / 0.98%
+9 / 1.19%
+7 / 1.12%
+11 / 1.38%
+6 / 1.20%
+9 / 1.12%
+11 / 1.63%
+9 / 1.39%
+
+4 / 0.62%
+6 / 0.81%
+3 / 0.50%
+5 / 0.62%
+2 / 0.33%
+3 / 0.40%
+3 / 0.48%
+6 / 0.75%
+3 / 0.60%
+7 / 0.87%
+5 / 0.74%
+5 / 0.77%
+
+645
+737
+602
+804
+611
+756
+621
+798
+502
+802
+672
+647
+
+TABLE III
+COUNTING RESULTS: AUTOMATED COUNTING; MANUAL COUNTING
+BY TECHNOLOGIST
+
+0.90%
+0.80%
+
+group
+
+slide
+
+#Fetal
+
+#Total
+
+Ratio
+
+technologist
+
+known
+
+1
+
+1
+2
+3
+1
+2
+3
+1
+2
+3
+1
+2
+3
+
+89
+62
+78
+179
+210
+230
+399
+386
+379
+746
+787
+755
+
+74325
+68941
+70578
+81454
+87489
+82045
+76808
+80483
+84156
+73105
+79514
+77824
+
+0.12%
+0.09%
+0.11%
+0.22%
+0.24%
+0.28%
+0.52%
+0.48%
+0.45%
+1.02%
+0.99%
+0.97%
+
+0.16%
+0.19%
+0.07%
+0.20%
+0.18%
+0.31%
+0.41%
+0.38%
+0.44%
+1.11%
+1.20%
+1.08%
+
+0.1%
+
+2
+
+3
+
+4
+
+Fig. 8.
+
+0.25%
+
+flow cytometry
+
+0.70%
+automated
+
+0.60%
+0.50%
+0.40%
+0.30%
+0.20%
+0.10%
+
+0.5%
+
+B
+
+0.00%
+0.00%
+
+0.20%
+
+from umbilical cord and adult RBCs. Results from automated
+counting and hospital technologist reading are summarized in
+Table III.
+Data in Table III are graphically shown in Fig. 8. Our automated system determined on the 12 “artificial” KB slides average fetal RBC concentrations to be 0.107%, 0.247%, 0.483%,
+and 0.993% with standard deviations of 0.015%, 0.031%,
+0.035%, and 0.025%. The results from technologist reading
+
+0.40%
+
+0.60%
+
+0.80%
+
+1.00%
+
+automated system
+
+1.0%
+
+Comparison between technologist reading and automated counting.
+
+y = 1.0273x
+2
+R = 0.9684
+
+A
+
+Fig. 9. Correlation between automated counting and flow cytometry in 51
+pregnant patient samples (R 2 = 0.9684).
+
+were 0.14%, 0.23%, 0.41%, and 1.13% with standard deviations
+of 0.06%, 0.07%, 0.03%, and 0.06%, respectively. Compared to
+the known mixing ratios on these “artificial” KB slides, these
+results quantitatively confirmed the automated system’s capability for highly accurate RBC counting. Note that our automated
+system counted over 60 000 cells per KB slide while standard
+technologist reading was limited to ∼2000 cells. Additionally,
+automated counting can be completed within 5 min per slide,
+while manual reading costs more than 15 min.
+Another 51 KB slides were made from pregnant patient samples collected in the Mount Sinai Hospital were tested. Testing
+results using our automated system strongly correlated with
+those from benchmarking flow cytometry measurement (R2 =
+0.9684 shown in Fig. 9 versus R2 = 0.9147 between technologist reading and flow cytometry, data not shown). Counting
+accuracy is defined as
+Accuracy =
+
+TP + TN
+TP + TN + FP + FN
+
+(4)
+
+where TP is the number of true positives, FP is the number of
+false positives, TN is the number of true negatives, and FN is
+the number of false negatives. The counting accuracy of our
+
+GE et al.: SYSTEM FOR COUNTING FETAL AND MATERNAL RED BLOOD CELLS
+
+automated system was quantified to be 0.972 ± 0.09 (versus
+0.911 ± 0.14 in technologist reading).
+C. Discussion
+The data points labeled “A” in Fig. 9 are those fetal concentrations determined by the automated system to be lower than
+flow cytometry. We reevaluated those slides and observed that
+colors of some fetal RBCs appeared much lighter compared to
+“canonical” fetal RBCs shown in Fig. 1(a). These lighter fetal
+RBCs were considered by the automated system negative. For
+those slides (labeled “B”) with higher fetal RBC concentrations
+than determined by flow cytometry, some negative RBCs appeared darker and brighter than surrounding cells, leading to
+higher false positives.
+HbF+ RBCs (termed F cells) can also exist in adults. The
+number of F cells becomes higher in inherited hemoglobin disorders, such as β-thalassaemias, sickle cell anemia, and hereditary persistence of fetal hemoglobin [23]. During pregnancy,
+maternal hematopoiesis also generates low levels of F cells, and
+low concentrations. In healthy adults, approximately 3–7% of
+RBCs are F cells, containing 20–25% of HbF [24]. After acid
+elution, F cells appear lighter compared to “canonical” fetal
+RBCs but brighter than maternal cells. It can be challenging in
+KB test to differentiate fetal RBCs from F cells having high
+amounts of HbF. As our work progresses to involve a larger
+patient size, the feasibility of properly gating F cells will be
+investigated.
+VI. CONCLUSION
+This paper has described an automated system for fetal and
+maternal RBC reading in a clinical KB test. The system uses
+a custom-motorized image capturing platform to automatically
+center a KB slide, collect 120 images (over 60 000 cells), and
+count/distinguish fetal and maternal RBCs. Spatial-color classification with SC is proposed to effectively count overlapping
+cells. Multiple features including cell color, size, shape, and
+contrast variations are used in supervised learning for distinguishing fetal RBCs and maternal ones. Testing patient KB
+slides, the automated system quantitatively demonstrated high
+accuracy in counting and strong correlation with benchmarking
+flow cytometry. Compared to manual technologist reading, the
+automated system is significantly more efficient and accurate.
+ACKNOWLEDGMENT
+The authors would like to thank the Department of Pathology
+and Laboratory Medicine, Mount Sinai Hospital, Toronto, ON,
+Canada, for patient KB slides preparation.
+REFERENCES
+[1] J. M. Bowman, B. Chown, M. Lewis, and J. M. Pollock, “Rh isoimmunization during pregnancy: Antenatal prophylaxis,” Can. Med. Assoc. J.,
+vol. 118, no. 6, pp. 623–627, Mar. 1978.
+[2] B. H. Davis, S. Olsen, N. C. Bigelow, and J. C. Chen, “Detection of fetal
+red cells in fetomaternal hemorrhage using a fetal hemoglobin monoclonal
+antibody by flow cytometry,” Transfusion, vol. 38, no. 8, pp. 749–56,
+Aug. 1998.
+
+2829
+
+[3] J. Bowman and J. Pollock, “Rh-immunization during pregnancy and the
+grandmother theory,” J. Pediatr., vol. 93, no. 2, pp. 313–314, Aug. 1978.
+[4] C. Chen, S. Cheng, C. Lee, F. Chang, C. Wu, and Y. Yuh, “Fetomaternal
+Hemorrhage,” J. Med. Sci., vol. 23, no. 4, pp. 231–234, 2003.
+[5] Z. Wang, J. Shi, Y. Zhou, and C. Ruan, “Detection of red blood cell-bound
+immunoglobulin G by flow cytometry and its application in the diagnosis of autoimmune hemolytic anemia,” Int. J. Hematol., vol. 73, no. 2,
+pp. 188–193, Feb. 2001.
+[6] N. Bandekar, A. Wong, D. Clausi, and M. Gorbet, “A novel approach to
+automated cell counting for studying human corneal epithelial cells,” in
+Proc. Int. Conf. IEEE Eng. Med. Biol. Sci., Boston, MA, USA, Jan. 2011,
+pp. 5997–6000.
+[7] W. C. Warger, II, J. A. Newmark, B. Zhao, C. M. Warner, and C. A.
+DiMarzio, “Accurate cell counts in live mouse embryos using optical
+quadrature and differential interference contrast microscopy,” Proc. SPIE,
+vol. 6090, pp. 609009-1–609009-12, Feb. 2006.
+[8] D. M. Pelikan, S. A. Scherjon, W. E. Mesker, G. M. de Groot-Swings,
+G. G. Brouwer-Mandema, H. J. Tanke, and H. H. Kanhai, “Quantification
+of fetomaternal hemorrhage: A comparative study of the manual and automated microscopic Kleihauer-Betke tests and flow cytometry in clinical
+samples,” Amer. J. Obstetrics Gynecol., vol. 191, no. 2, pp. 551–557,
+Aug. 2004.
+[9] D. Huh, W. Gu, Y. Kamotani, J. B. Grotberg, and S. Takayama, “Microfluidics for flow cytometric analysis of cells and particles,” Physiol. Meas.,
+vol. 26, no. 3, pp. R73–R98, Jun. 2005.
+[10] Y. Mundee, N. C. Bigelow, B. H. Davis, and J. B. Porter, “Simplified
+flow cytometric method for fetal hemoglobin containing red blood cells,”
+Cytometry, vol. 42, no. 6, pp. 389–393, Dec. 2000.
+[11] L. Wong, B. C. Hunsberger, C. Bruce Bagwell, and B. H. Davis, “Automated quantitation of fetomaternal hemorrhage by flow cytometry for
+HbF-containing fetal red blood cells using probability state modeling,”
+Int. J. Lab. Hematol., vol. 35, no. 5, pp. 548–554, Oct. 2013.
+[12] D. M. V. Pelikan, W. E. Mesker, S. A. Scherjon, H. H. H. Kanhai, and H. J.
+Tanke, “Improvement of the Kleihauer-Betke test by automated detection
+of fetal erythrocytes in maternal blood,” Cytom. Part B, Clin. Cytom.,
+vol. 54, no. 1, pp. 1–9, Jul. 2003.
+[13] R. Rodrı́guez, T. E. Alarcón, and O. Pacheco, “A new strategy to obtain
+robust markers for blood vessels segmentation by using the watersheds
+method,” Comput. Biol. Med., vol. 35, no. 8, pp. 665–686, Oct. 2005.
+[14] D. Gloria, F. Gonzalez, and E. Romero, “Automatic clump splitting for cell
+quantification in microscopical images,” Prog. Pattern Recognit., Image
+Anal. Appl., vol. 4756, pp. 763–772, 2007.
+[15] C. Chen, W. Wang, J. A. Ozolek, and G. K. Rohde, “A flexible and robust
+approach for segmenting cell nuclei from 2D microscopy images using
+supervised learning and template matching,” Cytometry A, vol. 83, no. 5,
+pp. 495–507, May 2013.
+[16] C. Jung and C. Kim, “Segmenting clustered nuclei using H-minima
+transform-based marker extraction and contour parameterization,” IEEE
+Trans. Biomed. Eng., vol. 57, no. 10, pp. 2600–2604, Oct. 2010.
+[17] M. Datar, D. Padfield, and H. Cline, “Color and texture based segmentation
+of molecular pathology images using HSOMS,” in Proc. IEEE Int. Symp.
+Biomed. Imag. Nano Macro, May 2008, pp.292–295.
+[18] Y. Sun, S. Duthaler, and B. Nelson, “Autofocusing in computer microscopy: Selecting the optimal focus algorithm,” Microsc. Res. Techn.,
+vol. 65, no. 3, pp. 139–149, Oct. 2004.
+[19] M. Farhan, O. Yli-Harja, and A. Niemistö, “An improved clump splitting
+method for convex objects,” in Proc. 7th Int. Workshop Comput. Syst.
+Biol., 2010, pp. 35–38.
+[20] J. Shi and J. Malik, “Normalized cuts and image segmentation,” IEEE
+Trans. Pattern Anal. Mach. Intell., vol. 22, no. 8, pp. 888–905, Aug. 2000.
+[21] K. R. Zalik and B. Zalik, “Validity index for clusters of different sizes and
+densities,” Pattern Recognit. Lett., vol. 32, no. 2, pp. 221–234, Jan. 2011.
+[22] A. Fitzgibbon, M. Pilu, and R. Fisher, “Direct least square fitting
+of ellipses,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 21, no. 5,
+pp. 476–480, May 1999.
+[23] K. Y. Italia, R. Colah, and D. Mohanty, “Evaluation of F cells in sickle
+cell disorders by flow cytometry—Comparison with the Kleihauer-Betke’s
+slide method,” Int. J. Lab. Hematol., vol. 29, no. 6, pp. 409–414, Dec. 2007.
+[24] R. S. Franco, Z. Yasin, M. B. Palascak, P. Ciraolo, C. H. Joiner, and D. L.
+Rucknagel, “The effect of fetal hemoglobin on the survival characteristics
+of sickle cells,” Blood, vol. 108, no. 3, pp. 1073–1076, Aug. 2006.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

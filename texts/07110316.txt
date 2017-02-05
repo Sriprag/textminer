@@ -1,0 +1,1096 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+1339
+
+Posture and Activity Recognition and Energy
+Expenditure Estimation in a Wearable Platform
+Edward Sazonov, Senior Member, IEEE, Nagaraj Hegde, Student Member, IEEE, Raymond C. Browning,
+Edward L. Melanson, and Nadezhda A. Sazonova
+
+Abstract—The use of wearable sensors coupled with the processing power of mobile phones may be an attractive way to provide
+real-time feedback about physical activity and energy expenditure
+(EE). Here, we describe the use of a shoe-based wearable sensor
+system (SmartShoe) with a mobile phone for real-time recognition
+of various postures/physical activities and the resulting EE. To deal
+with processing power and memory limitations of the phone, we
+compare the use of support vector machines (SVM), multinomial
+logistic discrimination (MLD), and multilayer perceptrons (MLP)
+for posture and activity classification followed by activity-branched
+EE estimation. The algorithms were validated using data from 15
+subjects who performed up to 15 different activities of daily living
+during a 4-h stay in a room calorimeter. MLD and MLP demonstrated activity classification accuracy virtually identical to SVM
+(∼95%) while reducing the running time and the memory requirements by a factor of >103 . Comparison of per-minute EE estimation using activity-branched models resulted in accurate EE prediction (RMSE = 0.78 kcal/min for SVM and MLD activity classification, 0.77 kcal/min for MLP versus RMSE of 0.75 kcal/min for
+manual annotation). These results suggest that low-power computational algorithms can be successfully used for real-time physical
+activity monitoring and EE estimation on a wearable platform.
+Index Terms—Energy expenditure, physical activity, shoe sensors, wearable sensors.
+
+I. INTRODUCTION
+HYSICAL activity (PA), including the type, intensity and
+duration of activities, is an important component of programs designed to prevent/treat metabolic syndrome and obesity. Objectively monitoring PA and the associated estimates of
+instantaneous and cumulative energy expenditure (EE) can provide important feedback that would allow a person to regulate
+his/her PA and energy balance to maintain or achieve a healthy
+weight/lifestyle. Several PA monitors have been developed that
+provide continuous real-time feedback of EE through heart rate
+
+P
+
+Manuscript received December 21, 2014; revised March 24, 2015; accepted
+May 3, 2015. Date of publication May 19, 2015; date of current version July
+23, 2015. This work was supported in part by the National Institutes of Health
+under Grant 1R43DK083229 and Grant UL 1 TR001082.
+E. Sazonov, N. Hegde, and N. A. Sazonova are with the Department of
+Electrical and Computer Engineering, The University of Alabama, Tuscaloosa,
+AL 35487 USA (e-mail: esazonov@eng.ua.edu; nhegde@crimson.ua.edu;
+nasazonova@gmail.com).
+R. C. Browning is with the Department of Health and Exercise Science, Colorado State University, Fort Collins, CO 80523 USA (e-mail: Ray.
+Browning@ColoState.edu).
+E. L. Melanson is with the Division of Endocrinology, Diabetes, and
+Metabolism, the Division of Geriatric Medicine, University of Colorado, Denver, CO 80045 USA (e-mail: Ed.Melanson@ucdenver.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2015.2432454
+
+[1], accelerometry [2], [3], and/or multisensor measurements
+[4]. While some of these products provide reasonably accurate
+assessments of EE, they have the disadvantage of being obtrusive and/or uncomfortable to wear continuously.
+An attractive and practical opportunity for convenient unobtrusive PA monitoring is to use mobile devices (e.g., smart
+phones) equipped with software that provides an instantaneous
+display of the amount of PA and estimated EE. Recent research has demonstrated the implementation of software for
+posture/activity recognition and EE prediction in cell phones
+using built-in three-axis accelerometer [5]–[8]. However, the
+accuracy of posture and activity recognition and EE estimation
+is likely to be limited due to the wide variety of ways a cell
+phone can be worn or carried by a person.
+We have recently developed a wireless shoe-based sensor
+system (SmartShoe) that records insole pressure and foot acceleration data. Several other studies also reported using shoebased sensors [9]–[14] and a few commercial shoe-based products were developed [15], [16] for use in clinical or movement
+applications. However, these products are limited by only detecting gait characteristics and pressure distribution across the
+foot, and do not include activity classification or EE prediction. The attractiveness of using the SmartShoe for EE prediction is due to the fact that the wireless shoe-based sensor
+provides pressure monitoring of key body weight support points;
+is capable of differentiating static postures (such as sitting
+and standing), weight-bearing and nonweight-bearing activities
+(such as walking and cycling); and is unobtrusive, lightweight,
+and easy to use. The shoe sensor data can be used for posture/activity classification [17] to recognize activities that may
+present challenges to other approaches (for example, differentiate Sit, Stand, Walk/Jog, Ascend Stairs, Descend Stairs, or
+Cycle). The posture/activity classification can then be utilized
+in activity-branched EE estimation models [18], [19] that rely
+on the branching techniques similar to those developed for accelerometers and heart rate monitors [20]–[26].
+Methods for posture and activity classification and EE prediction (PAC/EE) reported in [17] and [18] are not well suited for
+use on a smartphone due to computational intensity and highmemory requirements. A combination of SmartShoe sensors,
+efficient PAC/EE algorithms with the audio/visual capabilities
+of a modern smartphone can potentially lead to the development of biofeedback-based interventions for increasing PA and
+weight management. Therefore, it is highly desirable to execute
+PAC/EE algorithms on a mobile computing platform in real time.
+This study investigates the implementation of PAC/EE models
+that considerably reduce computational intensity and memory
+
+2168-2194 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1340
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+requirements and can execute on a modern smart phone and
+provide proactive device-initiated feedback in real time. The
+execution time constraints define the need to leave a substantial
+portion of running time left to the cell phone system processes
+to reduce the battery drain. Memory constraints demand minimization of storage of both the coefficients for classification
+and regression models and the sensor data. Several computational models are considered. First, a support vector machine
+(SVM) classifier is developed as the baseline measurement for
+computational and space complexity. Next, multinomial logistic
+discrimination (MLD) and multilayer perceptron (MLP) models
+are developed as lightweight generalized linear and nonlinear
+alternatives to SVM, respectively. The impact of the classification model on the accuracy of activity-branched EE estimation
+is investigated by comparing the EE estimates from activity annotations performed by SVM, MLD, MLP models, and a human
+observer. The proposed PAC/EE models are validated in a room
+calorimeter study with 15 subjects performing various activities
+of daily living.
+This paper is organized as follows. Section II describes the
+study design and the data, followed by the methods used for
+model training and evaluation. Section III provides results using
+data from 15 subjects. Sections IV and V present a discussion
+and conclusions.
+
+TABLE I
+ACTIVITIES IN THE PROTOCOL
+Activity
+
+Description
+
+Equilibration
+
+Quiet resting, data
+excluded
+laying on bed, data
+excluded
+watching TV
+performing computer
+work
+Quiet
+Active
+Walking, 2.5 mph
+
+Supine
+Sitting
+
+Standing
+Random assignment; 6 of
+8 possible activities
+
+Free-living
+
+Walking, 3.5 mph
+Walking uphill, 2.5%
+grade, 2.5 mph
+Stepping
+Sweeping
+Cycling, 75 W
+Standing
+Sitting
+Any of the above
+activities,
+self-selected pace
+and posture
+
+Time
+
+Class label
+
+30 min
+
+N/A
+
+20 min
+
+N/A
+
+20 min
+20 min
+
+Sit
+Sit
+
+10 min
+10 min
+10 min each;
+60 min total
+
+Stand
+Stand
+Walk/Jog
+Walk/Jog
+Walk/Jog
+
+60 min, or until
+4 h total
+
+Walk/Jog
+Stand
+Cycle
+Stand
+Sit
+Selected class
+
+TABLE II
+SUBJECT CHARACTERISTICS
+
+II. METHODS
+Males (n = 9)
+
+A. Subjects and Protocol
+Nineteen subjects (10 male, 9 female) were recruited to participate in this study. The desired sample size of 20 was estimated based on two primary outcomes, recognition rate and EE
+agreement, with the goal of achieving 90% power in detecting
+a difference of approximately 2% points. The protocol was approved by the Colorado State University Institutional Review
+Board. Subjects completed a PA and health history questionnaire [27], and were determined to be in good health by a physician. Based on self-report, subjects were physically inactive to
+moderately active (less than 6 h of physical exercise per week),
+not taking any medications known to alter the metabolism, and
+weight stable over the past six months.
+Each subject performed one 4-h stay in a room calorimeter following a 4-h fast. Metabolic data were collected while
+each individual performed a series of randomly assigned postures and activities that were recorded by a video camera (see
+Table I). Subjects wore SmartShoe of appropriate size ranging
+from female size 7 to male size 12 (US). Data collection began
+with a 30-min equilibration to assure that gas exchange within
+the calorimeter was a representative of the current subject. This
+period of data collection was not used in the analysis. The remaining 3.5 h of data collection started with a predetermined
+period of activities including 20 min of lying quietly in the
+supine position, 20 min of sitting and watching TV, 20 min of
+sitting while using a computer, 10 min of quiet standing, and
+10 min of active standing. Subjects were then asked to perform
+six of eight randomly assigned activities for 10 min each from
+the set shown in Table I. The last hour of data collection consisted of free-living activities of the individual’s choice. About
+
+Females (n = 6)
+
+Characteristic
+
+Mean(SD)
+
+Range
+
+Mean(SD)
+
+Range
+
+Age, years
+Height, cm
+Weight, kg
+BMI
+
+28.1(6.9)
+178.1(10.2)
+79.3(16.7)
+24.8(3.6)
+
+(20–38)
+(162.6–193)
+(57.6–98.5)
+(19.6–31.1)
+
+23.7(3.1)
+167.5(8.5)
+72.0(18.0)
+25.6(6.3)
+
+(20–29)
+(157.5–180)
+(49.2–99)
+(18.7–37.3)
+
+10 min of data collection were reserved for transitions between
+the various activities.
+Sensor data from each experiment were manually annotated
+with every minute of each activity labeled from the set activity
+classes shown in Table I. The annotated data were later used for
+training and validation of PAC/EE algorithms as well as in the
+manually-branched EE estimation model.
+Oxygen consumption and carbon dioxide production were
+recorded using the whole room indirect calorimeter located in
+the Clinical Translational Research Center of the University
+of the Colorado Hospital [28]. EE and substrate oxidation were
+calculated using the nonprotein RQ [29]. Measured oxygen consumption and associated EE was recorded on per minute basis.
+The average EE of the last 5 min of the supine period for each
+subject was used as an estimate of resting metabolic rate/EE in
+kcal/min [30]. The last minute of resting EE was used to perform
+conversion to metabolic equivalents (METs).
+Four subjects had incomplete data as a result of an error
+in the recording system, shoe sensors or power grid failures
+during the experiment and were excluded from the analysis. The
+anthropometric characteristics for the remaining 15 subjects are
+given in Table II. The resulting dataset used for development
+
+SAZONOV et al.: POSTURE AND ACTIVITY RECOGNITION AND ENERGY EXPENDITURE ESTIMATION IN A WEARABLE PLATFORM
+
+Fig. 1. SmartShoe device: (left) Overall view of the shoe device with attached
+accelerometer, battery, and power switch on the back; (right) pressure-sensitive
+insole with five pressure sensors: 1) heel, 2) 3rd metatarsal head, 3) 1st metatarsal
+head, 4) 5th metatarsal head, 5) hallux.
+
+1341
+
+Sit, Stand, Walk/Jog or Cycle. The choice of classes in the model
+was stipulated by the fact that the majority of a person’s time
+could be described as one of these posture/activities (except cycling, which presents a separate class due to its different EE requirement as compared with walking). Second, the same sensor
+data along with the result of the posture/activity classification
+are used to estimate EE of 1-min time intervals by selecting an
+appropriate branch model (Sit, Stand, Walk/Jog or Cycle) and
+applying it to the features extracted from the sensor data.
+D. Posture and Activity classification
+
+Fig. 2.
+
+Information flow in the shoe-based system for EE estimation.
+
+of the models described in this study contained approximately
+52.5 h of data.
+B. Sensors
+The sensor data were collected by a SmartShoe with an embedded sensor system (see Fig. 1). Five force-sensitive resistors
+were integrated in a flexible insole and positioned under the
+critical points of contact: heel, metatarsal bones, and the great
+toe (hallux), allowing for differentiation of static postures and
+weight-bearing and nonweight-bearing activities. The acceleration data were collected from a 3-D MEMS accelerometer
+(ADXL335) positioned on the back of the shoe. Pressure and
+acceleration data were sampled at 400 Hz, downsampled to
+25 Hz by averaging of 16 consecutive samples, and sent over
+a Bluetooth link to a smartphone storing the signals for further
+processing.
+C. Information Flow
+The information flow in the proposed PAC/EE models is outlined in Fig. 2. Algorithmically, the processing of the signals
+consists of two major steps. First, sensor data from shoes are
+used to classify every 2-s time period into one of the four classes:
+
+The posture/activity classification algorithms automatically
+recognize activities and assign class labels from the set of {Sit,
+Stand, Walk/Jog, Cycle} to 2-s periods of sensor data. The following features were derived from the raw 2-s signal (length
+50 samples) for each sensor: mean value (mean), entropy (ent),
+and standard deviation (std). Entropy H of the distribution X of
+signal values was computed as H(X) = −Σpk logpk , where pk
+is the relative frequency of values fallen into the kth interval
+(out of 20 equally sized intervals) in the sample distribution of
+signal values. The features were normalized to the range [0,1].
+The extraction of the above features provided a total of 24 possible features (8 sensors per shoe × 3 features per sensor) for the
+model. Out of these 24 features, the set of the best features was
+selected using the forward selection procedure applied to the
+MLD classification model with the accuracy of the validation
+dataset as the criterion. The selected set of features was then
+used for all classification models, thus allowing us to investigate the dependence of the classification accuracy on classifier
+type and eliminating the potential inconsistencies due to possible selection of different feature sets by different classification
+models.
+The SVM classification model [31] with radial basis kernels
+was used as the baseline for comparison. SVM is considered
+as the most robust, but at the same time most computationally
+intensive and space consuming model of those considered. LibSVM for MATLAB [32] was used for training the SVM model.
+Parameters of the radial basis kernel SVM were found in a grid
+search.
+To meet the time and space requirements of mobile devices,
+two classification approaches were considered that are less time
+and computationally intensive.
+First is a MLD model [33] with three logit functions being the
+linear combinations of possible predictors (Cycle was selected
+as the baseline class):
+
+
+pi
+= Xβi , i = Xβi , i
+Logit (pi ) = log
+pCYCLE
+= {Sit, Stand, Walk/Jog} .
+The MLD model presents the lowest computational complexity, but provides the simplest generalized linear decision
+boundary in multiclass classification. The training of the MLD
+model was performed using MATLAB Statistics Toolbox.
+Second is a MLP model [34] which is a feedforward artificial
+neural network mapping a set of inputs to the desired output.
+The MLP model can be more computationally intensive than
+
+1342
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+MLD, but in proper configurations can potentially map decision
+boundaries as complex as those of SVM. Stand-alone version of
+the fast artificial neural network library (FANN) [35] was used
+for the training of the MLP model. The network architecture
+of one hidden layer with hidden four neurons was established
+experimentally as the simplest network producing satisfactory
+results. The training parameters were autodetected by the FANN
+tool [36]: sigmoid activation functions on the hidden layer, linear
+activation functions on the output layer, and simulated annealing
+as the training method.
+Training of all classification models was done using leaveone-out procedure in which data from all subjects but one are
+used for training and determining of the model parameters, if
+necessary, and the remaining subject is used only for validation.
+E. EE Estimation
+Four models for EE estimation were developed using linear
+regression branched by activity types. To match the time resolution of the room calorimeter data, the EE estimation was
+done in 1-min intervals. The models varied in the source of
+activity branching: manual annotation by a human observer or
+SVM, MLD, or MLP classification of the sensor data acquired
+by SmartShoe. For the latter case, the sensor signals with 1-min
+duration and time stamp matching the time of the room calorimeter were used in combination with SVM, MLD, or MLP model
+to produce 30 posture/activity labels (one for each of the 2-s
+intervals in that minute). Out of these thirty predictions the activity with the highest frequency was selected to represent the
+activity for the entire 1-min interval and choose the branch for
+EE model estimation.
+All EE estimation models were trained in the identical manner. Every minute was classified into one of four activity
+branches (Sit, Stand, Walk/Jog and Cycle). Next, a linear regression for each of the four branches was trained using ordinary
+least squares. The following features derived from the sensor
+signals were used as predictors: (max) maximal value of the
+signal, used only for the pressure sensors, (zc) number of crossings of the median of the signal, (std) standard deviation of the
+signal, and (ent) entropy of the signal. To provide the robustness against the pressure sensor failures, the features for the five
+pressure sensors were combined by computing the medians of
+appropriate values: thus, the five max features for the pressure
+sensors were combined into a single predictor Sensm ed(m ax) ,
+five zc features were combined into Sensm ed(zc) , five std and
+five ent features resulted in Sensm ed(std) and Sensm ed(ent) , respectively. Anthropometric characteristics such as Weight, BMI,
+and log(BMI), as well as Age were also included as predictors.
+The selection of the best set of predictors was done using
+a forward selection procedure with the following criteria: the
+best model had to have a low value for the Akaike Information
+2
+Criterion, a high adjusted coefficient determination (RA
+D J ) and
+a low root-mean-squared error (RMSE).
+Validation of EE estimation was done using the leave-oneout approach: for each subject all epochs corresponding to that
+subject were excluded from the training set and the resulting
+trained model was used to predict EE for every epoch of the left
+out subject.
+
+F. Model Comparison
+The developed PAC/EE models were compared in terms of
+computational burden, memory requirements, and classification
+and EE estimation accuracy. All models were coded in Visual
+C++, compiled using Windows Phone SDK, and benchmarked
+on an entry-level BLU Win Jr phone running Windows 8.1
+Phone OS on a 1.2 GHz quad-core Cortex-A7 processor.
+Computational time and space requirements of different models were compared using one or more of the following metrics:
+1) space complexity (number of elementary objects needed to
+be stored during execution) for the model’s testing stage, 2)
+space requirements for model storage (number of elementary
+floating point objects to be stored between execution steps), 3)
+time complexity (number of elementary operations needed to
+be performed during execution) for the model’s testing stage,
+and 4) time (ms) to run the model on the Windows smart phone,
+measured as an average over 100 000 iterations of the code.
+The MLD and MLP models were benchmarked as actual predictive models implemented in C++. The libSVM code had
+compatibility issues with compilation on Windows Phone platform; therefore, SVM running time was evaluated on a simulated C++ code with the same type and number of iterations
+performed on the same type of variables.
+Activity classification accuracy was assessed by comparing
+automatic classification by SVM, MLD, and MLP with classification by a human observer who manually annotated the experiment and expressed as a per-minute cumulative confusion
+matrix pooled from the subject population with overall classification accuracy being the ratio of the sum of diagonal elements
+in the confusion matrix to the sum of all elements in the matrix.
+Accuracy of EE estimation was assessed through comparison with the EE measurements of the room calorimeter.
+The models branched by SVM, MLD, MLP classifiers, and
+manual annotation were compared. The EE was expressed
+in kcal/min and METs that were computed as the multiples of measured resting EE. The following characteristics
+were used: 1) total error of estimation, computed as the average total error of estimation across all subjects: totERR =
+N |totE E i −totE E ip r e d |
+1
+, where N is the number of subi=1
+N
+totE E i
+T
+jects, totEEi = t=1 EEti is total EE measured by the room
+
+calorimeter, and totEEipred = Tt=1 EEtipred is total EE predicted by a model, and where T is the number of 1 min EE
+values in an experiment,
+per-minute root-mean-squared error
+ 2)
+
+(RMSE): RMSE = T1 Tt=1 (EEt − EEtpred )2 , where EEt
+is EE measured by room calorimeter for a given 1-min interval;
+EEtpred is EE estimated by a model for the same 1-min interval.
+
+III. RESULTS
+The feature selection for posture and activity classification resulted in the selection of 12 features, 6 from the accelerometer
+and 6 from the pressure sensors: {P Sens1m ean , P Sens2m ean ,
+P Sens5m ean , Acc1ent , Acc2ent , Acc3ent , Acc1std , Acc2std ,
+Acc3std , P Sens1std , P Sens2std , P Sens5std } where PSensX
+is pressure sensor X and AccY is Y-s dimension of the
+
+SAZONOV et al.: POSTURE AND ACTIVITY RECOGNITION AND ENERGY EXPENDITURE ESTIMATION IN A WEARABLE PLATFORM
+
+TABLE III
+TIME AND SPACE COMPLEXITY FOR THE POSTURE/ACTIVITY CLASSIFICATION
+MODELS
+Posture / activity
+classification
+method
+
+Space
+complexity
+
+SVM
+MLD
+MLP1
+
+O(ns)
+O(n)
+O(n)
+
+Space
+requirement,
+floating point
+numbers
+
+Recognition
+Time
+Complexity
+
+Actual running
+time, ms
+
+147744
+39
+72
+
+O(ns)
+O(n)
+O(n)
+
+66.1
+0.022
+0.045
+
+TABLE VI
+POPULATION-CUMULATIVE CONFUSION MATRIX OF MLP CLASSIFIER
+
+Actual class
+
+Sit
+Stand
+Walk/Jog
+Cycle
+Class-specific precision
+
+1232
+31
+5
+1
+0.97
+
+Predicted class
+Stand
+Walk/Jog
+
+Cycle
+
+Class-specific recall
+
+35
+477
+2
+4
+0.92
+
+1
+4
+3
+106
+0.93
+
+0.97
+0.92
+0.98
+0.95
+0.96
+
+4
+7
+447
+0
+0.98
+
+TABLE V
+POPULATION-CUMULATIVE CONFUSION MATRIX OF MLD CLASSIFIER
+
+Actual class
+
+Sit
+
+Predicted class
+Stand
+Walk/Jog
+
+1228
+34
+5
+2
+0.97
+
+Cycle
+
+Branching
+Classifier
+
+Total
+Error,%
+
+Manual activity
+annotation
+
+5.0
+SVM
+
+5.0
+MLD
+
+5.5
+
+Class-specific recall
+MLP
+
+Sit
+Stand
+Walk/Jog
+Cycle
+Class-specific precision
+
+1235
+28
+5
+1
+0.97
+
+33
+477
+4
+4
+0.92
+
+12
+12
+434
+0
+0.95
+
+Predicted class
+Stand
+Walk/Jog
+
+Cycle
+
+Class-specific recall
+
+28
+484
+2
+4
+0.93
+
+2
+4
+10
+98
+0.86
+
+0.97
+0.92
+0.96
+0.94
+0.96
+
+2
+5
+451
+0
+0.98
+
+TABLE VII
+COMPARISON OF EE ESTIMATION PERFORMANCE
+
+TABLE IV
+POPULATION-CUMULATIVE CONFUSION MATRIX OF SVM CLASSIFIER
+
+Sit
+
+Sit
+
+Sit
+Stand
+Walk/Jog
+Cycle
+Class-specific precision
+
+n is the size of input data, s is number of support vectors.
+1
+assuming 1 hidden layer.
+
+Actual class
+
+1343
+
+4
+4
+9
+97
+0.85
+
+0.96
+0.92
+0.96
+0.95
+0.95
+
+5.1
+
+RMSE, kcal/min (METs)
+
+Sit model:
+Stand model:
+Walk/Jog model:
+Cycle model:
+Weighted average:
+Sit model:
+Stand model:
+Walk/Jog model:
+Cycle model:
+Weighted average:
+Sit model:
+Stand model:
+Walk/Jog model:
+Cycle model:
+Weighted average:
+Sit model:
+Stand model:
+Walk/Jog model:
+Cycle model:
+Weighted average:
+
+0.58
+0.63
+1.06
+1.39
+0.75
+0.58
+0.70
+1.06
+1.49
+0.78
+0.60
+0.69
+1.08
+1.36
+0.78
+0.58
+0.69
+1.07
+1.40
+0.77
+
+Limits of
+agreement,
+kcal/min
+(0.40)
+(0.45)
+(0.76)
+(0.98)
+(0.54)
+(0.42)
+(0.50)
+(0.77)
+(1.05)
+(0.56)
+(0.44)
+(0.49)
+(0.78)
+(0.89)
+(0.55)
+(0.42)
+(0.49)
+(0.77)
+(0.91)
+(0.55)
+
+−1.14,1.17
+−1.24,1.29
+2.08,2.16
+−2.95,2.60
+−1.58,1.60
+−1.17,1.17
+−1.38,1.43
+−2.09,2.17
+−3.16,2.76
+−1.64,1.65
+−1.21,1.20
+−1.37,1.40
+−2.14,2.19
+−2.79,2.65
+−1.62,1.63
+−1.16,1.18
+−1.36,1.40
+−2.12,2.17
+−2.87,2.74
+−1.61,1.63
+
+TABLE VIII
+EE ESTIMATION MODEL BRANCHED BY THE MLP CLASSIFIER
+
+accelerometer. Running time for feature computation on the
+smartphone was 1.56 ms.
+Comparison of the time and space requirement of the SVM,
+MLD, and MLP modes is shown in Table III. The space required
+to store MLD model is equivalent to storing 13 × 3 element
+matrix of floating point numbers. MLP requires storing 13 × 4
+matrix of weight for the connections between inputs and hidden
+layers and a 4 × 5 matrix for the connections between the
+hidden layer and the output layer. The SVM model needs to
+store 9234 × 12 matrix of support vectors (as determined during
+model training) and a 9234 × 4 element matrix of discrimination
+function coefficients. Thus, the relative difference in the model’s
+storage space requirements is at least 103 fold for the SVM
+model compared to the MLD and MLP models.
+The accuracies of posture and activity classification for the
+SVM, MLD, and MLP models are presented in Tables IV–VI.
+The overall accuracy for all classifiers was virtually identical
+ࣙ95%.
+The comparison of accuracy of EE estimation by branched
+EE is shown in Table VII. As an example, Table VIII shows
+the best set of predictors and equations for the EE estimation
+model branched by the activity by MLP. Running time of the
+
+Branch
+Sit
+
+Stand
+
+Walk/ Jog
+Cycle
+
+EE regression (kcal/min)
+EE =
+0.22 + 6.7 × 10 −3 W eig ht + 9.210 −2 log(B M I ) +
+32.4S en s m e d ( s t d ) + 0.68A cc3 z c + 10 −3 A cc3 s t d +
+0.59A cc1 z c + 1.8 × 10 −3 A cc1 s t d − 9.1 × 10 −4 A cc2 s t d
+EE = 2.8 + 2.6 × 10 −2 W eig ht − 1.24log(B M I ) +
+5.2 × 10 −3 A cc1 s t d + 14.9S en s m e d ( s t d ) + 8.2 ×
+10 −4 S en s m e d ( f r q ) + 1.84A cc1 z c
+EE = −3.1 + 6.3 × 10 −2 W eig ht + 0.08log(B M I ) +
+43.1S en s m e d ( s t d ) + 6.64A cc3 z c
+EE = 11.2 + 3.0 × 10 −2 W eig ht − 1.7log(B M I ) −
+0.06Age − 5.0 × 10 −4 S en s m e d ( m a x )
+
+EE regression on the smartphone (including additional feature
+computation as required by the EE models) was 2.54 ms.
+Fig. 3 shows correlations and Bland–Altman plots from all 1min instances from all 15 subjects for the EE estimation model
+branched by MLP classifier. These plots demonstrate high correlation of estimated EE to actual EE (R2 = 0.88) and that
+the errors of prediction do not follow any specific pattern, and
+are not biased to either side (under- or overprediction) with
+average bias being negligibly small (–0.01 kcal/min).
+
+1344
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+Fig. 3. Correlation (top) and Bland–Altman (bottom) plots for the EE model
+branched by the MLP classifier.
+
+IV. DISCUSSION
+The main goal of this study is the development of computationally efficient PAC/EE algorithms allowing real-time execution on a mobile phone. Given that mobile devices have limits
+on computational power imposed by the battery life of the device, the computational and memory demands of the algorithms
+need to be taken into consideration along with the accuracy of
+activity classification, and EE estimation.
+The MLD-based and MLP-based algorithms for posture and
+activity classification were considered as alternatives to SVM
+classification. Both of these methods achieved a substantial improvement, reducing the run time by a factor >103 (from 66.1 ms
+for SVM to 0.022 ms for MLD and 0.045 ms for MLP), and
+produced a very efficient and accurate classification. Very high
+processor load (O(ns)) with SVM implementation would be
+detrimental to the latency of the output, computing resources
+available to other programs, and battery life. MLD and MLP
+substantially reduce the impact of real-time posture and activity
+classification on computational resources available on a mobile
+device, thus increasing battery life. Assuming 24-h operation,
+and classification of every 2-s interval, the MLD/MLP would
+consume only 0.95 and 1.94 s of processor time per day, com-
+
+pared to 2855.5 s (0.8 h) consumed by SVM. The potential
+savings in battery life achieved by the MLD and MLP can be
+estimated as 20–10%, assuming 4–8 h of battery life under full
+processor load.
+Use of MLD/MLP also substantially reduced the memory
+requirements as the amount of memory to store scalar discriminant coefficients and the weights of the connections between
+neurons is far less than the amount of memory required to store
+hundreds of multidimensional support vectors needed by SVM:
+the space storage due to the introduction of the MLD in place
+of the SVM was also reduced >103 times. The reduction in
+memory requirements could be especially beneficial if classification is implemented directly on the wearable sensor, which
+has substantially less memory than a modern smartphone.
+The accuracy of posture and activity classification (95%) obtained by MLD and MLP classifiers was comparable both to
+SVM trained on the same dataset (96%) and to previously reported 95–98% [17], [37] that included community studies in
+a neurologically impaired population. The 2-s classification interval used in the shoe sensors allows to finely resolve posture
+transitions and short bursts of activity; however, in this study it
+had to be aligned with 1-min EE estimates produced by the room
+calorimeter. The somewhat lower accuracy of posture and activity classification demonstrated in this study could be explained
+by transitions between activities where a class label is assigned
+to a whole minute although several different activities may happen within this minute. With at least 12 transitions in any given
+visit, this may generate a substantial difference between manual
+annotation and automatic class labels. Another notable contributor to the error, appearing in all classification approaches, is
+confusion between standing and sitting. The potential reason is
+that the classification algorithms are trained on population data
+and, thus, do not require individual calibration. This feature is
+convenient; however, it may potentially create some confusion
+for light-weight subjects that exhibit less pressure on the shoe
+sensors. Simple individual calibration of sitting versus standing
+should largely eliminate this source of error.
+It should be noted that cycling was differentiated from walking with high degree of precision. Such differentiation is typically considered difficult for accelerometer-based activity monitor and highlights the benefits of utilizing of pressure sensors and
+in-shoe sensor locations for differentiation of weight-bearing
+and nonweight-bearing activities.
+Use of the activity-branched EE estimation produced consistent results across all models tested. The manually annotated
+activity labels presented the best-case scenario in selecting the
+appropriate branch of the EE model and served as the gold
+standard. As expected, the manually branched EE model produced the best results with 5.0% of total error, and RMSE of
+0.75 kcal/min and 0.54 METs. The SVM-branched EE
+model was the next most accurate (5.0%, 0.78 kcal/min, and
+0.56 METs), followed by the MLP (5.1%, 0.77 kcal/min, and
+0.55 METs) and MLD (5.5%, 0.78 kcal/min, and 0.55 METs).
+It is clear that more complex models produce slightly better
+results; however, the differences between approaches are practically negligible, thus allowing for application of computationally light-weight MLD/MLP without loss of fidelity.
+
+SAZONOV et al.: POSTURE AND ACTIVITY RECOGNITION AND ENERGY EXPENDITURE ESTIMATION IN A WEARABLE PLATFORM
+
+The overall high accuracy of EE estimation in all of the tested
+EE models also highlights the benefits of the proposed wearable
+system relying on in-shoe sensors. Our previous research [18]
+has clearly demonstrated an increase in estimation accuracy by
+models utilizing pressure sensor data which most likely is result of accurate branching between EE models between weightbearing and nonweight-bearing activities.
+The sensor data in this study were acquired by real-time
+streaming via Bluetooth. Modern methods of wireless communication, such as Bluetooth Smart, can maintain a sensor
+operational and streaming data for several days on miniature
+batteries with small capacities [38]. The continuous streaming,
+combined with on-phone computations provides the ability to
+generate real-time feedback in behavioral intervention studies
+while preserving the raw sensor data for research applications
+and further off-line processing. Data streaming also allows for
+higher accuracy calculations by utilizing the floating point arithmetics on the phone, as almost all sensor-class microcontrollers
+lack an FPU. A consumer-grade sensor may gain a longer battery life by rebalancing the computation between the sensor and
+the phone to minimize wireless traffic. The potential cost, however, may be a reduction in accuracy due to use of fixed point
+arithmetic on the sensor.
+A potential limitation of this study is that EE of the subjects
+was measured under a specific (although randomized) activity
+protocol. The number of activities in free living is much greater
+and not so clear cut, thus the performance of the EE estimation
+models will need to be validated in community-living individuals, which is the goal of our future research. The miniaturization
+and integration of sensors and electronics in user-friendly insoles (SmartStep, [38]) should improve social acceptance of the
+device and enable community validation. The majority of the
+day for many of us is time spent outside of the home and most of
+this time is spent wearing the shoes. The inexpensive insole sensors can be used to instrument multiple shoes worn in different
+life situations (formal shoes, running shoes, outdoor shoes) and
+accurately estimate the activities and EE during the most active
+part of the day. The major benefit of the shoe monitoring system
+is that the sensors are integrated into an item that most of us
+wear anyway, thus virtually eliminating the wear burden typical
+of other monitoring devices. The downside is that in most cultures the shoes are not worn at home, and these periods should
+be approximated by models of sedentary behavior or measured
+by alternative means.
+Another limitation is that the study was conducted on a population mostly consisting of young adults. Age and health factors are potentially important predictors and further studies are
+needed to study the performance of the proposed system in a
+wider population, including elderly and adolescents, morbidly
+obese, and individuals with gait impairments.
+Overall, the proposed wearable sensor system and the
+methodologies to classify postures and activities, and to estimate
+EE are sufficiently accurate and computationally lightweight to
+be utilized in modern mobile devices and provide real-time
+proactive feedback on activity levels and EE. With increased
+penetration of mobile devices into all aspects of life and emergence of low-power wireless technologies (Bluetooth Smart),
+
+1345
+
+real-time feedback capabilities present new opportunities for
+behavioral interventions aimed at maintaining energy balance or
+achieving a healthy lifestyle. Further work may include consideration of additional lightweight classifiers (e.g., decision trees)
+for performing classification directly on the sensor module, investigation of energy costs of “compute versus transmit” on the
+sensor nodes, consideration of introducing additional activities
+into the branched model, and practical implementation of the
+real-time feedback mechanisms based on behavioral science.
+V. CONCLUSION
+This paper introduced a wearable system consisting of the
+SmartShoe sensor system and a mobile phone for signal processing, pattern recognition and real-time user feedback of expended
+calories, and other PA information. Use of logistic discrimination or multilevel perceptron instead of previously reported
+SVM reduced the execution time and memory requirements a
+factor of >103 while maintaining comparable accuracy of classification and EE estimation. The proposed algorithms were
+validated on over 50 h of data from 15 subjects performing a
+wide range of activities in a room calorimeter and indicated
+accurate EE reduction. These results pave the way for an implementation of PA monitoring and EE estimation system with
+real-time biofeedback on a wearable smart phone-based system
+which could potentially be used in PA interventions.
+REFERENCES
+[1] (2014, 16 Dec.). Polar USA. Heart rate monitors and GPS sport watches.
+[Online]. Available: http://www.polar.com/us-en
+[2] (2014, 16 Dec.). ActiGraph. [Online]. Available: http://www.
+actigraphcorp.com./
+[3] (2014, 16 Dec.). PAL Technologies Ltd. [Online]. Available: http://
+www.paltech.plus.com/products.htm
+[4] D. Andre, R. Pelletier, J. Farringdon, S. Safier, W. Talbott, R. Stone,
+N. Vyas, J. Trimble, D. Wolf, S. Vishnubhatla, S. Boehmke, J. Stivoric,
+R
+and A. Teller, (2006). “The development of the SenseWear
+armband,
+a revolutionary energy assessment device to assess physical activity
+and lifestyle,” [Online]. Available: http://www.bodymedia.com/site/docs/
+papers/wp_accuracy_ee.pdf
+[5] Y. Kawahara, N. Ryu, and T. Asami, “Monitoring daily energy expenditure
+using a 3-Axis accelerometer with a low-power microprocessor,” E-Minds
+Int. J. Hum.-Comput. Interact., vol. 1, no. 5, 2009.
+[6] Y. Kawahara, H. Kurasawa, and H. Morikawa, “Recognizing user context
+using mobile handsets with acceleration sensors,” in Proc. IEEE Int. Conf.
+Portable Inform. Devices, 2007, pp. 1–5.
+[7] B. Cvetković, B. Kaluža, R. Milić, and M. Luštrek, “Towards human
+energy expenditure estimation using smart phone inertial sensors,” in Ambient Intelligence, J. C. Augusto, R. Wichert, R. Collier, D. Keyson, A. A.
+Salah, and A. H. Tan, Eds. New York, NY, USA: Springer-Verlag, 2013,
+pp. 94–108.
+[8] H. Vathsangam, E. T. Schroeder, and G. S. Sukhatme, “Hierarchical approaches to estimate energy expenditure using phone-based accelerometers,” IEEE J. Biomed. Health Informat., vol. 18, no. 4, pp. 1242–1252,
+Jul. 2014.
+[9] S. J. Bamberg, P. LaStayo, L. Dibble, J. Musselman, and S. K. Raghavendra, “Development of a quantitative in-shoe measurement system for assessing balance: Sixteen-sensor insoles,” in Proc. IEEE Eng. Med. Biol.
+Soc. Conf., 2006, pp. 6041–6044.
+[10] S. J. M. Bamberg, A. Y. Benbasat, D. M. Scarborough, D. E. Krebs,
+and J. A. Paradiso, “Gait analysis using a shoe-integrated wireless sensor
+system,” IEEE Trans. Inf. Technol. Biomed., vol. 12, no. 4, pp. 413–423,
+Jul. 2008.
+[11] R. G. Kauw-A-Tjoe, J. P. Thalen, M. Marin-Perianu, and P. J. M.
+Havinga, “SensorShoe: Mobile gait analysis for Parkinson’s disease patients,” in Proc. UbiComp Workshop, Innsbruck, Austria, Sep. 16, 2007,
+pp. 187–191.
+
+1346
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 4, JULY 2015
+
+[12] H. Jagos and J. Oberzaucher, “Development of a wearable measurement
+system to identify characteristics in human gait - eSHOE -,” in Proc. Int.
+Conf. Comput. Helping People Special Needs, 2008, pp. 1301–1304.
+[13] L. Shu, T. Hua, Y. Wang, Q. Li, D. D. Feng, and X. Tao, “In-shoe plantar
+pressure measurement and analysis system based on fabric pressure sensing array,” IEEE Trans. Inf. Technol. Biomed., vol. 14, no. 3, pp. 767–775,
+May 2010.
+[14] B. Mariani, M. C. Jiménez, F. J. G. Vingerhoets, and K. Aminian,
+“On-shoe wearable sensors for gait and turning assessment of patients
+with parkinson’s disease,” IEEE Trans. Biomed. Eng., vol. 60, no. 1,
+pp. 155–158, Jan. 2013.
+[15] (2010, 15 Nov.). Systems Pedar. [Online]. Available: http://novel.
+de/novelcontent/pedar
+[16] (2010, 15 Nov.). F-Scan, Tekscan Products for Pressure Mapping and Force Measurement. [Online]. Available: http://www.tekscan.
+com/medical/system-fscan1.html
+[17] E. S. Sazonov, G. Fulk, J. Hill, Y. Schutz, and R. Browning, “Monitoring
+of posture allocations and activities by a shoe-based wearable sensor,”
+IEEE Trans. Biomed. Eng., vol. 58, no. 4, pp. 983–990, Apr. 2011.
+[18] N. Sazonova, R. C. Browning, and E. Sazonov, “Accurate prediction of
+energy expenditure using a shoe-based activity monitor,” Med. Sci. Sports
+Exercise, vol. 43, no. 7, pp. 1312–1321, Jul. 2011.
+[19] N. A. Sazonova, R. Browning, and E. S. Sazonov, “Prediction of bodyweight and energy expenditure using point pressure and foot acceleration
+measurements,” Open Biomed. Eng. J., vol. 5, pp. 110–115, 2011.
+[20] J. Staudenmayer, D. Pober, S. E. Crouter, D. R. Bassett, and P. Freedson,
+“An artificial neural network to estimate physical activity energy expenditure and identify physical activity type from an accelerometer,” J. Appl.
+Physiol., vol. 104, pp. 1300–1307, Jul. 2009.
+[21] S. E. Crouter, K. G. Clowers, and D. R. Bassett, “A novel method for
+using accelerometer data to predict energy expenditure,” J. Appl. Physiol.,
+vol. 100, no. 4, pp. 1324–1331, Apr. 2006.
+[22] S. Brage, U. Ekelund, N. Brage, M. A. Hennings, K. Froberg, P. W. Franks,
+and N. J. Wareham, “Hierarchy of individual calibration levels for heart
+rate and accelerometry to measure physical activity,” J. Appl. Physiol.,
+vol. 103, no. 2, pp. 682–692, Aug. 2007.
+[23] S. Liu, R. X. Gao, D. John, J. Staudenmayer, and P. S. Freedson, “SVMbased multi-sensor fusion for free-living physical activity assessment,”
+in Proc. IEEE Annu. Int. Conf. Eng. Med. Biol. Soc., 2011, vol. 2011,
+pp. 3188–3191.
+[24] A. G. Bonomi, G. Plasqui, A. H. C. Goris, and K. R. Westerterp, “Improving assessment of daily energy expenditure by identifying types of
+physical activity with a single accelerometer,” J. Appl. Physiol., vol. 107,
+no. 3, pp. 655–661, Sep. 2009.
+[25] J. M. Warren, U. Ekelund, H. Besson, A. Mezzani, N. Geladas, L. Vanhees, and Experts Panel, “Assessment of physical activity—A review of
+methodologies with reference to epidemiological research: A report of the
+exercise physiology section of the European association of cardiovascular
+prevention and rehabilitation,” Eur. J. Preventive Cardiol., vol. 17, no. 2,
+pp. 127–139, Apr. 2010.
+
+[26] M. Altini, J. Penders, R. Vullers, and O. Amft, “Estimating energy expenditure using body-worn accelerometers: A comparison of methods,
+sensors number and positioning,” IEEE J. Biomed. Health Informat.,
+vol. 19, no. 1, pp. 219–226, Jan. 2015.
+[27] B. A. Franklin, M. H. Whaley, E. T. Howley, and G. J. Balady, ACSM’s
+Guidelines for Exercise Testing and Prescription. Philadelphia, PA, USA:
+Lippincott Williams & Wilkins, 2000.
+[28] E. L. Melanson, J. P. Ingebrigtsen, A. Bergouignan, K. Ohkawara,
+W. M. Kohrt, and J. R. B. Lighton, “A new approach for flow-through
+respirometry measurements in humans,” Am. J. Physiol. Regul. Integr.
+Comp. Physiol., vol. 298, no. 6, pp. R1571–R1579, Jun. 2010.
+[29] E. Jéquier and Y. Schutz, “Long-term measurements of energy expenditure
+in humans using a respiration chamber,” Am. J. Clin. Nutr., vol. 38, no. 6,
+pp. 989–998, Dec. 1983.
+[30] N. M. Byrne, A. P. Hills, G. R. Hunter, R. L. Weinsier, and Y. Schutz,
+“Metabolic equivalent: One size does not fit all,” J. Appl. Physiol., vol.
+99, no. 3, pp. 1112–1119, 2005.
+[31] N. Cristianini and J. Shawe-Taylor, An Introduction to Support Vector
+Machines and Other Kernel-Based Learning Methods, 1st ed. Cambridge,
+U.K.: Cambridge Univ. Press, 2000.
+[32] C. C. Chang and C. J. Lin. (2001). LIBSVM: A library for support vector
+machine. [Online]. Available: http://www.csie.ntu.edu.tw/∼cjlin/libsvm
+[33] J. Hilbe, Logistic Regression Models. Boca Raton, FL, USA: CRC Press,
+2009, vol. 79.
+[34] S. O. Haykin, Neural Networks and Learning Machines, 3rd ed. New
+York, NY, USA: Prentice-Hall, 2008.
+[35] (2014, 17 Dec.). Fast Artificial Neural Network Library (FANN). [Online].
+Available: http://leenissen.dk/fann/wp/
+[36] (2014, 21 Dec.). Fanntool—Tool for the Fast Artificial Neural Network Library (FANN)—Google Project Hosting. [Online]. Available:
+https://code.google.com/p/fanntool./
+[37] G. Fulk and E. Sazonov, “Using sensors to measure activity in people with stroke,” Topics Stroke Rehabil., vol. 18, no. 6, pp. 746–757,
+Jan. 2011.
+[38] N. Hegde and E. Sazonov, “SmartStep: A fully integrated, low-power
+insole monitor,” Electronics, vol. 3, no. 2, pp. 381–397, Jun. 2014.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

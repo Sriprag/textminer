@@ -1,0 +1,786 @@
+1750
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+Independent Vector Analysis for Gradient Artifact
+Removal in Concurrent EEG-fMRI Data
+Partha Pratim Acharjee∗ , Student Member, IEEE, Ronald Phlypo, Member, IEEE, Lei Wu, Student Member, IEEE,
+Vince D. Calhoun, Fellow, IEEE, and Tülay Adalı, Fellow, IEEE
+
+Abstract—We consider the problem of removing gradient artifact from electroencephalogram (EEG) signal, recorded concurrently with functional magnetic resonance imaging (fMRI) acquisition. We estimate the artifact by exploiting its quasi-periodicity
+over the epochs and its similarity over the different channels by
+using independent vector analysis, a recent extension of independent component analysis for multiple datasets. The method fully
+makes use of the spatio-temporal information by using spatial dependences across channels to estimate the artifact for a particular
+channel. Thus, it provides robustness with respect to uncontrollable changes such as head movement and fluctuations in the B0
+field during the acquisition. Results using both simulated data with
+gradient artifact and EEG data collected concurrently with fMRI
+show the desirable performance of the new method.
+Index Terms—AAS, EEG, gradient artifact, independent component analysis, independent vector analysis, joint blind source
+separation.
+
+I. INTRODUCTION
+ONCURRENTLY
+collected
+electroencephalogram
+(EEG) and functional magnetic resonance imaging
+(fMRI) data enable us to examine the relationship between
+electrical neural signaling and induced hemodynamic changes
+[1], [2]. EEG offers a high temporal resolution typically about
+a millisecond, but with a very low spatial resolution due to the
+spatial smoothing that results from the impedance mismatch
+between soft tissues on the one hand, and the crane on the other
+hand [3]. Inversely, the fMRI sequence offers a high spatial
+resolution (mm resolution), but due to the sequential acquisition
+of slices through the fast change of an external magnetic field,
+a rather low temporal resolution, typically about one second
+for a single full head scan. Thus, the constraints on spatial and
+temporal resolution come from the properties of EEG and fMRI
+acquisition principle. Integrating the high temporal resolution
+of EEG with the high spatial resolution of fMRI recordings
+may shed new light on the underlying neural generators and
+their interactions, and has proven useful in α-rhythm detection,
+and mapping of EEG events to brain regions [4], studying
+
+C
+
+Manuscript received November 1, 2014; accepted January 5, 2015. Date of
+publication February 13, 2015; date of current version June 16, 2015. This
+work was supported by the National Science Foundation under Grants NSF-IIS
+1017718 and NSF-CCF 1117056. Asterisk indicates corresponding author.
+∗ P. P. Acharjee is with the Department of Computer Science and Electrical
+Engineering, University of Maryland Baltimore County, Baltimore, MD 21250
+USA (e-mail: partha1@umbc.edu).
+R. Phlypo and T. Adalı are with the University of Maryland Baltimore County.
+L. Wu and V. D. Calhoun are with the Mind Research Network and also with
+the University of New Mexico.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2403298
+
+the generators of epilepsy [5], and sleep studies [6], among
+others. Unfortunately, concurrent recordings also bring along
+inevitable artifacts. Specifically, the EEG captures a so-called
+gradient artifact (GA), since the electric current in the wires
+is modulated both by the rapidly switching magnetic field
+gradient and the radio frequency (RF) pulse needed to acquire
+the fMRI images.
+GA significantly degrades the signal to noise ratio (SNR)
+of EEG signal, and sometimes other protocols such as EEGtriggered fMRI acquisition, interleaved fMRI acquisition are
+used [7]–[10]. These acquisition protocols are common strategies to avoid GA but might lead to degradation of the EEG
+signals. Simultaneous and continuous EEG-fMRI acquisition
+is preferable to interleaved protocols but needs advanced GA
+removal methods. To this end, different GA removal methods
+were introduced such as average artifact subtraction (AAS) [11],
+selective average subtraction [12], principal component analysis
+(PCA)-based template subtraction [13], [14], independent component analysis (ICA)-based method [15], frequency-domain
+methods [16], [17] and adaptive or spatial filtering [18], [19].
+Among these methods, AAS is used frequently in many applications due to its simplicity and robustness. Adaptive filtering
+and frequency domain methods have proved of less practical
+use [20].
+FMRI acquisition is typically based on echo planar imaging,
+involving sequential sampling of the head through fast acquisitions on a slice per slice basis, where each slice is obtained
+by applying a specific RF/magnetic gradient sequence.1 Hence,
+the repeat times define onsets of similar temporal distortions
+of the EEG signal. Under this assumption, a GA template can
+be created by using the onset of each volume acquisition (from
+hereon called an epoch) as a time locking event and then averaging over the epochs. This method is known as the AAS [11].
+Although each EEG channel has a different GA template due
+to the different orientation of the electrode leads, the different
+conductivity at the scalp level, the respective susceptibilities of
+the electrode leads, etc., the GA fingerprint in the different channels of EEG is expected to be similar, since all leads are subject
+to the same magnetic field changes. This similarity—which can
+be characterized through their statistical dependence—is not exploited in AAS, or derived methods such as PCA-based template
+estimation.
+
+1 This is for nonaccelerated acquisitions. Acceleration by a factor of k may
+be obtained by the simultaneous acquisition of multiple slices through multiplexing. Although the gradient sequence is not the same for each slice, it is so
+for each k slices, and hence may also be considered quasi-periodic.
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+ACHARJEE et al.: INDEPENDENT VECTOR ANALYSIS FOR GRADIENT ARTIFACT REMOVAL IN CONCURRENT EEG-FMRI DATA
+
+Joint blind source separation (JBSS) overcomes the aforementioned gap from sensor based statistics to fully multivariate statistics. JBSS is used in fields such as medical imaging,
+telecommunications, hyper-spectral data, speech and audio signal processing [21], [22]. Joint BSS extends upon blind source
+separation (BSS). The latter aims at estimating latent variables
+mixed into the observations, based on minimal a priori on the
+latent variables such as independence. The extension of BSS to
+JBSS takes us from a single multivariate observation to multiple observations [23], [24]. BSS handles only one dataset with
+multiple variables where the JBSS extension can handle multiple observations of the multivariate dataset. We here focus on
+the recently introduced independent vector analysis (IVA) [23],
+[25] an extension of the ICA.
+In our setup, EEG channels are considered as observations
+which are assumed to be linear mixtures of GA, EEG and other
+artifact sources. As in the AAS, we segment the EEG signal
+such that a single segment or epoch corresponds to a single GA
+period, and multiple consecutive epochs from a single channel
+are gathered to form a dataset for IVA algorithm. Under our IVA
+model, contributions to the different epochs for a given channel are considered maximally independent. These contributions
+are coupled to the contributions to the epochs for each other
+channel through a bijective dependence relation. We show that
+this approach allows us to extract the GA as a single component
+per channel. This means that, given the lead, the GA is a fixed
+function up to a scale that depends on the epoch. By using IVA,
+we exploit the dependence of the GA functions across leads,
+while guaranteeing minimal dependence between the GA and
+the signals of physiological origin with other artifacts.
+Performance of the proposed method is compared with
+AAS—the most commonly encountered GA estimation
+algorithm—in terms of different performance measurement parameters. As in AAS, the proposed IVA method maintains the
+full rank of the EEG dataset, hence we may use subsequent methods to remove head movement artifact [26], [27], eye movement
+artifact, and ballistocardiogram artifact [28], [29] without any
+fundamental changes.
+II. DATA DESCRIPTION AND METHODS
+A. EEG Acquisition and Preprocessing
+A 32-channel BrainAmp MR-compatible system (Brainproducts, Munich, Germany) was used for EEG recordings
+using the BrainCap electrode cap (Falk Minow Services,
+Herrsching-Breitbrunn, Germany). Ring-type sintered nonmagnetic Ag/AgCl electrodes were placed on the scalp according to
+the international 10/20 system. Two additional channels were
+recording electrocardiogram (ECG) and eye movements (EOG).
+The reference channel was placed at FCz. The impedance of
+each electrode was kept lower than 5 kΩ using conductive and
+abrasive electrode paste. Data were collected for nine minutes
+at 5-kHz sampling rate in 32 channels; band-pass filtering from
+0.016 to 250 Hz was applied. To avoid temporal jitter, the EEG
+amplifier and fMRI were synchronized using an in-house device. Two second repeat time (TR) with no acceleration factor is
+used for data acquisition. The entire experiment for each subject
+
+1751
+
+Fig. 1. Power spectral density estimation for all of the channels based on the
+epoched and mean-corrected EEG data. The GA dominates the EEG at multiples
+of 14 Hz. Different colors indicate different channels.
+
+contained four sessions of simultaneous EEG-fMRI recordings
+(two resting states sessions, eyes open, eyes closed; two auditory
+oddball task sessions). Here, we only used the eyes open resting
+state session. This dataset is also used in [4], [30].
+The preprocessing was performed in Matlab [R2011a, The
+MathWorks, Natick, MA] with the software package named
+EEGLAB [15]. Some visualization and analysis plug-ins of
+EEGLAB are also used [31], [32]. Continuous EEG data were
+segmented in 2-s windows synchronized with the fMRI scanning trigger (start of scan of an entire head volume) and the
+window length is chosen equal to the repeat time (TR) such that
+we have the minimal length to observe a full head scan, and
+allow for nonstationarity on a per TR basis. Each window will
+be referred to as an epoch from here onward. Between adjacent epochs 24 ms overlap was allowed. After epoching, 256
+epochs are extracted from one recording per channel and each
+epoch consists of 10 240 data points. From epoched EEG data,
+channel means are removed from each channel on a per epoch,
+per channel basis. The EEG data was finally down-sampled to
+1 kHz which results in a dimension of 32 channels, 2048 time
+points and 256 epochs. We show the power spectral density of
+the epoched and centralized EEG data in Fig. 1, where different
+channels are represented by different colors. Here, centralization refers to subtraction of the mean so that the signal becomes zero mean. As observed in this figure, EEG data shows a
+strong quasi-periodic component with a fundamental frequency
+of about 14 Hz—related to the slice acquisition timing—and its
+(sub)harmonics.
+B. IVA
+IVA was introduced as a natural extension to ICA for concurrent extraction of independent components from multiple
+datasets [25], [33]. In IVA, corresponding components extracted
+from different dataset are maximally dependent while components within a dataset are independent from each other. Thus,
+component independence within a dataset and corresponding
+component dependence across datasets are maximized simultaneously. This cannot be achieved by running separate ICAs on
+
+1752
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+Fig. 2. Illustration of epoching on continuous EEG data to construct dataset for IVA algorithms and IVA decomposition to obtain estimated components for GA
+removal. Formation of SCVs from estimates are also shown. ICs: Independent Component, SCVs: Source Component Vector.
+
+each of the datasets [34]. We propose a new data organization
+for EEG data that can readily be exploited by IVA to obtain an
+estimate of the GA.
+We now formulate the IVA problem for the multichannel EEG
+analysis. Suppose N epochs from K channels are observed.
+Datasets are formed by regrouping the realization of the N
+epochs for the kth channel, and the mixture model reads (see
+also 2)
+X[k ] = A[k ] S[k ] , 1 ≤ k ≤ K
+[k ]
+
+[k ]
+
+[k ]
+
+[k ]
+
+where S[k ] =[s1 , s2 ,... ... sN ]T , and sn = [sn (1), sn (2),
+. . . sn (T )]T is a zero mean source vector. The sources are
+linearly mixed into the observations X[k ] by a N × N mixing matrix A[k ] . To associate components across all channels,
+the nth source component vector (SCV) is formed by taking
+each nth component vector from each of the datasets, i.e.,
+[1] [2]
+[k ]
+Sn = [sn , sn , ......, sn ]T , n = 1, 2, ...., N .
+The goal of IVA is to estimate the N × N demixing matrices
+W[k ] , and the source estimates Y[k ] = W[k ] X[k ] , 1 ≤ k ≤ K,
+[1]
+[2]
+[k ]
+such that the nth estimates, Yn = [yn , yn , ...., yn ], n =
+1, 2, .., N , are maximally dependent and estimates Y[k ] from
+a same dataset are maximally mutually independent. We write
+[k ]
+[k ]
+[k ]
+yn = (wn )T x[k ] where (wn )T is the nth row of W[k ] . With
+these definitions, IVA is achieved by minimizing the mutual
+information among SCV estimates, i.e.
+JIVA =
+
+N
+
+
+H(yn ) − H(y1 , .., yN )
+
+n =1
+
+=
+
+K
+N
+
+
+n =1
+
+k =1
+
+
+H(yn[k ] )
+
+− I(yn ) −
+
+K
+
+
+log| det W[k ] | − C
+
+k =1
+
+where H(.) is the (Shannon relative) entropy, I(yn ) is the mutual information within the nth SCV, and C is a constant term
+that does not depend on the estimate quantities, but only on the
+observations. Minimizing the IVA cost function is thus equivalent to maximizing the dependence among components within
+each SCV through the maximization of the mutual information I(yn ), 1 ≤ n ≤ N , while minimizing the entropies of the
+
+marginals, which is closely related to the maximization of the
+independence among the sources of a same dataset, see for instance.
+The IVA algorithm IVA-L [23] utilizes a multivariate circular
+Laplace prior as a distribution on the SCVs. Thus, the components within each SCV are assumed to be second-order uncorrelated and IVA-L exploits only higher-order statistics. On the
+contrary, IVA-G exploits only second-order statistical information by multivariate Gaussian assumption. To take advantage of
+both algorithms, we initialize IVA-L with a solution from IVA-G
+to achieve IVA-GL decomposition, as in [25], since it has been
+shown that this yields a more robust estimator than using either
+IVA-L, or IVA-G . The Matlab implementations of these algorithms are available at http://mlsp.umbc.edu/resources.html.
+C. JBSS Architecture and Motivation
+In this paper, we first show the performance of the proposed
+method for EEG data recorded outside of a scanner on which an
+artificial GA is superimposed, so that we have a ground truth for
+evaluating the performance. Then, we perform same comparison for EEG concurrently recorded with fMRI. EOG and ECG
+channels are ignored. For both cases, we retain the 30 “pure
+EEG” channels, for which 2048 time points and 20 epochs are
+considered in each IVA run. The data organization we introduce
+for IVA is able to estimate the GA signal similar to the AAS
+method. The artifact is removed by back reconstruction of the
+EEG signal after elimination of the GA component. Our setup of
+input to the IVA is shown in Fig. 2. From continuous EEG data,
+N epochs are extracted, each of a duration approximately equal
+to a single TR (here corresponding to about 2 s). All epochs from
+one channel are reshaped into a dataset X [k ] and K channels
+provide K datasets for the IVA algorithm. From each dataset,
+IVA provides N estimated sources each of which has T = 2048
+samples. Sources from the same dataset are maximally independent and shown in different color. Relative permutation ambiguity of sources across datasets is resolved by IVA through the
+dependence across the datasets. In IVA this permutation is no
+longer present, since the requirement of dependence between
+
+ACHARJEE et al.: INDEPENDENT VECTOR ANALYSIS FOR GRADIENT ARTIFACT REMOVAL IN CONCURRENT EEG-FMRI DATA
+
+1753
+
+components within a SCV groups the components as part of the
+algorithm, no longer requiring a posteriori alignment of components. Corresponding sources from different datasets are highly
+dependent and shown in same color in Fig. 2. Corresponding
+sources are gathered to a set of component vectors, to form
+SCV such that N SCVs can be formed from N sources which
+are shown in the right most box of the figure.
+Using channels to define the datasets is useful for a number of reasons. First, sources are estimated for each channel by
+viewing the epoch data which is analogous to temporal PCA.
+Additionally, IVA utilizes epochs from all channels rather than
+one channel to estimate the GA template for a particular channel. Each channel captures brain activity from a specific part
+of the brain. Sources affecting each channel are spatially separated and are not expected to have a large effect on all channels.
+Channel-wise source estimation can capture more local sources
+from a particular brain region than epoch-wise source estimation. Second, in this setup, SCVs are formed by corresponding
+sources from different channels. As IVA tries to maximize dependence of sources within SCVs, it effectively extracts the GA
+as a component that is highly present over all channels. GA is
+not spatially separable from the other sources as we observed
+large spatial overlap and spatial smearing out, hence the classic
+approach of GA removal would not work.
+From experimental results, we will see that the first component captures significant GA information and other components
+have little to no GA information as can be observed from Fig. 5.
+Hence, following IVA decomposition we back reconstruct the
+EEG data by excluding the first component that exhibits the
+GA characteristics. After removing the artifact component from
+EEG signal, other noise reduction techniques such as ballistocardiac artifacts removal method [14], wavelet denoising [35], [36],
+cardiac complex and eye movement artifact removal method
+[37], [38] can be used to remove the remaining artifacts .
+D. Performance Parameters
+After estimating SCVs, dependences are calculated through
+the normalized mutual information [39], given by
+
+
+[k ,k  ]
+λn ,n  = 1 − exp(−2I(ynk , ynk  ))
+
+
+where (n, n ) ∈{1, ..., N }2 ;(k, k  ) ∈ {1, ..., K}2 and I(ynk ,ynk  )
+is the mutual information between nth estimated component
+from kth channel and n th estimated component from k  th chan[k ,k  ]
+nel. Normalized MI, λn ,n  , is always in the range [0,1) where
+zero means completely independent. A normalized MI matrix
+[k ,k  ]
+is created using all values of λn ,n  where N × N dimensional
+blocks show normalized MI within SCVs and there are K × K
+blocks for all channels.
+GA shows a quasi-periodic behavior, as multiple slices are
+acquired quasi periodically during a single fMRI scanning repeat
+time (TR). In the frequency spectrum of the artifact corrupted
+signal, the power appearing in frequency bands centered around
+multiples of 14 Hz dominate the rest of the spectral energy.
+Hence, spectral concentration, given as the percentage of energy
+within the 14 Hz frequency band and its multiples are computed
+
+Fig. 3. Average frequency response of simulated EEG data over all channels
+using both IVA and AAS approach. Performance of IVA-based method is significantly better than AAS-based method when variability is higher. (a) Low
+variability. (b) High variability.
+
+as a quality measure (lower spectral concentration corresponds
+to higher quality).
+III. EXPERIMENTAL RESULTS
+To evaluate the performance of IVA-based GA removal approach and compare the result with traditional template matching AAS method, experiments are performed on EEG data with
+simulated GA effects and actual EEG data concurrently recorded
+with fMRI. We apply the same GA removal method for both
+cases and keep the dimension of simulated data same as the
+actual EEG data corrupted with GA.
+A. GA Removal Results From Simulated EEG Data
+A simulated study is performed at different levels of variability for the GA to evaluate the performance and robustness
+of the technique with respect to potential nonstationarity in the
+
+1754
+
+Fig. 4. Correlation coefficient plot between original artifact and extracted
+artifacts using IVA and AAS approaches. For all epoch and channels IVA based
+GA removal approach extract closer GA component.
+
+GA. The simulated GA is created from GA templates that are
+filtered with different filter design parameters to create variability over different epochs. Dimension of the simulated data is
+N = 20, T = 2048, K = 30. The amplitude and phase of the
+GA are changed from epoch to epoch and then added to EEG
+data collected outside a scanner from a normal subject with eyes
+open. In Fig. 3, power spectrum of simulated GA corrupted EEG
+shows higher magnitude at 14 Hz and its harmonics. IVA and
+AAS-based GA removal method are applied to the simulated
+EEG dataset. Average frequency response over all channels after application of AAS and IVA-based method are also shown in
+Fig. 3. We show the performance at two levels of GA variability, high and low. From Fig. 3(a), it is clear that AAS and IVA
+perform similarly when incorporated variability from epoch to
+epoch is low. EEG after GA removal using both AAS and IVA
+have similar average power spectrum with the original ground
+truth EEG signal. Then higher variability is introduced to see the
+performance of both AAS and IVA-based method. In Fig. 3(b),
+we observe that AAS-based method still contains GA, especially
+around 14 and 28 Hz. On the other hand, IVA-based method provides cleaner EEG signal where average frequency spectrum is
+closer to the frequency spectrum of the ground truth EEG signal.
+Hence, IVA-based method is more robust to variability in GA
+from epoch to epoch. Time courses of these extracted artifacts
+are visually almost similar for all epochs and channels. Similarity of simulated GA and extracted GA are compared in terms
+of correlation coefficient. Correlation coefficient of extracted
+artifacts are calculated for all epochs and channels. For thirty
+channels and twenty epochs, a total of six hundred signals can
+be compared in terms of correlation coefficient and are plotted
+in Fig. 4. All points are situated above the bisector of the plane
+which indicates that the IVA calculated artifact is closer to the
+actual artifacts than what AAS predicted in terms of correlation.
+In simulated data, IVA approach performs better than the AAS
+approach with variability in GA and low SNR of EEG signal.
+B. GA Removal Results From Actual EEG Data
+After performing preprocessing on actual continuous EEG
+signal, the EEG data dimension becomes K = 32 channels,
+T = 2048 time points and N = 256 epochs. Then, 200 epochs
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+Fig. 5. Normalized mutual information measure between SCVs. The first
+component has the highest MI within SCV and almost zero MI with other
+SCVs. First component extracts GA whereas other components extract EEG
+characteristics.
+
+are selected to run multiple IVA algorithms. First 56 epochs are
+not used as those epochs are considered as transient time and
+next 200 epochs are used for ten experiments. IVA is performed
+on ten separate experiments with separate EEG data to observe
+the performance. Performance is compared in terms of different measuring parameters stated previously. Statistical tests are
+performed to show the statistical significance of the results from
+multiple runs.
+1) Artifact Component Selection: After estimating components from actual EEG data, normalized mutual information
+within and across SCVs are calculated and used to form a normalized mutual information matrix. For our dataset, the number
+of SCV is 20 and dimension of each SCV is 30 × 30. Hence,
+30 × 30 subblocks in the diagonal of normalized mutual information matrix correspond to MI within SCVs and off-diagonal
+blocks represent MI between SCVs. From Fig. 5, it is clear that
+first component has the highest normalized mutual information
+within its SCV which means high dependence, and the first
+SCV has almost zero normalized MI with other SCVs which
+indicates almost independence. For other components, MI measure gradually decreases within SCVs. First few components
+shows slight cross SCV mutual information measure which is
+gradually decreasing for higher components. The highest mutual information within first SCV indicates that first component
+of all dataset are triggered by the same source (here, it is GA
+estimation). Almost zero MI measure between first SCVs with
+other SCVs indicates that the first estimated source is different
+than any other source extracted from any channel. We also show
+MI measures between estimated components and raw EEG data
+for all channels and epochs are shown in Fig. 6. It is clear that the
+whole SCV of first component has the highest MI measure with
+raw EEG signals from all channels whereas other components
+are almost independent. As GA is present in all channel and all
+epochs of the raw EEG data, highest dependence implies that
+the first component is highly similar with GAs. Independence
+of raw EEG data with SCVs from other components proves that
+other components are less likely to be GA component. Thus,
+the first component is more likely to be the GA component and
+other components represent EEG activities and other artifacts.
+
+ACHARJEE et al.: INDEPENDENT VECTOR ANALYSIS FOR GRADIENT ARTIFACT REMOVAL IN CONCURRENT EEG-FMRI DATA
+
+Fig. 6. Normalized MI measure between SCV and unprocessed EEG data.
+First SCV has the highest MI measure with all channels at all epochs where
+other SCVs has zero MI measure. The first component is similar to the GA
+where other has no similarity at all.
+
+Fig. 7.
+GA.
+
+1755
+
+Fig. 8. Percentage of energy within the GA frequency band for all channels
+of raw EEG data. For all channel, more than 8% energy is observed within the
+artifact frequency band. Channels are sorted in descending order according to
+their energy content at artifact band, actual number is shown inside the bar.
+
+Extracted sources using JBSS. First component is visually similar with
+
+In Fig. 7, extracted components from few epochs are plotted
+in time domain. As twenty epochs are used for IVA-GL algorithm, same number of sources are extracted from each channel.
+From the time domain plot of components, it is observed that
+first component is quasi-periodic. On the other hand, other components have no sign of visual similarity with GA but display
+EEG properties (low frequency, short time oscillations).
+Percentage of energy in artifact frequency band is a good measure of artifact content in EEG signal. Artifact band is selected
+with 1 Hz bandwidth per band and considering 14, 28, 42 and
+56 Hz as the center frequencies. Center frequencies of artifact
+band are selected from the fundamental frequency and its harmonics observed in the raw EEG data. Percentage of energy in
+the artifact frequency band from all channels for a particular
+epoch is shown in Fig. 8. Channels are sorted in descending order with respect to artifact energy content. From Fig. 8, it is clear
+that 8–15% of the energy is concentrated in artifact frequency
+bands. Percentage of energy at artifact frequency bands of all
+extracted components from a particular epoch is shown in Fig. 9.
+It is clear that the first component has highest energy within the
+artifact bands and other components have a concentration of
+energy in the artifact frequency bands that is equivalent to that
+of clean EEG (see also Fig. 9).
+2) Performance of the IVA-Based Approach: Frequency
+spectrum of the output after AAS and IVA-based approach and
+the raw EEG signal can be compared to observe the energy in
+the artifact frequency bands. Average frequency spectrum for
+
+Fig. 9. Percentage of energy within GA frequency band for all components.
+First component has the highest energy in the artifact frequency band. Components are sorted in descending order according to their energy at artifact
+frequency band. Actual component numbers are shown inside the bar for reference.
+
+all channels are shown in Fig. 10. It is clear that both methods
+remove significant artifact energy within the artifact frequency
+band, i.e., at 14 Hz and its harmonics. It is also observed that
+in the low frequency band, frequency spectrum of EEG is almost unchanged before and after application of both IVA and
+AAS-based algorithm. Within the 10–30 Hz range, IVA provides
+better suppression of the power due to GA than the AAS-based
+method. To obtain a quantitative measure of artifact reduction
+by both algorithms, percentage of energy at artifact frequency
+band is given for all channels before and after the application of
+these algorithms.
+For performance comparison of AAS and IVA based approach, ten separate experiments, using 20 epochs for each,
+are performed. After removing GA, a spectral density at artifact
+band is calculated to evaluate the performance. The percentage
+of average energy over epochs at artifact frequency band for
+all runs using both methods are shown as box plot in Fig. 11.
+On average, after our method, percentage of remaining artifact energy is less than the AAS method for all runs except
+last one. The distribution of the remaining artifact energy from
+both the AAS and IVA based methods is symmetric. Hence,
+we can use wilcoxon-signed rank test to compare the results in
+terms of statistical significance. Under the null hypothesis both
+
+1756
+
+Fig. 10. Frequency spectrum of EEG signal before and after artifact removal
+using both ASS and IVA-GL algorithm. Magnitude peaks at artifact band is
+suppressed significantly where other frequency region is almost the same.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+Fig. 12. Average frequency spectrum comparison of EEG signal by AAS
+algorithm and proposed algorithm. In 14 Hz (shown as line) frequency band
+including in its harmonics, AAS algorithm retains more energy than the proposed
+method, pointing in the direction of a poorer estimation.
+
+in Fig. 12. In this figure, we observe that after GA removal
+AAS still has more power than IVA method beyond 10 Hz and
+specially that there is a peak at 28 Hz which is one of the frequencies associated with the GA. Hence, overall IVA provides
+a more attractive option for the GA removal problem.
+IV. DISCUSSION
+
+Fig. 11. Remaining percentage of energy at artifact frequency band for multiple runs using AAS and IVA based approach.
+
+of the distributions have same median. Calculated p values are
+corrected for multiple comparison via the false discovery rate
+correction method with 5% significance level which are used as
+α for individual test. It is observed that second, fourth and sixth
+run do not provide enough evidence against the null hypothesis
+and others allow us to reject the null hypothesis. Thus, with 5%
+statistical significance, IVA performs better in six runs, AAS in
+one and neither perform better in three runs, hence providing
+better overall performance.
+The IVA-based method shows robust performance against
+variability in the GA EEG signal. Head movement, or fluctuations in the conductivity of the electrode contacts are among the
+major sources of variability in the EEG, which are emphasized
+by recording the EEG in a strong magnetic field. Under these
+conditions, the IVA-based method is expected to outperform the
+AAS approach, since the latter is optimal under stationarity of
+the artifact waveform and a constant artifact to signal ratio. In
+our actual concurrent fMRI-EEG data, we only have moderate
+variability, hence the similar performance of both methods.
+We apply additional artifact removal techniques described
+previously. Ballistocardiac artifact removal, wavelet denoising
+noise removal, ICA-based eye movement artifact removal algorithms are used as additional process for both algorithms.
+Average frequency spectrum of GA-cleaned EEG data is shown
+
+In this paper, we propose an effective approach of JBSS
+framework to remove quasi-periodic GA from EEG data. Our
+designed JBSS setup uses the IVA algorithm effectively through
+a multidataset extension of ICA to achieve joint analysis of EEG
+data. IVA-based GA removal approach considers few adjacent
+epochs from all channels to estimate a GA templates. In our
+study, JBSS framework is accomplished by IVA-GL algorithm
+which used IVA-G to initialize the IVA-L algorithms. Combing
+IVA-G with IVA-L exploits both the second order and higher order statistical information. GAs have higher spectral density in
+frequency bands associated with the slice timings of the fMRI
+acquisition. Percentage of energy in GA band and in its harmonics is used to quantify the performance of GA removal
+algorithms. It is observed that IVA-based approach eliminates
+artifacts from higher band frequencies more effectively than
+AAS without affecting low frequency EEG signal. With variability in GA, extracted artifact using IVA approach is closer to
+actual artifact than AAS approach.
+PCA-based method introduced in [14] follows the application of AAS and involves multiple steps to remove GA and other
+residual artifact. This PCA-based method consists of three steps:
+AAS-based GA removal, PCA-based residual artifact removal,
+and adaptive noise cancelation. The last two stages can be combined with the IVA-based approach we proposed for improved
+performance. In addition, a constrained IVA approach can be
+developed such that the GA template is used as reference. However, the approach we have presented provides a very promising
+data-driven approach for the task, and as demonstrated here, can
+also successfully deal with nonstationarity in the artifact component, a basic limitation of the widely used AAS approach.
+
+ACHARJEE et al.: INDEPENDENT VECTOR ANALYSIS FOR GRADIENT ARTIFACT REMOVAL IN CONCURRENT EEG-FMRI DATA
+
+REFERENCES
+[1] M. J. Rosa et al., “Estimating the transfer function from neuronal activity
+to BOLD using simultaneous EEG-fMRI,” NeuroImage, vol. 49, no. 2,
+pp. 1496–1509, 2010.
+[2] R. J. Huster et al., “Methods for simultaneous EEG-fMRI: An introductory
+review,” J. Neurosci., vol. 32, no. 18, pp. 6053–6060, 2012.
+[3] J. Malmivuo and R. Plonsey, Bioelectromagnetism: Principles and Applications of Bioelectric and Biomagnetic Fields. London, U.K.: Oxford
+Univ. Press, 1995.
+[4] L. Wu et al., “Reactivity of hemodynamic responses and functional connectivity to different states of alpha synchrony: A concurrent EEG-fMRI
+study,” NeuroImage, vol. 52, no. 4, pp. 1252–1260, 2010.
+[5] A. Al-Asmi et al., “fMRI activation in continuous and spike-triggered
+EEG-fMRI studies of epileptic spikes,” Epilepsia, vol. 44, no. 10,
+pp. 1328–1339, 2003.
+[6] S. G. Horovitz et al., “Low frequency BOLD fluctuations during resting
+wakefulness and light sleep: A simultaneous EEG-fMRI study,” Human
+Brain Mapping, vol. 29, no. 6, pp. 671–682, 2008.
+[7] R. I. Goldman et al., “Acquiring simultaneous EEG and functional MRI,”
+Clin. Neurophysiol., vol. 111, no. 11, pp. 1974–1980, 2000.
+[8] J. Baudewig et al., “Simultaneous EEG and functional MRI of epileptic activity: A case report,” Clin. Neurophysiol., vol. 112, no. 7,
+pp. 1196–1200, 2001.
+[9] M. Sommer et al., “Combined measurement of event-related potentials
+(ERPs) and fMRI,” Acta Neurobiologiae Experimentalis, vol. 63, no. 1,
+pp. 49–54, 2002.
+[10] C. Bledowski et al., “Combining electrophysiology and functional
+imaging—Different methods for different questions,” Trends Cognitive
+Sci., vol. 11, no. 12, pp. 500–502, 2007.
+[11] P. J. Allen et al., “A method for removing imaging artifact from continuous EEG recorded during functional MRI,” NeuroImage, vol. 12, no. 2,
+pp. 230–239, 2000.
+[12] S. Goncalves et al., “Artifact removal in co-registered EEG/fMRI by
+selective average subtraction,” Clin. Neurophysiol., vol. 118, no. 11,
+pp. 2437–2450, 2007.
+[13] M. Negishi et al., “Removal of time-varying gradient artifacts from EEG
+data acquired during continuous fMRI,” Clin. Neurophysiol., vol. 115,
+no. 9, pp. 2181–2192, 2004.
+[14] R. Niazy et al., “Removal of fMRI environment artifacts from EEG data
+using optimal basis sets,” NeuroImage, vol. 28, no. 3, pp. 720–737, 2005.
+[15] A. Delorme and S. Makeig, “EEGLAB: An open source toolbox for analysis of single-trial EEG dynamics including independent component analysis,” J. Neurosci. Methods, vol. 134, no. 1, pp. 9–21, 2004.
+[16] G. Garreffa et al., “Real-time MR artifacts filtering during continuous EEG/fMRI acquisition,” Magn. Resonance Imag., vol. 21, no. 10,
+pp. 1175–1189, 2003.
+[17] A. Hoffmann et al., “Electroencephalography during functional echoplanar imaging: Detection of epileptic spikes using post-processing methods,” Magn. Resonance Med., vol. 44, no. 5, pp. 791–798, 2000.
+[18] J. Sijbers et al., “Reduction of ECG and gradient related artifacts in simultaneously recorded human EEG/MRI data,” Magn. Resonance Imag.,
+vol. 18, no. 7, pp. 881–886, 2000.
+[19] G. Bonmassar et al., “Spatiotemporal brain imaging of visual-evoked
+activity using interleaved EEG and fMRI recordings,” NeuroImage,
+vol. 13, no. 6, pp. 1035–1043, 2001.
+[20] M. Ullsperger and S. Debener, Simultaneous EEG and fMRI: Recording,
+Analysis and Application. London, U.K.: Oxford Univ. Press, 2010.
+[21] I. Lee et al., “Independent vector analysis for convolutive blind speech
+separation,” in Blind Speech Separation. New York, NY, USA: Springer,
+2007, pp. 169–192.
+[22] J.-H. Lee et al., “Multivariate analysis of fMRI group data using independent vector analysis,” in Independent Component Analysis and Signal
+Separation. New York, NY, USA: Springer, 2007, pp. 633–640.
+[23] J.-H. Lee, T.-W. Lee, F. A. Jolesz, and S.-S. Yoo, “Independent vector
+analysis (IVA): Multivariate approach for fMRI group study,” NeuroImage, vol. 40, no. 1, pp. 86–109, 2008.
+[24] Y.-O. Li et al., “Joint blind source separation by multiset canonical correlation analysis,” IEEE Trans. Signal Process., vol. 57, no. 10,
+pp. 3918–3929, Oct. 2009.
+[25] M. Anderson et al., “Joint blind source separation with multivariate
+Gaussian model: Algorithms and performance analysis,” IEEE Trans.
+Signal Process., vol. 60, no. 4, pp. 1672–1683, Apr. 2012.
+[26] M. Moosmann et al., “Realignment parameter-informed artefact correction for simultaneous EEG-fMRI recordings,” NeuroImage, vol. 45,
+no. 4, pp. 1144–1150, 2009.
+
+1757
+
+[27] L. Sun and H. Hinrichs, “Simultaneously recorded EEG-fMRI: Removal of gradient artifacts by subtraction of head movement related
+average artifact waveforms,” Human Brain Mapping, vol. 30, no. 10,
+pp. 3361–3377, 2009.
+[28] G. Sammer et al., “Acquisition of typical EEG waveforms during
+fMRI: SSVEP, LRP, and frontal theta,” NeuroImage, vol. 24, no. 4,
+pp. 1012–1024, 2005.
+[29] K. Hamandi et al., “BOLD and perfusion changes during epileptic generalised spike wave activity,” NeuroImage, vol. 39, no. 2, pp. 608–618,
+2008.
+[30] D. A. Bridwell et al., “The spatiospectral characterization of brain networks: Fusing concurrent EEG spectra and fMRI maps,” NeuroImage,
+vol. 69, pp. 101–111, 2012.
+[31] S. Makeig et al., “Mining event-related brain dynamics,” Trends Cognitive
+Sci., vol. 8, no. 5, pp. 204–210, 2004.
+[32] T. Eichele et al., “Mining EEG–fMRI using independent component
+analysis,” Int. J. Psychophysiol., vol. 73, no. 1, pp. 53–61, 2009.
+[33] T. Kim et al., “Independent vector analysis: An extension of ICA to
+multivariate components,” in Independent Component Analysis and Blind
+Signal Separation. New York, NY, USA: Springer, 2006, pp. 165–172.
+[34] M. Anderson et al., “Nonorthogonal independent vector analysis using
+multivariate Gaussian model,” in Latent Variable Analysis and Signal
+Separation. New York, NY, USA: Springer, 2010, pp. 354–361.
+[35] R. Q. Quiroga, “Obtaining single stimulus evoked potentials with
+wavelet denoising,” Physica D: Nonlinear Phenomena, vol. 145, no. 3,
+pp. 278–292, 2000.
+[36] R. Q. Quiroga and H. Garcia, “Single-trial event-related potentials with
+wavelet denoising,” Clin. Neurophysiol., vol. 114, no. 2, pp. 376–390,
+2003.
+[37] T. Eichele et al., “Unmixing concurrent EEG-fMRI with parallel independent component analysis,” Int. J. Psychophysiol., vol. 67, no. 3,
+pp. 222–234, 2008.
+[38] T.-P. Jung et al., “Removing electroencephalographic artifacts by blind
+source separation,” Psychophysiology, vol. 37, no. 2, pp. 163–178, 2000.
+[39] A. Dionisio et al., “Mutual information: A measure of dependency for
+nonlinear time series,” Physica A: Statistical Mech. Appl., vol. 344, no. 1,
+pp. 326–329, 2004.
+
+Partha Pratim Acharjee (S’12) received the B.Sc
+and M.Sc. degrees in electrical and electronic engineering from the Bangladesh University of Engineering and Technology, Dhaka, Bangladesh, in 2009 and
+2012, respectively. In 2014, he received the M.S. degree from the Department of Computer Science and
+Electrical Engineering, University of Maryland Baltimore County, Baltimore, MD, USA. He is working
+toward the Ph.D degree in electrical engineering at
+the University of Texas at Arlington, Arlington, TX,
+USA.
+From 2010 to 2012, he was a Radio Network Optimization Specialist at Robi
+Axiata Limited which is a top GSM service provider in Bangladesh. His current
+research interests include statistical signal processing, blind source separation,
+remote sensing and image processing.
+
+Ronald Phlypo (S’04–M’10) was born in Ostend, Belgium, in 1981. He graduated in electrical
+engineering from Katholieke Hogeschool BruggeOostende, Ostend, in 2003, and received the Master’s degree in artifical intelligence (computer science) from KU Leuven, Leuven, Belgium, in 2004.
+He received the Doctoral degree in engineering sciences from the University of Ghent, Ghent, Belgium,
+in 2009.
+From 2006 to 2009, he was a on a scientific stay
+with the Lab of Computer Science, Signals, and Systems (I3S), University of Nice, Sophia Antipolis, France. He was an Associate
+Researcher at GIPSA Lab, Grenoble, France, during 2010–2012, and at MLSP
+Lab, University of Baltimore in Maryland County, Baltimore, MD, USA, during 2012–2013. From September 2013 to August 2014, he has been a Research
+Associate with the French Institute for Research in Computer Science and Automation, Saclay, France. He is currently an Associate Professor at National
+Poytechnic Institute, Grenoble.
+
+1758
+
+Lei Wu (S’11) received the B.S. and M.S degrees in
+biomedical engineering from the Southeast University, Nanjing, China, in 2003 and 2006, respectively,
+and the Ph.D. degree in computer engineering from
+the University of New Mexico, Albuquerque, NM,
+USA, in 2015.
+She currently works as a Postdoc in the Mind Research Network, Albuquerque. At MRN, she co-PIs
+several pilot projects in simultaneous EEG-fMRI as
+well as diffusion MRI with rapid acquisition, in both
+research and clinical neuropsychiatry areas.
+Dr. Wu is a Member of the IEEE Engineering in Medicine and Biology
+Society, International Society of Magnetic Resonance in Medicine and the Organization for Human Brain Mapping.
+
+Vince D. Calhoun (F’13) received the Bachelor’s degree in electrical engineering from the University of
+Kansas, Lawrence, KS, USA, in 1991, the Master’s
+degrees in biomedical engineering and information
+systems from Johns Hopkins University, Baltimore,
+MD, USA, in 1993 and 1996, respectively, and the
+Ph.D. degree in electrical engineering from the University of Maryland Baltimore County, Baltimore, in
+2002.
+He worked as a Research Engineer at the Psychiatric Neuroimaging Laboratory, Johns Hopkins, from
+1993 until 2002. He then served as the Director of medical image analysis at the
+Olin Neuropsychiatry Research Center and as an Associate Professor at Yale
+University. He is currently Executive Science Officer and Director of image
+analysis and MR research at the Mind Research Network, Albuquerque, NM,
+USA, and is a Distinguished Professor in the Departments of Electrical and
+Computer Engineering (Primary), Biology, Computer Science, Neurosciences,
+and Psychiatry, University of New Mexico, Albuquerque. He is the author of
+more than 375 full journal articles and more than 460 technical reports, abstracts
+and conference proceedings. Much of his career has been spent on the development of data driven approaches for the analysis of brain imaging data. He has
+won more than $85 million in NSF and NIH grants on the incorporation of prior
+information into ICA for functional magnetic resonance imaging, data fusion
+of multimodal imaging and genetics data, and the identification of biomarkers
+for disease, and leads a P20 COBRE center grant on multimodal imaging of
+schizophrenia, bipolar disorder, and major depression.
+Dr. Calhoun is a Fellow of the AAAS, the AIMBE, and the ISMRM. He
+is also a Member and regularly attends the Organization for Human Brain
+Mapping, the International Society for Magnetic Resonance in Medicine, the
+International Congress on Schizophrenia Research, and the American College
+of Neuropsychopharmacology. He is also a Regular Grant Reviewer for NIH and
+NSF. He has organized workshops and special sessions at multiple conferences.
+He is currently Vice-Chair of the IEEE Machine Learning for Signal Processing
+(MLSP) Technical Committee. He is a reviewer for many journals and is on the
+editorial board of the Brain Connectivity and Neuroimage journals and serves
+as an Associate Editor for Journal of Neuroscience Methods and several other
+journals.
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+Tülay Adalı (S’89–M’93–SM’98–F’09) received the
+Ph.D. degree in electrical engineering from North
+Carolina State University, Raleigh, NC, USA, in
+1992.
+She joined the Faculty at the University of Maryland Baltimore County (UMBC), Baltimore, MD,
+USA, in 1992. She is currently a Professor in the
+Department of Computer Science and Electrical Engineering, UMBC. She assisted in the organization
+of a number of international conferences and workshops including the IEEE International Conference
+on Acoustics, Speech, and Signal Processing (ICASSP), the IEEE International
+Workshop on Neural Networks for Signal Processing (NNSP), and the IEEE
+International Workshop on Machine Learning for Signal Processing (MLSP).
+She was the General Co-chair, NNSP (2001–2003); Technical Chair, MLSP
+(2004–2008); Program Co-chair, MLSP (2008 and 2009), 2009 International
+Conference on Independent Component Analysis and Source Separation; Publicity Chair, ICASSP (2000 and 2005); and Publications Co-chair, ICASSP
+2008. She chaired the IEEE Signal Processing Society (SPS) MLSP Technical Committee (2003–2005, 2011–2013), served on the SPS Conference Board
+(1998–2006), and the Bio Imaging and Signal Processing Technical Committee
+(2004–2007). She was an Associate Editor for IEEE TRANSACTIONS ON SIGNAL
+PROCESSING (2003–2006), IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING (2007–2013), IEEE JOURNAL OF SELECTED AREAS IN SIGNAL PROCESSING
+(2010–2013), and Elsevier Signal Processing Journal (2007–2010). She is currently serving on the Editorial Boards of the PROCEEDINGS OF THE IEEE and
+Journal of Signal Processing Systems for Signal Image and Video Technology,
+and is a Member of the IEEE Signal Processing Theory and Methods Technical
+Committee. Her research interests are in the areas of statistical signal processing, machine learning for signal processing, and biomedical data analysis.
+Dr. Adalı is a Fellow of the AIMBE, recipient of a 2010 IEEE Signal Processing Society Best Paper Award, 2013 University System of Maryland Regents’
+Award for Research, and an NSF CAREER Award. She was an IEEE Signal
+Processing Society Distinguished Lecturer for 2012 and 2013.
+
+

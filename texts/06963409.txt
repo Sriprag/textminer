@@ -1,0 +1,1096 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+1141
+
+Efficient Vessel Feature Detection for Endoscopic
+Image Analysis
+Bingxiong Lin, Student Member, IEEE, Yu Sun∗ , Senior Member, IEEE, Jaime E. Sanchez,
+and Xiaoning Qian, Member, IEEE
+
+Abstract—Distinctive feature detection is an essential task in
+computer-assisted minimally invasive surgery (MIS). For special
+conditions in an MIS imaging environment, such as specular reflections and texture homogeneous areas, the feature points extracted
+by general feature point detectors are less distinctive and repeatable in MIS images. We observe that abundant blood vessels are
+available on tissue surfaces and can be extracted as a new set of
+image features. In this paper, two types of blood vessel features are
+proposed for endoscopic images: branching points and branching segments. Two novel methods, ridgeness-based circle test and
+ridgeness-based branching segment detection are presented to
+extract branching points and branching segments, respectively.
+Extensive in vivo experiments were conducted to evaluate the performance of the proposed methods and compare them with the
+state-of-the-art methods. The numerical results verify that, in MIS
+images, the blood vessel features can produce a large number of
+points. More importantly, those points are more robust and repeatable than the other types of feature points. In addition, due to the
+difference in feature types, vessel features can be combined with
+other general features, which makes them new tools for MIS image
+analysis. These proposed methods are efficient and the code and
+datasets are made available to the public.
+Index Terms—Branching point, branching segment, endoscopic
+image analysis, minimally invasive surgery (MIS), vessel feature
+detection.
+
+I. INTRODUCTION
+N minimally invasive surgery (MIS), distinctive image feature extraction is one of the fundamental tasks. The extracted
+image features can be used for tissue tracking [1]–[3], deformation recovery [4], [5], 3-D reconstruction [6], [7], endoscope
+localization [8]–[10], augmented reality [8], [10], [11], and intraoperative registration [3], [12].
+Different methods have been proposed to extract image
+features in computer vision. Depending on what information
+is used, these methods can be broadly classified into three
+categories: intensity-based detectors, first-derivative-based detectors, and second-derivative-based detectors. The methods
+
+I
+
+Manuscript received March 8, 2014; revised October 11, 2014; accepted
+November 9, 2014. Date of publication November 20, 2014; date of current
+version March 17, 2015. This work was supported by the National Science
+Foundation under Grant 1035594. Asterisk indicates corresponding author.
+B. Lin is with the University of South Florida.
+∗ Yu Sun is with the Department of Computer Science and Engineering, University of South Florida, Tampa, FL 33620 USA (e-mail: yusun@cse.usf.edu).
+J. E. Sanchez is with University of South Florida.
+X. Qian is with the Texas A&M University.
+This paper has supplementary material available online at http://ieeexplore.
+ieee.org (File size: 103 MB).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2373273
+
+in the first category directly rely on the comparison of pixel
+intensity. For example, in the features from accelerated segment
+test (FAST) [13], [14], Rosten and Drummond placed a circle
+at each pixel and determined that the pixel was a corner if there
+was a continuously bright or dark segment along the placed
+circle.
+Methods in the second category are based on the first derivatives, namely Ix , Iy along x- and y- coordinates in a given raw
+image I. Since the first derivative is proportional to the intensity change, Ix and Iy are able to capture areas with large
+intensity change, such as edges and boundaries of objects. To
+find patches that are likely to be corners, Harris and Stephens
+[15] exploited the eigenvalues of the autocorrelation matrix.
+Mikolajczyk and Schmid [16] modified the Harris corners and
+proposed the Harris-affine detector, which is invariant under
+affine transformations. To overcome the difficulty of tissue deformation in MIS images, the anisotropic feature detector (AFD)
+was introduced in [17].
+In the third category, the second derivatives of the raw image
+are analyzed and used for feature detection. The second derivatives have strong responses on blobs and ridges [18]. Many of
+these methods compute the Hessian matrix based on the second
+derivatives to detect interest points. Those pixels whose determinants of the Hessian matrices were local extrema in both
+image space and scale space were chosen as interest points
+in the Hessian-affine detector [18]. As an approximation of
+Laplacian of Gaussian (the trace of the Hessian matrix), difference of Gaussian (DoG) [19] detected interest points as the
+local extreme points in both image space and scale space. Bay
+et al. approximated the Gaussian filters with box filters in the
+calculation of the Hessian matrix, and the obtained speeded up
+robust features (SURF) detector was typically faster than the
+DoG detector [20].
+The previously introduced methods were mainly designed for
+general purposes, such as in images from man-made environments. On the contrary, MIS images are taken inside the human
+body and are quite different from the images taken in daily life.
+For example, MIS images contain abundant specular reflections,
+homogeneous areas, smokes, and so on. Much research has been
+presented to overcome those difficulties. Feature detectors and
+descriptors designed for MIS images to overcome tissue deformation were presented in [1] and [17]. Puerto–Souza and
+Mariottini proposed the novel hierarchical multiaffine (HMA)
+[21], [22] and adaptive multiaffine (AMA) [23] algorithms to improve the feature matching performance for endoscopic images.
+They also developed a dense feature matching method to recover
+the locations of image features on tissue surfaces [24]. Tissue
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1142
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+Fig. 1. Illustration of vessel features: branching point (detected by RBCT)
+and branching segment (detected by RBSD).
+
+surface tracking and reconstruction for MIS have also been
+widely studied and different methods have been introduced to
+overcome the difficulties of tissue deformations and low texture
+[3], [4], [6], [25]. More details on the optical surface reconstruction and tissue surface tracking methods for MIS are available
+in [7] and [26].
+The goal of this study is to design efficient algorithms that can
+detect robust and repeatable MIS image features across different
+viewpoints and different lighting conditions. It is desirable to
+develop a feature detector that will turn the drawbacks of the in
+vivo environment to advantages. We notice that blood vessels
+are abundant within the intraabdominal environment, such as on
+the abdominal wall and on the surface of tissue organs. The explicit extraction of blood vessels provides a large number of new
+types of features for MIS image analysis. Blood vessel detection is one of the fundamental research topics in image-guided
+surgeries and has many medical applications. For example, in
+neurosurgeries, Ding et al. estimated the cortical displacement
+based on blood vessel detection, and overcame the problem of
+brain shift and deformation caused by pressure after the open of
+dura [12]. In simultaneous localization and mapping (SLAM)
+system, blood vessels can be represented as curves and used
+to estimate camera motion. It has been known that curves are
+more robust than points in camera motion estimation [27]. Since
+vessels are attached to the surface of tissue surfaces and deform
+with the tissue, the detection of vessels are crucial to recover
+the tissue deformation [12]. In retinal image analysis, vessel
+detection and segmentation in retinal images provide important
+information to diagnose diseases.
+Two types of blood vessel features are defined in this paper: branching points and branching segments. Bifurcations
+and crossing points are defined as branching points. We consider a blood vessel segment that has branching points at both
+ends as a branching segment. A blood vessel segment that has
+only one branching point is called a half branching segment.
+An example image with two branching points and one branching segment is shown in Fig. 1. Note that branching segments
+are essentially curve segments and a pair of branch segment
+correspondence can generate tens of pairs of point correspondences. Our previous work in [28] proposed vesselness-based
+circle test (VBCT) and vesselness-based branching segment detection to extract the two types of vessel features based on
+Frangi vesselness [29]. This study proposes a new way of
+blood vessel enhancement, based on a new ridgeness measure (see Section II-B), which provides more accurate vessel
+localizations. Based on the ridgeness representation, more robust methods of vessel feature detection are presented. Mean-
+
+Fig. 2.
+
+Overview of the branching point and branching segment detection.
+
+while, this study provides an in-depth analysis and thorough
+evaluation of the proposed methods.
+II. METHODS
+A novel branching point detector, ridgeness-based circle test
+(RBCT), and a novel branching segment detector, ridgenessbased branching segment detection (RBSD), are introduced in
+this paper. The overview of our proposed vessel feature detection
+is shown in Fig. 2. First, image preprocessing, such as specular
+reflection removal, is applied on the input image. Then, Hessian matrix is calculated for each pixel, based on which Frangi
+vesselness and ridgeness are computed. Next, circle tests are
+performed to detect branching points. Last, the vessel tracing
+technique is introduced to detect branching segments.
+A. Detecting Candidate Branching Points
+It is known that among all three channels in the RGB fundus
+image, the green channel provides the best contrast between
+vessels and the background [30]. Our experiments show that this
+also applies to MIS images, and hence, only the green channel
+is used in our method. Another special property of MIS images
+is the abundant specular reflections that are view-dependent,
+and therefore, can cause error to endoscope tracking if they are
+picked up as feature points. Similar to [2] and [8], the specular
+reflections are detected as the pixels whose intensities are larger
+than a global threshold. In addition, their 3 × 3 neighbors are
+also marked as specular reflections.
+The scale-space representation of an image I (green channel) is L(x, y, σ) = G(x, y; σ) ∗ I(x, y), where G(·; σ) is a 2-D
+Gaussian function with standard deviation σ, and ∗ represents
+convolution operation. A Hessian matrix is calculated for each
+pixel in each image level of the scale space, as shown in (1). Note
+that, in this paper, the scale space is only used during the calculation of Frangi vesselness [29] and ridgeness (see Section II-B)
+and all the remaining calculation is based on the single Frangi
+vesselness image or the ridgeness image.
+⎤
+⎡ 2
+∂2 L
+∂ L
+⎢ ∂x2
+∂x∂y ⎥
+⎥.
+(1)
+H=⎢
+⎣ ∂2 L
+∂2 L ⎦
+∂y∂x
+∂y 2
+
+LIN et al.: EFFICIENT VESSEL FEATURE DETECTION FOR ENDOSCOPIC IMAGE ANALYSIS
+
+1143
+
+TABLE I
+EIGENVALUES ANALYSIS TOWARD VESSEL AND BRANCHING
+POINTS(0 < λ1 < λ2 ). L: LOW, M: MIDDLE, H: HIGH
+λ1
+
+λ2
+
+pattern
+
+L
+L
+M
+H
+
+L
+H
+H
+H
+
+background noise
+dark tubular structure
+branching point and spur
+blob, specular reflection
+
+The eigenvalues of the Hessian matrix are denoted as λ1 , λ2 and
+eigenvectors V1 , V2 . Negative eigenvalues indicate bright tubular structures and positive eigenvalues represent dark tubular
+structures [29]. In this study, since the vessels are dark on MIS
+images, the negative eigenvalues are removed and the eigenvalues are sorted so that 0 < λ1 < λ2 . It is known that the absolute
+values of the two eigenvalues represent the intensity variances
+of two orthogonal directions. The tubular structure has a small
+λ1 because the variance along the vessel direction is small. At
+the endpoint of a vessel, the intensity variance is large along the
+vessel. The branching point can be considered as the connection of three or four vessel segments, and hence, it has a larger
+λ1 than other points on the vessels. Blob has a large intensity
+variance in almost every direction, therefore, it has the largest
+λ1 . Similar to [29], the relationship of eigenvalues and the pixel
+type is summarized in Table I.
+To detect bifurcations, Baboiu and Hamarneh presented
+three measures with similar performance: λ1 , λ1 · λ2 and
+1 − exp(−2 · (λ1 /λ2 )2 ) [31]. The feature detector with the second measure is actually a variant of the aforementioned Hessianaffine detector. Those measures are sensitive to noise and have
+a very high false positive detection rate, because many other
+structures also have high responses to those measures, such as
+blobs, specular reflections, and spurs. Therefore, it is difficult
+to distinguish branching points from other structures with those
+measures. In this study, the candidates of branching points are
+defined as: λ1 > λ1min and Ridgeness > Rmin for a ridgeness
+image that we introduce later in Section II-B. As an example,
+the λ1 image and λ2 image are shown, respectively, in Fig. 3(b)
+and (c).
+B. Blood Vessel Enhancement: Ridgeness
+Based on the well-known Frangi vesselness [29], a new blood
+vessel enhancement technique is introduced in this section,
+which is referred to as “ridgeness” in this paper. Different from
+the thick representation of vessels in the Frangi vesselness, we
+look for ridge pixels that achieve single-pixel width. Here, the
+width of ridges is defined as the number of pixels in the direction
+of the eigenvector V2 . For completeness, the definition of the
+Frangi vesselness is as follows:
+ 2 2	 
+
+		
+λ1 /λ2
+−(λ21 + λ22 )
+V (σ) = exp
+·
+1
+−
+exp
+(2)
+2 ∗ β2
+(2 · c2 )
+where V stands for Vesselness, β and c are soft thresholds from
+[29].
+The ridge in a 2-D image is a good approximation of the vessel center line and has been extracted for vessel segmentation
+[32]. Compared with the vessels in the vesselness image, the
+
+Fig. 3. Illustration of eigenvalues of Hessian matrix (0 < λ1 < λ2 ). (a) original image. (b) binary λ1 image (red). (c) binary λ2 image (white). (d) λ1 image
+(red) overlaid on top of λ2 image (white). Note that for better visualization, both
+λ1 and λ2 have been binarized ( 1 for positive values and 0 for negative values)
+
+Fig. 4. Comparison of (a) binary ridge image and (b) our ridgeness image.
+Zooming in is recommended to see the broken branching points and singlepixel-width ridges.
+
+ridges are thinner and clearer. In [32], ridges are defined as pixels where the first derivative of the raw image intensity changes
+sign in the direction of the eigenvector V2 (across the vessel).
+One example of the detected binary ridges based on the aforementioned definition is shown in Fig. 4(a). Since a small amount
+of intensity change might flip the sign of the first derivative, the
+aforementioned definition tends to detect massive “ridges” with
+many false positives, which include tiny vessels and background
+noise, as shown in Fig. 4(a). The width of the detected ridge is
+two pixels under this definition. Since the goal of our method
+is to robustly and repeatedly detect vessel features, the “false”
+ridges from the background need to be filtered out. As shown
+in Table I, both eigenvalues of pixels from background noise
+are small. Therefore, instead of using the binary ridges directly,
+the pixels of the ridges are first weighted by their corresponding
+vesselness values. The obtained measures for ridges are called
+Ridgeness(x, y, σ) = Vesselness(x, y, σ)
+· abs{sign(I(x + u2 , y + v2 , σ))
+− sign(I(x − u2 , y − v2 , σ))}/2
+(3)
+
+1144
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+where  is the gradient operator, (u2 , v2 )T = V2 and  = 1.0
+pixel. Up to now, the width of the detected ridge is mostly two
+pixels. To obtain more accurate single-pixel width ridges, each
+ridge pixel is further required to be the local maximum in the
+direction of the eigenvector V2 . The final definition of our new
+ridgeness measure is shown as
+
+
+R(·) if R(x ± u2 , y ± v2 , σ) < R(·)
+(4)
+R(·) =
+0
+otherwise
+where R stands for Ridgeness and R(·) = Ridgeness(x, y, σ).
+As an example, the binary ridge image and the ridgeness
+image are shown in Fig. 4(a) and (b), respectively. In the ridgeness image, the background noise has been greatly reduced
+and the ridges now have a single-pixel width. However, in both
+the binary ridge and ridgeness images, many vessels are broken
+at branching points, referred to as “broken branching points”
+for clarity. Therefore, many segmentation-based methods are
+not able to detect broken branching points. As we show in
+Section II-C, our branching point detection methods are based
+on comparing pixels along the circle around the candidate points.
+Therefore, our method is still able to detect the broken branching
+points. The ridgeness value on the circle is shown in Fig. 6(b).
+
+Fig. 5. Typical example of a circle test at a branching point on (a) raw image,
+(b) vesselness image, (c) binary ridge image, and (d) ridgeness image. As shown,
+binary ridge image has too much noise. Vessels are thinner on the ridgeness
+image than on the vesselness image.
+
+C. Branching Point Detection (RBCT)
+Similar to [31], the detected candidates of branching points
+might contain blobs, specular reflections, branching points, and
+spurs. This section focuses on how to further distinguish branching points from the others. The major differences are their local
+structure patterns. One distinctive characteristic of branching
+points is that they have three or four connecting vessels. Many
+vessel segmentation methods have been proposed [33] and the
+branching points can be identified after the vessels are successfully segmented. Compare with those methods, the methods
+proposed in this paper have the advantage that they do not rely
+on any image segmentation techniques. Therefore, the proposed
+method do not need to solve optimization problems required by
+many image segmentation methods, such as [34]. Inspired by
+FAST feature point detector [13], we propose to place a circle
+centered at each candidate point on the ridgeness image and
+examine the ridgeness value and intensity of each point along
+the circle to determine whether it is a branching point or not.
+For clarity, this process of using a circle is termed as “circle
+test.” Fig. 5 illustrates the idea of the circle test at a branching
+point. A new method, RBCT, is introduced in this section to detect branching points by performing circle tests on the ridgeness
+image.
+When a circle is placed at the branching point on a ridgeness
+image, the circle will intersect with the vessels and result in a
+special “white and black” pattern. Typically, for a bifurcation
+point, the intersections are three bright points or segments. Note
+that even though the ridges are single-pixel-width, the intersecting segment of a ridge and a circle might still have more than
+one pixel. If the intersecting segment is only one pixel, the pixel
+is defined as a peak. Otherwise, the point with the largest ridgeness in the intersecting segment is defined as a peak. The circle
+tests on binary ridge image and ridgeness image are shown in
+
+Fig. 6.
+
+Ridgeness value of pixels along the circle around a branching point.
+
+Fig. 5(c) and (d). As an example, the ridgeness values of the pixels along the circle are shown in Fig. 6. Note that a similar idea of
+using peaks for vessel segmentation has been presented in image
+crawlers [35], [36]. Similar to VBCT [28], multiple tests are employed at each pixel p on the circle: 1) p should be bright on the
+ridgeness image (R(p) > Rp eak ); 2) p should have similar intensity with the center pixel (|I(p) − I(center)| < Isim ilar ); 3) the
+middle point pm of two peaks should be black (R(pm ) = 0);
+and 4) the number of peaks should be three or four. Note that
+bifurcations and crossing points have three and four peaks, respectively. Among those four tests, as long as one test is failed,
+the algorithm will exit early to save computation. Because vessels have different widths, to detect as many branching points as
+possible, multiple circle tests with different radii are employed
+in RBCT. An example of candidate branching points before and
+after RBCT is shown in Fig. 7. The pseudo-code of RBCT with
+one circle test is available in supplemental materials.
+D. Connected Component Labeling and Nonmaximal
+Suppression
+Points that pass the circle test are not the final branching
+points yet. Depending on the viewing conditions and image resolutions, blood vessels have various widths and it is difficult
+to mathematically define a unique branching point. The circle
+test has the locality property that the neighboring pixels have a
+
+LIN et al.: EFFICIENT VESSEL FEATURE DETECTION FOR ENDOSCOPIC IMAGE ANALYSIS
+
+1145
+
+Fig. 7. Candidate branching points (a) before and (b) after RBCT. Those
+candidates are grouped into connected components.
+
+similar probability of passing the test. Therefore, those points
+that pass the circle test are grouped into different connected components and each component actually represents one branching
+point. The eight-neighbor definition is used here to label the
+connected components with the two-pass algorithm [37]. After each connected component has been identified, its center is
+defined as the location of the branching point.
+Different from corners that can be very close to each other,
+branching points are much more sparse and are usually far from
+each other. We further require that the distance between any two
+branching points should be larger than or equal to a predefined
+minimum distance. The minimum distance of branching points
+is determined by multiple factors, such as the resolutions of
+the images, the tissue-to-camera distances, and so on. Based
+on the collected datasets as discussed in Section III-A, this
+minimum distance is set to be 11 pixels (distancem in = 11) in
+this paper. The minimum distance is ensured by nonmaximal
+suppression with a 23 × 23 window. Since a large connected
+component is more robust than a small one, the number of
+points in each connected component is chosen as the score of
+the corresponding branching point and used in the nonmaximal
+suppression process.
+E. Branching Segment Detection (RBSD)
+In this section, we describe the procedure of vessel tracing
+contained in RBSD. Since branching segment detection starts
+and ends at branching points, our algorithm starts from each
+branching point and initiates a vessel tracing process for each of
+its corresponding vessels. The vessel tracing process is the core
+of the branching segment detection, and our algorithm is based
+on the binary mask of vessels, which is obtained by thresholding
+the ridgeness image and is referred to as “ridge mask.” The ridge
+mask has a single-pixel width in most areas, except the specular
+reflections. The following discussion is based on the binary
+ridge mask. The vessel tracing process is recursive and stops
+under two conditions. First, another branching point is within a
+five-pixel radius (radiusBS = 5), which means a branching segment has been detected. Second, there are no unvisited ridge
+pixels, which results in a half branching segment.
+Three key points need to be determined during the vessel
+tracing process: the starting point, the next point, and the ending
+point. First, the detected position of a branching point is not
+directly used as the starting point, because the broken branching
+point may not be on the vessel. The three or four peaks from the
+
+Fig. 8. Illustration of the two-pass test vessel tracing process. (a) Explanation
+of labels, (b) initial state, (c) state after first pass, (d) state after second pass.
+
+circle test of each branching point are, therefore, chosen as the
+starting points for tracing.
+To determine the next point and the ending point, some special points on the ridge mask have to be defined for clarity. A
+“forwarding point” is a point that is white on the ridge mask and
+has at least one white unvisited neighbor (under eight neighbor).
+If a point, P, has a neighbor that is a forwarding point, this neighbor is called “forwarding neighbor” of point P. One example of
+forwarding point and forwarding neighbor is given in Fig. 8(b).
+The key observation of our vessel tracing is as follows: given the
+current tracing point P, after marking P’s neighbors as visited,
+if P still has forwarding neighbors, we conclude that all these
+forwarding neighbors are along the vessel and in front of P.
+Based on this observation, the following two-pass tracing
+algorithm is applied in each iteration. The first pass is to collect
+all unvisited white neighbors of the current tracing point and
+mark them as visited. The second pass is to find all forwarding
+neighbors. If at least one forwarding neighbor is found, the next
+point can be chosen as either one of them; otherwise, this is the
+end of the current vessel tracing process. Regarding the ending
+point, if no branching point is found at the end of the tracing, the
+last point of the vessel tracing process is chosen as the ending
+point; otherwise, another branching point is found and is chosen
+as the ending point. The process of two-pass vessel tracing is
+illustrated in Fig. 8. The detected branching segments (green)
+and half branching segments (blue) are shown in Fig. 9(b) as an
+example. The pseudo-code of the branching segment detection
+is given in supplemental materials.
+F. Computational Analysis and Run Time Results
+Since RBCT is a part of RBSD, this section focuses on the
+computational analysis of RBSD. There are three main components in the calculation of RBSD: ridgeness, circle test, and
+vessel tracing. First, based on (3) and (4), it can be seen that,
+the calculation of vesselness accounts for the main computation of ridgeness. Note that 2-D version of Frangi vesselness
+with three image levels is used in this paper. Its calculation contains three Gaussian convolutions for each image level to obtain
+
+1146
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+TABLE III
+PARAMETERS OF STATE-OF-THE-ART FEATURE DETECTORS USED
+IN THIS PAPER
+Procedure
+AFD
+DoG
+Hessian affine
+FAST
+Sofka
+
+Fig. 9. The illustration of those vessel features detected by RBSD: branching
+segments (green), half branching segments (blue), and branching points (cyan
+dots).
+
+TABLE II
+RUN TIME OF DIFFERENT STEPS IN RBSD
+Circle test
+
+Labeling
+
+Suppression
+
+Vessel tracing
+
+0.562(s)
+
+0.027(s)
+
+0.088(s)
+
+0.062(s)
+
+“Labeling” Represents Connected Component Labeling.
+“Suppression” represents Nonmaximum suppression. “S”
+stands for second.
+
+Hessian matrix and the calculation of eigenvalues in the 2 ×2
+Hessian matrix for each pixel. Those calculations have been used
+and analyzed in [16], [18], and [38] and can achieve real-time
+speed with proper implementation. Second, circle tests are performed on each candidate branching point, which is usually less
+than 1% of the total number of pixels. Typically, one circle test
+scans 64 pixels along the circle (11-pixel radius) and less than
+six computer instructions are executed to scan one pixel. Third,
+the proposed vessel tracing algorithm visits each ridge point
+one time, at most, to detect all branching segments and half
+branching segments.
+The run-time tests of different steps in RBSD are performed
+on a Intel core i5 CPU 650 (3.20 GHz) with 4.00 GB RAM. The
+test data contains images with resolution 640 * 480 from an in
+vivo MIS dataset (scene7 from the public Hamlyn dataset [39]
+as introduced in Section III-A). The proposed methods have
+been implemented using MATLAB. The average run time of
+different steps for one image are reported in Table II. The results
+with unoptimized MATLAB implementation in Table II show
+that the proposed methods are fast and can potentially achieve
+real-time speed with proper implementation, such as C/C++.
+In addition, the proposed methods can be faster by exploiting
+graphics processing unit (GPU), since the circle tests can be
+independently executed.
+III. EXPERIMENTS AND RESULTS
+In this section, in vivo experiments were designed to evaluate
+the performances of the proposed vessel feature detectors. Many
+state-of-the art branching point detectors [40], [41], vessel detection methods [33], [42], general feature point detectors have
+been proposed in the community. Among them, the following
+feature detectors were chosen based on the reports in [13] and
+
+Parameters
+sigma = 1.5, cornerness threshold = 0.2,
+step=1.44, and number of scales = 7
+peak threshold = 0.008, edge threshold = 10
+peak threshold = 0.0008, edge threshold = 10
+intensity threshold = 14 (range [0 255])
+likelihood ratio threshold = 1.0
+
+[17] and the availability of codes: VBCT [28], AFD [17], DoG
+[19], Hessian affine [18], [31], FAST [14], and likelihood ratio vesselness (referred to as “Sofka” in this paper) [42]. Note
+that VBCT, RBCT, and Sofka were branching point detectors.
+RBSD was a branching segment detector. The rest of them were
+not specifically designed for vessel images and were referred to
+as “general feature point detectors” in this paper. Those general
+feature point detectors extracted different information from a
+given image: intensity (FAST), first derivatives (AFD), and second derivatives (Hessian affine, DoG). The implementations of
+Hessian affine and DoG from VLFeat library [43] were adopted
+in this paper. The parameters of the aforementioned methods
+were chosen based on the datasets used in this paper and the
+suggestions from the corresponding papers. Those parameters
+were shown in Table III and were fixed in all the experiments.
+The parameters used in RBCT and RBSD were selected based
+on their performance on the datasets (see Section III-A) used in
+this paper. During the detection of the branching point candidates, the following threshold values produced reasonable
+amount of candidates and were able to detect most branching points: λ1m in = 0.05, Rm in = 0.01. In the calculation of
+the Vesselness, the following values were adopted based on
+the suggestions of [29]: σ = {3, 4, 5}, β = 0.5, and c = 15.
+In the process of circle test, the threshold values were set as:
+Rp eak = 0.01, Isim ilar = 0.03(intensity range[0 1]), which filtered out high percentage of outliers and kept most branching points. Two circle tests were shown enough to detect most
+branching points in our datasets and their radii were 7 and 5
+pixels, respectively.
+The objective of the experiments is to evaluate, in MIS images, how distinctive vessel features detected by RBCT and
+RBSD are compared with general feature points (corners and
+blobs). Note that RBCT is a part of RBSD. They are treated as
+a unit and are compared with the others in all the experiments.
+Branching points, branching segments, corners, and blobs are
+different types of features and they have different densities in the
+images. The minimum distances of branching points, branching
+segments, and general feature points were defined as 11 pixels,
+0 pixel, and 1 pixel, respectively. To have a consistent comparison, we applied nonmaximum suppression with 11-pixel
+radius for all the methods, including branching segments so that
+the minimum distance between any two feature points was at
+least 11 pixels. To apply nonmaximum suppression, scores indicating the significance of feature points, such as cornerness
+scores, should be provided. Note that no scores were provided
+
+LIN et al.: EFFICIENT VESSEL FEATURE DETECTION FOR ENDOSCOPIC IMAGE ANALYSIS
+
+1147
+
+Fig. 11. Illustration of selected ground-truth point correspondences (cyan)
+across different views in scene 3.
+Fig. 10.
+
+Sample images of the seven in vivo video clips.
+
+for points from DoG, to run the nonmaximum suppression, all
+points were considered to be equally important by assigning the
+same cornerness score.
+A. In Vivo Datasets and Ground Truths
+Our datasets contained seven in vivo video clips representing different imaging conditions in different surgeries. Sample
+images were shown in Fig. 10. Those videos were taken during
+the laparoscopic colon surgeries of three different patients. They
+were named in the order from scene1 to scene7. In scene1,
+scene2, scene5, and scene6, the laparoscope faced toward the
+abdominal wall and was moved along the abdominal wall. Because the abdomen was insufflated in MIS, those areas of the
+abdominal wall were approximately flat. Scene3 and scene4
+were small flat tissue surfaces within the anterior pelvis, where
+the uterus was removed. In those two video clips, the stereoscope
+rotated and zoomed in and out on top of the scenes. Scene7 was
+from the public Hamlyn dataset [39], where the endoscope was
+moved to explore the scene.
+One important property of a feature point detector is that
+the same scene point can be detected repeatedly from different
+viewpoints. Homography mappings have been widely used in
+the literature to measure this property. To have global homography mappings, it is required that either the scenes are mostly
+planar or the camera is rotated around its center. The above
+datasets have been specially chosen in order to have global homography mappings: the first six scenes are mostly planar, and
+in the seventh scene, the camera is mainly rotated around its
+center.
+The ground-truth homography mappings for each pair of images in each scene were obtained by manually selecting point
+correspondences between the image pairs. In each scene, one
+frame was chosen as the reference image and the planar area
+of the scene was selected as the region of interest. Each image
+is coupled with the reference image to form image pairs. In
+each pair of images, 20 well-distributed point correspondences
+between the reference image and the others were manually selected by experienced observers. One example of the manually
+selected ground truth is shown in Fig. 11. The selected correspondences were later used to calculate the ground-truth homography mappings following the methods used in [14] and
+[18]. Due to the similarity between successive frames and the
+large efforts required by the manual point selection, those video
+clips were uniformly sampled to reduce the manual work. The
+number of selected frames for each video clip is shown in the
+fifth column of Table IV. The errors of homography mappings
+
+TABLE IV
+SUMMARY OF DATASETS USED IN THIS PAPER
+Datasets
+
+Source
+
+Homo.
+type
+
+Length
+
+Frame
+num.
+
+Resolution
+
+Scene1
+Scene2
+Scene3
+Scene4
+Scene5
+Scene6
+Scene7
+
+patient1
+patient1
+patient2
+patient2
+patient3
+patient3
+[39]
+
+planar
+planar
+planar
+planar
+planar
+planar
+rotation
+
+3s
+3s
+5s
+3s
+8s
+8s
+23s
+
+50
+50
+53
+45
+22
+14
+49
+
+1280 × 720
+1280 × 720
+1240 × 800
+1240 × 800
+720 × 480
+720 × 480
+640 × 480
+
+Homo.
+error
+1.6
+1.5
+2.0
+2.0
+1.7
+1.6
+1.9
+
+±
+±
+±
+±
+±
+±
+±
+
+0.8
+0.7
+1.0
+1.0
+0.9
+0.7
+0.9
+
+“Planar” means the scene is planar. “Rotation” represents that the camera motion is rotation only. “Frame num.” indicates how many frames are kept after sampling. “Homo.
+error” denotes the average errors of the ground-truth homography mappings. The unit of
+Homographic error is pixel.
+
+for each scene are reported in the last column of Table IV. Note
+that the errors of homography mappings indicate whether it is
+valid or not to use those mappings for generating ground-truth
+feature point positions.
+Note that the common accuracy of homography mappings
+used for general feature point detectors is 1.5 pixels [13], [16],
+which is more accurate than that of our homography mappings
+as shown in Table IV. This is because the constraints in the
+MIS environment make it extremely difficult to obtain the exact
+homography mapping between two MIS images. As shown in
+the last column of Table IV, the homography errors are smaller
+than 3 pixels. With inaccurate homography mapping, each point
+in the first image is mapped to a 3-pixel-radius disk in the second
+image. Since those disks should not overlap in the second image,
+the minimal distance of any two feature points should be larger
+than 6 pixels. Our feature points have minimal distance of 11
+pixels, which are larger than 6 pixels. Therefore, the obtained
+homography mappings are accurate enough.
+B. Repeatability and Number of Points
+The repeatability and total number of detected points are two
+widely used measures to evaluate the performance of feature
+detectors [13], [16]. To this end, repeatability is defined as the
+percentage of points that are detected in images from different
+viewpoints. Because there is noise in the detected positions of
+the feature points, two points x1 , x2 are defined to correspond
+to each other if |x2 − H · x1 | < δ, where H is the homography
+mapping and δ is a predefined threshold. Based on the accuracies
+of the ground-truth homography mappings shown in Table IV,
+δ is set to be 3.5 pixels for all feature point detectors. Note that
+this is different from [13], [16], and [18], where the δ is about
+
+1148
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+Fig. 12. Repeatability scores of different methods in the seven scenes. The
+overall performance is shown on the right. The details of the repeatability scores
+for each frame in each scene are displayed as repeatability curves and have been
+included in the supplemental materials.
+
+1.5 pixels. In this paper, the repeatability is defined as
+m
+repeatability =
+min{n1 , n2 }
+
+Fig. 13. Number of feature points detected by different feature point detectors
+in the seven scenes. The overall performance is shown on the right. Note that
+RBSD is a branching segment detector, which is different from general point
+detector and usually detects much more points as shown in Table V.
+
+TABLE V
+TOTAL NUMBER OF POINTS IN ALL BRANCHING SEGMENTS
+DETECTED BY RBSD
+
+(5)
+
+where m is the number of points detected in both images, n1 is
+the number of points detected in the first image, and n2 is the
+number of points detected in the second image, whose corresponding points are also visible in the first image. We note that
+the repeatability measure might be biased against those detectors
+that detect more points.
+The repeatability of different feature detectors on the seven
+scenes is shown in Fig. 12. The overall performance for each
+method is displayed at the right in Fig. 12. As shown, vessel
+feature detectors outperform the general feature point detectors
+having the highest average repeatability scores under camera
+translation and rotation. The major reason is that the general
+feature points are small in scale and less distinctive under large
+camera motions. On the other hand, vessels are among the most
+distinctive structures in MIS images and are resistant to large
+camera motions. Note that FAST does not perform as well as
+expected. One possible reason is that comparing with general
+images, the endoscopic images are more noisy due to the special
+camera sensor and imaging environment in MIS. As pointed out
+in [13], FAST is designed to compare as few pixels as possible,
+and is therefore, less robust toward the noises in MIS images.
+In scene7, the camera is mainly rotated around the optical axis
+and the camera barely changes its viewpoint. The images in
+scene7 have small perspective changes, and therefore, all feature
+detectors have better repeatability scores.
+The number of points detected by the state-of-the-art feature
+point detectors is shown in Fig. 13. The average number of
+points detected by each method is displayed on the right in
+Fig. 13. Due to the sparsity of branching points, the number
+of branching points is the fewest among all methods. On the
+other hand, RBSD is essentially curve-segment detector, which
+detects not only the branching points but also the points along
+the vessel segment. Therefore, RBSD usually detects much more
+points than general point detectors. We notice that it is unfair
+to compare the number of points detected by different types of
+feature detectors. Therefore, the number of points detected by
+RBSD is separately given in Table V. Reporting the numbers of
+points detected by RBCT and RBSD is to verify that the small
+number of available branching points can be compensated by
+the large number of pixels detected along the vessel provided
+
+S1
+5661
+
+S2
+
+S3
+
+S4
+
+S5
+
+S6
+
+S7
+
+Average
+
+6296
+
+5749
+
+5430
+
+2204
+
+1098
+
+1177
+
+3945
+
+“S” stands for scene.
+
+by RBSD. In addition, vessel features can be combined with
+general feature points to extract more rich information from the
+images.
+It is useful to see how many human-recognizable branching
+points can be detected by the proposed branching point detector. Four representative images are selected from each of the
+seven scenes and the human-recognizable branching points are
+manually selected by experienced human subjects. For each
+image, the sets of manually selected branching points and the
+automatically detected ones are denoted as S1 and S2 , respectively. The coverage is defined as the percentage of ground-truth
+branching points that is automatically detected: |S1 ∩ S2 |/|S1 |,
+where ∩ represents intersection of two point sets. The average
+coverage for RBCT is 70%, which means, in average, 70% out of
+human-recognizable branching points is automatically detected.
+C. Patch Matching Correctness
+One target application of branching point detection is endoscope localization and mapping, in which both feature point
+detection and matching are crucial. In this section, a correlationmatching-based patch search process from the parallel tracking
+and mapping (PTAM), called “fixed range image search” [44],
+is adopted, and different feature point detectors are applied and
+compared. Since the goal here is to compare different feature detectors only, to be fair, the same feature matching method needs
+to be used for all feature detectors. Note that SIFT descriptor
+is not used for DoG during the point matching process. In the
+patch search process, a high matching correctness indicates that
+the feature point detector has high repeatability and the image patches extracted are distinctive for matching purpose. The
+patch search procedure takes the first image as the current frame
+and assumes the second image as the frame that has been saved
+in the endoscope localization system. The feature points of the
+second image are treated as known to the system and are called
+
+LIN et al.: EFFICIENT VESSEL FEATURE DETECTION FOR ENDOSCOPIC IMAGE ANALYSIS
+
+Fig. 14. Patch matching correctness of different methods in the seven scenes.
+The overall performance is shown on the right.
+
+“map points” [44]. The goal is to identify those map points in
+the current frame.
+The patch search process contains a couple of steps. First,
+since only the patch search process from PTAM is employed
+rather than the whole system, the temporal information from
+previous frames is preserved by defining a search area in the
+current frame for each map point. For each map point P in the
+saved frame, its corresponding point Q in the current frame as
+ground truth can be obtained through homography mapping.
+The search area of P in the current frame is a disk centered
+at Q, whose radius is 1/20 of the image width. Second, the
+feature points in the current frame that are within this fixed
+range are chosen and referred to as the nearby points. The
+21 × 21 local patch of each nearby point is compared with
+the same size local patch of P. Third, similar to [44], an affine
+warping, which is obtained from the ground-truth homography
+mapping, is applied to the patch of P to take care of the viewpoint change. After warping, zero-mean sum of squared distance
+(ZSSD) is calculated for each pair of patches. Finally, a nearby
+point is considered as a match if its ZSSD value is the minimum
+and the value is smaller than the predefined threshold of 0.02 in
+this paper for the normalized intensity range [0 1]. A match Q is
+defined to be correct if |Q − Q| < 3.5 pixels. The correctness
+of the SSD matching is defined to be the ratio of the number of
+correct matches over the number of total matches.
+The patch matching results are given in Fig. 14. Vessel features perform better than the general features again, which
+further verifies the distinctiveness of vessel features. In patch
+matching, VBCT and RBCT have higher matching correctness
+scores than RBSD. This is because the patterns of branching
+points are more distinctive than the patterns of vessel points
+(except the endpoints) in branching segments. Note that in
+scene4, the patch matching correctness of AFD is significantly
+better than all the others. One reason is that the specular reflections are strong and abundant in scene4. Since our homography
+mappings are not accurate enough, the movements of the points
+on the specular reflections cannot be captured. Therefore, specular reflections are mistreated as fixed textures and those points
+on the boundaries of specular reflections are misclassified as
+correct matches. One example of patch matching result with
+RBCT is shown in Fig. 15.
+IV. CONCLUSION AND FUTURE WORK
+It is well known that feature extraction in MIS images is difficult due to the special imaging environment. The existence of
+
+1149
+
+Fig. 15. One example of correlation-based patch matching using “fixed range
+image search” [44] with feature detector RBCT. Matches with error less than 3.5
+pixels are classified as correct matches (cyan dots). The others are classified as
+incorrect matches (red triangles). The images are from the seventh scene. Note
+that the detected branching points that are not matched by the correlation-based
+patch matching method are not displayed.
+
+abundant blood vessels in intraabdominal MIS images provides
+a solution to overcome this problem. This paper proposes to
+extract branching segments as features and has quantitatively
+verified their distinctiveness. Moreover, the vessel features can
+be combined with general feature points since they extract different structures in the images. Therefore, RBCT and RBSD offer researchers new types of distinctive features for endoscopic
+image analysis. The evaluation codes, the codes of RBCT and
+RBSD, and the datasets used in this paper are available online
+at http://rpal.cse.usf.edu/project1/index.html.
+The distinctive vessel features can have many applications
+for endoscopic images. When stereoscope is available, as in da
+Vinci system, those detected vessel features can be matched in
+stereo images using traditional correlation-matching methods
+[6] and the 3-D structures of those vessels can be recovered.
+Similarly, in visual SLAM systems, vessel features can be detected in different frames and matched using correlation-based
+patch matching methods [44]. The matching of vessel features
+in different views allows endoscope to localize itself and also
+enables the recovery of the 3-D vascular structures after the
+endoscope poses are successfully calculated. More importantly,
+those 3-D vessels recovered from different views can be merged
+together to obtain a large 3-D vessel network, which provides a
+very good 3-D structure of the whole abdominal area and will
+be very beneficial for the coregistration with preoperative CT
+data. The intraoperative structure recovered by the endoscope
+also sheds light on solving the difficult deforming or dynamic
+coregistration problems [3], [12].
+In stereo reconstruction and visual SLAM, vessel features can
+be similarly matched with the traditional correlation-based patch
+matching methods. To better exploit the properties of vessel
+features, in our future work, we plan to design a specialized
+matching method for vessel features, which can take advantage
+of the branch and vessel directions.
+Due to the nature of large-scale features of branching points,
+the current location error of automatic localization of matching points is about 1.6 ± 0.7 pixels. This error is larger than
+general feature point detectors, which typically achieve 1-pixel
+accuracy. The larger error of branching points introduces uncertainty to its applications, such as pose estimation and 3-D reconstruction. In the future, we will further refine the branching
+point location accuracy based on the local neighbor information.
+In order to further speed up the circle test in RBCT, one future
+research direction is to add early termination so that unnecessary
+
+1150
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 4, APRIL 2015
+
+computations can be avoided. Another research direction is to
+incorporate the supervised learning techniques [13] into vessel
+feature detection.
+REFERENCES
+[1] P. Mountney et al., “A probabilistic framework for tracking deformable
+soft tissue in minimally invasive surgery,” in Proc. Int. Conf. Med. Image
+Comput. Comput-Assisted Intervention, 2007, pp. 34–41.
+[2] R. Richa et al., “Efficient 3D tracking for motion compensation in beating
+heart surgery,” in Proc. Int. Conf. Med. Image Comput. Comput.-Assisted
+Intervention, 2008, pp. 684–691.
+[3] M. C. Yip et al., “Tissue tracking and registration for image-guided
+surgery,” IEEE Trans. Med. Imag., vol. 31, no. 11, pp. 2169–2182, Nov.
+2012.
+[4] P. Mountney and G.-Z. Yang, “ Soft tissue tracking for minimally invasive surgery: Learning local deformation online,” in Proc. Int. Conf.
+Med. Image Comput Comput.-Assisted Intervention, 2008, vol. 11,
+pp. 364–372.
+[5] B. Lin, Y. Sun, and X. Qian, “Thin plate spline feature point matching
+for organ surfaces in minimally invasive surgery imaging,” Proc. SPIE,
+vol. 867112, pp. 867112-1–867112-7, 2013.
+[6] D. Stoyanov et al., “Real-time stereo reconstruction in robotically assisted
+minimally invasive surgery,” in Proc. Int. Conf. Med. Image Comput.
+Comput.-Assisted Intervention, 2010, pp. 275–282.
+[7] L. Maier-Hein et al., “Optical techniques for 3D surface reconstruction in
+computer-assisted laparoscopic surgery,” Med. Image Anal., vol. 17, no.
+8, pp. 974–996, 2013.
+[8] B. Lin, et al., “Simultaneous tracking, 3D reconstruction and deforming
+point detection for stereoscope guided surgery,” in Augmented Reality
+Environments for Medical Imaging Computer-Assisted Intervention, vol.
+8090. Berlin, Germany: Springer, 2013, pp. 35–44.
+[9] P. Mountney and G.-Z. Yang, “Motion compensated slam for image guided
+surgery,” in Proc. Int. Conf. Med. Image Comput. Comput.-Assisted Intervention, 2010, pp. 496–504.
+[10] D. Mirota et al., “A system for video-based navigation for endoscopic
+endonasal skull base surgery,” IEEE Trans. Med. Imag., vol. 31, no. 4, pp.
+963–976, Apr. 2012.
+[11] A. L. Anderson et al., “Virtually transparent epidermal imagery (VTEI):
+On new approaches to in vivo wireless high-definition video and image
+processing,” IEEE Trans. Biomed. Circuits Syst., vol. 7, no. 6, pp. 851–860,
+Dec. 2013.
+[12] S. Ding et al., “Tracking of vessels in intra-operative microscope video
+sequences for cortical displacement estimation,” IEEE Trans. Biomed.
+Eng., vol. 58, no. 7, pp. 1985–1993, Jul. 2011.
+[13] E. Rosten and T. Drummond, “Machine learning for high-speed corner
+detection,” in Proc. Eur. Conf. Comp. Vis., vol. 1, 2006, pp. 430–443.
+[14] E. Rosten et al., “Faster and better: A machine learning approach to
+corner detection,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 32, no. 1,
+pp. 105–119, Jan. 2010.
+[15] C. Harris and M. Stephens, “A combined corner and edge detector,” in
+Proc. 4th Alvey Vis. Conf., 1988, pp. 147–151.
+[16] K. Mikolajczyk and C. Schmid, “Scale & affine invariant interest point
+detectors,” Int. J. Comput. Vis., vol. 60, no. 1, pp. 63–86, 2004.
+[17] S. Giannarou et al., “Probabilistic tracking of affine-invariant anisotropic
+regions,” IEEE Trans. Pattern Anal. Mach. Intell., vol. 35, no. 1, pp. 130–
+143, Jan. 2013.
+[18] K. Mikolajczyk et al., “A comparison of affine region detectors,” Int. J.
+Comput. Vis., vol. 65, no. 1/2, pp. 43–72, 2005.
+[19] D. G. Lowe, “Distinctive image features from scale-invariant keypoints,”
+Int. J. Comput. Vis., vol. 60, no. 2, pp. 91–110, 2004.
+[20] H. Bay et al., “SURF: Speeded up robust featuresi,” in Proc. Eur. Conf.
+Comput. Vis., 2006, pp. 404–417.
+[21] G. Puerto-Souza and G. Mariottini, “Hierarchical multi-affine (HMA)
+algorithm for fast and accurate feature matching in minimally-invasive
+surgical images,” in Proc. IEEE/RSJ Int. Intell. Robots Syst. Conf., 2012,
+pp. 2007–2012.
+
+[22] G. Puerto-Souza and G.-L. Mariottini, “Wide-baseline dense feature
+matching for endoscopic images,” in Image and Video Technology, (Lecture Notes in Computer Science), vol. 8333. Berlin, Germany: Springer,
+2014, pp. 48–59.
+[23] G. Puerto-Souza and G. Mariottini, “Adaptive multi-affine (ama) featurematching algorithm and its application to minimally-invasive surgery images,” in Proc. Int. Conf. Med. Image Comput. Comput.-Assisted Intervention, Oct. 2012, pp. 625–633.
+[24] G. Puerto-Souza and G.-L. Mariottini, “A fast and accurate featurematching algorithm for minimally-invasive endoscopic images,” IEEE
+Trans. Med. Imag., vol. 32, no. 7, pp. 1201–1214, Jul. 2013.
+[25] B. Lin et al., “Dense surface reconstruction with shadows in MIS,” IEEE
+Trans. Biomed. Eng., vol. 60, no. 9, pp. 2411–2420, Sep. 2013.
+[26] D. Stoyanov, “Surgical vision,” Ann. Biomed. Eng., vol. 40, pp. 332–345,
+2012.
+[27] E. Rosten and T. Drummond, “Fusing points and lines for high performance tracking,” in Proc. Int. Conf. Comput. Vis., 2005, vol. 2,
+pp. 1508–1515.
+[28] B. Lin et al., “Vesselness based feature extraction for endoscopic image
+analysis,” in Proc. Int. Symp. Biomed. Imag., 2014, pp. 1295–1298.
+[29] A. F. Frangi et al., “Multiscale vessel enhancement filtering,” in Proc.
+Int. Conf. Med. Image Comput. Comput.-Assisted Intervention, 1998, pp.
+130–137.
+[30] L. Shi et al., “Quaternion color curvature,” in Proc. IS&T Color Imag.
+Conf., 2008.
+[31] D. Baboiu and G. Hamarneh, “Vascular bifurcation detection in scalespace,” in Proc. IEEE Workshop Math. Meth. Biomed. Image Anal., 2012,
+pp. 41–46.
+[32] J. Staal et al., “Ridge-based vessel segmentation in color images of the
+retina,” IEEE Trans. Med. Imag., vol. 23, no. 4, pp. 501–509, Apr. 2004.
+[33] K. Krissian et al., “Model-based multiscale detection of 3D vessels,” in
+Proc. Comput. Vis. Pattern Recog., Jun. 1998, pp. 722–727.
+[34] E. Bae et al., “A fast continuous max-flow approach to non-convex multilabeling problems,” in Efficient Algorithms for Global Optimization Methods in Computer Vision. Berlin, Germany: Springer, 2014, pp. 134–154.
+[35] C. McIntosh and G. Hamarneh, “Vessel crawlers: 3D physically-based
+deformable organisms for vasculature segmentation and analysis,” in Proc.
+Comput. Vis. Pattern Recog., Jun. 2006, vol. 1, pp. 1084–1091.
+[36] G. Hamarneh and C. McIntosh, “Deformable organisms for medical image analysis,” in Deformable Models: Biomedical and Clinical Applications (Topics in Biomedical Engineering International Book Series).
+New York, NY, USA: Springer, 2007, pp. 387–443.
+[37] L. G. Shapiro and G. Stockman, Computer Vision, 1st ed. Upper Saddle
+River, NJ, USA: Prentice Hall, 2001.
+[38] J. Shi and C. Tomasi, “Good features to track,” in Proc. Comput. Vis.
+Pattern Recog., 1994, pp. 593–600.
+[39] S. Giannarou et al. (2014). Hamlyn centre laparoscopic / endoscopic video
+datasets. [Online]. Available: http://hamlyn.doc.ic.ac.uk/vision/
+[40] M. Zhao and G. Hamarneh, “Bifurcation detection in 3D vascular images
+using novel features and random forest,” in Proc. IEEE Int. Symp. Biomed.
+Imag., 2014, pp. 421–424.
+[41] M. M. G. Macedo et al., “A center-line based estimator of vessel bifurcations in angiography images,” Proc. SPIE, pp. 86 703K-1–86 703K-7,
+2013.
+[42] M. Sofka and C. V. Stewart, “Retinal vessel centerline extraction using
+multiscale matched filters, confidence and edge measures,” IEEE Trans.
+Med. Imag., vol. 25, no. 12, pp. 1531–1546, Dec. 2006.
+[43] A. Vedaldi and B. Fulkerson, “—An open and portable library of computer vision algorithms,” in Proc. ACM Int. Conf. Multimedia, 2010,
+pp. 1469–1472.
+[44] G. Klein and D. W. Murray, “Parallel tracking and mapping for small
+AR workspaces,” in Proc. Int. Symp. Mixed Augmented Reality, 2007,
+pp. 225–234.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

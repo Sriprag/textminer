@@ -1,0 +1,1034 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+1759
+
+Human Joint Angle Estimation with Inertial Sensors
+and Validation with A Robot Arm
+Mahmoud El-Gohary∗ and James McNames
+
+Abstract—Traditionally, human movement has been captured
+primarily by motion capture systems. These systems are costly, require fixed cameras in a controlled environment, and suffer from
+occlusion. Recently, the availability of low-cost wearable inertial
+sensors containing accelerometers, gyroscopes, and magnetometers have provided an alternative means to overcome the limitations of motion capture systems. Wearable inertial sensors can
+be used anywhere, cannot be occluded, and are low cost. Several
+groups have described algorithms for tracking human joint angles.
+We previously described a novel approach based on a kinematic
+arm model and the Unscented Kalman Filter (UKF). Our proposed method used a minimal sensor configuration with one sensor
+on each segment. This paper reports significant improvements in
+both the algorithm and the assessment. The new model incorporates gyroscope and accelerometer random drift models, imposes
+physical constraints on the range of motion for each joint, and uses
+zero-velocity updates to mitigate the effect of sensor drift. A highprecision industrial robot arm precisely quantifies the performance
+of the tracker during slow, normal, and fast movements over continuous 15-min recording durations. The agreement between the
+estimated angles from our algorithm and the high-precision robot
+arm reference was excellent. On average, the tracker attained an
+RMS angle error of about 3◦ for all six angles. The UKF performed
+slightly better than the more common Extended Kalman Filter
+Index Terms—Elbow, inertial measurement units, inertial
+sensors, kinematics, joint angle tracking, shoulder.
+
+I. INTRODUCTION
+HE need to characterize normal and pathological human
+movement has consistently driven researchersen to develop new rigorous tracking systems. These systems need to
+be accurate, unobtrusive, and suitable for continuous monitoring over long periods while subjects perform normal daily
+activities.
+Magnetic resonance imaging-based methods for measuring
+the mechanics of human joints have been successfully applied
+to evaluate biomechanics in different human joints [1], [2]. Bey
+et al. developed and validated a tracking technique for measuring
+glenohumeral joint translations during shoulder motion from xray images [3]. These systems require a dedicated laboratory,
+trained staff to operate the systems, and are restricted to static
+
+T
+
+Manuscript received September 24, 2014; revised December 26, 2014; accepted February 2, 2015. Date of publication February 12, 2015; date of current
+version June 16, 2015. M. El-Gohary, J. McNames, and PSU have a significant
+financial interest in APDM, a company that may have a commercial interest in
+the results of this research and technology. The potential individual and institutional conflicts of interest have been reviewed and managed by PSU. Asterisk
+indicates corresponding author.
+∗ M. El-Gohary is with ADPM, Inc. Portland, OR 97267, USA (e-mail:
+mahmoud@apdm.com).
+J. McNames is with ADPM, Inc. Portland, OR 97267, USA.
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2403368
+
+or very slow and limited range of motion. Tracking of bone
+pins has also been used, but this is an invasive technique which
+limits the number of subjects who might be willing to participate
+in these studies [4], [5]. Motion capture systems have been
+successfully used to quantify joint kinematics by tracking the
+position of reflective surface markers during dynamic activities
+[6]. However, these systems are costly, restricted to controlled
+laboratory settings, suffer from occlusion, and are susceptibskin
+movement artifact; all of which limit their usage [7].
+To overcome many of the limitations associated with conventional motion measurement techniques, inertial measurement
+units (IMU) consisting of triaxial accelerometers were used to
+estimate thigh, shank and knee pitch and yaw angles [8], [9].
+These studies were limited to measuring only 2 degrees of freedom (DOFs) movement during limited activities.
+Most studies using IMU’s, combine accelerometers and gyroscopes in wearable sensor systems [10], [11]. Traditionally,
+the orientation of a segment has been estimated by integrating the angular velocities measured by gyroscopes and position
+is obtained by double integration of the translational acceleration measured by accelerometers. A significant problem with
+integration, however, is that inaccuracies inherent in the measurements quickly accumulate and rapidly degrade accuracy.
+Roetenberg showed that integration of noisy gyroscope data resulted in a drift between 10−25◦ after one minute [12]. Roetenberg et al. argued that errors due to magnetic field disturbance
+may be compensated by adequate model-based sensor fusion
+[13]. They developed a Kalman filter that operated on two inputs: the difference between inclination from the accelerometer
+and gyroscope, and from the magnetometer and gyroscope. The
+states of the model included the gyroscope bias error, orientation
+error, and magnetic disturbance. The filter was tested with ferromagnetic materials close to the sensor for less than a minute.
+The results show that the orientation estimates improved significantly when the magnetic interference correction was used.
+However, the accuracy could decrease if the magnetic disturbance was due to varying sources that are present during longer
+periods of testing.
+To reduce the effect of gyroscope drift on orientation estimates, accelerometers and magnetic sensors have been used to
+compensate the drift about the horizontal plane, and the vertical
+axis, respectively [14], [15]. Favre et al. integrated angular velocity data and corrected angle estimates based on known joint
+anatomical constraints and inclination data from accelerometers
+during static periods [16]. Luinge et al. used physical constraints
+in the elbow to measure the forearm orientation relative to upper arm [17], [18]. They minimized the error around the vertical
+axis by using the knowledge that the elbow joint does not permit
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1760
+
+abduction/adduction movement. Although they reported an improvement in estimating the orientation, the average orientation
+error was 20◦ . Cooper et al. also used biomechanical constraints
+to estimate knee joint flexion/extension with two IMU’s with triaxial accelerometers and gyroscopes attached to the thigh and
+shank. The performance of the algorithm was evaluated with
+data obtained from seven healthy subjects during walking and
+running over 5-min periods. The average measurement error
+ranged from 0.7◦ for slow walking to 3.4◦ for running [19].
+However, the algorithm only used a simplified model of a single
+hinge knee joint.
+In other studies, systems with accelerometers, gyroscopes,
+and magnetometers were used to measure the orientation of different body segments [20]–[24]. Accelerometer and gyroscopes
+were used to estimate inclination and orientation. Magnetometers were used to measure orientation around the vertical axis,
+assuming uniform local magnetic field. Bachmann et al. investigated the effect of magnetic disturbance on the accuracy of orientation tracking systems and observed errors that ranged from
+12◦ to 16◦ [25]. Yun et al. presented a simplified algorithm for
+orientation estimation using only accelerometers and magnetic
+field measurements [26]. The gyroscope-free system was only
+suitable for tracking slow movements. Cutti et al. used inertial
+and magnetic data to measure arm kinematics in one subject performing tasks involving shoulder and elbow single-joint-angle
+movements [27] and obtained an average RMSE ≤ 3.6◦ .
+In summary, other groups have used accelerometers and magnetometers to compensate for the orientation error that occurs when integrating the angular rate from gyroscopes, but
+all of these methods were only applicable under limited circumstances. Some groups restricted the application to simple tasks
+and short tracking periods. In other studies, the estimation was
+accurate for only brief periods when the acceleration measurements were only due to gravity. Others reported large orientation
+errors due to magnetic field disturbances.
+In a previous study [28], we combined kinematic models designed for control of robotic arms with state space methods to
+estimate human joint angles using two wearable inertial measurement units. Each IMU consisted of triaxial gyroscopes and
+accelerometers. We used the unscented Kalman filter (UKF) to
+estimate shoulder and elbow joint angles from eight subjects
+performing prescribed and free arm articulation for an average
+of 2 min. Compared to angles obtained from an optical reference system, we achieved an RMS angle error of less than 8◦ .
+Although errors between optical and inertial angle estimates
+are minimal, some of these errors might be attributed to markers moving independently of each other, especially during fast
+movements [29]. Tracking performance is also limited by the
+noise and drift of MEMS inertial sensors.
+In this study, we incorporate sensor random drift models, prior
+knowledge of physical constraints and human natural range of
+motion to obtain better joint angle estimates, and to mitigate
+the effect of sensors drift on the estimated angles during long
+periods of movement. We also employ zero-velocity updates to
+mitigate the effect of gyroscope drift on the estimated heading
+angles. We quantify the performance of our UKF-based method
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+by comparing the angle estimates to those obtained directly
+from a six-axis high-precision robot during 15-min recordings
+for slow, regular and fast-speed arm movement. We evaluate
+the performance of the extended Kalman filter (EKF) compared
+to that of the UKF in estimating the joint angles, given the
+nonlinear relationship between the joint angles and the sensor
+measurements.
+
+II. THEORY
+To describe angles and movements of an arm segment relative
+to its neighboring segments, we use an established method of
+biomechanical modeling based on a sequence of links connected
+by joints. This method was proposed by Denavit and Hartenberg in 1955, and has been used in the analysis and control of
+robotic manipulators [30]. The method is based on characterizing the relationship between links and joints with a (4 × 4)
+homogeneous transformation matrix. The matrix depends on
+four parameters associated with each link. The first parameter
+is the link length ai which is the distance from the rotation axis
+Zi to Zi+1 measured along their common normal axis Xi . The
+link twist αi , is the angle from Zi to Zi+1 measured about the
+Xi axis. The distance from Xi−1 to Xi measured along the
+Zi axis is known as the link offset di . The fourth parameter is
+the joint angle θi , which is the angle from Xi−1 to Xi measured about the Zi axis. These four parameters are known as the
+Denavit–Hartenberg (D-H) parameters and will be specified for
+the 6 DOFs arm model in the following section. To describe the
+kinematics of each link relative to its adjacent link, it simplifies
+this description to attach a frame to each link. The convention
+of attaching frames to the arm was detailed in Ref. [31].
+
+A. Arm Joint Angles
+We present a model for an arm movement with six degrees
+of freedom. Typically, the shoulder joint is modeled as a balland-socket joint with three DOFs. However, for the purpose of
+quantifying the performance of our algorithm, we model the
+shoulder with only two DOFs to match those of the industrial
+robot used in this study for comparison. Fig. 1 shows the arm
+model with static base reference frame 0 at the center of the
+shoulder joint. Frame 1 represents shoulder internal/external
+rotation, and frame 2 represents shoulder flexion/extension. The
+elbow joint is a hinge joint that allows movement in one plane,
+flexion/extension, represented by frame 3. The fourth joint is
+a pivot joint that allows for the forearm pronation/supination,
+and is represented by frame 4. Frames 5 and 6 represent wrist
+flexion/extension, and twist respectively. Table I shows the D-H
+parameters of the arm model, where lu is the length of the upper
+arm, lf is the length of the forearm, and θi is the ith angle of
+rotation.
+We used three IMUs to track the arm movement. Two IMUs,
+with triaxial gyroscopes and accelerometers, were secured with
+Velcro straps to the robot upper arm and forearm, and a third
+unit was secured inside a box on the wrist; see Fig. 2.
+
+EL-GOHARY AND MCNAMES: HUMAN JOINT ANGLE ESTIMATION WITH INERTIAL SENSORS AND VALIDATION WITH A ROBOT ARM
+
+1761
+
+related by the following recursive equations:
+i+1
+
+ωi+1 =
+
+i+1
+R i ωi
+i
+
+i+1
+
+ω̇i+1 =
+
+i+1 i
+i R ω̇i
+
+i+1
+
+Fig. 1. Kinematics diagram of the arm model with Frame 0 as the static reference at the base. Frames 1 and 2 represent shoulder internal/external rotation,
+and flexion/extension, respectively. Frame 3 represents elbow flexion/extension.
+Frame 4 represents forearm pronation/supination. Wrist flexion/extension, and
+wrist twist are represented by frames 5 and 6, respectively.
+
+TABLE I
+D-H PARAMETERS FOR THE 6 DOFS ARM MODEL
+Frame
+
+α i −1
+
+a i −1
+
+di
+
+θi
+
+1
+2
+3
+4
+5
+6
+
+0
+π /2
+0
+π /2
+−π /2
+π /2
+
+0
+a1
+lu
+0
+0
+0
+
+0
+0
+0
+0
+lf
+0
+
+θ1
+θ 2 + π /2
+θ3
+θ 4 + π /2
+θ 5 − π /2
+θ6
+
+v̇i+1 =
+
++ θ̇i+1
+
+i+1
+
+Zi+1
+
+i
++i+1
+i R ωi × θ̇i+1
+
+
+
+i+1
+R i ω̇i
+i
+
+(1)
+i+1
+
+Zi+1 + θ̈i+1
+
+i+1
+
+Zi+1
+
+× Pi+1 + ωi × ( ωi × Pi+1 ) + v̇i
+i
+
+i
+
+i
+
+i
+
+i
+
+
+
+(2)
+(3)
+
+where i+1
+R is the rotation matrix between the ith and (i + 1)th
+i
+link, × represents the cross product operation, i Pi+1 is the position vector of frame i + 1, which is the upper right 3 × 1 vector
+of the D-H matrix. The rotation matrices R, can be obtained
+by taking the transpose of the upper left 3 × 3 transformation
+matrix and the D-H parameters shown in Table I. The single and
+double dot notation represents the first and second derivatives
+with respect to time. We initialize ω0 = ω̇0 = (0, 0, 0)T . Effect
+of gravity is included in the model at no extra cost by setting
+v̇0 = (gx , gy , gz )T , where g is gravity along each of the three
+axes. These forward recursive equations are used to propagate
+angular velocity, and angular and linear acceleration from the
+reference coordinate system through the links of upper arm,
+forearm, and wrist.
+C. State Space Model
+The general discrete time state-space model is of the form,
+x(n + 1) = fn [x(n), u(n)]
+
+(4)
+
+y(n) = hn [x(n), v(n)]
+
+(5)
+
+where x(n) is the unobserved state of the system, y(n) is the
+observed or measured data, fn [·] and hn [·] are nonlinear state
+and observation equations, u(n) and v(n) are the state and observation white noise with zero mean. Our state model equations
+which describe the evolution of the states with time are given
+by
+
+Fig. 2. Two IMUs were secured with Velcro straps to the robot upper arm and
+forearm, and a third unit was secured inside a box on the wrist
+
+B. Propagation of Velocity and Acceleration
+To formulate the dynamic equations for arm sensor measurement, including gyroscope and accelerometer data, we use three
+of the Newton–Euler equations of motion. Each link of the arm
+in motion has some angular velocity, angular and linear acceleration (ω, ω̇, v̇). The velocity i+1 ωi+1 of link i + 1 is that of
+link i plus the new velocity component added by joint i + 1.
+Similarly, the angular and linear acceleration of each link are
+
+1
+θi (n + 1) = θi (n) + Ts θ̇i (n) + Ts2 θ̈i (n)
+2
+
+(6)
+
+θ̇i (n + 1) = θ̇i (n) + Ts θ̈i (n)
+
+(7)
+
+θ̈i (n + 1) = αθ̈i (n) + uθ̈ i (n)
+
+(8)
+
+where i = {1, . . . , 6} of the six angles, θi (n) is the ith angle at
+time n, θ̇i is the angular velocity, θ̈i is the angular acceleration,
+uθ̈ i (n) is a white noise process with zero mean, α is a process model parameter, and Ts = 1/fs is the sampling period.
+These are standard equations for a physical object traveling
+at a constant acceleration. The model assumes the acceleration is constant for the duration of a sampling interval. This
+is sufficient for our data, which was acquired with a sample
+rate of fs = 128 Hz. The angular acceleration is modeled as
+a first-order autoregressive process with zero mean. Depending on the choice of the parameter α, this represents process
+models ranging from a random walk model (α = 1) to a white
+noise model (α = 0). For values of α < 1 the estimated angular
+accelerations are biased towards 0. Typically, the value of α is
+assigned an intermediate value that represents typical patterns of
+
+1762
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+v̇z (n) = a1 a2 cos(θ2 )θ˙1 θ˙2 + θ¨1 a2 sin(θ2 )
+
+TABLE II
+USER-SPECIFIED PARAMETERS AND SAMPLE RATE FOR THE UKF- AND
+EKF-BASED TRACKER
+Name
+Variance of gyroscope measurement white Gaussian noise
+Variance of accelerometer measurement white Gaussian noise
+Variance of process white Gaussian noise
+Initial state covariance matrix
+Angular acceleration process parameter
+
++θ˙1 θ˙2 a2 cos(θ2 ) − a1 θ¨1 + baz ,
+
+Symbol
+
+Value
+
+σv g 2
+σv a 2
+σu 2
+P
+α
+
+.0001
+.0064
+1.00
+I
+0.90
+
+I represents an identity matrix.
+
+(14)
+
+where θi is the ith angle at time n, θ̇i is the angular velocity,
+and θ̈i is the angular acceleration. The distance between elbow
+flexion joint and the device is a2 . The time index n was dropped
+from right-side of the equations for ease of readability. Observation equations for the forearm and wrist sensors are too large
+to be shown here.
+E. Anatomical Constraints in the Shoulder and Elbow
+
+constrained human joint rotation, which does not grow unbounded. It is one of the filter parameters tuned to improve
+the tracking performance. Its value and other parameter used in
+the tracker are described in Table II.
+The observation model describes the measurement obtained
+by the triaxial gyroscope for the angular rate and the triaxial
+accelerometer for the translational acceleration
+
+
+ 
+ω(n)
+vg (n)
+,
+y(n) =
++
+va (n)
+v̇(n)
+where ω = {ωx , ωy , ωz }T is the angular velocity along the X,
+Y , and Z axes. The gyroscope noise is described by the 3-D vector vg . Similarly, the translational accelerations and their noise
+along the three axes are v̇ = {v̇x , v̇y , v̇z }T . It should be noted
+that the acceleration measurement vector includes translational
+accelerations and the effect gravity.
+D. Modeling Sensor Random Drift
+To reduce the effect of random drift on shoulder rotation
+angle estimates, we model the bias of the sensors placed on the
+shoulder. Bias is modeled as a random walk, adding six more
+dimensions to the process model:
+1
+θi (n + 1) = θi (n) + Ts θ̇i (n) + Ts2 θ̈i (n)
+2
+..
+.
+bω (n + 1) = bω (n) + ubω (n)
+ba (n + 1) = ba (n) + uba (n).
+The 3D gyroscope bias bω and 3-D accelerometer bias ba are
+random walk with zero-mean white noise ubω and uba . The
+observation equation for the inertial measurement unit placed
+on the upper arm is given below:
+ωx (n) = θ˙1 cos(θ2 ) + bω x
+
+(9)
+
+ωy (n) = −θ˙1 sin(θ2 ) + bω y
+
+(10)
+
+ωz (n) = θ˙2 + bω z
+
+(11)
+2
+
+2
+
+v̇x (n) = a1 sin(θ2 )θ˙1 + g cos(θ2 ) − θ˙1 a2 sin(θ2 )2
+2
+
+−θ˙2 a2 + bax
+2
+
+(12)
+2
+
+v̇y (n) = a1 cos(θ2 )θ˙1 − g sin(θ2 ) − θ˙1 a2 cos(θ2 ) sin(θ2 )
++θ¨2 a2 + bay
+
+(13)
+
+The state model equations provide an elegant and convenient
+mean of incorporating prior knowledge of physical constraints
+on state estimates to obtain accurate estimation. Human shoulder
+rotation around the humerus bone cannot exceed 90◦ . Similarly,
+shoulder cannot attain more than 180◦ of abduction or flexion
+[32]. The natural range of elbow flexion is between zero and
+145◦ . The range of forearm supination is between zero and 85◦ ,
+and between zero and 80◦ for the forearm pronation. The wrist
+flexion/extension natural range is ±75◦ . There are many ways to
+incorporate state constraints into the nonlinear state estimators
+[33]. In this study, the constraints information are incorporated
+in the UKF algorithm during the time update, by restricting the
+sigma points within the natural range of motion region. The
+constrained sigma points are then used to in the measurement
+update, Kalman gain calculation, and state updates. During the
+measurement update, the constraints may be violated due to the
+linearization. However, these violations are rare and small in
+magnitude.
+F. Zero-Velocity Updates
+To mitigate the effect of gyroscope drift on the estimated
+heading angles during long periods of movement, we employ
+the zero-velocity updates. Zero-velocity updates has been used
+in ambulatory gait analysis and pedestrian navigation. During
+walking cycles, human feet alternate between a moving stride
+phase and a stationary stance phase when the foot is on the
+ground. In their tracking algorithm, Feliz et al. detected the
+stationary phase when the total angular rate was below 1r ad / sec
+[34] to reset the angular rate to zero. Resetting the inertial data to
+zero is referred to as hard update. Foxlin detected the stationary
+phase when gyroscope and accelerometer data stayed below a
+prescribed threshold for at least 0.15 s. He applied zero-velocity
+updates as pseudo-measurements in an EKF navigation error
+corrector [35]. This is classified as soft zero-velocity updates
+[36].
+In this study, we only apply zero-velocity to update estimates
+of the gyroscope bias around the vertical axis. Since our algorithm uses gravity to estimate the attitude and we only lack an
+absolute reference for heading about the vertical axis. When the
+rotational rate around the vertical axis stays below 3◦ / sec for at
+least 0.25 sec , movement is considered static. During this static
+period, the measurement equation is augmented with a pseudomeasurement of gyroscope vertical axis random bias. Putting
+pseudo-measurements into the UKF filter, instead of applying a
+hard update by resetting the velocity to zero, provides additional
+benefits. First, the filter provides an estimate of the gyroscope
+
+EL-GOHARY AND MCNAMES: HUMAN JOINT ANGLE ESTIMATION WITH INERTIAL SENSORS AND VALIDATION WITH A ROBOT ARM
+
+bias, and corrects rotational rate estimates. Thus, the filter corrects estimates of heading angle, and consequently other distal
+arm angles.
+
+TABLE III
+MAXIMUM OPERATING SPEED AND MOTION RANGE FOR THE ROBOT ARM
+Task
+
+G. Nonlinear State Estimator
+The model introduced above has a nonlinear relationship between the angles and sensor measurements. The EKF is the
+most common method of nonlinear state estimation. It is based
+on linearizing the state and observation models with a first-order
+Taylor series expansion. It models the state variables with firstand second-order moments, which is most appropriate when the
+distribution is Gaussian. The linearization leads to poor performance if the dynamics are highly nonlinear and the local
+linearization insufficiently characterizes the relationship. The
+EKF also requires calculation of Jacobian matrices, which can
+be difficult, tedious, error prone, and time consuming.
+Sequential Monte Carlo methods, also known as particle filters, can overcome the performance and implementation limitations of the EKF [37]. These algorithms can be applied to highly
+nonlinear and nonGaussian estimation problems, but they have
+computational requirements that are often orders of magnitude
+larger than the EKF or UKF. The UKF has nearly the same computational requirements as the EKF, but uses a more accurate
+method to characterize the propagation of the state distribution
+through the nonlinear models [38]. While the methods described
+in this article could be implemented with any of these nonlinear
+state space tracking algorithms, in our tracker we used the UKF.
+We also implement the tracker with the EKF to compare its
+performance versus UKF.
+Q and R, are user-specified parameters to represent the process and the measurement noise covariance. Since we assume
+white Gaussian noise, we set the off-diagonal entries of the two
+matrices to zeros. The diagonal elements of R are determined
+empirically and account for the uncertainty in the measurement
+data. We approximate the measurement noise based on short
+static periods at both ends of sensor measurements. Q is the
+process noise covariance matrix, and its diagonal elements are
+used as tuning parameters. These parameters control the tradeoff between certainty in the process model representing accurate
+motion dynamics, and how precisely the model tracks the sensor measurements. Table II lists the different parameters used to
+generate the tracking results.
+H. Performance Assessment
+To evaluate the performance of the inertial tracking system
+in monitoring arm movement, we compared the joint angles
+calculated by the inertial tracker with those obtained from an
+industrial Epson C3 robot arm (Epson Robots, CA, USA) with
+6 degrees of freedom. The arm is a high speed, and a very high
+precision industrial robot, that is normally used for medical device and parts assembly. Three Opal sensors (APDM, Portland,
+OR, USA), each containing triaxial accelerometers and gyroscopes were placed on the upper arm, forearm and wrist as
+shown in Fig. 2. Table III shows the Epson C3 range of motion
+and operating speed of the six joints.
+
+1763
+
+Rate
+
+Shoulder Internal/External Rotation
+Shoulder Flexion/Extension
+Elbow Flexion/Extension
+Forearm Supination/Pronation
+Wrist Flexion/Extension
+Wrist Twist
+
+Max. Motion Range
+
+◦
+
+450 / sec
+450 ◦ / sec
+514 ◦ / sec
+553 ◦ / sec
+553 ◦ / sec
+720 ◦ / sec
+
+±180 ◦
+−160 ◦ , +65 ◦
+−51 ◦ , +225 ◦
+±200 ◦
+±135 ◦
+±360 ◦
+
+Inertial sensor and robot data were synchronized by calculating the lag time using cross-correlation analysis.
+r̂y x () ≈ E[y(n)x(n − )].
+
+(15)
+
+If max(r̂y x ) is significant at lags || > 0, then  gives information about the delay between the signals. In this study, inertial
+sensors were started before the robot arm. Hence, the robot data
+was lagging. The lagging robot data was augmented with  zeros
+to synchronize it with the leading sensor data.
+The majority of the tracking algorithms discussed in the introduction limit their performance assessment to movement performed with slow articulation. To verify the performance of our
+inertial algorithm in tracking normal and fast movement, we
+collected planar and complex arm movement at three different
+rotational rates. The first dataset was of the arm movement at
+slow speed, which was defined as one fourth of the arm maximum rotational rate. The second and third datasets were of the
+arm movement at medium and fast speed, which were defined
+as one half and full range of the maximum arm rotational rate,
+respectively.
+Another limitation of previous systems, is the brief time duration of correct tracking or assessment. In this study, each dataset
+lasted at least 15 min. Each recording started with a stationary
+period of 3 s at the initial pose. This period was used to estimate the gyroscope deterministic bias offset. The mean of each
+gyroscope-axis stationary measurement was removed from gyroscope data before calculating the joint angles. The rest of
+the recording was designed to include simple planar movement
+around each of the six joints. Each planar movement, explained
+in Table III, was repeated four times. This was followed by
+a second of stationary movement, and ended with a complex
+joints movement that involved the three joint simultaneously to
+mimic regular arm movement for about 2 min. This arm trajectory was repeated a few times to obtain three continuous 15-min
+recordings of robot arm movements at slow, medium, and fast
+rotation rate.
+
+III. RESULTS
+We used two different trackers to compare the performance
+of the EKF to that of the UKF in estimating the joint angles. The
+assessment of the tracking performance is based on the entire
+15-min duration of recording of arm movement.
+
+1764
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+TABLE IV
+BASELINE RMSE BETWEEN TRUE ROBOT ANGLES AND ESTIMATED USING
+THE UKF OF THE THREE DATASETS
+Task
+Shoulder Internal/External Rotation
+Shoulder Flexion/Extension
+Elbow Flexion/Extension
+Forearm Supination/Pronation
+Wrist Flexion/Extension
+Wrist Twist
+Rotational Rate
+
+Slow ( ◦ )
+
+Medium ( ◦ )
+
+Fast ( ◦ )
+
+25.0
+1.1
+1.1
+1.4
+1.2
+1.8
+≤ 180 ◦ / s
+
+8.1
+2.4
+2.6
+2.1
+2.2
+3.9
+≤ 360 ◦ / s
+
+9.6
+2.5
+3.3
+2.4
+2.9
+3.8
+≤ 720 ◦ / s
+
+Fig. 4. Baseline shoulder angle estimates compared to the true angles during
+the last 2 min of slow arm movement.
+
+Fig. 3. True (dotted red line) and estimated (solid blue line) wrist angles
+during the last 2 min of slow arm movement.
+
+A. Baseline Performance Results
+In this section, we present baseline performance results of
+the tracker before employing the modified model to account for
+sensor drift, physical constraints, and zero-velocity updates. The
+baseline results will be used to assess the performance improvement introduced by employing the drift reduction techniques.
+We calculated the correlation coefficient r, and the average root
+mean squared error (RMSE) between angle estimates from the
+inertial tracker and true arm angles. Table IV shows the baseline
+RMSE for the three datasets.
+B. UKF Performance with Modified Arm Model
+We combined the three techniques discussed above into one
+modified arm model to account for sensor drift, and to employ
+physical constraints and zero-velocity updates. Fig. 3 show the
+last 2 min of the wrist true angles (dotted red lines) and their estimates (solid blue lines) using the UKF-based inertial tracking
+system during slow rotation rate up to 180◦ / sec. Fig. 4 shows
+the last 2 min of shoulder internal/external rotation, and flexion/extension angles and their baseline estimates during slow
+rotation. Fig. 5 shows the same angles estimated using the modified model.
+Table V shows that the new modified model dramatically decreased shoulder internal/external rotation angle error
+from 25.0◦ to 7.8◦ ; an error reduction of 69% compared to
+
+Fig. 5. Shoulder angle estimates using the modified model compared to the
+true angles during the last 2 min.
+
+TABLE V
+RMSE BETWEEN ANGLE ESTIMATES AND TRUE ROBOT ARM ANGLES
+DURING SLOW, MEDIUM, AND FAST SPEED MOVEMENT USING UKF
+Task
+Shoulder Internal/External Rotation
+Shoulder Flexion/Extension
+Elbow Flexion/Extension
+Forearm Supination/Pronation
+Wrist Flexion/Extension
+Wrist Twist
+Error reduction
+
+Slow ( ◦ )
+
+Medium ( ◦ )
+
+Fast ( ◦ )
+
+7.8
+0.8
+0.9
+1.3
+1.1
+1.7
+69%
+
+3.0
+1.6
+2.0
+1.2
+1.5
+2.8
+63%
+
+5.9
+2.5
+2.8
+1.1
+1.8
+2.2
+39%
+
+baseline estimates around the vertical axis. The modified model
+also resulted in an increased average correlation from 0.92 to
+0.98 for slow movement. Consistent with the results for slow
+arm movement, tracking errors between inertial angle estimates
+and true robot joint angles were ≤ 3.0◦ during medium-speed
+movement, and ≤ 5.9◦ during fast-speed movement. Error in
+shoulder internal/extension rotation estimates was still higher
+than the joint angle error, although it dropped from 8.1◦ to 3.0◦
+
+EL-GOHARY AND MCNAMES: HUMAN JOINT ANGLE ESTIMATION WITH INERTIAL SENSORS AND VALIDATION WITH A ROBOT ARM
+
+Fig. 6. True shoulder angles and their estimates of the last 2 min at an average
+rotation rate of 225 ◦ / s. Angles were estimated using the modified arm model
+with the EKF-based tracker.
+TABLE VI
+RMSE BETWEEN ANGLE ESTIMATES AND TRUE ROBOT ARM ANGLES
+DURING SLOW, NORMAL, AND FAST SPEED MOVEMENT USING EKF
+Task
+
+Slow
+
+Regular
+
+Fast
+
+Shoulder Internal/External Rotation
+Shoulder Flexion/Extension
+Elbow Flexion/Extension
+Forearm Supination/Pronation
+Wrist Flexion/Extension
+Wrist Twist
+
+8.8
+1.2
+1.3
+0.8
+1.2
+1.8
+
+8.6
+1.9
+2.1
+1.4
+1.9
+3.7
+
+9.7
+2.5
+3.1
+1.4
+2.9
+3.4
+
+during medium movement, and from 9.6◦ to 5.9◦ during fast
+movement. Error in the other five arm angles were consistently
+lower that estimation error the shoulder rotation, with a maximum error of 2.8◦ in elbow flexion/extension during fast arm
+movement.
+C. EKF Performance
+We implemented the inertial tracker with the EKF using the
+modified arm model, and the same user-specified parameters
+which were used with the UKF-based tracker. Fig. 6 shows the
+last 2 min of the robot shoulder during medium internal/external
+rotation around the vertical axis at a rotational rate of 225◦ / sec.
+We obtained consistent agreement between the true arm angles
+and their inertial estimates.
+IV. DISCUSSION
+In this study, we combined kinematic models with state space
+methods to estimate human joint angles using wearable inertial
+measurement units. The state model equations provide elegant
+and efficient means of incorporating sensor bias model, prior
+knowledge of physical constraints on state estimates, and zerovelocity updates to obtain accurate estimation of continuous
+long recordings. Besides the rotational rate data, the state space
+model includes both the translational and gravitational components of acceleration. This enables the system to provide state
+
+1765
+
+estimates during both fast and slow movements with consistent
+accuracy. States estimates included joint angles, angular rotation, and acceleration. This framework could easily be extend to
+estimate joint segment lengths and segment positions, to provide
+full human body kinematics during spontaneous daily activities.
+We used the UKF to estimate shoulder, elbow, and wrist joint
+angles from an industrial robot arm with 6 DOFs. Despite the
+different characteristics of human movement from the movement of robots, we argue that using a robot arm for assessment
+has many advantages over the traditional optical systems. The
+different characteristics are mainly due to the type of joints.
+According to [32], the human arm mechanism is composed of
+7 DOFs, with shoulder joint as a ball-and-socket joint with 3
+DOFs. However, the robot shoulder has only 2 DOFs, which limits the comparison to only 6 DOFs. Despite this limitation, using
+the robot arm for assessment provides many advantages. Unlike
+motion capture systems, which require estimation of joint angles
+from marker positions and interpolation during marker occlusions, the robot system provides direct angle measurements with
+high precision. The arm movement rate can be controlled to a
+desired rate ranging from slow to very fast, up to 720◦ / sec. The
+robot provides a wide range of motion that can easily mimic
+human movement in performing various tasks.
+A stationary calibration period of 3 s at the initial pose preceded each dataset served multiple purposes. The first was to
+align the inertial sensors and the robotic reference system. The
+second was to calculate the variance of sensor measurement
+noise. The stationary period was also used to calculate the gyroscope constant bias. This bias was removed from the gyroscope
+data before calculating the joint angles.
+Compared to joint angles obtained from the robot reference
+system, we achieved an average RMS angle error ≤ 3◦ during slow arm movement at a rotational rate ≤ 180◦ / sec. As
+expected, a maximum error of 7.8◦ was obtained for heading
+angles around the vertical axis. Estimation error accumulates
+around the vertical axis during slow or static periods. In absence of changes in acceleration, gravity alone does not provide
+any complementary data to that of the gyroscope. Shoulder angle estimates around the vertical axis rely only on gyroscope
+data, therefore error accumulates due to gyroscope drift after 15
+min. This, however, is a very reasonable error range compared
+to what was reported by Roetenberg who showed that integration of noisy gyroscope data resulted in a drift between 10◦ –25◦
+after 1 min [12].
+In contrast to many studies discussed in the introduction,
+we validated the performance of our tracking algorithm during different speeds, over 15 min. Angle estimates during arm
+movement at medium rotation rate ≤ 360◦ / sec are very similar
+to those obtained during slow movement. On average, the RMS
+angle error was 2.0◦ , with a maximum error of 3.0◦ between
+true and estimated shoulder internal/external rotation. The error
+slightly increased during fast movement with an average RMS
+angle error of 2.7◦ , and a maximum error of 5.9◦ between true
+and estimated shoulder internal/external rotation. Besides the effect of gyroscope drift on the accuracy of the estimated angles,
+there was another source of noise that contributed to the larger
+error. That was the effect of fast arm movement on the table on
+
+1766
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 7, JULY 2015
+
+which the arm is mounted. Due to the very fast movement, the
+table was vibrating strongly, especially during rotation around
+the vertical axis, adding more noise to the sensor measurements.
+Despite the slightly higher estimate error during fast movement,
+we maintained a very reasonable error range compared to what
+was achieved by other studies which reported error range of
+12◦ −16◦ [25].
+The combined effect of imposing physical constraints, modeling sensor bias, and employing zero-velocity updates resulted
+in a considerable decrease in tracking error. The RMSE dropped
+from 25.0◦ of the baseline heading angle to 7.8◦ for estimates
+during slow rotation; an error reduction of 69%. Similarly, the
+RMSE dropped from 8.1◦ with the baseline heading angle to
+3.0◦ ; an error reduction of 63% for joint angles during mediumspeed rotation. Estimation error of fast shoulder rotation around
+the vertical axis was reduced also from 9.6◦ to 5.9◦ . The combined effect of using the modified model in reducing the error
+due to sensor drift can be observed especially during the last
+few minutes of the recording in Fig. 4. With the prior knowledge that the arm rotation cannot exceed a certain limit, the
+effect of gyroscope drift on angle estimates was reduced to a
+very reasonable range of errors. This eliminates the need to using magnetic sensors which leads to large errors due to magnetic
+field disturbances [25].
+Results for the EKF-based tracker shows that the UKF performs slightly better. On average, the RMSE was 2.5◦ , 3.3◦ , and
+3.8◦ during slow, regular and fast arm movement respectively.
+As in the UKF case, maximum error was obtained for heading
+angles around the vertical axis. Shoulder internal/external rotation ranged from 8.6◦ to 9.7◦ . The additional complexity of
+the EKF in deriving a Jacobian matrix, besides the UKF better
+performance, leads to the conclusion that the UKF is a better
+choice for estimating Joint angles.
+Natural resting positions of the human arm could be detected,
+and used to correct long-term drift during the day. We are currently collecting continuous data from human subjects performing daily life activities. We plan to study the effect of employing
+drift-correction to shoulder joint angles during these resting
+positions.
+V. CONCLUSION
+The results presented here demonstrate that wearable inertial
+sensors have the potential to achieve a level of accuracy that facilitates the study of normal and pathological human movement.
+We combined kinematic models designed for control of robotic
+arms with state space methods to directly and continuously estimate human joint angles using wearable inertial sensors. These
+algorithms can be applied to any combination of synchronized
+sensors and can be generalized to track any limb movement. The
+state space framework enables one to efficiently impose physical
+constraints on state estimates, and to track in real-time or with
+improved accuracy offline. The agreement with a high-precision
+robot arm reference system was excellent. Unlike other motion
+systems, which require fixed cameras in a controlled environment and suffer from problems of occlusion, wearable inertial
+sensors can be used anywhere, cannot be occluded, and are low
+
+cost. Our proposed method used a minimal sensor configuration with one sensor on each segment. In addition, our method
+is very accurate during long periods of movements at various
+rotational rates.
+REFERENCES
+[1] H. Graichen et al., “Effect of abducting and adducting muscle activity
+on glenohumeral translation, scapular kinematics and subacromial space
+width in vivo,” J. Biomech., vol. 38, no. 4, pp. 755–760, 2005.
+[2] R. J. de Asla et al., “Six DOF in vivo kinematics of the ankle joint
+complex: Application of a combined dual-orthogonal fluoroscopic and
+magnetic resonance imaging technique,” J. Orthopaedic Res., vol. 24, pp.
+1019–1027, May 2006.
+[3] M. J. Bey et al., “Measuring dynamic in-vivo glenohumeral joint Kinematics: technique and preliminary results,” J. Biomech., vol. 41, no. 3, pp.
+711–714, Nov. 2008.
+[4] J. B. Lunden et al., “Measuring dynamic in-vivo glenohumeral joint kinematics: technique and preliminary results,” J. Shoulder Elbow Surg., vol.
+19, no. 2, pp. 216–223, Mar. 2010.
+[5] C. E. Draper et al., “Differences in patellofemoral kinematics between weight-bearing and non-weight-bearing conditions in patients with
+patellofemoral pain,” J. Orthopaedic Res., vol. 29, no. 3, pp. 312–317,
+Mar. 2011.
+[6] E. Roux et al. “Evaluation of the global optimization method within the
+upper limb kinematics analysis,” J. Biomech., vol. 35, no. 9, pp. 1279–
+1283, 2002.
+[7] G. Welch and E. Foxlin, “Motion tracking: No silver bullet, but a respectable arsenal,” IEEE Comput. Graph. Appl., vol. 22, no. 6, pp. 24–38,
+Nov/Dec. 2002.
+[8] K. Liu et al., “Novel approach to ambulatory assessment of human segmental orientation on a wearable sensor system,” J. Biomechanics, vol.
+42, no. 16, pp. 2747–2752, Sep. 2009.
+[9] F. Bagal et al., “Calibrated 2D angular kinematics by single-axis accelerometers: From inverted pendulum to N-Link chain,” IEEE Sens. J.,
+vol. 12, no. 3, pp. 479–486, Mar. 2012.
+[10] H. Dejnabadi et al., “Estimation and visualization of sagittal kinematics of
+lower limbs orientation using body-fixed sensors,” IEEE Trans. Biomed.
+Eng., vol. 53, no. 7, pp. 1385–1393, Jul. 2006.
+[11] J. Bregmann et al., “A portable system for collecting anatomical joint
+angles during stair ascent: A comparison with an optical tracking device,”
+Dyn. Med., vol. 8, no. 3, 2009.
+[12] D. Roetenberg, “Inertial and Magnetic Sensing of Human Motion,” Ph.D.
+dissertation, Univ. Twente, Twente, The Netherlands, 2006.
+[13] D. Roetenberg et al., “Compensation of magnetic disturbances improves
+inertial and magnetic sensing of human body segment orientation,” IEEE
+Trans. Neural Syst. Rehabil. Eng., vol. 13, no. 3, pp. 395–405, Sep. 2005.
+[14] K. O’Donovan et al., “An inertial and magnetic sensor based technique
+for joint angle measurement,” J. Biomechanics, vol. 40, no. 16, pp. 2604–
+2611, Mar. 2007.
+[15] W. H. K. de Vries et al., “Functionally interpretable local coordinate
+systems for the upper extremity using inertial and magnetic measurement
+systems,” J. Biomechanics, vol. 43, pp. 1983–1988, 2010.
+[16] J. Favre et al., “Ambulatory measurement of 3D knee joint angle,” J.
+Biomechanics, vol. 41, no. 5, pp. 1029–1035, Jan. 2008.
+[17] H. Luinge et al., “Ambulatory measurement of arm orientation,” J. Biomechanics, vol. 40, pp. 78–85, 2007.
+[18] H. Luinge et al., “Motion tracking system,” U.S. Patent 2008/0285805
+A1, Nov. 2008.
+[19] G. Cooper et al., McMillan, “Inertial sensor-based knee flexion/extension
+angle estimation,” J. Biomechanics, vol. 42, no. 16, pp. 2678–2685, 2009.
+[20] E. R. Bachmann and R. B. McGhee, “Inertial and magnetic posture tracking for inserting humans into networked virtual environments,” in Proc.
+ACM Symp. Virtual Reality Softw. Technol., New York, NY, USA, 2001,
+pp. 9–16.
+[21] H. Zhou and H. Hu, “Inertial motion tracking of human arm movements
+in stroke rehabilitation,” in Proc. IEEE Int. Conf. Mechatronics Autom.,
+2005, pp. 1306–1311.
+[22] X. Yun and E. Bachmann, “Design, implementation, and experimental
+results of a quaternion-based Kalman filter for human body motion tracking,” IEEE Trans. Robot., vol. 22, pp. 1217–1227, Dec. 2006.
+[23] D. Roetenberg et al., “Ambulatory position and orientation tracking fusing
+magnetic and inertial sensing,” IEEE Trans. Biomed. Eng., vol. 54, no. 5,
+pp. 883–890, May 2007.
+
+EL-GOHARY AND MCNAMES: HUMAN JOINT ANGLE ESTIMATION WITH INERTIAL SENSORS AND VALIDATION WITH A ROBOT ARM
+
+[24] H. Zhou and H. Hu, “Upper limb motion estimation from inertial measurements,” Int. J. Inform. Technol., vol. 13, no. 1, pp. 1–14, 2007.
+[25] E. R. Bachmann et al., “An investigation of the effects of magnetic variations on inertial/magnetic orientation sensors,” in Proc. IEEE Int. Conf.
+Robot. Autom., 2004, pp. 1115–1122.
+[26] X. Yun et al., “A simplified quaternion-based algorithm for orientation
+estimation from earth gravity and magnetic field measurements,” IEEE
+Trans. Instrum. Meas., vol. 57, no. 3, pp. 638–650, Feb. 2008.
+[27] A. G. Cutti et al., “Ambulatory measurement of shoulder and elbow kinematics through inertial and magnetic sensors,” Med. Biological Eng. Comput., vol. 46, pp. 169–178, Feb. 2008.
+[28] M. El-Gohary and J. McNames, “Shoulder and elbow joint angle tracking
+with inertial sensors,” IEEE Trans. Biomed. Eng., vol. 59, no. 9, pp. 577–
+585, Jul. 2012.
+[29] A. G. Cutti et al., “Soft tissue artefact assessment in humeral axial rotation,” Gait Posture, vol. 21, pp. 341–349, Apr. 2005.
+[30] J. J. Craig, Introduction to Robotics, Mechanics and Control, ser. Electrical
+and Computer Engineering: Control Engineering. Reading, MA, USA:
+Addison-Wesley, 1989.
+[31] M. El-Gohary et al., “Upper limb joint angle tracking with inertial sensors,” in Proc. IEEE Annu. Int. Conf. Eng. Med. Biol. Soc., 2011, pp.
+5629–5632.
+[32] A. Forner-Cordero et al., “Kinematics and dynamic of wearable robots,”
+in Wearable Robots: Biomechatronic Exoskeletons, 2nd ed., J. L. Pons,
+Ed. West Sussex, U.K.: Wiley, 2008, ch. 3, pp. 47–85.
+
+1767
+
+[33] D. Simon, “Kalman filtering with state constraints: A survey of linear and
+nonlinear algorithms,” Control Theory Appl., vol. 4, no. 8, pp. 1303–1318,
+Aug. 2010.
+[34] R. Feliz et al., “Pedestrian tracking using inertial sensors,” J. Phys. Agents,
+vol. 3, no. 1, pp. 35–42, Jan. 2009.
+[35] E. Foxlin, “Pedestrian tracking with shoe-mounted inertial sensors,” IEEE
+Comput. Graph. Appl. Comput. Graph. Appl., vol. 25, no. 6, pp. 38–46,
+Nov. 2005.
+[36] I. Skog, P. Händel, J.-O. Nilsson, and J. Rantakokko, “Zero-velocity
+detection—An algorithm evaluation,” IEEE Trans. Biomed. Eng., vol.
+57, no. 11, pp. 2657–2666, Nov. 2010.
+[37] O. Cappé et al., “An overview of existing methods and recent advances in
+sequential monte carlo,” in Proc. IEEE, vol. 95, May 2007, pp. 899–924.
+[38] S. Julier and J. Uhlmann, “Unscented filtering and nonlinear estimation,”
+in Proc. IEEE, vol. 92, 2004, pp. 401–422.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

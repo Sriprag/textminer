@@ -1,0 +1,1302 @@
+648
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fast and Adaptive Detection of Pulmonary Nodules
+in Thoracic CT Images Using a Hierarchical
+Vector Quantization Scheme
+Hao Han, Lihong Li, Senior Member, IEEE, Fangfang Han, Bowen Song, William Moore,
+and Zhengrong Liang, Fellow, IEEE
+
+Abstract—Computer-aided detection (CADe) of pulmonary nodules is critical to assisting radiologists in early identification of
+lung cancer from computed tomography (CT) scans. This paper
+proposes a novel CADe system based on a hierarchical vector quantization (VQ) scheme. Compared with the commonly-used simple
+thresholding approach, the high-level VQ yields a more accurate
+segmentation of the lungs from the chest volume. In identifying
+initial nodule candidates (INCs) within the lungs, the low-level
+VQ proves to be effective for INCs detection and segmentation, as
+well as computationally efficient compared to existing approaches.
+False-positive (FP) reduction is conducted via rule-based filtering
+operations in combination with a feature-based support vector machine classifier. The proposed system was validated on 205 patient
+cases from the publically available online Lung Image Database
+Consortium database, with each case having at least one juxtapleural nodule annotation. Experimental results demonstrated that
+our CADe system obtained an overall sensitivity of 82.7% at a
+specificity of 4 FPs/scan. Especially for the performance on juxtapleural nodules, we observed 89.2% sensitivity at 4.14 FPs/scan.
+With respect to comparable CADe systems, the proposed system
+shows outperformance and demonstrates its potential for fast and
+adaptive detection of pulmonary nodules via CT imaging.
+Index Terms—Computer-aided detection (CADe), computed tomography (CT) imaging, false positive (FP) reduction, lung nodules, vector quantization (VQ).
+
+I. INTRODUCTION
+CCORDING to the up-to-date statistics from the American Cancer Society [1], lung cancer is the leading cause of
+cancer-related deaths with over 159 000 deaths estimated for the
+United States alone in 2013, and the overall five-year survival
+rate for lung cancer is merely 16%. The survival rate increases
+to 52% if it is localized, and decreases to 4% if it has metastasized. Therefore, to detect lung cancer at earlier stages is of
+
+A
+
+Manuscript received December 12, 2013; revised April 27, 2014; accepted
+May 23, 2014. Date of publication June 4, 2014; date of current version March
+2, 2015. This work was supported in part by the NIH/NCI under Grants
+#CA082402 and #CA143111. (Corresponding author: Zhengrong Liang.)
+H. Han, B. Song, W. Moore, and Z. Liang are with the Department
+of Radiology, Stony Brook University, Stony Brook, NY 11794 USA
+(e-mail: haohan@mil.sunysb.edu; bowen@mil.sunysb.edu; william.moore@
+stonybrookmedicine.edu; Jerome.Liang@stonybrookmedicine.edu).
+L. Li is with the Department of Engineering Science and Physics, College
+of Staten Island of The City University of New York, Staten Island, NY 10314
+USA (e-mail: lihong.li@csi.cuny.edu).
+F. Han is with the Northeastern University, Shenyang, Liaoning 110819,
+China (e-mail: neuhanfangfang@gmail.com).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2328870
+
+great importance [2], and computer-aided detection (CADe) in
+supplement to radiologists’ diagnosis has become a promising
+tool to serve such purposes [3].
+Detection of pulmonary nodules has a crucial effect on the
+diagnosis of lung cancer, but the detection is a nontrivial task,
+not only because the appearance of pulmonary nodules varies
+in a wide range, but also because nodule densities have low
+contrast against adjacent vessel segments and other lung tissues.
+Computed tomography (CT) has been shown as the most popular
+imaging modality for nodule detection [2], [4], because it has
+the ability to provide reliable image textures for the detection of
+small nodules. The development of lung nodule CADe systems
+using CT imaging modality has made good progress over the
+past decade [5], [6]. Generally, such CADe systems consist of
+three stages: 1) image preprocessing, 2) initial nodule candidates
+(INCs) identification, and 3) false positive (FP) reduction of the
+INCs with preservation of the true positives (TPs).
+In the preprocessing stage, the system aims to largely reduce
+the search space to the lungs, where a segmentation of the lungs
+from the entire chest volume is usually required. Because of
+the high image contrast between lung fields and the surrounding body tissue, image intensity-based simple thresholding is
+effective, and is currently the most commonly used technique
+for lung segmentation [7], [8]. However, the determination of
+an accurate threshold is greatly affected by image acquisition
+protocols, scanner types, as well as the inhomogeneity of intensities in the lung region, especially toward the segmentation of
+pathological lungs with severe pathologies [9], [10]. This paper proposes an adaptive solution to mitigate the difficulty of
+thresholding-based method in lung segmentation.
+After defining the search space (i.e., the lung volume), INCs
+detection is the next step to build a CADe system. Various
+INCs detection techniques have been extensively studied in recent years, such as multiple thresholding [11], [12], nodule enhancement filtering [13], [14], mathematical morphology [15],
+[16], and genetic algorithm template matching [17], [18], among
+many others. The most commonly used multiple thresholding
+approach aims to find connected components of similar image
+gray-values. Though intensity-based thresholding methods are
+computationally cheaper than other pattern-recognition techniques for the detection of INCs, they also suffer considerable
+drawbacks. For example, it is difficult to adaptively determine
+multiple thresholds, because pulmonary nodules with a wide intensity range are embedded in an inhomogeneous parenchyma
+background. On the other hand, pattern-recognition techniques
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+HAN et al.: FAST AND ADAPTIVE DETECTION OF PULMONARY NODULES IN THORACIC CT IMAGES
+
+are complicated and usually computational intensive. This paper
+proposes an efficient means which shares the adaptive natures of
+pattern-recognition techniques and the simplicity of intensitybased thresholding methods.
+Sufficient detection power for nodule candidates is inevitably
+accompanied by many (obvious) FPs. A rule-based filtering operation [17], [19], [20] is often employed to cheaply and drastically reduce the number of obvious FPs, so that their influence
+on the computationally more expensive learning process can
+be eliminated. In general, FP reduction using machine learning
+has been extensively studied in the literature. Compared with
+unsupervised learning that aims to find hidden structures in unlabeled data, supervised learning, which aims to infer a function
+from labeled training data, is more frequently used to design a
+CADe system. The rules learned from the training dataset can
+be applied to the differentiation between nodules and nonnodules in the test dataset. A number of supervised FP reduction
+techniques have been reported for the characterization of INCs,
+such as linear discriminant analysis (LDA) [11], [17], artificial
+neural network (ANN) [16], [21]–[23], and support vector machine (SVM) [14], [19], [20]. This paper takes the advantages
+of both the rule-based filtering operation and the SVM learning
+for FP reduction. Expert rules are learned from prior knowledge
+of true nodules annotated by the radiologists, while the classification rule for SVM is learned from two-dimensional (2-D)
+and three-dimensional (3-D) features extracted from the labeled
+subset.
+Inspired by our previous work [24], [25], we have proposed
+a hierarchical vector quantization (VQ) approach to address the
+preprocessing and INCs detection issues in an adaptive manner, aiming to overcome the drawbacks of global thresholding
+methods. Compared with the existing approaches, the hierarchical VQ can be an alternative with either comparable detection
+performance and less computational cost, or comparable cost
+and better detection performance.
+The remainder of this paper is organized as follows: Section II
+describes the details of each module employed in the proposed
+CADe system. Section III reports the experimental outcomes
+on validating the proposed CADe system using the largest publicly available database built by the Lung Image Database Consortium (LIDC) and the Image Database Resource Initiative
+(LIDC–IDRI). Section IV discusses the experimental results,
+the advantages and disadvantages of the proposed CADe system, as well as the future work to improve the CADe system.
+Section V draws conclusions of this study.
+II. METHODS
+This section will provide details of the proposed CADe system for lung nodules. The top-level block diagram of the proposed CADe system is depicted in Fig. 1. In the preprocessor
+block, the chest volume is extracted from the field-of-view of the
+image volume by simple thresholding (where the outside of the
+chest volume does not have anatomical structures). In the detector block, the two lungs are first separated from their surrounding
+anatomical structures via high level VQ and a connected component analysis. In order to include juxta-pleural nodules (i.e.,
+
+649
+
+Fig. 1. Top-level block diagram of the proposed CADe system for pulmonary
+nodules.
+
+nodules grow near, or originate from the parenchyma wall), the
+initial lung mask is refined by a morphological closing operation. Then, low-level VQ is employed to identify and segment
+the INCs within the extracted lung volume. In the classifier
+block, the obvious FPs are first excluded from the INCs via
+rule-based filtering operations, and then the SVM classifier is
+trained to further separate nodules from nonnodules based on the
+2-D and 3-D features of the INCs. More details on the proposed
+CADe system are given by the following sections.
+A. Self-Adaptive VQ Algorithm for Image Segmentation
+VQ was originally used for data compression in signal processing [26], and became popular in a variety of research fields
+such as speech recognition [27], face detection [28], image compression and classification [29], and image segmentation [24],
+[30], [31]. It allows for the modeling of probability density functions by the distribution of prototype vectors. The general VQ
+framework evolves two processes: 1) the training process which
+determines the set of codebook vector according to the probability of the input data; and 2) the encoding process which assigns
+input vectors to the codebook vectors. The well-known Linde–
+Buzo–Gray (LBG) algorithm [26] has been widely used for
+the design of vector quantizer. The algorithm aims to minimize
+the mean squared error and guarantees to converge to the local
+optimality. However, the following properties of the LBG algorithm limit its application: 1) it relies on the initial conditions,
+and 2) it requires an iterative procedure and long computation
+times. Hence in our previous work, the self-adaptive online VQ
+scheme [24] was proposed to speed up the vector quantizer,
+where the training and encoding processes are conducted in a
+parallel manner.
+Medical image segmentation is the key step toward quantifying the shape and volume of different types of tissues in
+a given image modality, which are used for 3-D display and
+feature analysis to facilitate diagnosis and therapy. The main
+idea of VQ for image segmentation is to classify voxels based
+on their local intensity distribution rather than single voxel intensity. The local intensity distribution can be described by a
+vector of voxel intensities. Fig. 2 illustrates three typical configurations of the local intensity vector that can be used by the
+VQ algorithm. In this study, the 3-D first-order neighborhood
+was employed to form the local intensity feature vector. Chest
+CT volume data consists of a huge quantity of body voxels,
+where each voxel has a local intensity vector. Such big data requires intensive computing effort to process. To greatly reduce
+the computational complexity, a dimension reduction technique
+[32] can be applied in the local feature vector space. Upon a
+
+650
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fig. 2. Three typical configurations of the local intensity vector: (a) the
+3-D first-order neighborhood to form a 7-D local intensity vector; (b) the
+3-D up-to-second order neighborhood to form a 11-D local intensity vector;
+(c) the 3-D up-to-third order neighborhood to form a 23-D local intensity vector. The current voxel is marked by an asterisk.
+
+linear Karhunen–Loéve (K–L) transformation of the local intensity vectors via the principal component analysis (PCA), we
+choose the first few principal components (PCs) that contribute
+at least 95% of the total variance for optimizing the dimension
+of the local vector space. Only the selected PCs will be retained
+to form the feature vector for VQ, and the remaining PCs with
+very little information will be neglected.
+VQ models the local statistics, analyzes group features, and
+classifies each voxel in the dimension-reduced feature space.
+VQ scans from the first voxel to the last one in a contiguous
+manner. For a given volume of interest (VOI), VQ begins with
+only one class initialized (i.e., the current total number of classes
+K  = 1) and its representative vector c1 is the local feature
+vector of the first voxel. Since the setup of initial condition is
+data-oriented, the VQ algorithm is fully automatic. For each
+following voxel i, the squared Euclidean distance between its
+local feature vector ωi and the representative vector ck of every
+existing class k = 1, . . . , K  is calculated by
+d(ωi , ck ) =
+
+P
+
+
+(ωip − ck p )2 .
+
+(1)
+
+p=1
+
+Here, the local feature vector ωi and each representative vector
+ck are both of dimension P, which was previously determined by
+PCA. The finite set codebook CB = {c1 , c2 , . . . , cK  } is then
+exhaustively searched for the nearest codevector cm in such that
+d(ωi , cm in ) = min  {d(ωi , ck )}.
+1≤k ≤K
+
+(2)
+
+Let T denote the threshold for intercluster distance, so that if
+d(ωi , cm in ) > T , a new class K  = K  + 1 is generated subject to the constraint of maximum class number K. Otherwise,
+if d(ωi , cm in ) = d(ωi , ck ) < T or K  = K, the representative
+vector ck of the current class k is updated after adding a new
+member xi into the class k. After a whole scan of the VOI,
+the representative vector, prior probability, and covariance of
+each cluster are generated. Meanwhile, all voxels have been
+classified under the nearest neighbor rule, where the exhaustive
+search under condition of (2) ensures the optimal classification
+result. As described previously, our VQ algorithm only depends
+on two parameters: K and T. The maximum class number K
+can be determined according to radiologists’ prior knowledge
+
+of how many major tissue types are perceived in the specific
+VOI. To set an appropriate value for the classification threshold,
+T is more crucial than the setting of K. If T is too large, only
+one class could be obtained. On the other hand, if T is too small,
+redundant classes might occur. According to extensive numerical experiments, a robust choice for T would be the maximum
+PC variance of the local intensity vector series. In addition, to
+avoid the situation of resulting class number being less than the
+expected number of tissue types, the class separation threshold
+T may be tuned to be the variance of the second or higher-order
+PC. Since the classification threshold T is data-oriented, the
+VQ algorithm is self-adaptive. The proposed VQ-based image
+segmentation algorithm is outlined as follows:
+1) Perform PCA to obtain the K–L transformation matrix for
+the target VOI, determine the reduced dimension P for the
+local intensity vector space, and calculate the K–L transformed local intensity vector ωi = {ωi1 , ωi2 , . . . , ωiP }
+for each voxel i = 1, . . . , I.
+2) Set the classification threshold T as the maximum PC
+variance, and set a value for the maximum class number
+K based on prior anatomical knowledge.
+3) i = 1, set the first voxel label v1 = 1, its local intensity
+vector ω1 as the representative vector c1 for the first class,
+n1 = 1 as the number of voxels belonging to class 1, and
+K  = 1 as the current number of classes.
+4) i = i + 1, calculate the squared Euclidean distance
+d(ωi , ck ) between the local intensity vector ωi of the
+current voxel and the representative vector ck for each
+existing class k = 1, . . . , K  .
+5) Let d(ωi , cm ) = min1≤k ≤K  {d(ωi , ck )}, if d(ωi , cm ) <
+T or K  = K, the label for the ith voxel is vi = m. cm is
+updated by cm = (nm ∗ cm + ωi )/(nm + 1), and nm =
+nm + 1. Otherwise, a new class K  = K  + 1 is generated
+with representative vector cK  = ωi , and the current voxel
+is labeled as vi = K  s.t. K  <= K.
+6) Repeat from step 4) until i = I to complete a whole scan.
+7) If K  < K, repeat steps 1) to 6) for another whole scan
+while setting the classification threshold T to be the variance of the second or higher-order PC until reaching the
+desired number of tissue types K  = K.
+In this paper, we mainly focus on demonstrating the merits
+of VQ in the detection of INCs, from where a novel CADe
+system is proposed to efficiently detect pulmonary nodules. The
+proposed hierarchical VQ scheme is detailed below.
+
+B. INCs Detection via a Hierarchical VQ Scheme
+A very important but difficult task in the CADe of lung nodules is the detection of INCs, which aims to search for suspicious
+3-D objects as nodule candidates using specific strategies. This
+step is required to be characterized by a sensitivity that is as
+close to 100% as possible, in order to avoid setting a priori upper bound on the CADe system performance. Meanwhile, the
+INCs should minimize the number of FPs to ease the following
+FP reduction step. This section presents our hierarchical VQ
+scheme for automatic detection and segmentation of INCs.
+
+HAN et al.: FAST AND ADAPTIVE DETECTION OF PULMONARY NODULES IN THORACIC CT IMAGES
+
+651
+
+Fig. 4. Comparison of simple thresholding and VQ for lung segmentation.
+Panel (a) shows a raw CT image with dense pathologies on the left lung lobe.
+Panel (b) illustrates the lung mask obtained by simple thresholding, and panel
+(c) is the lung mask obtained by the two-class high level VQ, which is robust to
+intensity inhomogeneity.
+
+Fig. 3. Image intensity or gray-level distribution of voxels in HU obtained
+from chest body volume of one CT scan of our datasets. Similar distributions
+can be obtained from other scans.
+
+1) Lung Segmentation by High Level VQ: First of all, since
+the chest CT images in the LIDC database were acquired under
+different scanning protocols, a standardization of CT intensities
+was carried out to preprocess our target datasets. Then by imposing an empirical threshold of −500 hounsfield unit (HU) [11],
+[12] on the entire CT scan, we could separate the chest body
+volume from the surrounding materials, such as air, fastening
+belts, CT bed, and other background materials.
+In order to ensure nodule detection being performed within
+the lung volume, the segmentation of lungs from the body volume is desired. Fig. 3 shows the histogram plot of the intensity
+of chest body volume from a typical lung CT scan, where we
+observe a clear separation of two major classes (i.e., the air
+tissue and other dense body tissue). Hence, it is reasonable for
+the proposed high level VQ to use these two major classes for
+segmentation. Of note, “high level” in the context of this paper refers to the operation of segmenting lungs from the entire
+chest volume. Since the lung parenchyma and the air in other
+organs have similar image intensities, they were classified into
+the low-intensity class.
+Most existing approaches utilize the outcome from simple
+thresholding to extract lungs from the chest volume. Though
+thresholding is computationally inexpensive, the associated side
+effect, called “salt and pepper” noise [33], diminishes the computational advantage. Furthermore, because of relatively high
+contrast between pathologic abnormalities and normal lung
+parenchyma, it is known that the conventional thresholding
+methods fail to extract complete lungs from such scans [9]. The
+proposed high level VQ scheme can avoid this failure on lung
+segmentation, as shown by the rectangular regions marked in
+Fig. 4. Although both thresholding and VQ are intensity-based
+approaches, VQ classifies each voxel based on its local intensity features rather than the single voxel intensity used by simple
+thresholding. Moreover, most simple thresholding approaches
+
+set a uniform threshold for all CT scans, which is unrealistic,
+while the similarity threshold in VQ is adaptively determined
+for each scan. This makes VQ more robust to intensity inhomogeneity and image noise.
+With high level VQ, the obtained initial lung mask corresponds to the largest and the second largest (if left and right
+lungs are disconnected due to pathologic abnormalities) connected components in the low-intensity class, where the holes
+inside the extracted lung mask are filled by a flood-fill operation. Furthermore, in order to include juxta-pleural nodules
+into consideration, a 3-D morphological closing operation using a spherical structuring element of radius 15 mm is applied
+to close the boundary in the binary lung mask.
+2) INCs Detection by Low Level VQ: After extraction of the
+lungs from the entire chest volume, the low level VQ aims to
+simultaneously detect and segment nodules within the much
+smaller VOI—the lung volume. Hereby, “low level” also indicates the operation of VQ with a more diversified classification
+compared to the high level VQ. In contrast to the high-level operation, the low-level classification becomes more challenging
+when it comes to the determination of an appropriate value for
+the maximum class number K.
+Fig. 5 shows the histogram plot of lung voxel intensities
+from one chest CT scan of the LIDC database. Statistically, the
+observed distribution in Fig. 5 consists of both high and low frequency parts. Each part is asymmetric and left skewed, which
+can be decomposed into two Gaussian components. Hence,
+this intensity distribution can be eventually represented by four
+Gaussian mixtures. Based on physicians’ input, we interpret
+the four classes as low-frequency parenchyma, high-frequency
+parenchyma, blood vessels, and INCs.
+To further investigate the maximum class number K, we conducted repeated experiments of applying VQ to lung voxel classification with different K values. Consistent with our histogram
+analysis, we found that the four-class setting yielded the most
+stable segmentation result across different scans. Since the average intensity of lung nodules is relatively higher than the other
+three types of tissues, the class with the highest average intensity was extracted as the INCs class. The overall flowchart
+of the proposed hierarchical VQ scheme for INCs detection is
+illustrated through Fig. 6.
+
+652
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+lung parenchyma appear to have various radii, opening disks
+of different radii were adopted to treat varying levels of vessel attachment. In order to keep small nodules while removing
+attached vessels, the lower bound of opening disk radius was
+set to be the smallest—one pixel. The upper bound on disk size
+was experimentally determined by examining the sensitivity for
+annotated nodules in the studied dataset.
+The rule-based filtering operation was separately conducted
+for INCs obtained at each opening level, as well as for the original INCs without opening operation to preserve small solitary
+nodules. The final INCs after filtering operations were formed
+by a logical union operation of the filtered INCs at all levels.
+For the INCs obtained at each opening level, obvious FPs
+are first filtered out using the size rule on volume-equivalent
+diameter, which is calculated by
+Fig. 5. Histogram of lung voxel intensities from one chest CT scan of the
+LIDC database. Each bin corresponds to the frequency of observing voxels
+having intensity within a specific range. Statistically, the observed distribution
+can be decomposed into four normal-tailed Gaussian mixtures as represented
+by the four bell-shaped curves.
+
+R1 = [(INC voxels × voxel volume)/(4π/3)]∧ (1/3).
+
+(3)
+
+Because blood vessels are elongated in shape, we also establish
+the elongation rule to exclude vessel-like structures with large
+elongation values. And the elongation in 3-D space is defined
+by
+R2 = max(dx, dy, dz)/min(dx, dy, dz).
+
+(4)
+
+In addition, because pulmonary nodules are usually compact in
+shape, we define the following compactness rule:
+
+
+R3 = (dx × dy × dz)/ [max(dx, dy, dz)]∧ 3 .
+(5)
+In (4) and (5), dx, dy, and dz are the maximal projection lengths
+(in mm) of an INC object along X, Y, and Z axes, respectively.
+Rules defined in (3)–(5) together can capture the major shape
+characteristics of pulmonary nodules. In this study, the threshold
+values for R1 , R2 , and R3 were determined experimentally.
+Given the true nodule (or TP) annotations in the studied dataset,
+we can compute the aforementioned three shape features for
+each true nodule. Then based on the range of each feature, we can
+set a conservative threshold for each filtering rule. Combining
+these three expert rules, a candidate will be treated as a false
+detection and excluded from further analysis if the following
+expression is true:
+R1 < 3.0 R1 > 30.0 R2 > 3.0 R3 < 0.1.
+Fig. 6.
+
+Flowchart of the proposed hierarchical VQ scheme for INCs detection.
+
+C. False Positive Reduction from INCs
+1) Rule-Based Filtering Operations: It is challenging to
+thoroughly separate nodules from attached structures due to
+their similar intensities, especially for the juxta-vascular nodules (the nodules attached to blood vessels). Since the thickness
+of blood vessels varies considerably (e.g., from small veins to
+large arteries), a 2-D morphological opening disk with radius
+of 1 up to 5 pixels was adopted to detach vessels at different degrees. Of note, 2-D rather than 3-D opening operation
+is favored here because of the anisotropic nature of the LIDC
+data, where 2-D operations have been found to outperform 3-D
+operations for relatively thick-slice data [11]. Since vessels in
+
+(6)
+
+2) Feature-Based SVM Classification: A supervised learning strategy is carried out using the SVM classifier to further
+reduce FPs. Our feature-based SVM classifier relies on a series of features extracted from each of the remaining INC after
+rule-based filtering operations. Table I lists the definitions of
+extracted features by four categories, including geometric or
+shape features, intensity features, gradient features, and Hessian eigenvalue based features. Both 2-D and 3-D features are
+extracted for the first three groups of features. It is noted that
+the image resolution difference is taken into account for the
+calculation of all related features. All 2-D features are extracted
+from the largest area slice of INC segmentation, and the 2-D
+segmentation at maximum area slice is dilated for five layers
+to obtain the “outside” region for 2-D feature computation. For
+3-D features, the “outside” region is defined by dilating the 3-D
+INC segmentation using a spheroidal structuring element that
+
+HAN et al.: FAST AND ADAPTIVE DETECTION OF PULMONARY NODULES IN THORACIC CT IMAGES
+
+TABLE I
+OVERVIEW OF FEATURES FOR SVM CLASSIFICATION
+No.
+
+Feature
+
+Category
+
+1
+2
+3
+4
+5
+6
+7
+8
+9–10
+11–16
+17–18
+19
+20–23
+24–25
+26
+27
+28-29
+30–31
+32–33
+34–35
+36–37
+38–39
+40–41
+42–45
+46–49
+
+Area
+Diameter (max 2-D bounding box length)
+Eccentricity = ellipse foci/major axis length
+Circularity = Area/[π (Diameter/2)2 ]
+Volume
+Elongation = max(dx, dy, dz)/min(dx, dy, dz)
+Compact1 = projection on X-Y plane/(dx × dy)
+Compact2 = (dx × dy × dz)/[max(dx, dy, dz)]3
+Mean and stdev of 2-D square compactness
+Min, max, mean, stdev, skewness, and kurtosis
+Inside versus outside mean, and stdev separation
+Inside versus outside contrast
+Mean, stdev, skewness, and kurtosis
+Inside versus outside mean and stdev separation
+Inside versus outside contrast
+XY gradient magnitude separation inside
+Radial gradient mean and stdev inside
+Radial gradient mean and stdev outside
+Radial gradient mean and stdev separation
+Mean and stdev of 3-D gradient magnitude
+Radial gradient mean and stdev inside
+Radial gradient mean and stdev outside
+Radial gradient mean and stdev separation
+Min, max, mean, and stdev of tubeness
+Min, max, mean, and stdev of blobness
+
+2-D geometric
+2-D geometric
+2-D geometric
+2-D geometric
+3-D geometric
+3-D geometric
+3-D geometric
+3-D geometric
+3-D geometric
+2-D intensity
+2-D intensity
+2-D intensity
+3-D intensity
+3-D intensity
+3-D intensity
+2-D gradient
+2-D gradient
+2-D gradient
+2-D gradient
+3-D gradient
+3-D gradient
+3-D gradient
+3-D gradient
+3-D Hessian
+3-D Hessian
+
+has a radius of five pixels in the X–Y plane and extends by a
+single slice along each direction of the Z-axis.
+Several of the features in Table I warrant some explanation.
+Specifically, the 2-D square compactness is computed on each
+relevant slice of the INC segmentation. The separation features
+(such as standard deviation separation) are computed using the
+difference of the inside and outside statistics divided by their
+sum. The inside and outside contrast is defined as the difference
+between the inside and outside means divided by the sum of the
+inside and outside standard deviations. For the gradient features,
+the XY gradient magnitude separation feature is defined as the
+mean separation between the magnitudes of gradients along
+the X- and Y-axis directions. Since pulmonary nodules usually
+have symmetric appearance, a radial gradient feature is also
+incorporated. It defines the projection of gradient magnitude on
+the radial vector, and represents the gradient strength along the
+radial direction. The 3-D Hessian features are computed using
+eigenvalues of the Hessian matrix, which has been shown in the
+literature to be potentially useful to distinguish blob-like and
+tubular objects [13], [34]. Since the shape of most nodules is
+close to a blob and the shape of blood vessels are tubular, both
+tube-likeness and blob-likeness features [35] are defined to feed
+our SVM classifier.
+In this study, the LIBSVM [36] classifier with the commonly
+used radial-basis-function (RBF) kernel is employed. The decision rule in our binary SVM classifier is whether the INC
+tends to be a TP or FP, and the basic idea for SVM is to construct an optimal classification boundary that maximizes the
+intercluster distance. Specifically, the remaining INCs after the
+rule-based filtering operations are randomly and equally split
+into two subsets with the same proportion of true nodules. Sup-
+
+653
+
+pose the labeling information in subset 1 is known, a binary
+SVM classifier could be trained in subset 1 and applied for the
+classification of subset 2. Subsequently, subset 2 is switched to
+be the training set and subset 1 is treated as the testing set. This
+is indeed a two-fold cross validation. To alleviate the possible
+biases due to the selection of training and testing datasets, we
+repeated the random grouping process for sufficient times (e.g.,
+50). The classifier performance can be summarized via receiver
+operating characteristic (ROC) analysis of the decision scores
+from each SVM run. By searching the optimal operating point
+on the averaged ROC curve, we can obtain the classification
+sensitivity and specificity, which are defined as follows
+Sensitivity =
+
+TP
+TP + FN
+
+(7)
+
+Specificity =
+
+TN
+.
+TN + FP
+
+(8)
+
+Here TP, FN, TN, and FP denote the number of true positives,
+false negatives, true negatives, and false positives, respectively.
+III. RESULTS
+The proposed CADe system was validated on a subset of
+the largest publicly available database—LIDC–IDRI [37]. A
+complete set of the annotated scans is available online at
+http://cancerimagingarchive.net. The LIDC–IDRI images were
+collected under different scanner manufacturers, variable spatial resolution and different X-ray imaging parameters (e.g., slice
+thicknesses: 0.45–5.0 mm; in-plane pixel size: 0.461–0.977 mm;
+total slice number: 96–605 slices; tube peak potential energies:
+120–140 kV; and tube current: 40–627 mA).
+Different from most CADe systems that did not report how
+well the system would perform for juxta-pleural nodules [38], in
+this study, we aim to particularly emphasize the performance of
+our CADe system subject to the large presence of juxta-pleural
+nodules. The LIDC–IDRI database has 226 scans with at least
+one juxta-pleural nodule annotation. Among those scans, 21
+were not included for evaluation due to the following reasons.
+One scan shows a tube inside patient’s airway which leads to
+the leakage of lung volume by the connected component analysis. Four scans were excluded because of severe image streak
+artifacts induced by the failure of image reconstruction. We
+also excluded two cases with incorrect annotation of nodule
+positions. The remaining 14 cases have at least one groundglass opacity (GGO) nodule, which would not be considered
+in this current study. Therefore, a total of 205 chest CT scans
+in the LIDC database were utilized to evaluate the previously
+presented CADe system.
+Fig. 7 shows the size distribution of the 490 nodules in the
+205 studied datasets. These nodules were annotated with an
+agreement level of as low as one (i.e., each nodule was annotated by at least one out of the four radiologists). We can see
+that almost all of the nodules are within 3–30 mm in volumeequivalent diameter, and the majority are small nodules with
+a size of less than 10 mm. Each nodule’s relation with lung
+parenchyma was also summarized. Among all 490 nodules, 99
+
+654
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fig. 7. Size (volume-equivalent diameter) distribution of the nodules in the
+205 datasets of this study.
+
+Fig. 8. One original lung CT image and the corresponding PCA selected
+component images in the K–L domain. (a) The original image; (b) the first PC;
+(c) the second PC; (d) the third PC.
+
+are well-circumscribed, 68 are juxta-vascular, and 323 are juxtapleural nodules. In terms of structural appearance, 283 are solid
+nodules while 207 are part-solid nodules.
+
+Fig. 9. Examples on the performance of INCs detection and rule-based filtering operations. From top to bottom row: chest CT image; high-level VQ
+outcome; border-corrected lung mask; low-level VQ segmentation result; INCs
+after VQ; INCs after rule-based filtering.
+
+B. INCs Detection and Rule-Based Filtering Performance
+A. Evaluation of the PCA for Feature Extraction
+The purpose of local intensity feature extraction is to retain
+the major image information for reducing the computational
+burden. Fig. 8 shows an example of one original lung CT image and the corresponding three-component images in the K–L
+domain selected by PCA, with a decreasing order of significance. It is clear that the first three PCs represent the dominant
+information. Those PCs beyond the third one contain even less
+information. PCA not only preserves the true image information, but also largely boosts the computational efficiency for our
+VQ algorithm.
+
+For INCs detection, all of the 490 nodules from the 205 chest
+CT scans were detected by the proposed hierarchical VQ approach. Hence, the sensitivity is 100%, and the number of FPs at
+this prescreening stage is about 1526 per scan. The subsequent
+rule-based filtering operations preserved 475 of the nodules detected by VQ and brought the overall detection sensitivity to
+96.9%. But the average number of FPs was significantly reduced from 1526 to 138.7 per scan, which corresponds to a FP
+reduction rate of more than ten times. Three examples showing the performance of hierarchical INCs detection followed by
+rule-based filtering operation are illustrated through Fig. 9. The
+
+HAN et al.: FAST AND ADAPTIVE DETECTION OF PULMONARY NODULES IN THORACIC CT IMAGES
+
+655
+
+TABLE II
+AUC VALUES FOR SVM CLASSIFICATION OF INCS
+Features
+Geometric Features
+Intensity Features
+Gradient Features
+Hessian Features
+Gradient + Geometric Features
+Gradient + Intensity Features
+Gradient + Hessian Features
+Gradient + Intensity + Geometric
+Gradient + Intensity + Hessian
+All Features
+
+AUC mean
+
+AUC stdev
+
+0.9257
+0.8968
+0.9656
+0.8641
+0.9669
+0.9771
+0.9651
+0.9743
+0.9753
+0.9776
+
+0.0071
+0.0104
+0.0046
+0.0115
+0.0055
+0.0041
+0.0050
+0.0050
+0.0047
+0.0044
+
+first example contains a huge juxta-pleural nodule. The second
+example shows a part-solid juxta-pleural nodule, while the last
+example has a juxta-vascular nodule in the left lobe and a solitary
+nodule in the right lobe. In these examples, the proposed scheme
+is effective to detect all the TPs while substantially reducing the
+FPs.
+C. Performance of FP Reduction by SVM Classification
+After rule-based pruning of the obvious FPs, we further reduced the FPs via feature-based SVM classification. Two-fold
+cross validation was used to estimate the generalization capabilities of the SVM classifier. INCs were randomly and equally
+split into two folds, and each fold consisted of 237 true nodules and 14 217 FPs. Each fold was used as the training set
+for once, and the other fold was treated as the testing set. This
+two-fold cross validation was repeated for 50 times to generate
+the averaged SVM classification result.
+Table II shows the values of area under the ROC curve (AUC)
+in different feature spaces based on the 50 times average. For
+group-wise feature comparison, two-sample t-test was utilized
+to compare the mean of AUC value for different groups of
+features. Statistical analysis showed that the gradient features
+achieved a significantly higher AUC value than any of the other
+groups of features (one-sided p-value < 0.0001), and the geometric features were suboptimum, better than either of the intensity or Hessian features (one-sided p < 0.0001). The Hessian
+features alone yielded the least AUC value, significantly lower
+than the intensity features (one-sided p < 0.0001). According
+to the principle of forward feature selection, the next step is to
+compare the classifier performance by joining any of the other
+three groups of features with the gradient features selected in the
+previous step. Two-sample t-test showed that the AUC value in
+the “gradient + intensity” feature space was significantly higher
+(one-sided p < 0.0001) than the AUC value generated in either
+the “gradient + geometric” or the “gradient + Hessian” feature
+space. It also outperformed the previously selected gradient
+features (one-sided p < 0.0001). Furthermore, we compared the
+performance of the SVM classifier with the addition of either
+geometric or Hessian features to the “gradient + intensity” feature space. Statistical analyses showed the AUC value with the
+addition of either geometric or Hessian features was, however,
+significantly lower than that for the previously selected “gra-
+
+Fig. 10. Averaged ROC curves showing the SVM classifier performance as a
+function of the step-wise selected features.
+
+dient + intensity” feature set (one-sided p < 0.05). Finally, all
+the four groups of features were combined together, but using
+all the extracted features still could not yield better performance
+than using only the “gradient + intensity” features (two-sided
+p = 0.5565).
+Thus, the best feature subset for the SVM classifier is the combination of gradient and intensity features. Fig. 10 illustrates the
+averaged ROC curves under different feature combinations. The
+optimal operating point for the best feature subset corresponds
+to a sensitivity of 92.7% at a specificity level of 93.3%.
+D. Performance on Detection of Juxta-Pleural Nodules
+In particular, we further conducted an experiment to examine
+the performance of our CADe system to the detection of juxtapleural nodules, where the SVM classification was exclusively
+applied on the juxta-pleural INCs. Technically, the corrected
+lung mask for each scan is firstly eroded by five layers, and
+any INC with at least one voxel outside this eroded mask will
+be treated as a juxta-pleural candidate. The INCs that do not
+meet such criterion are categorized as internal candidates. The
+sensitivity and specificity of our CADe system before entering
+the SVM classifier could be summarized for the detection of
+juxta-pleural nodules exclusively. Among the 15 nodules that
+were mistakenly excluded by our filtering rules, seven are juxtapleural nodules. This indicates a sensitivity of 97.8% for the
+detection of 323 juxta-pleural nodules, and the number of FPs
+within juxta-pleural INCs was in average 53.8 per scan. Again,
+two-fold cross validation was used to evaluate the performance
+of the SVM classifier. Each fold consisted of 158 true nodules
+and 5512 FPs. This random cross-validation process was also
+repeated for 50 times to generate a series of AUC and ROC
+results.
+The test AUC values of the SVM classification based on different features are summarized in Table III. For the group-wise
+feature comparison, two-sample t-test indicated that the gradient features outperformed any of the other three groups of
+features (one-sided p < 0.0001). The intensity features were
+suboptimal, better than either of the geometric or Hessian
+
+656
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+TABLE III
+AUC VALUES FOR SVM CLASSIFICATION OF JUXTA-PLEURAL INCS
+Features
+Geometric Features
+Intensity Features
+Gradient Features
+Hessian Features
+Gradient + Geometric Features
+Gradient + Intensity Features
+Gradient + Hessian Features
+Gradient + Intensity + Geometric
+Gradient + Intensity + Hessian
+All Features
+
+AUC mean
+
+AUC stdev
+
+0.8907
+0.9031
+0.9659
+0.8225
+0.9651
+0.9703
+0.9621
+0.9685
+0.9677
+0.9684
+
+0.0099
+0.0091
+0.0050
+0.0153
+0.0064
+0.0050
+0.0060
+0.0065
+0.0055
+0.0058
+
+Fig. 11. Averaged ROC curves of the step-wise selected features for the SVM
+classification of juxta-pleural nodule candidates.
+
+features (one-sided p < 0.0001), while the Hessian features had
+the least contribution to the SVM classification. Upon forward
+selection of another group of features, the “gradient + intensity”
+features generated a significantly higher AUC value than either
+of the “gradient + geometric” or “gradient + Hessian” features
+(one-sided p < 0.0001). There was also a significant increment
+of AUC value compared to that for the gradient features alone
+(one-sided p < 0.0001). In the next feature selection step, we
+added either geometric or Hessian features to the “gradient +
+intensity” feature space. Two-sample t-test showed there was no
+significant difference in AUC value by combining the geometric features (two-sided p = 0.1396), and the AUC value after
+the inclusion of Hessian features was even significantly lower
+(one-sided p = 0.0093). Finally, the AUC value using all the extracted features was compared with that using the “gradient +
+intensity” features only. Statistical test showed that the AUC by
+utilizing all available features was, however, significantly lower
+(one-sided p = 0.0417) than the AUC using only a subset of
+features at a significance level of 0.05. The averaged ROC plot
+of Fig. 11 indicates that the optimal operating point in the best
+“gradient + intensity” feature space corresponds to a sensitivity
+of 91.2% and a specificity of 92.3%.
+
+E. Comparison with Existing Methods
+We compared the detection accuracy and speed of our CADe
+system with those of existing systems that also evaluated the
+LIDC–IDRI database. We selected five CADe systems that
+showed detection capability or reported detection speed. The
+detection of INCs in [22] was based on a multithreshold surfacetriangulation approach, and the features used as input to their
+ANN classifier were volume, roundness, maximum density,
+mass, and principal moments of inertia. Opfer and Wiemker
+[39] used a 2-D filter to extract the seeds of INCs on each slice
+image, and then applied a SVM classifier with six complex
+features to reduce the FPs. Based on maximum intensity projection processing and Zernike moments, a feature extraction
+algorithm in [20] was employed to enhance the SVM for FP
+reduction. Sahiner et al. [40] extracted the INCs by two segmentation algorithms of region growing and 3-D active contour,
+while the following LDA classification employed three groups
+of features based on the gradient field, Hessian matrix, and the
+size and shape of the segmented object. Tan et al. [23] proposed a fixed-topology ANN classifier based on 45 geometric,
+position, and intensity features.
+Although the detection parameters and target datasets (number of cases, number of nodules, and agreement level of nodules)
+employed in those methods are different, it is still meaningful
+to attempt making relative comparisons. Summary of comparison with the existing systems is shown in Table IV, where the
+ROC analysis results have been interpreted in terms of the freeresponse form. In this study, by considering the detection rate
+of 96.9% after our VQ and rule-based filtering operations, the
+proposed CADe system achieved an overall detection sensitivity of 82.7% at 4 FPs/scan. Consequently, our CADe system
+shows not only comparable detection performance but also less
+computational cost by using the fast hierarchical VQ approach.
+On average, the detection of INCs consumed about 20–25 seconds per scan on a DELL Personal Computer with a processor
+speed of 2.26 GHz. This is about ten times faster than existing
+methods.
+Moreover, we also compared the performance of our CADe
+system with four published systems that were devoted to the
+identification of juxta-pleural nodules. De Nunzio et al. [41]
+proposed a multiscale α-hull approach to identify juxta-pleural
+nodules by patching lung border concavities, and then fed the
+located nodules to an ANN classifier for FP reduction. In another study [17], a conventional template matching approach
+was employed to detect nodules in the lung wall area, and only
+four features were used to eliminate FP findings. Retico et al.
+[21] presented an approach to tackle the detection of internal
+and subpleural nodules, respectively, and both algorithms were
+finally combined as one assembled CADe system for evaluation.
+In [21], the INCs detection was based on a spherical-enhanced
+filter, and the FP reduction was carried out via a voxel-based
+neural network approach. Later on, another CADe system [42]
+was particularly developed for pleural nodule identification using directional-gradient concentration method in combination
+with a morphological opening-based procedure. Each identified candidate was characterized by 12 morphological and
+
+HAN et al.: FAST AND ADAPTIVE DETECTION OF PULMONARY NODULES IN THORACIC CT IMAGES
+
+657
+
+TABLE IV
+PERFORMANCE COMPARISON OF PROPOSED CADE SYSTEM WITH EXISTING SYSTEMS USING THE LIDC–IDRI DATABASE
+CADe Systems
+Golosio et al. [22]
+Opfer and Wiemker [39]
+Riccardi et al. [20]
+Sahiner et al. [40]
+Tan et al. [23]
+The proposed system
+
+Number of cases
+
+Number of nodules
+
+Nodule size used
+
+Agreement level
+
+Average FPs/scan
+
+Sensitivity (%)
+
+Detection time (seconds)
+
+84
+–
+154
+48
+125
+205
+
+148
+127
+387
+73
+259
+490
+
+> = 3 mm
+> = 4 mm
+–
+3–36.4 mm
+> = 3 mm
+> = 3 mm
+
+1
+1
+1
+1
+1
+1
+
+4.0
+4.0
+4.0
+4.9
+3.0
+4.0
+
+45.0
+76.0
+49.0
+79.0
+66.4
+82.7
+
+–
+180–300
+–
+–
+–
+20–25
+
+TABLE V
+COMPARISON OF PROPOSED CADE SYSTEM WITH EXISTING SYSTEMS ON JUXTA-PLEURAL NODULE IDENTIFICATION
+CADe Systems
+
+Number of cases
+
+Number of nodules
+
+Agreement level
+
+Average FPs/scan
+
+Sensitivity (%)
+
+De Nunzio et al. [41]
+Lee et al. [17]
+Retico et al. [21]
+Retico et al. [42]
+The proposed system
+
+57
+20
+39
+42
+205
+
+78
+24
+27
+25
+323
+
+–
+–
+2
+2
+1
+
+–
+14.15
+10
+6
+4.14
+
+66.5
+71.0
+74.0
+72.0
+89.2
+
+textural features, which were analyzed by a rule-based filter
+and a neural classifier. Table V shows the summary of system
+performance comparison. The optimal operating of our CADe
+system achieved an overall sensitivity of 89.2% at 4.14 FPs per
+scan. Compared with the existing methods in Table V, our CADe
+system was evaluated via a much larger dataset and, therefore,
+it outperforms in terms of not only the detection accuracy (including both sensitivity and specificity), but also the statistical
+power.
+
+Fig. 12. Examples of juxta-pleural nodules that were missed by 2-D closing
+operation but recovered by 3-D closing operation.
+
+IV. DISCUSSIONS
+Since LIDC–IDRI images were collected from several different institutions, the evaluation of such databases was much more
+challenging than evaluation on images acquired from a single
+institution. Another challenge to the capability of our CADe
+system is to deal with juxta-pleural datasets. As we know, juxtapleural nodules are usually semispherical or spiculate in shape,
+making them relatively difficult to detect. In addition, because
+they have similar intensities to the pleural wall, segmentation algorithms often fail in correcting the lung borders to include such
+nodules. Therefore, it is meaningful to stress-test any CADe system in the presence of irregularly-shaped juxta-pleural nodules.
+This study collected 205 chest CT scans with at least one juxtapleural attachment to evaluate the proposed CADe system. For
+this regard, this study is unique.
+The nodule size distribution in Fig. 7 shows the representativeness of the studied datasets, where about 74% of the nodules
+are less than 10 mm. This is clinically valuable in the sense that
+the detection of small nodules is crucial to detecting lung cancer
+at early stages. Besides the substantial presence of small nodules, the consideration of nodules with low agreement level also
+places a challenge to the detection power of our CADe system.
+It is worth mentioning that a proper correction of the lung
+boundary is critical, because failure to include some juxtapleural nodules makes it impossible for VQ to recover them
+
+in the later stages. Different from some previous works using
+2-D closing operation, we adopted the 3-D morphological closing strategy to close the lung boundary. Fig. 12 portrays two
+challenging juxta-pleural nodules that were excluded by the
+2-D closing operation but recovered by the 3-D operation, which
+turns to be more robust for lung border smoothing.
+Though the proposed hierarchical VQ scheme was able to
+detect all nonGGO nodules in the studied datasets, more efforts
+are desired to deal with the associated large number of FPs. One
+possible solution is to merge clusters close to each other so that
+separated portions of a single object may be associated. Another
+solution is to incorporate more features into the feature vector for
+VQ, such as geometric features (e.g., shape index, curvedness)
+and texture features (e.g., local binary pattern, Haralick, and
+Gabor features). By considering sophisticated features, FPs with
+low contrast to true nodules are expected to be identified by some
+unique feature characteristics other than just the image intensity.
+In addition, we also investigated the feasibility of boosting low
+level VQ for the detection of GGO nodules. Some of the GGO
+nodules in LIDC database may be recovered by increasing the
+maximum class number for VQ and selecting two or more highintensity classes as the INCs.
+It has been widely acknowledged that the inclusion of
+rule-based filtering before the computationally expensive
+
+658
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+classification step will enhance the performance of CADe systems. Since intensity-based VQ could barely separate nodules
+from other attaching structures with similar intensities, preprocessing of the detected INCs is necessary to segment the juxtavascular nodules, which are otherwise prone to be excluded by
+expert rules. For computational simplicity, all the INCs are refined via morphological opening, because basic morphological
+operations are often effective for most juxta-vascular cases [15].
+The selection of appropriate radius for opening disk is important
+to preserving TPs to the highest degree. As a result, the detection
+rate after rule-based pruning retained at a relative high level of
+96.9% as we desired and expected. Challenges also persist in
+determining the thresholds for expert rules. If too strict, it will
+lower the sensitivity of the CADe system. If too loose, too many
+FPs will render a difficulty to the following SVM classification.
+Replacing empirical filtering rules with semisupervised learning
+is an ongoing topic for future research.
+Both Tables II and III demonstrate that among all single-group
+features of interest the directional gradient features contribute
+the most, which is consistent with our observation that most pulmonary nodules are symmetric in appearance while nonnodule
+structures are not. It is interesting to observe that the geometric
+features outperformed the intensity features for the classification
+of all INCs, but in contrast, the intensity features are superior
+to the geometric features for the classification of juxta-pleural
+INCs only. This is reasonable because juxta-pleural nodules
+have a large variation in shape, and therefore shape-based features from the training set may not be representative for the
+testing dataset. It is also noted that the Hessian features show
+the lowest differentiation power among the four groups of features of interest. This may due to the fact that most tubular-like
+objects have already been excluded at the rule-based filtering
+stage, and thus, the advantage of using Hessian eigenvalues to
+differentiate tubular from blob structures may be diminished.
+While the features incorporated in the SVM classifier have been
+commonly-used by published works on lung nodule detection,
+more sophisticated features such as texture features for nodule
+malignancy diagnosis [43] can be incorporated to improve the
+performance of our CADe system.
+V. CONCLUSION
+In this paper, a novel CADe system was proposed for fast
+and adaptive detection of pulmonary nodules in chest CT scans.
+Based on our previous work of self-adaptive online VQ for image segmentation [24], we developed a hierarchical VQ scheme
+for INCs detection. The high-level VQ proves to be feasible
+to replace the commonly-used simple thresholding scheme for
+extraction of the lungs with higher accuracy, as well as comparable processing time and automation level. The following
+low-level VQ illustrates adequate detection power for nonGGO
+nodules, and is computationally more efficient than the stateof-the-art approaches. In this study, simple expert rules were
+firstly employed to exclude obvious FPs from being considered
+by the sophisticated feature-based SVM classifier. The SVM
+classification results indicated that gradient features contributed
+the most against any of the other three groups of features (ge-
+
+ometric, intensity, and Hessian features). The forward feature
+selection strategy showed that the SVM classifier performed the
+best in the “gradient + intensity” feature space rather than for
+any other feature combinations. The optimal operation of the
+SVM classifier yielded a sensitivity of 92.7% and a specificity
+of 93.3%. In terms of free-response ROC analysis, the proposed
+CADe system achieved an overall sensitivity of 82.7% at 4.0
+FPs per scan. Compared with existing CADe systems evaluated
+on the same lung image LIDC database, our approach showed a
+comparable detection capability but a lower computational cost.
+In particular, we reported the performance of our system for the
+detection of juxta-pleural nodules. The outcome from our CADe
+system, with an overall sensitivity of 89.2% at a specificity level
+of 4.14 FPs per scan, is promising for tackling this challenging detection task. In a nutshell, the proposed hierarchical INCs
+detection approach is fast, adaptive, and fully automatic. The
+presented CADe system yields comparable detection accuracy
+and more computational efficiency than existing systems, which
+demonstrates the feasibility of our CADe system for clinical
+utility.
+ACKNOWLEDGMENT
+The authors would appreciate M. J. Salerno for English editing of this work.
+REFERENCES
+[1] R. Siegel, D. Naishadham, and A. Jemal, “Cancer statistics,” CA Cancer
+J. Clin., vol. 63, pp. 11–30, 2013.
+[2] C. I. Henschke, D. I. McCauley, D. F. Yankelevitz, D. P. Naidich,
+G. McGuinness, O. S. Miettinen, D. M. Libby, M. W. Pasmantier,
+J. Koizumi, N. K. Altorki, and J. P. Smith, “Early lung cancer action
+project: Overall design and findings from baseline screening,” Lancet,
+vol. 354, no. 9173, pp. 99–105, 1999.
+[3] A. El-Baz and J. Suri, Lung Imaging and Computer Aided Diagnosis.
+Boca Raton, FL, USA: CRC Press, 2011.
+[4] H. MacMahon, J. H. M. Austin, G. Gamsu, C. J. Herold, J. R. Jett,
+D. P. Naidich, E. F. Patz, and S. J. Swensen, “Guidelines for management of small pulmonary nodules detected on CT scans: A statement from
+the Fleischner society,” Radiology, vol. 237, no. 2, pp. 395–400, 2005.
+[5] B. van Ginneken, S. G. Armato 3rd, B. de Hoop, S. van
+Amelsvoort-van de Vorst, T. Duindam, M. Niemeijer, K. Murphy,
+A. Schilham, A. Retico, M. E. Fantacci, N. Camarlinghi, F. Bagagli,
+I. Gori, T. Hara, H. Fujita, G. Gargano, R. Bellotti, S. Tangaro, L.
+Bolaños, F. De Carlo, P. Cerello, S. Cristian Cheran, E. Lopez Torres,
+M. Prokop, “Comparing and combining algorithms for computer-aided
+detection of pulmonary nodules in computed tomography scans: The ANODE09 study,” Med. Image Anal., vol. 14, no. 6, pp. 707–722, 2010.
+[6] A. El-Baz, G. M. Beache, G. Gimel’farb, K. Suzuki, K. Okada,
+A. Elnakib, A. Soliman, and B. Abdollahi, “Computer-aided diagnosis
+systems for lung cancer: Challenges and methodologies,” Int. J. Biomed.
+Imag., vol. 2013, pp. 1– 46, 2013.
+[7] J. Pu, J. K. Leader, B. Zheng, F. Knollmann, C. Fuhrman, F. C. Sciurba, and D. Gur, “A computational geometry approach to automated
+pulmonary fissure segmentation in CT examinations,” IEEE Trans. Med.
+Imag., vol. 28, no. 5, pp. 710–719, May 2009.
+[8] S. Ukil and J. M. Reinhardt, “Anatomy-guided lung lobe segmentation in
+X-ray CT images,” IEEE Trans. Med. Imag., vol. 28, no. 2, pp. 202–214,
+Feb. 2009.
+[9] I. Sluimer, M. Prokop, and B. van Ginneken, “Toward automated segmentation of the pathological lung in CT,” IEEE Trans. Med. Imag., vol. 24,
+no. 8, pp. 1025–1038, Aug. 2005.
+[10] E. M. van Rikxoort, B. de Hoop, M. A. Viergever, M. Prokop, and
+B. van Ginneken, “Automatic lung segmentation from thoracic computed
+tomography scans using a hybrid approach with error detection,” Med.
+Phys., vol. 36, no. 7, pp. 2934–2947, 2009.
+
+HAN et al.: FAST AND ADAPTIVE DETECTION OF PULMONARY NODULES IN THORACIC CT IMAGES
+
+[11] T. Messay, R. C. Hardie, and S. K. Rogers, “A new computationally
+efficient CAD system for pulmonary nodule detection in CT imagery,”
+Med. Image Anal., vol. 14, no. 3, pp. 390–406, 2010.
+[12] W. Choi and T. Choi, “Genetic programming-based feature transform
+and classification for the automatic detection of pulmonary nodules on
+computed tomography images,” Inf. Sci., vol. 212, pp. 57–78, 2012.
+[13] Q. Li, S. Sone, and K. Doi, “Selective enhancement filters for nodules,
+vessels, and airway walls in two- and three-dimensional CT scans,” Med.
+Phys., vol. 30, no. 8, pp. 2040–2051, 2003.
+[14] A. Teramoto and H. Fujita, “Fast lung nodule detection in chest CT images using cylindrical nodule-enhancement filter,” Int. J. Comput. Assisted
+Radiol. Surg., vol. 8, no. 2, pp. 193–205, 2013.
+[15] C. I. Fetita, F. Preteux, C. Beigelman-Aubry, and P. Grenier, “3-D automated lung nodule segmentation in HRCT,” in Medical Image Computing and Computer-Assisted Intervention—MICCAI 2004, (Lecture Notes
+in Computer Science Series). Berlin, Germany: Springer-Verlag, 2003,
+vol. 2878, pp. 626–634.
+[16] K. Awai, K. Murao, A. Ozawa, M. Komi, H. Hayakawa, S. Hori, and
+Y. Nishimura, “Pulmonary nodules at chest CT: Effect of computer-aided
+diagnosis on radiologists’ detection performance,” Radiology, vol. 230,
+no. 2, pp. 347-d352, 2004.
+[17] Y. Lee, T. Hara, H. Fujita, S. Itoh, and T. Ishigaki, “Automated detection of
+pulmonary nodules in helical CT images based on an improved templatematching technique,” IEEE Trans. Med. Imag., vol. 20, no. 7, pp. 595–604,
+Jul. 2001.
+[18] J. Dehmeshki, X. Ye, X. Lin, M. Valdivieso, and H. Amin, “Automated
+detection of lung nodules in CT images using shape-based genetic algorithm,” Comput. Med. Imag. Graph., vol. 31, pp. 408–417, 2007.
+[19] X. Ye, X. Lin, J. Dehmeshki, G. Slabaugh, and G. Beddoe, “Shape-based
+computer-aided detection of lung nodules in thoracic CT images,” IEEE
+Trans. Biomed. Eng.., vol. 56, no. 7, pp. 1810–1820, Jul. 2009.
+[20] A. Riccardi, T. S. Petkov, G. Ferri, M. Masotti, and R. Campanini,
+“Computer-aided detection of lung nodules via 3-D fast radial transform,
+scale space representation, and Zernike MIP classification,” Med. Phys.,
+vol. 38, no. 4, pp. 1962–1971, 2011.
+[21] A. Retico, P. Delogu, M. E. Fantacci, I. Gori, and A. Preite Martinez,
+“Lung nodule detection in low-dose and thin-slice computed tomography,”
+Comput. Biol. Med., vol. 38, no. 4, pp. 525–534, 2008.
+[22] B. Golosio, G. L. Masala, A. Piccioli, P. Oliva, M. Carpinelli, R. Cataldo,
+P. Cerello, F. DeCarlo, F. Falaschi, M. E. Fantacci, G. Gargano, P. Kasae,
+and M. Torsello, “A novel multithreshold method for nodule detection in
+lung CT,” Med. Phys., vol. 36, no. 8, pp. 3607–3618, 2009.
+[23] M. Tan, R. Deklerck, B. Jansen, M. Bister, and J. Cornelis, “A novel
+computer-aided lung nodule detection system for CT images,” Med. Phys.,
+vol. 38, no. 10, pp. 5630–5645, 2011.
+[24] D. Chen, Z. Liang, M. R. Wax, L. Li, B. Li, and A. E. Kaufman, “A novel
+approach to extract colon lumen from CT images for virtual colonoscopy,”
+IEEE Trans. Med. Imag., vol. 19, no. 12, pp. 1220–1226, Dec. 2000.
+[25] H. Han, L. Li, F. Han, H. Zhang, W. Moore, and Z. Liang, “Vector
+quantization-based automatic detection of pulmonary nodules in thoracic
+CT images,” in Proc. IEEE Conf. Rec. Nucl. Sci. Symp./Med. Imag. Conf.,
+2013, pp. M22–41.
+[26] A. Gersho and R. M. Gray, Vector Quantization And Signal Compression,
+Boston, MA, USA: Kluwer Academic, 1992.
+[27] C. C. Chang and W. C. Wu, “Fast planar-oriented ripple search algorithm
+for hyperspace VQ codebook,” IEEE Trans. Image Process., vol. 16, no. 6,
+pp. 1538–1547, Jun. 2007.
+[28] C. Garcia and G. Tziritas, “Face detection using quantized skin color
+regions merging and wavelet packet analysis,” IEEE Trans. Multimedia,
+vol. 1, no. 3, pp. 264–277, Sep. 1999.
+[29] K. L. Oehler and R. M. Gray, “Combing image compression and classification using vector quantization,” IEEE Trans. Pattern Anal. Mach. Intell.,
+vol. 17, no. 5, pp. 461–473, May 1995.
+[30] L. Li, D. Chen, H. Lu, and Z. Liang, “Segmentation of brain MR images:
+A self-adaptive online vector quantization approach,” Proc. SPIE, 2001,
+vol. 4322, pp. 1431–1438.
+
+659
+
+[31] L. Li, D. Chen, H. Lu, and Z. Liang, “Comparison of quadratic and
+linear discriminate analyses in the self-adaptive feature vector quantization
+scheme for MR image segmentation,” in Proc. Int. Soc. Mag. Reson. Med.,
+2001, vol. 9, pp. 809.
+[32] K. Fukunaga, Introduction to Statistical Pattern Recognition. New York,
+NY, USA: Academic Press, 2nd ed, 1990.
+[33] R. C. Gonzalez and R. E. Woods, Digital Image Processing. Englewood
+Cliffs, NJ, USA: Pearson Prentice Hall, 2007.
+[34] Y. Sato, C. F. Westin, A. Bhalerao, S. Nakajima, N. Shiraga, S. Tamura, and
+R. Kijinis, “Tissue classification based on 3-D local intensity structures
+for volume rendering,” IEEE Trans. Vis. Comput. Graph., vol. 6, no. 2,
+pp. 160–180, Apr.–Jun. 2000.
+[35] B. Sahiner, Z. Ge, H.-P. Chan, L. M. Hadjiiski, N. Bogot, P. N. Cascade,
+and E. A. Kazerooni, “False-positive reduction using Hessian features in
+computer-aided detection of pulmonary nodules on thoracic CT images,”
+in Proc. SPIE, vol. 5747, pp. 790–795, 2005.
+[36] C. C Chang and C. J. Lin, “LIBSVM: A library for support vector machines,” ACM Trans. Intell. Syst. Technol., vol. 2, no. 3, pp. 1–27, 2011.
+[37] S. G. Armato, G. McLennan, L. Bidautb, M. F. McNitt-Gray, C. R. Meyer,
+A. P. Reeves, B. Zhaoc, D. R. Aberle, C. I. Henschked, E. A. Hoffman,
+E. A. Kazerooni, H. MacMahon, E. J. R. van Beeke, D. Yankelevitzd,
+A. M. Biancardi, P. H. Bland, M. S. Brown, R. M. Engelmann,
+G. E. Laderach, D. Maxd, R. C. Pais, D. P.-Y. Qingf, R. Y. Roberts,
+A. R. Smith, A. Starkey, P. Batrah, P. Caligiurii, A. Farooqid, G. W. Gladish, C. M. Jude, R. F. Munden, I. Petkovskaj, L. E. Quint, L. H. Schwartzk,
+B. Sundaram, L. E. Doddl, C. Fenimore, D. Gur, N. Petrick, J. Freymann,
+J. Kirby, B. Hughes, A. V. Casteele, S. Gupte, M. Sallamm, M. D. Heath,
+M. H. Kuhn, E. Dharaiya, R. Burns, D. S. Fryd, M. Salganicoff, V. Anand,
+S. Vastagh, B. Y. Croft, and L. P. Clarke, “The lung image database consortium (LIDC) and image database resource initiative (IDRI): A complete
+reference database of lung nodules on CT scans,” Med. Phys., vol. 38,
+pp. 915–931, 2011.
+[38] Q. Li, “Recent progress in computer-aided diagnosis of lung nodules on
+thin-section CT,” Comput. Med. Imag. Graph., vol. 31, no. 4–5, pp. 248–
+257, 2007.
+[39] R. Opfer and R. Wiemker, “Performance analysis for computer-aided lung
+nodule detection on LIDC data,” Proc. SPIE, vol. 6515, pp. 1–9, 2007.
+[40] B. Sahiner, L. M. Hadjiiski, H. P. Chan, J. Shi, T. Way, P. N. Cascade,
+E. A. Kazerooni, C. Zhou, and J. Wei, “The effect of nodule segmentation
+on the accuracy of computerized lung nodule detection on CT scans:
+Comparison on a data set annotated by multiple radiologists,” Proc. SPIE,
+vol. 6514, pp. 65140L-1–65140L-7, 2007.
+[41] G. De Nunzio, A. Massafra, R. Cataldo, I. De Mitri, M. Peccarisi,
+M. E. Fantacci, G. Gargano, and E. Lopez Torres, “Approaches to juxtapleural nodule detection in CT images within the MAGIC-5 collaboration,”
+Nucl. Instrum. Methods Phys. Res. A, vol. 648, pp. S103–S106, 2011.
+[42] A. Retico, M. E. Fantacci, I. Gori, P. Kasae, B. Golosio, A. Piccioli,
+P. Cerello, G. De Nunzio, and S. Tangaro, “Pleural nodule identification
+in low-dose and thin-slice lung computed tomography,” Comput. Biol.
+Med., vol. 39, no. 12, pp. 1137–1144, 2009.
+[43] F. Han, H. Wang, B. Song, G. Zhang, H. Lu, W. Moore, H. Zhao, and
+Z. Liang, “A new 3-D texture feature based computer-aided diagnosis
+approach to differentiate pulmonary nodules,” Proc. SPIE, vol. 8670,
+pp. 86702Z-1–86702Z-7, 2013.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

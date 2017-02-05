@@ -1,0 +1,934 @@
+4
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+Similarity Measure Between Patient Traces
+for Clinical Pathway Analysis: Problem,
+Method, and Applications
+Zhengxing Huang, Wei Dong, Huilong Duan, and Haomin Li
+
+Abstract—Clinical pathways leave traces, described as event sequences with regard to a mixture of various latent treatment behaviors. Measuring similarities between patient traces can profitably be exploited further as a basis for providing insights into
+the pathways, and complementing existing techniques of clinical
+pathway analysis (CPA), which mainly focus on looking at aggregated data seen from an external perspective. Most existing methods measure similarities between patient traces via computing the
+relative distance between their event sequences. However, clinical pathways, as typical human-centered processes, always take
+place in an unstructured fashion, i.e., clinical events occur arbitrarily without a particular order. Bringing order in the chaos of
+clinical pathways may decline the accuracy of similarity measure
+between patient traces, and may distort the efficiency of further
+analysis tasks. In this paper, we present a behavioral topic analysis approach to measure similarities between patient traces. More
+specifically, a probabilistic graphical model, i.e., latent Dirichlet
+allocation (LDA), is employed to discover latent treatment behaviors of patient traces for clinical pathways such that similarities of
+pairwise patient traces can be measured based on their underlying
+behavioral topical features. The presented method provides a basis
+for further applications in CPA. In particular, three possible applications are introduced in this paper, i.e., patient trace retrieval,
+clustering, and anomaly detection. The proposed approach and
+the presented applications are evaluated via a real-world dataset
+of several specific clinical pathways collected from a Chinese
+hospital.
+Index Terms—Anomaly detection, clinical pathway analysis
+(CPA), latent Dirichlet allocation(LDA), patient trace clustering,
+patient trace retrieval, similarity measure.
+
+I. INTRODUCTION
+
+C
+
+LINICAL pathways define the essential component of
+the complex health-care process, with the objective of
+
+Manuscript received March 2, 2013; revised May 11, 2013; accepted July
+17, 2013. Date of publication July 23, 2013; date of current version December 31, 2013. This work was supported in part by the National Nature Science
+Foundation of China under Grant 81101126 and in part by the National Hi-Tech
+R&D Plan of China under Grant 2012AA02A601. A preliminary version of this
+paper appeared in the 14th Conference on Artificial Intelligence in Medicine
+(AIME2013). Z. Huang and W. Dong contributed equally to this work. H. Duan
+and H. Li are corresponding authors of this paper.
+Z. Huang and H. Duan are with the College of Biomedical Engineering and
+Instrument Science, Zhejiang University, Hangzhou 321000, China (e-mail:
+zhengxing.h@gmail.com; duanhl@zju.edu.cn).
+W. Dong is with the Department of Cardiology, Chinese PLA General
+Hospital, Beijing 100853, China (e-mail: 301dongw@sina.com).
+H. Li is with the College of Computer Science, Zhejiang University, Hangzhou
+321000, China 321000 (e-mail: haomin_li@yahoo.com).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2013.2274281
+
+linking evidence to practice for specific health conditions and,
+therefore, optimize patient outcomes and maximize clinical efficiency [1]–[6]. They have been proposed to support the translation of clinical guidelines into local protocols and clinical
+practice [7], and as a strategy, to optimize resource allocation in
+a climate of increasing health-care costs [8], [9].
+Clinical pathway analysis (CPA) has experienced increased
+attention over the years due to its importance to health-care
+management in general and its usefulness for capturing the actionable knowledge and interesting insights to administrate, automate, and schedule the best practice for individual patients
+in clinical pathways [3], [10], [11]. For example, it is possible
+to discover a clinical pathway model from past clinical pathway instances (i.e., patient traces) [3], detect the anomalies in
+clinical pathways [11], identify care points where patient traces
+deviate from expected and/or normative medical behaviors [12],
+and enrich pathway models based on patient traces, etc.
+Predominant approaches to CPA are from an external perspective of clinical pathways [3]. For example, Muluk et al. [13]
+evaluated the effects of the clinical pathway of nonurgent abdominal aortic aneurysm surgery, i.e., charges, length of stay
+(LOS), and mortality rate. Barbieri et al. [14] presented a metaanalysis method to evaluate the use of clinical pathways for
+hip and knee joint replacements by assessing the major outcomes of in-hospital hip and knee joint replacement processes:
+postoperative complications, number of discharged patients at
+home, LOS, direct cost, etc. Kul proposed a patient survival
+analysis for clinical pathways [15]. As valuable as these approaches are, they typically look at aggregated data seen from
+the measures, e.g., LOS, mortality, infection rate, etc. [10], and
+thus, restrict the attention to an external perspective of CPA. In
+clinical settings, pathways are evolving and clinicians typically
+have an oversimplified and incorrect view of the actual clinical
+pathways. In this regard, health-care organizations require to
+provide insights into clinical pathways and enable various types
+of analysis.
+In this study, we argue that a careful inspection of patient
+traces can support health-care organizations to analyze and improve clinical pathways from an internal perspective. Patient
+traces properly group sets of consistent examples, representing
+frequent, similar modifications to instances of the same pathway model, and allowing to extract generalized knowledge for
+clinical pathways. By measuring similarities between patient
+traces, it can be useful to health-care organizations for a number
+of reasons including better overall clinical pathway management and maintenance [16]. For example, similar patient traces
+
+2168-2194 © 2013 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+HUANG et al.: SIMILARITY MEASURE BETWEEN PATIENT TRACES FOR CLINICAL PATHWAY ANALYSIS
+
+5
+
+TABLE I
+EXAMPLE PATIENT TRACES FOR THE INTRACRANIAL HEMORRHAGE CLINICAL PATHWAY
+
+can be grouped to exploit the specific knowledge or previously
+experienced situations, identify standardized and consolidated
+clinical pathways, and retrieve suggestions on how to improve
+and optimize clinical pathways, etc.
+In order to measure similarities between patient traces, it is
+a common technique to provide a measure of distance in the
+features’ space, e.g., to compute similarity primarily by using
+event sequences of patient traces. Traditional techniques of sequence similarity measures are focused on the direct matching
+between sequences commonly applying the classical distance
+concepts. They may not be appropriate to measure similarities
+between patient traces for clinical pathways. Clinical pathways,
+as typical human-centric processes, always take place in an
+unstructured fashion, i.e., clinical events may occur arbitrarily
+without a particular order in the pathways. Bringing order in the
+chaos of clinical pathways probably requires different similarity
+measure strategies rather than the existing methods [17].
+To this end, we employ a probabilistic graphical model, i.e.,
+latent Dirichlet allocation (LDA) [18], to measure similarities
+between patient traces for clinical pathways. The assumption
+made is that the possible treatment behaviors of patient traces
+in clinical pathways may be represented by a relatively small
+number of simple and common behavioral topics, where each
+topic is characterized by a probability distribution over treatment
+behaviors, i.e., a set of specific clinical events performed on
+specific patients. The derived treatment topics can be combined
+with the original patient traces to measure similarities between
+traces. Many further interesting applications, e.g., patient trace
+retrieval, clustering, and anomaly detection, can be performed
+based on the similarity to analyze clinical pathways.
+The remainder of this paper is organized as follows: We
+present our similarity measure method in Section II. Section III
+experimentally evaluates our approach based on three typical applications, i.e., patient trace retrieval, clustering, and anomaly
+detection. We present the system prototype in Section IV. Finally, Section V concludes and discusses possible directions for
+future work.
+
+II. METHOD
+In this section, we introduce some notations and terminologies for the patient trace representation at first. This is followed
+by a description of the proposed similarity measure between
+patient traces for clinical pathways.
+A. Patient Trace Representation
+Clinical pathways leave traces, described as sequences of
+clinical events with regard to a mixture of various latent treatment behaviors. Typically, we assume that it is possible to sequentially record various kinds of clinical events in clinical
+pathways such that each event refers to a clinical activity (i.e.,
+a well-defined step in clinical pathways) and is related to a
+particular patient (i.e., a patient trace). Furthermore, additional
+information such as the time-stamp of the event, and patient
+data elements recorded with the event (e.g., age, sex, first diagnosis code, care level, etc.). In general, hospital information
+systems record such information. To introduce the patient trace
+representation model and our similarity measure method, we
+first define the following concepts.
+Definition 1: Let E be the set of clinical events.1 A patient
+trace is a nonempty sequence of clinical events performed on a
+particular patient, i.e., c = e1 , e2 , . . . , en , where ei ∈ E (1 ≤
+i ≤ n) is a particular clinical event. For convenience, let c(i) be
+the ith clinical event in the trace. A patient trace repository R is
+a multiset of patient traces.
+For example, Table I shows an example of a patient
+trace repository, which consists of ten patient traces, i.e.,
+R = {c1 , c2 , . . . , c10 }. Each clinical event in the repository
+is linked to a particular trace and globally unique, i.e., the
+1 Some clinical events might have a duration, i.e., they are conducted not at a
+specific time stamp, but over a time period. However, such a clinical event can
+be assumed to consist of a pair of subclinical activities, i.e., a start event and
+an end event, which correspond to a start event and an end event, respectively.
+In this study, we assume that clinical events are time point events, and intervals
+are represented by starting and ending time point events.
+
+6
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+TABLE II
+MEANING OF THE EXAMPLE ALPHABETIC LABELS OF CLINICAL EVENTS SHOWN IN TABLE I
+
+same event cannot occur twice in a repository. For example,
+let e =(Adm, 1) be a specific clinical event, which indicates
+that the patient is in admission at the time stamp 1. For the
+sake of simplicity, the time stamps of these event examples are
+integer values, however, it could be presented in a date-format
+time stamp. A patient trace in a repository represents a particular clinical process instance also referred to as “case” of the
+treatment to a patient. The trace contains a set of clinical events,
+which spread along the observed time period of the patient’s
+LOS. Table II lists the meaning of these event types.
+B. Similarity Measure Between Patient Traces
+As mentioned earlier, a patient trace is represented by a mixture of treatment behaviors, w.r.t specific categories of clinical
+events in clinical pathways. In this study, we employ a specific
+topic analysis approach, i.e., LDA, to mine the set of latent
+treatment behavioral topics from the patient trace repository.
+And then, based on the derived treatment behavioral topics,
+similarities among patient traces can be measured efficiently.
+LDA has been widely used to model the generative process
+of a text document corpus, where a document is summarized
+as a mixture of topics. With respect to our study, patient traces
+are a mixture of latent treatment behaviors. Note that treatment
+behaviors are recognized as a set of clinical events, we can
+extract clinical event types to represent “words” in the model,
+and clinical events of a particular patient trace are combined to
+form a “document.” All patient traces in the repository are thus
+converted into a collection of documents.
+In general, LDA helps to explain the behavioral similarity of
+patient traces by grouping clinical events into unobserved sets.
+As shown in Fig. 1, a mixture of these sets then constitutes the
+observable patient trace. The generative process of LDA is as
+follows. For each patient trace c, a mixture of topic proportion
+θc ∼ Dir(α) is sampled from a Dirichlet distribution parameterized by the hyperparameter α. Each clinical event e in a
+trace is generated by first sampling a topic t from a multinomial
+distribution t ∼ Mult(θ), and then, sampling e ∼ Mult(φt ) also
+
+Fig. 1. Graphical representation of LDA-based similarity measure between
+patient traces [4]. (a) LDA-based similarity measure between patient traces.
+(b) Plate notation.
+
+from a multinomial distribution. Given a treatment behavioral
+topic t, each φt ∼ Dir(β) is sampled from a Dirichlet distribution parameterized by β. In LDA, each patient trace c is a mixture
+of topics represented by θc and each topic t is a distribution over
+all events represented by φt,e = Pr(e|t).
+Using this generative model, the treatment behavioral topic
+assignments for clinical events can be calculated based on the
+current topic assignment of all the other clinical event positions.
+More specifically, the topic assignment is sampled from
+π (e)
+
+Pr(ti = t|t¬i , c) = 
+
+a
++β
+nt,¬i
+
+b∈A
+
+nbt + β|A|
+
+
+
+ntc,¬i + α
+
+j ∈K
+
+t
+
+ncj + αK
+
+(1)
+
+where ti = t represents the assignment of the ith occurrence
+to topic t, t¬i represents all treatment behavioral topics assignments not including the ith occurrence, K is the number of
+π a (e)
+is the
+topics, |A| is the number of clinical event types, nt,¬i
+number of times the event type πa (e) assigned to the topic t,
+not including the current instance, and ntc,¬i is the number of
+times the topic t assigned to the patient trace c, not including
+the current instance.
+
+HUANG et al.: SIMILARITY MEASURE BETWEEN PATIENT TRACES FOR CLINICAL PATHWAY ANALYSIS
+
+7
+
+of patient traces. Note that the derived latent topics are not
+necessary disjoint. For example, “ECG” occurs in the cerebral
+hemorrhage topic as well as in the subdural hematoma topic.
+Once we have learned the model parameters, we can measure
+the similarity between patient traces. In particular, for a specific
+trace c in the repository R, we obtain the topic distribution
+→
+−
+θc = {θ̂c,t 1 , θ̂c,t 2 , . . . , θ̂c,t K }, where each θ̂c,t i is the posterior
+estimate of θc,t i for the treatment behavioral topic ti (1 ≤ i ≤
+K). Upon this, we are able to calculate the similarity between
+two traces c and c∗ (c, c∗ ∈ R) as follows:
+
+θ̂c,t × θ̂c ∗ ,t
+∗
+.
+(4)
+sim(c, c ) =  t∈T 
+2
+2
+θ̂
+θ̂
+∗
+t∈T c,t
+t∈T c ,t
+Taking the traces shown in Table I as examples, for patient trace c1 , the top five similar traces are c4 (sim(c1 , c4 ) =
+0.9999), c5 (sim(c1 , c5 ) = 0.9997), c2 (sim(c1 , c2 ) = 0.9834),
+c10 (sim(c1 , c10 ) = 0.9761), and c6 (sim(c1 , c6 ) = 0.9323).
+III. CASE STUDY
+
+From these count matrices, we can estimate the topic-event
+distribution θ and trace-topic distribution φ by
+π (e)
+
+θt,e = 
+
+nt a
+
++β
++ β|A|
+
+(2)
+
+ntc + α
+.
+t
+t∈T nc + αK
+
+(3)
+
+b
+b∈A nt
+
+and
+φc,t = 
+
+The exact inference in LDA is generally intractable. In particular, we use Gibbs sampling to estimate the parameters ntc
+and net from which we can determine the model parameters
+θt,e and φc,t . The pseudocode for Gibbs sampling is shown
+in Algorithm 1. By inspection, the complexity of Algorithm 1
+scales linearly with the number of latent treatment topics K,
+the number
+of clinical events in the patient trace repository R,
+
+N = c∈R |c|, and linearly with the number of Gibbs samples
+L, giving the overall complexity of O(L · N · K).
+Taking the traces shown in Table I as an example, clinical
+experts from the cooperated hospital have indicated that the
+two derived topics have specific clinical intentions, i.e., cerebral
+hemorrhage treatment (ICD-10: I61), and subdural hematoma
+treatment (ICD-10: I62.006), respectively. Thus, we denote K =
+2 for the example traces. Note that the derived topics reflect a
+collaborative shared view of medical behaviors contained in
+the traces, and the event types of the topics reflect a common
+vocabulary to describe the patient trace. Table III shows typical
+examples of event types (satisfying p(e|t) ≥ 0.01) of the derived
+treatment behavioral topics. As can be seen, the topics group
+typically cooccurring events. For example, clinical event types
+“Intracranial hematoma surgery (including simple epidural)”
+and “Postoperative drainage” are correlated with each other,
+and they have the same value of the event-topic distribution.
+The relationships between clinical event types via treatment
+behavioral topics can be used to provide a good classification
+
+The presented similarity measure approach provides a basis
+for further CPA tasks. In this section, three possible CPA applications, i.e., patient trace retrieval, clustering, and anomaly
+detection, are presented as follows. To test the feasibility of the
+proposed method, experiments on datasets collected from the
+Zhejiang Huzhou Central Hospital of China were performed.
+The explanation of the experimental setups and obtained results
+are presented in the following.
+A. Dataset Description
+The experimental dataset was extracted from the Zhejiang
+Huzhou Central hospital of China. The application of information technology in this hospital is at a relatively high level, and
+the electronic medical records system has been gradually used
+since 2004. The system records many kinds of information of
+clinical pathways, e.g., examinations, lab tests, surgeries, etc.
+In the experiments, we build a specific patient trace repository of clinical pathways of several specific types of cancer, i.e.,
+bronchial lung cancer, colon cancer, rectal cancer, breast cancer,
+and gastric cancer, from the system. The collected data are from
+2007/08 to 2009/09. In addition, we preprocessed those traces
+by removing those incomplete traces (e.g., the trace of which
+the patient died or was transferred during his or her LOS) from
+the repository. In detail, there are 258 traces, 11 028 clinical
+events with 266 event types. The average LOS of these traces is
+25.39 days, while some traces take a very short time, e.g., only
+four days in the hospital, and other traces take much longer, e.g.,
+66 days in the hospital, which implicitly indicates the diversity
+of treatment behaviors in the intracranial hemorrhage clinical
+pathway.
+B. Similarity Measure Methods Considered
+In order to evaluate the performance of the presented similarity measure method, we compare the presented LDA-based
+similarity measure with the traditional edit-distance-based similarity measure, and a classical simple term vector-based method.
+
+8
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+TABLE III
+TYPICAL EVENT TYPES FOR THE DERIVED TREATMENT BEHAVIORAL TOPICS FROM EXAMPLE TRACES SHOWN IN TABLE I
+
+1) Using “edit distance” to measure the temporal similarity
+between pairwise patient traces c and c∗ are implicitly
+considered as the penalties of a transformation of the trace
+c to c∗ or vice versa through a set of editing operations, i.e.,
+“no change,” “substitution,” “deletion,” and “insertion,”
+applied to one of the traces iteratively. For more details
+about the “edit distance” approach, see [19].
+2) The term vector has been widely used for representing text
+documents. Adapted to our setting, the term vector of a
+particular patient trace c has the following form: w(c)
+
+=
+{w1 , . . . , w|V | }, where V is the event type vocabulary of
+the patient trace repository. Note that the element wi in the
+vector, which corresponds to the term ith in V , is weighted
+by using some schema such as TFxIDF. In this study, we
+use (5) to calculate the similarity between the two patient
+traces ci and cj based on their term vectors:
+
+wi,v × wj,v
+sim(ci , cj ) =  v ∈V 
+.
+(5)
+2
+2
+v ∈V wi,v
+v ∈V wj,v
+In the following experiments, we refer to LDA-based similarity measure with the K-topic model (K = 1, 2, 3, . . . , 20)
+as LDA-K, edit-distance-based similarity measure as ED, and
+term vector-based similarity measure as TV.
+C. Experimental Settings
+Constructing of an LDA model is to fit latent treatment behavioral topics to the patient trace repositories. In the experiments,
+we conducted topic analysis for the experimental repository using LDA with different number of treatment behavioral topics
+(K = 1, 2, 3, . . . , 20). The Dirichlet prior α and β of LDA are
+set to 0.2 and 0.1, which are common settings in the literature.
+The number of iterations of Gibbs sampling is set to 10 000. Note
+that Gibbs sampling converges before 10 000 iterations for the
+experiments. In addition, to expand the number of trials when we
+construct the LDA model, we adopt a fivefold cross-validation
+strategy. For each repository, we split it randomly into five mutually exclusive subsets of equal size. We then designate each
+subset as the testing dataset are used to compute the perplexity
+score while the others serve as the training dataset. To minimize
+potential biases that may result from the randomized folding
+process, we perform this fivefold cross-validation process five
+times and estimate the overall performance by averaging the
+performance estimates obtained from the 250 individual trials.
+The topic models are exploited for experiments hereafter.
+Now that we have built the LDA model from the patient trace
+repository, several interesting applications could be performed
+based on the learned LDA model. As shown below, we evaluated
+
+the presented approach based on three specific applications, i.e.,
+patient trace retrieval, clustering, and anomaly detection.
+D. Patient Trace Retrieval
+The first application based on similarity measure is the patient
+trace retrieval. Patient traces describe the knowledge acquired
+after solving specific problems [20]. When a clinician encounters problems in executing a patient trace, he/she may retrieve
+suggestions from past traces. Given a query, those patient traces
+with high similarities are good candidates for recommendation,
+i.e., closer to the query in terms of their behavioral similarities.
+There is an assumption of using (4) to measure the treatment
+behavioral similarity between pairwise traces c and c∗ : both
+traces should be placed into the patient trace repository R such
+that the topic analysis can be performed, and an LDA model
+can be learned from the traces in the repository. However, in
+most cases of retrieval, the queried trace is a new one outside
+the repository, and thus, (4) is not appropriate for measuring
+similarities between a trace in the repository and an external
+query. To this regard, we employed an LDA-based retrieval
+model [21] to measure similarities between patient traces. The
+basic idea of using the LDA-based retrieval model is to generate
+the query likelihood process, where each trace is scored by
+its likelihood generating a query trace c∗ , Pr(c|c∗ ). And thus,
+similarity can be measured as simb (c, c∗ ) ∝ Pr(c|c∗ ).
+To calculate the query likelihood, we need to sum over the
+treatment topical variable for each clinical event type of the
+query trace c∗ . Given the posterior estimates θ̂ and φ̂, the query
+likelihood of a particular trace c (c ∈ R) given c∗ , Pr(c|c∗ ), can
+be calculated as
+
+Pr(c|c∗ ) =
+Pr(e|t, φ̂)Pr(t|θ̂, c).
+(6)
+e∈c ∗ t∈T
+
+Taking (6) to replace (4) for similarity measure, similar traces
+with a query can be retrieved from the repository R.
+E. Evaluation Metrics on Patient Trace Retrieval
+For evaluation on patient trace retrieval, the matrix “Precision” is calculated as follows:
+ rel(ci )
+1
+×
+|Q| i=1 5
+5
+
+Precision =
+
+(7)
+
+where Q is the set of query traces from the repository. Especially, 25 traces are randomly selected as query traces from
+the repository. i denotes the ith retrieval trace, which is from
+1 to 5, i.e., given a query, we retrieved top five similar traces.
+rel(ci ) denotes the relevant value of the trace ci to the query.
+
+HUANG et al.: SIMILARITY MEASURE BETWEEN PATIENT TRACES FOR CLINICAL PATHWAY ANALYSIS
+
+9
+
+If ci is relevant to the query, rel(ci ) = 1, otherwise rel(ci ) = 0.
+Apparently, it needs to identify if a retrieval trace is relevant to a
+particular query. For this purpose, a manual evaluation was conducted independently by three managers of medical services
+at the Zhejiang Huzhou Central hospital adopting a majority
+voting.
+
+F. Evaluation Results on the Patient Trace Retrieval
+Fig. 2 shows detailed experimental results in comparison between LDA-K (K = 1, 2, 3, . . . , 20), ED, and TV on the performance of retrieval. We observe that the number of treatment
+topics K has weak impacts on the retrieval performance of the
+proposed LDA method. As depicted in Fig. 2, as K increases,
+the precision increases slowly at first, and then remains stable
+with the further increases of K. However, when K surpasses
+a certain threshold, the precision decreases slowly with further
+increases of the value of K. We can observe that the precision achieves the best performance when K is around 11, while
+smaller values like K = 1 or larger values like K = 20 can potentially degrade the performance. This phenomenon indicates
+that the number of latent treatment topics for analysis should
+be suitable to reflect the topics in the repository. In comparison
+with ED and TV, the precision achieved by LDA-11 is 0.792,
+while the precision achieved by ED and TV are 0.632 and 0.664,
+respectively, i.e., roughly 19% improvements on the quality of
+precision, which is quite remarkable. In fact, as shown in Fig. 2,
+the presented LDA-K outperforms ED and TV regardless of the
+value of K. It indicates that LDA is more appropriate for the
+patient trace retrieval than ED and TV.
+
+G. Patient Trace Clustering
+In clinical pathways, patients who have the similar symptoms,
+chief complaints, pathology examination results, and other clinical features, may have similar traces, and can be grouped into the
+same cluster. Patient trace clustering helps to reveal the underlying characteristics and commonalities among a large collection
+of traces. The information extracted by clustering can also facilitate a subsequent analysis, for instance, to extract common
+treatment patterns of execution in the traces, or speed up trace
+indexing and anomaly detection.
+
+A reasonable similarity measure sim(c, c ) is critical for the
+patient trace clustering. The objective of the clustering methods
+that work on the similarity measure function is to maximize the
+intracluster similarities and minimize the intercluster similarity [22], [23]. In this study, we adopted a hierarchical microclustering algorithm [24] to generate partitions of patient traces
+in the repository. In Algorithm 2, we iteratively group two trace
+clusters with the largest similarity, where the similarity between
+two clusters is defined as the similarity between the farthest
+traces in the two clusters. The algorithm terminates when the
+maximum similarity between clusters becomes smaller than a
+user-specified threshold ε. The algorithm outputs a set of clusters of patient traces. It guarantees that the similarity between
+any pairwise traces in the same cluster is larger than ε.
+
+H. Evaluation Metrics on Patient Trace Clustering
+In the experiments, we compare the generated clusters with
+the benchmark clusters. The benchmark clusters are identified
+from the experimental repository. In particular, we use the first
+diagnosis code to categorize patient traces. As mentioned above,
+five categories, i.e., bronchial lung cancer, colon cancer, rectal
+cancer, breast cancer, and gastric cancer, are extracted from
+the repository. Since the experimental repository contains these
+general categories, they can be used as benchmark clusters for
+evaluating the overall performance of the clustering.
+As to evaluate the patient trace clustering, we first calculate
+the accuracy of the system on a per-trace basis, and then, build
+a global score for all patient traces in the repository, i.e., for a
+patient trace c, the precision and recall with respect to that trace
+are calculated as follows:
+
+|φc | |ϕc |
+(8)
+Precisionc =
+|φc |
+
+|φc | |ϕc |
+Recallc =
+(9)
+|ϕc |
+where φc is the generated cluster containing
+c, ϕc is the bench
+mark cluster containing c, and |φc | |ϕc | is the number of
+patient traces simultaneously appeared in both φc and ϕc . And
+the final precision and recall numbers are calculated as follows:
+1 
+Precisionc
+(10)
+Precision =
+|R|
+c∈R
+
+1 
+Recallc .
+Recall =
+|R|
+
+(11)
+
+c∈R
+
+Usually, precision and recall are not used separately, but combined into Fβ measure as following:
+Fβ = (1 + β 2 ) ×
+
+(Precision × Recall)
+.
+β 2 × Precision + Recall
+
+(12)
+
+In the experiments, we set β = 0.5 to weight precision twice
+as much as recall. This is because, we are willing to have
+
+10
+
+Fig. 2.
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+Results of the patient trace retrieval.
+
+Fig. 3. Performance of clustering using ED, TV, and LDA with different latent treatment behavioral topic models on the experiment repository. For each clustering
+setting (ED, TV, or LDA with different topic models), we changed the merging threshold and obtained the maximum F0 . 5 for comparison.
+
+Fig. 4.
+
+Comparison between ED, TV, and LDA-8 on patient trace clustering.
+
+average-size clusters but high precision than merging them into
+a large cluster for higher recall but low precision.
+I. Evaluation Results on Patient Trace Clustering
+Using the benchmark clusters, we can evaluate the clustering
+performance on F0.5 . In particular, by taking the maximum
+value of F0.5 (among different merging thresholds ε from 0.0
+to 0.4), we compare the performance of ED, TV, and LDA-K
+(K = 1, 2, 3, . . . , 20). As shown in Fig. 3, when the number
+
+of topics is larger than a particular value (K ≥ 8), the F0.5 is
+quite stable. Certainly, k ≈ 8 is probably the suitable number of
+topics for the experimental patient trace repository.
+Now, we study the impact of the parameter ε on both the
+experimental results, where ε is the merging threshold in the
+clustering step. We vary the value of ε from 0.0 to 0.4. Fig. 4
+shows the results of ED, TV, and LDA-8 (using the eight-topic
+model). From the figure, we can notice that LDA-8 can provide a significant improvement over ED and TV. The maximum
+
+HUANG et al.: SIMILARITY MEASURE BETWEEN PATIENT TRACES FOR CLINICAL PATHWAY ANALYSIS
+
+value of F0.5 of LDA-8 is 0.6622, which is nearly 84% better
+than ED (0.1044), and 46% better than TV (0.3565). Note that
+when the merging threshold is zero, each patient trace is classified into a specific cluster. That explains why three curves have
+the same starting value of F0.5 , as shown in Fig. 4. In addition,
+the inclusion of latent topics increases similarity among patient
+traces. As a result, when the merging threshold is small, LDA-8
+does not show an advantage over ED and TV. When the merging
+threshold increases, LDA-8 obtains better results on F0.5 than
+ED and TV, while TV increases slowly with the increases of ε,
+and ED remains stable regardless of the change in the value of
+ε. In particular, LDA-8 provides the most significant improvements when ε is 0.15. And then, F0.5 decreases slowly with the
+further increases of ε. It means the suitable value of ε is around
+0.15 for the experimental repository. Note that, we can always
+obtain better results with LDA-8 except ε = 0 in comparison
+with ED and TV. It indicates that the treatment behavioral features have much more significant influences on the similarity
+measure and subsequent analysis (e.g., patient trace clustering)
+than the sequential order of clinical events of the traces. Apparently, it confirms our assumption that clinical pathways take
+place in an unstructured fashion such that the traditional temporal similarity measure between patient traces would not achieve
+the accurate results, and may distort the subsequent tasks of
+CPA.
+J. Anomaly Detection
+With regard to the set of trace clusters discovered by the
+method presented in the previous section, it is possible to find
+if a particular patient trace c is normal or anomalous. Since patient traces within a specific cluster have similar care journeys
+to each other. We argue that while facing a new piece of information, humans first classify it into an existing information
+category [25], and then, compare it to the previous members
+of the category to understand how it varies in relation to the
+general characteristics of the membership category. Once the
+“normality” has been roughly captured by the discovered clusters from a particular patient trace repository, one can look for
+those individual patient traces whose patient-care journey deviates from the normal one. To this end, we assume that each
+discovered patient trace cluster φ represents a particular clinical pathway category, which is supported by a subset of patient
+traces in the trace repository R (φ ⊆ R). Traces of φ share a set
+of common properties that make them perceptually similar to
+each other, while also making them different from the traces of
+other clusters. If a particular patient trace c has similar features
+with the traces in φ, we can say that c is regular with regard to
+φ, otherwise, c is an anomaly.
+To this end, similarities between c and the traces of φ are
+combined to generate a conclusion about c. Based on the presented similarity measure between pairwise traces, we compute
+the similarity between a particular patient trace c and the previous members of each trace cluster by defining a function Δφ (c)
+as
+
+Δφ (c) =
+ωφ (c∗ ) · sim(c, c∗ )
+(13)
+c ∗ ∈φ
+
+11
+
+where ωφ (c∗ ) is the weight of each member c∗ in the cluster φ,
+which indicates the participation of c∗ in φ.
+1 
+ωφ (c∗ ) =
+sim(c∗ , c∗∗ )
+(14)
+|φ| ∗∗
+c ∈φ
+
+where Δφ represents the average weighted similarity between
+a particular patient trace c and any one of a membership cluster
+φ. The selected membership cluster φ∗ is found as
+φ∗ = argmax Δφ (c∗ ).
+∀φ
+
+(15)
+
+Once the membership decision of a new particular trace has been
+made, we can focus our attention on deciding whether the new
+particular trace is normal or not. Intuitively speaking, we want to
+decide the normality of a new trace based on its closeness to the
+previous members of its membership cluster. This is done with
+respect to the average closeness between the previous members
+of its membership cluster. In particular, we define a particular
+trace c as normal with respect to its membership cluster φ∗ , if
+Δφ ∗ (c) is larger than a particular normality threshold μ, i.e., if
+Δφ ∗ (c) ≥ μ, c is normal w.r.t φ∗ . Otherwise, it is an anomaly.
+K. Evaluation Metrics on Anomaly Detection
+In this section, we evaluate the proposed anomaly detection
+method. The overview of the experimental flowchart involves
+three steps.
+1) By applying the proposed approach, we evaluate the normality of each patient trace in the repository. In particular, we set up tenfold cross-validation experiments, which
+mean those traces in the repository would be split into
+ten partitions. Nine partitions are training data, and one
+partition is testing data. Based on training data, the proposed anomaly detection model is built. Then, for the
+partition of testing data, the normality of each trace is
+calculated based on the learned model. In all, the set of
+anomalies are extracted from the repository R, named
+Anomalies = {c|c ∈ R ∧ Δφ ∗ (c) < μ}, where μ is a particular normal threshold value.
+2) As to the benchmark (or ground truth) evaluation data,
+we asked three experienced physicians of the Zhejiang
+Huzhou central hospital to evaluate the discovered anomalies, adopting a majority voting. Formally, we let bc be the
+clinical expert’s evaluation result of an anomaly trace c
+discovered by our method. If clinical experts also take c
+as an anomaly, bc = 1, otherwise, bc = 0.
+3) The last step is the comparison between the calculation results and benchmark. In particular, the matrix “Precision”
+is gained as follows:
+
+bc
+(16)
+Precision = c∈Anomalies × 100%.
+|Anomalies|
+L. Evaluation Results on Anomaly Detection
+As mentioned earlier, LDA-K achieves the best clustering performance with K = 8. Thus, we investigated the performance
+of LDA-8 on anomaly detection. Table IV shows the number
+of detected anomalies and the corresponding precision value of
+
+12
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+TABLE IV
+RESULTS OF ANOMALY DETECTION USING LDA-8 ON THE EXPERIMENTAL REPOSITORY
+
+Fig. 5.
+
+Screenshot of the system prototype.
+
+LDA-8 with different μ, where μ is the threshold value of normality of patient traces. In the experiments, we vary the value of
+μ from 0.05 to 0.5. The general trend of the precision is observed
+in Table IV. For example, when μ = 0.9, there are 29 anomalies detected by LDA-8, and the precision is about 58.6% (i.e.,
+17 detected anomalies are evaluated as true, and 12 detected
+anomalies are evaluated as false by clinical experts). When μ
+reduces to a certain value, i.e, μ ≤ 0.8, the number of detected
+anomalies and the corresponding precision of LDA-8 remains
+stable with the further decreases of μ, i.e., less than three detected anomalies and 100% precisions. Although the precision
+achieved is quite remarkable when μ ≤ 0.8, there are at least
+14 (17−3) anomalies recognized by clinical experts, while not
+detected by LDA-8. Clearly, when μ = 0.85, LDA-8 is able to
+detect most of the anomalies from the repository. Thus, as a conservative estimate, the default value for the normality threshold
+value μ is set at 0.85.
+It has to be mentioned that, when ED is applied in anomaly
+detection, all 258 traces in the repository are judged as anoma-
+
+lies even when μ = 0.5. For TV, 133 out of 258 patient traces
+are recognized as anomalies when μ = 0.5, which is still a quite
+large number of anomalies. It is because the measured similarities between patient traces are quite small using ED or TV. For
+example, using ED for any trace c in the repository, the maximum Δφ ∗ (c) (over varying ε from 0.0 to 0.4 in the clustering
+step) is 0.382. It is far less than μ. Apparently, both ED and
+TV are unsuitable to be applied in anomaly detection for the
+experimental repository. It also confirms our assumption that
+clinical pathways are typically unstructured such that it requires
+different strategies rather than traditional methods to measure
+the similarities between patient traces.
+IV. PROOF-OF-CONCEPT PROTOTYPE
+We have implemented and tested the proposed approach using Microsoft C#. Fig. 5 depicts a screenshot of our prototype.
+Based on the input trace repository extracted from the Zhejiang
+Huzhou Central hospital of China, we can describe the details
+
+HUANG et al.: SIMILARITY MEASURE BETWEEN PATIENT TRACES FOR CLINICAL PATHWAY ANALYSIS
+
+of each trace. For example, Fig. 5 listed a set of patient traces of
+the intracranial hemorrhage pathway. On the left part of Fig. 5, it
+presents the basic information from the repository, e.g., number
+of traces, number of events, number of event types, minimum
+LOS, maximum LOS, average LOS, etc. In addition, all traces
+with their IDs and all event types existing in the trace repository
+are listed. Each event type is represented as a color dot to distinguish clearly. The user could select the traces and the types
+of interest to display.
+For each patient trace, it shows time-line display, categories,
+and similar traces on the right part of Fig. 5. The time-line
+display distributes all the events upon the corresponding inpatient day which means that for each in-patient day, there are
+events sorted by time from the earliest event to the latest one
+in a single day. Categories show the treatment behavioral topics
+the trace belongs to. Sometimes the trace is a mixture of two
+or more categories, and we can fix it with a probability on each
+category. Similar traces present the typical as well as similar
+traces we have found from the patient trace repository by using
+the methods presented in this study. They are also displayed
+with time-line display.
+
+V. CONCLUSION
+In this paper, we present a probabilistic approach of measuring the similarities between patient traces for CPA. The proposed
+approach can provide a basis for subsequent CPA (e.g., patient
+trace retrieval, clustering, anomaly detection, etc.), and assist in
+getting better insights into clinical pathways.
+The advantages of the proposed approach have been pointed
+out in our proposal. Note that what we need is to gather a patient
+trace repository and use it for analyzing and improving clinical pathways. Analysis on the patient trace repository is totally
+unsupervised. It requires small effort of humans for preprocessing the traces in the repository. This is particularly useful when
+dealing with clinical pathways lacking formal consensus models, where patient traces can still be measured based on their
+treatment behavioral similarities. As a result, the solution works
+well for CPA.
+We believe that our approach is highly appealing in the field
+of CPA. Measuring similarities between patient traces can profitably be exploited as a basis for further tasks of CPA, not
+limited to the applications listed in this paper. For example, critical/essential treatment behaviors can be detected, analyzed, and
+optimized based on the topic analysis presented in this study, association rules between recognized anomalies and patient states
+can be derived, etc. We will address these tasks by exploiting
+the potential of the proposed method and its applications, as
+a crucial advantage over traditional techniques for CPA and
+optimization.
+
+ACKNOWLEDGMENT
+The authors would like to thank all experts who cooperated
+in the evaluation of the proposed method.
+
+13
+
+REFERENCES
+[1] D. A. Alexandrou, I. E. Skitsas, and G. N. Mentzas, “A holistic environment for the design and execution of self-adaptive clinical pathways,”
+IEEE Trans. Inf. Technol. Biomed., vol. 15, no. 1, pp. 108–118, Jan. 2011.
+[2] L. Maruster and R. J. Jorna, “From data to knowledge: A method for
+modeling hospital logistic processes,” IEEE Trans. Inf. Technol. Biomed.,
+vol. 9, no. 2, pp. 248–255, Jun. 2005.
+[3] Z. Huang, X. Lu, and H. Duan, “On mining clinical pathway patterns from
+medical behaviors,” Artif. Intell. Med., vol. 56, no. 1, pp. 35–50, 2012.
+[4] Z. Huang, X. Lu, and H. Duan, “Latent treatment topic discovery for
+clinical pathways,” J. Med. Syst., vol. 37, no. 2, pp. 1–10, 2013.
+[5] Z. Huang, X. Lu, H. Duan, and W. Fan, “Summarizing clinical pathways
+from event logs,” J. Biomed. Informat., vol. 46, no. 1, pp. 111–127, 2013.
+[6] Z. Huang, X. Lu, and H. Duan, “Similarity measuring between patient traces for clinical pathway analysis,” in Artificial Intelligence in
+Medicine(Lecture Notes in Computer Science vol. 7885), N. Peek, R.
+M. Morales, and M. Peleg, Eds. Berlin, Germany: Springer, 2013, pp.
+268–272.
+[7] H. Campbell, R. Hotchkiss, N. Bradshaw, and M. Porteous, “Integrated
+care pathways,” Brit. Med. J., vol. 316, no. 7125, pp. 133–137, 1998.
+[8] A. Dogac, Y. Kabak, T. Namli, and A. Okcan, “Collaborative business
+process support in e-health: Integrating IHE profiles through ebXML business process specification language,” IEEE Trans. Inf. Technol. Biomed.,
+vol. 12, no. 6, pp. 754–762, Nov. 2008.
+[9] J. Kimberly, G. de de Pouvourville, and T. d’Aunno, The Globalization
+of Managerial Innovation in Healthcare. Cambridge, U.K.: Cambridge
+Univ. Press, 2009.
+[10] F. Lin, S. Chen, S. Pan, and Y. Chen, “Mining time dependency patterns in
+clinical pathways,” Int. J. Med. Informat., vol. 62, no. 1, pp. 11–25, 2001.
+[11] A. Rebuge and D. R. Ferreira, “Business process analysis in healthcare
+environments: A methodology based on process mining,” Inf. Syst., vol. 37,
+no. 2, pp. 99–116, 2012.
+[12] J. van de Klundert, P. Gorissen, and S. Zeemering, “Measuring clinical
+pathway adherence,” J. Biomed. Informat., vol. 43, no. 6, pp. 861–872,
+2010.
+[13] S. C. Muluk, L. Painter, S. Sile, R. Y. Rhee, M. S. Makaroun, D. L. Steed,
+and M. W. Webster, “Utility of clinical pathway and prospective case management to achieve cost and hospital stay reduction for aortic aneurysm
+surgery at a tertiary care hospital,” J. Vasc. Surg., vol. 25, no. 1, pp. 84–93,
+1997.
+[14] A. Barbieri, K. Vanhaecht, P. Van Herck, W. Sermeus, F. Faggiano,
+S. Marchisio, and M. Panella, “Effects of clinical pathways in the joint
+replacement: A meta-analysis,” BMC Med., vol. 7, no. 32, pp. 1–11,
+2009.
+[15] S. Kul, “The use of survival analysis for clinical pathways,” Int. J. Care
+Pathw., vol. 14, no. 1, pp. 23–26, 2010.
+[16] M. Qiao, R. Akkiraju, and A. Rembert, “Towards efficient business process clustering and retrieval: Combining language modeling and structure
+matching,” in Business Process Management(Lecture Notes in Computer
+Science, vol. 6896), S. Rinderle-Ma, F. Toumani, and K. Wolf, Eds. Berlin,
+Germany: Springer, 2011, pp. 199–214.
+[17] S. Goedertier, J. De Weerdt, D. Martens, J. Vanthienen, and B. Baesens,
+“Process discovery in event logs: An application in the telecom industry,”
+Appl. Soft Comput., vol. 11, no. 2, pp. 1697–1710, 2011.
+[18] D. M. Blei, A. Y. Ng, and M. I. Jordan, “Latent Dirichlet allocation,” J.
+Mach. Learn. Res., vol. 3, pp. 993–1022, Mar. 2003.
+[19] D. Gusfield, Algorithms on Strings, Trees and Sequences, Computer Science and Computational Biology. Cambridge, U.K.: Cambridge Univ.
+Press, 1997.
+[20] J. M. Juarez, M. Campos, J. Palma, and R. Marin, “T-care: Temporal case
+retrieval system,” Expert Syst., vol. 28, no. 4, pp. 324–338, 2011.
+[21] X. Wei and W. B. Croft, “LDA-based document models for ad-hoc retrieval,” in Proc. 29th Annu. Int. ACM SIGIR Conf. Res. Development Inf.
+Retrieval, New York, NY, USA, 2006, pp. 178–185.
+[22] Y. Cheng, “Mean shift, mode seeking, and clustering,” IEEE Trans. Pattern
+Anal. Mach. Intell., vol. 17, no. 8, pp. 790–799, Aug. 1995.
+[23] A. K. Jain, M. N. Murty, and P. J. Flynn, “Data clustering: A review,”
+ACM Comput. Surv., vol. 31, no. 3, pp. 264–323, 1999.
+[24] L. Ertoz, M. Steinbach, and V. Kumar, “Finding clusters of different sizes,
+shapes, and densities in noisy, high dimensional data,” in Proc. 3rd SIAM
+Int. Conf. Data Mining, 2003, pp. 47–58.
+[25] E. Rosch, C. Mervis, W. Gray, D. Johnson, and P. Boyes-Braem, “Basic objects in natural categories,” Cogn. Psychol., vol. 8, pp. 382–439,
+1976.
+
+14
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 18, NO. 1, JANUARY 2014
+
+Zhengxing Huang received the B.S. and Ph.D. degrees from the College of Biomedical Engineering and Instrument Science, Zhejiang University,
+Hangzhou, China, in 2003 and 2010, respectively.
+He is currently an Instructor at the College
+of Biomedical Engineering and Instrument Science,
+Zhejiang University. His research interests include
+computer-aided medical decision support and artificial intelligence in medicine.
+
+Wei Dong received the B.S. degree in clinical
+medicine from Taishan Medical College, Tai’an,
+China, in 1993 and the M.S. and Ph.D. degrees in cardiology from PLA General Hospital, Beijing, China
+in 1999 and 2002, respectively.
+She is currently a Deputy Chief Physician at the
+Cardiology Department, PLA General Hospital; a
+Young Faculty of Chinese Society of Cardiology; and
+a Young Faculty of PLA Society of Cardiology. Her
+research interests include coronary heart disease, the
+diagnosis and treatment of acute and chronic heart
+failure, and clinical decision support.
+
+Huilong Duan received the B.S. degree in medical
+instrumentation in 1985, the M.S. degree in biomedical engineering in 1988, and the Ph.D. degree in
+engineering (Evoked Potential) in 1991, all from the
+Zhejiang University, Hangzhou, China.
+He is currently a Professor in the Department
+of Biomedical Engineering and the Dean of College
+of Biomedical Engineering and Instrument Science,
+Zhejiang University. His research interests include
+medical image processing, medical information system, and biomedical informatics. He has published
+more than 100 scholarly research papers in the above research areas.
+Dr. Duan is a Program Committee Member of the Computer Aided Radiology and Surgery; the Editorial Board of Space Medicine & Medical Engineering
+and Chinese Journal of Medical Instruments respectively; the Editorial Board
+of Chinese Journal of Biomedical Engineering; the Secretary-General of BME
+Education Steering Committee, Chinese Ministry of Education; and the Member of The Brain-Bridge Program Committee, Philips, TU/e, and ZJU.
+Haomin Li received the Ph.D. degree in biomedical
+engineering from the Zhejiang University, Hangzhou,
+China.
+He is currently an Assistant Professor of biomedical engineering, Zhejiang University. He was a Post
+Doctorate Fellow Researcher at NHLBI Proteomics
+Center, David Geffen School of Medicine, the University of California, Los Angeles, CA, USA. His
+research interests include clinical knowledge translation and decision support .
+
+

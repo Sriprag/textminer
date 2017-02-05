@@ -1,0 +1,1181 @@
+612
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+A Chance-Constrained Programming Approach
+to Preoperative Planning of Robotic Cardiac
+Surgery Under Task-Level Uncertainty
+Hamidreza Azimian, Michael D. Naish, Member, IEEE, Bob Kiaii, and Rajni V. Patel, Life Fellow, IEEE
+
+Abstract—In this paper, a novel formulation for robust surgical
+planning of robotics-assisted minimally invasive cardiac surgery
+based on patient-specific preoperative images is proposed. In this
+context, robustness is quantified in terms of the likelihood of intraoperative collisions and of joint limit violations. The proposed
+approach provides a more accurate and complete formulation than
+existing deterministic approaches in addressing uncertainty at the
+task level. Moreover, it is demonstrated that the dexterity of robotic
+arms can be quantified as a cross-entropy term. The resulting planning problem is rendered as a chance-constrained entropy maximization problem seeking a plan with the least susceptibility toward uncertainty at the task level, while maximizing the dexterity
+(cross-entropy term). By such treatment of uncertainty at the task
+level, spatial uncertainty pertaining to mismatches between the
+patient-specific anatomical model and that of the actual intraoperative situation is also indirectly addressed. As a solution method,
+the unscented transform is adopted to efficiently transform the resulting chance-constrained entropy maximization problem into a
+constrained nonlinear program without resorting to computationally expensive particle-based methods.
+Index Terms—Medical robotics, planning under uncertainty,
+port placement, stochastic programming, surgical planning.
+
+p
+q
+x
+μ
+Q
+
+NOMENCLATURE
+Position vector.
+Joint vector.
+Task frame vector.
+Mean vector.
+Covariance matrix.
+
+Manuscript received August 2, 2013; revised February 26, 2014; accepted
+March 26, 2014. Date of publication April 4, 2014; date of current version
+March 2, 2015. This work was supported by the Natural Sciences and Engineering Research Council (NSERC) of Canada and the Canadian Institutes of
+Health Research (CIHR) under a Collaborative Health Research Projects Grant
+(#351226-2008; PI: R.V. Patel).
+H. Azimian is with the Centre for Image-Guided Innovation and Therapeutic
+Intervention, Hospital for Sick Children, Toronto, ON M5G 1X8, Canada (email: hamidreza.azimian@sickkids.ca).
+M. D. Naish is with the Canadian Surgical Technologies and Advanced
+Robotics (CSTAR), the Department of Mechanical and Materials Engineering,
+and the Department of Electrical and Computer Engineering, The University of
+Western Ontario, London, ON N6A 3K7, Canada (e-mail: mnaish@uwo.ca).
+B. Kiaii is with the CSTAR and the Department of Surgery, The
+University of Western Ontario, London, ON N6A 3K7, Canada (e-mail:
+bob.kiaii@lhsc.on.ca).
+R. V. Patel is with the CSTAR, Lawson Health Research Institute, London,
+ON, Canada, the Department of Electrical and Computer Engineering and the
+Department of Surgery, The University of Western Ontario, London, ON N6A
+3K7, Canada (e-mail: rvpatel@uwo.ca).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2315798
+
+P
+P (·)
+Φ(·)
+W
+g
+Xi
+Yi
+d
+γ
+q̃
+x̃
+
+Plan.
+Probability operator.
+Standard normal cumulative distribution function.
+Gain.
+Transformation matrix.
+Samples.
+Propagated samples.
+Minimum distance vector.
+Approach angle vector.
+Augmented joint vector.
+Augmented task vector.
+I. INTRODUCTION
+
+A. Background
+URING the last decade, the notion of adopting robotic
+manipulators to perform surgical procedures has become
+popular due to technological achievements. Accessing surgical
+targets through small incisions on the patient’s body has been
+proven to offer many benefits. Yet even as adoption increases,
+the success rate of robotics-assisted procedures has remained
+limited due to complexities such as intraoperative collisions,
+mechanical joint limits, and lack of reachability that can lead to
+task infeasibility. This is due to the fact that: 1) the arms and
+the instruments are rigid 2) once the setup arms and the incision ports are in place they cannot be changed. One approach
+that can increase the chance of successful accomplishment of
+robotics-assisted interventions (RAI) is patient-specific preoperative planning that includes an insightful selection of the incisions as well as a proper placement of the robotic arms based
+on the patient’s preoperative anatomical data. Typically, patientspecific anatomical data are captured from imaging modalities
+such as magnetic resonance imaging (MRI) and/or computed tomography (CT). However, the patient’s intraoperative anatomy
+can significantly differ from the model predicted by the preoperative data. Physiological motions, altered geometry caused
+by chest insufflation and/or lung collapse, as well as tissue deformations inflicted by tool/tissue interactions can introduce
+inaccuracies in the preoperative model. Also, patient placement
+error could contribute to the geometric uncertainty. To complicate matters, the contribution of the inherent uncertainty in
+surgical tasks that arises from the variability of surgeons’ skill
+and experience levels must be considered as well.
+This paper presents an extended version of the work initially
+outlined in [1] and [2], and provides an alternative formulation
+to that proposed in [3] for robust preoperative planning. For
+
+D
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+AZIMIAN et al.: CHANCE-CONSTRAINED PROGRAMMING APPROACH TO PREOPERATIVE PLANNING OF ROBOTIC CARDIAC SURGERY
+
+the sake of brevity, readers are referred to [3] for a rigorous
+literature survey on related work.
+In [3], a deterministic approach to address geometric uncertainty in patient-specific preoperative planning was proposed.
+In general, accurate identification and incorporation of spatiotemporal uncertainties in preoperative planning may result in
+a hard-to-solve problem. The proposed approach in [3] could
+partially alleviate this computational complexity by translating
+spatial uncertainties of the manipulator’s tip—in a vicinity of
+the surgical target—into the uncertainty in the wrist position.
+Such treatment of uncertainty delivers an approximate representation of the actual geometric uncertainty at the expense of
+yielding more conservative results. As a matter of fact, [3] provided a near-to-exact solution method to preoperative planning
+with an approximate representation of geometric uncertainty.
+In this paper, an approximate solution method for preoperative
+planning with an exact representation of geometric uncertainty
+is proposed. With the proposed formulation, it is possible to
+maximize the maneuverability of the current multiarm surgical robotic systems (such as the da Vinci system from Intuitive
+Surgical, Inc.) by assuming spatio-temporal uncertainties at the
+task level. This entails decomposition of spatial uncertainty into
+position and orientation uncertainties. This is particularly advantageous when different tasks and procedures may have different
+requirements in terms of translational and rotational motions.
+The planning problem is rendered as a chance-constrained programming problem, and an efficient solution method based on
+the unscented transform is proposed. Unlike linearization techniques, the proposed technique does not require the calculation
+of the constraint’s gradient, nor does it resort to propagating
+a large population of particles as in Monte Carlo methods. In
+this formulation, an optimum plan is sought while ensuring that
+robustness with respect to the lack of information at the task
+level is increased. This is achieved by inflating the entropy of
+the task in the Cartesian space, while the cross entropy of the
+task in the joint space and Cartesian space is maximized as a
+measure of kinematic dexterity.
+B. Methods
+It has been shown that every surgical procedure can be expressed in terms of several surgical tasks that can be expressed
+in terms of hand gestures (see [4]–[9]). In most of these papers, the authors have utilized statistical inference techniques to
+infer and recognize surgical gestures from a pool of hand motion data collected from different surgeons. Gesture recognition
+at each instant is accomplished by picking the gesture with the
+maximum likelihood. In other words, gestures are treated as random variables whose statistical moments are inferred from the
+spatio-temporal information extracted from the recorded data.
+In this paper, this concept is taken one step further and the
+representation of task gestures in terms of task frames, that
+are specified in a vicinity of anatomical targets, is proposed as a
+more objective way of expressing surgical performance. In other
+words, if gestures are the words of the language of surgery, task
+frames are taken to be the alphabet of that language. This approach can accommodate anatomical differences for different
+
+613
+
+patients into the description of the procedure. In other words,
+this approach tailors the task frames not only to the procedure,
+but also to the patient, resulting in a patient/procedure-specific
+description of the surgery. This paper does not focus on the
+methods used for the inference of the task frames, but on the development of a procedure/patient-specific preoperative planning
+formalism based on the extracted task frames.
+Surgical task gestures are prone to spatio-temporal uncertainties for various reasons, such as tissue deformations. Also,
+variability in the surgeons’ skill and experience levels, could
+further contribute to these uncertainties. In order to address this,
+gestures—and therefore task frames—must be treated as random variables. Statistical inference techniques can provide an
+estimate of the uncertainty for a given dataset, and in this sense
+the estimated uncertainty is subjective. This paper presents a
+planning formalism that addresses geometric uncertainties at
+the task level in terms of translational and rotational uncertainties in the task frames. The main objective of developing such a
+formalism is to enable preoperative plans to have minimal susceptibility to the lack of information at the task level. In other
+words, the proposed formalism is used to determine the largest
+uncertainty at the task level for which the chances of collisions,
+joint limit violations, and task infeasibility remain sufficiently
+small. One implication of this approach is that plans with less
+susceptibility are sought without making any particular assumption regarding the surgeon’s skill and experience.
+The paper is organized as follows. In Section II, the
+preoperative planning scheme is formally exposed as a chanceconstrained entropy maximization problem, and an efficient solution method is recommended. The application of the proposed
+scheme to robotics-assisted minimally invasive cardiac surgery
+is demonstrated through a case study in Section III, and the performance of the scheme is investigated over several studies in
+Section IV. Finally, discussions and conclusions are presented
+in Section V.
+II. PROBLEM FORMULATION
+RAI are typically enabled by adopting three arms, including two arms equipped with the right and left instruments,
+and one arm to carry the endoscope. Let xR = (log(gR ))∨ and
+xL = (log(g L ))∨ be the 6-D pose vectors pertaining
+ to theright
+
+and left instruments, respectively, where gR = R0R p1R and
+
+
+gL = R0L p1L ∈ SE(3) are the 4 × 4 transformation matrices attached to the tips of the instruments defined in terms of
+the rotation matrices RR and RL ∈ SO(3) as well as the position vectors pR and pL ∈ R3 , and (·)∨ is the vee operator that is
+used to extract a 6-D vector from a spatial transformation matrix
+(see [10] for more details). Throughout this paper, it is assumed
+that the pose of the instruments in the neighborhood of the task
+frames is represented by two independent Gaussian distributions
+denoted by xR ∼ N (μx,R , Qx,R ) and xL ∼ N (μx,L , Qx,L ),
+in which μx,R ∈ R6 and μx,L ∈ R6 resemble the desired task
+frames, and task uncertainties are represented by Qx,L ∈ R6×6
+and Qx,R ∈ R6×6 . In practice, for a given task in the vicinity of
+a target frame, the endoscope remains still; therefore, the pose
+
+614
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+of the endoscope, xE , is henceforth treated as a deterministic
+variable.
+In order to improve the likelihood of successful completion
+of a given surgical procedure, the sensitivity of the preoperative plan with respect to the task-level uncertainty must be
+reduced. With a task modeled by Gaussian distributions, this
+can be achieved by maximizing a norm of the covariance matrices while keeping the chance of failure below some threshold, or
+alternatively, by minimizing a norm of the information matrix,
+subject to the constraints. It is well known that the information
+entropy is a measure of the lack of information about a random process, and according to the maximum entropy principle,
+among all candidates, when choosing a probability distribution,
+the one with the maximum entropy should be chosen [11].
+
+tor dispersion is minimized for a given dispersion in the pose
+of the instrument in Cartesian space. This can be realized by
+minimizing the following cross entropy term:
+ 
+
+
+
+|Qq,R (k)|
+|Qq,L (k)|
+1 N
++log
+Ent2 (X ) = Σk =1 log
+N
+|Qx,R (k)|
+|Qx,L (k)|
+(3)
+and the aggregate multicriteria objective function (to be minimized), i.e., Ent(X ) = −Ent1 (X ) + Ent2 (X ), can be
+written in the following compact form:
+
+
+|Qq,R (k)Qq,L (k)|
+1 N
+. (4)
+Ent(X ) = Σk =1 log
+N
+|Qx,R (k)|2 |Qx,L (k)|2
+B. Constraints
+
+A. Objective Function
+The objective of the proposed planning formalism is articulated in terms of two criteria: procedure entropy and kinematic
+performance. The formal definition of these criteria are as follows.
+1) Procedure Entropy: Let a procedure be modeled as a sequence of N stochastic task frames given as
+
+
+
+xR (k)
+for k = 1, 2, . . . , N
+(1)
+X =
+xL (k)
+where the right and left frames are represented by Gaussian
+distributions: xR (k) ∼ N (μx,R (k), Qx,R (k)) and xL (k) ∼
+N (μx,L (k), Qx,L (k)). Note that although the mean value of
+the tasks, and as a result the procedure, is assumed a priori
+and independent of the plan, the tolerable task uncertainty is
+determined by the plan. As a measure of the lack of information
+regarding a procedure, the information entropy of the procedure,
+can be expressed as
+1 N
+Σ
+(log(|Qx,R (k)|) + log(|Qx,L (k)|))
+N k =1
+(2)
+where | · | is the matrix determinant operator, and log(|Qx |) is
+recognized as the Shannon entropy of the task. As will be discussed, the goal is to find the plan associated with the maximum
+tolerable procedure entropy.
+2) Performance: In [1], a Jacobian-based measure of dexterity was utilized as a measure of kinematic performance
+for preoperative planning. In this paper, kinematic performance is accommodated in the objective function by means
+of the task entropy across Cartesian and joint spaces. This
+measure is physically interpretable, and renders the multicriteria objective function of the planning scheme as an entropy maximization problem. Suppose that the right and left
+task frames in Cartesian space, denoted by Gaussian distributions xR (k) and xL (k) are given, and the propagated
+distributions in joint space can be approximated by Gaussian distributions qR (k) ∼ N (μq,R (k), Qq,R (k)) and qL (k) ∼
+N (μq,L (k), Qq,L (k)), where qR ∈ R6 and qL ∈ R6 are the
+right and left instrument joint vectors. Note that this assumption
+is by no means restrictive, but an indication of an approximation
+in the solution method. Generally, it is desired that the joint vecEnt1 (X ) =
+
+Due to the stochastic nature of the procedure, constraints
+must be articulated probabilistically. The main constraints can
+be classified into three different categories: constraints imposed
+to avoid collisions, constraints imposed to avoid joint limit violations, and constraints imposed by target reachability. In here,
+these categories are formally described in terms of the planning
+parameters, denoted by P ∈ Rn , and the instrument and the
+endoscope pose vectors.
+Suppose that a surgical task triplet (determined based on task
+requirements and patient-specific preoperative data) is given
+as x̃ = {xR , xL , xE }. For a given plan P, the necessary and
+sufficient conditions for collision avoidance while performing x̃
+can be described in terms of the minimum distances among the
+arms, the patient’s body and external objects, denoted by d =
+fd (x̃, P), where fd : R15 × Rn → Ra . This constraint can be
+formally represented as a chance constraint, i.e.,
+	
+
+
+
+P d(k) > 0a×1 	P, x̃(k) > 1 −  for k = 1, . . . , N (5)
+where 0 <   1 is a threshold, and P (·) is the probability
+operator.
+In a similar fashion, given a plan P, while performing task
+x the chance of avoiding joint limits must also be guaranteed
+to remain below some threshold. This can be articulated using
+the inverse kinematics of the arms denoted by q = fIK (x, P),
+where fIK : R6 or 3 × Rn → R6 or 3 . The corresponding chance
+constraints are given as
+	
+
+
+
+P qR (k) ∈ Qvalid,R 	P, x̃(k) > 1 −  for k = 1, . . . , N
+(6)
+	
+
+
+
+P q L (k) ∈ Qvalid,L 	P, x̃(k) > 1 −  for k = 1, . . . , N
+(7)
+where Qvalid refers to the valid subset of the joint space determined by the joint limits.
+Another set of constraints is imposed by target reachability.
+Task frames are normally situated on (or are close to) surfaces,
+and depending on the concavity and convexity of the surface,
+the arm configuration by which the task frame can be reached,
+and as a result the maneuverability of the instrument pertaining
+to that task, may be confined. Since an exact and complete consideration of geometrical constraints, imposed by the patient’s
+
+AZIMIAN et al.: CHANCE-CONSTRAINED PROGRAMMING APPROACH TO PREOPERATIVE PLANNING OF ROBOTIC CARDIAC SURGERY
+
+615
+
+
+
+
+P qR (k) ∈ Qvalid,R |P, x̃(k) > 1 − 
+
+
+
+P qL (k) ∈ Qvalid,L |P, x̃(k) > 1 − 
+
+
+
+P cR (k) ∈ Creach |P, x̃(k) > 1 − 
+
+
+
+P cL (k) ∈ Creach |P, x̃(k) > 1 − 
+
+
+
+h P, x̃(k) ≥ 0s×1
+(10)
+for k = 1, . . . , N , where h : R15 × Rn → Rs represent the deterministic constraints.
+In general, finding the exact solution of (10) is not trivial.
+In the following sections, it is shown that the exposed stochastic optimization problem can be efficiently approximated by
+an ordinary constrained nonlinear programming problem. The
+proposed method is shown to be capable of providing a more accurate approximation than simple linearization, while avoiding
+computationally expensive Monte Carlo methods.
+Fig. 1. Maneuverability of the tool confined by reachability constraints at the
+trocar and target(s).
+
+anatomy, can result in an NP-hard problem, only topological
+constraints at the target and the access port are considered. The
+configuration of the arms can be described as c = fc (x, P),
+where fc : R6 or 3 × Rn → Rb . Vector c may include some or
+all of the pose components pertaining to some control locations on the arms. As opposed to the joint limits that confine
+reachability, these constraints are imposed by the topology of
+the environment (in this case, patient’s anatomy). Therefore,
+the reachability requirements can be described in terms of the
+reachable subset of the configuration space, denoted by Creach ,
+as
+	
+
+
+
+P cR (k) ∈ Creach 	P, x̃(k) > 1 − , for k = 1, . . . , N
+	
+
+
+
+P cL (k) ∈ Creach 	P, x̃(k) > 1 − ,
+
+(8)
+for k = 1, . . . , N.
+(9)
+
+Fig. 1 demonstrates how the reachability constraints at the trocar
+plane and at the target can confine maneuverability . In a simplified scenario,
+ the reachability constraints can be defined in
+γ1
+terms of γ =
+, where γ1 and γ2 are the approach angles
+γ2
+of the instruments at the trocar plane and target, respectively
+(see Fig. 1). In fact, this simplification is valid under the assumption that the instruments consist of rigid straight links. In
+case of adopting instruments with flexible links, reachability has
+to be translated into a higher number of constraints.
+Finally, the planning problem can be rendered as the following
+chance-constrained programming problem:
+
+
+|Qq,R (k)Qq,L (k)|
+1 N
+min Σk =1 log
+P N
+|Qx,R (k)|2 |Qx,L (k)|2
+subject to
+
+
+
+
+P d(k) > 0a×1 |P, x̃(k) > 1 − 
+
+C. Problem Transformation
+An obvious solution method for (10) is transforming the problem into a deterministic optimization problem. Two common
+methods are usually utilized:
+1) Propagating a dense population of randomly generated
+particles through the constraint functions and examining
+the constraint satisfaction rate of the propagated particles.
+Despite providing accurate approximations, this method
+is computationally expensive, and the number of function
+evaluations can increase exponentially as the number of
+constraints increases.
+2) Replacing each chance constraint by one deterministic
+counterpart that is parameterized in terms of the distribution moments of the chance constraint. Obviously, this
+requires the distribution of the constraints to be known.
+However, the chance constraints generally are nonlinear
+functions of the pose vectors, and their actual distributions
+are unknown and potentially non-Gaussian. One common
+workaround is to approximate the mean and variance of
+the chance constraints in terms of the constraint functions’
+gradients and the mean and variance of the random variables. Unfortunately, this method typically fails to capture
+the true statistics of the constraint particularly when the
+function is highly nonlinear [12]. To further complicate
+matters, analytical expressions for the gradients may not
+always be available, which will result in a higher number
+of function evaluations.
+More recently, a theoretical framework has been developed
+for the analysis of the propagation of probability distributions
+on motion groups (see [13]–[16]). In [14], the authors showed
+that when two members of SE(3) are multiplied, the resulting
+error distribution is the convolution of their respective error distributions. In [17], error propagation in needle steering has been
+studied using a second-order approximation of the propagated
+covariance proposed in [15]. The authors used the formulation
+to evaluate the optimal insertion location for flexible needle
+steering. The proposed formalism is sound, and provides an an-
+
+616
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+	
+Qx = Σ2m
+i=0 Wi (Xi − μx )(Xi − μx ) .
+
+(15)
+
+2) Transformed Optimization Problem: Once the mean and
+covariance matrices of the chance constraints are approximated,
+they can be replaced by a set of deterministic constraints. For
+ = 1 − Φ(ζ), where ζ ∼ N (0, 1), and Φ(·) is the standard
+normal cumulative distribution function, (10) can be substituted
+by the following constrained nonlinear programming problem
+(see [18] for more details on the derivation):
+
+
+|Qq,R (k)||Qq,L (k)|
+1 N
+Σk =1 log
+min
+P
+N
+|Qx,R (k)|2 |Qx,L (k)|2
+subject to
+Φ−1 (1 − )(diag(Qd (k))) 2 < μd (k)
+	
+	
+	
++q R,m in 	
+q
+	
+	μq,R (k)− R,m ax
+	
+	
+2
+1
+
++ Φ−1 (1−)(diag(Qq,R (k))) 2 <
+	
+	
+	
++q L,m in 	
+q
+	μq,L (k)− L,m ax
+	
+	
+	
+2
+1
+
+Fig. 2. Illustrative comparison of the unscented transform with linearization
+and probabilistic sampling: Red dots represent the samples taken from the
+original distribution.
+
+alytical second-order approximation of the error propagated on
+SE(3). The authors, used a sparse sampling method to obtain
+the ground truth for the validation of the formalism. This suggests that the performance of the proposed formalism can yet
+be inferior to that of sparse sampling methods.
+As an alternative approach, the Unscented Transform [12],
+a sampling method, is proposed to be adopted to estimate the
+statistics of the constraints by fitting a Gaussian distribution to
+a sparse set of samples propagated through the nonlinear function. Unlike in Monte Carlo methods, these samples are not
+randomly selected, but by utilizing a selection mechanism, the
+inference of the statistical properties of the constraints is realized by propagating only a small sample set. Fig. 2 portrays a
+conceptual comparison between the unscented transform, linearization, and particle methods.
+1) Unscented Transform: Consider the nonlinear mapping
+y = f (x) where f : Rm → Rn , and x is a stochastic variable
+with a Gaussian distribution. A set of sample points, referred to
+as Sigma points, is defined as
+
+(11)
+X = {μx , μx ± [ αQx ]i }, for i = 1, . . . , m
+where α ∈ R is a constant, and [A]i denotes column i of matrix
+A. The statistics of y can be approximated in terms of the
+propagated Sigma points, Yi = f (Xi ) as
+μy = Σ2m
+i=0 Wi Yi
+
+(12)
+
+	
+Qy = Σ2m
+i=0 Wi (Yi − μy )(Yi − μy )
+
+(13)
+
+where Wi denote scalar weights that are chosen such that:
+μx = Σ2m
+i=0 Wi Xi
+
+(14)
+
+q R,m ax − q R,m in
+2
+
+q L,m ax − q L,m in
+2
+
+
+1 
+
+−1
+μγ ,R (k) + Φ (1 − )(diag(Qγ ,R (k))) 2  < π/2
+∞
+
+
+1 
+
+μγ ,L (k) + Φ−1 (1 − )(diag(Qγ ,L (k))) 2  < π/2
++ Φ−1 (1−)(diag(Qq,L (k))) 2 <
+1
+
+∞
+
+h(P, x̃(k)) ≥ 0s×1
+
+(16)
+
+q∼
+for k = 1, . . . , N ,
+where d ∼ N (μd , Qd (k)),
+N (μq , Qq (k)) and γ ∼ N (μγ , Qγ (k)) are the distributions of the constraint functions estimated by using (12) and
+(13).
+The efficacy of the above formulation and solution method is
+demonstrated through an illustrative example in the following
+section.
+III. APPLICATION TO CORONARY ARTERY BYPASS SURGERY
+ASSISTED BY THE da Vinci SYSTEM
+Coronary artery bypass grafting is one of the most common
+cardiac procedures that is currently performed using robotic
+assistance (the da Vinci surgical system). The procedure is
+performed through three incisions (two for the left and right
+instruments and one for the endoscope) located in the patient’s intercostal spaces (ICS), and is composed of two major tasks: left internal mammary artery (LIMA) harvesting, and
+anastomosis of the LIMA to the left anterior descending artery.
+LIMA harvesting is usually performed robotically; however,
+due to complexities, the anastomosis may be performed under
+direct vision and through a minithoracotomy [19], [20]. It is
+easier to represent LIMA harvesting task with a sequence of
+task frames that must be reached by the instruments. Ideally, the
+task frames could be inferred empirically from in vivo observation of the instruments’ gestures, or more systematically, by
+statistical analysis of the instruments’ spatio-temporal data. The
+
+AZIMIAN et al.: CHANCE-CONSTRAINED PROGRAMMING APPROACH TO PREOPERATIVE PLANNING OF ROBOTIC CARDIAC SURGERY
+
+617
+
+task consists of two main gestures: pulling the tissue around the
+artery with the left instrument, and cutting it using an electrocautery attached on the right instrument (see the gestures for
+LIMA harvesting in [21]).
+The da Vinci surgical system is one of a few approved robotic
+platforms that are currently used clinically for RAI. The patientside subsystem consists of four robotic arms of which two instrument arms and an endoscope arm are generally used for
+RAI. Each instrument arm consists of six passive joints for arm
+placement and six active joints, while the endoscope has four
+passive joints and four active joints. Finding the optimal values
+of the passive joints (which determine the configuration of the
+arms) is part of the planning that is further discussed in the
+following section.
+γE (k)∞ < π/2
+A. Implementation
+
+dpassive > 0
+
+This section outlines an implementation of the proposed formalism through an illustrative case study. The implementation
+is utilized for preoperative planning of LIMA harvesting for a
+CABG candidate based on the patient’s preoperative CT images.
+In this case study, tasks are described with 5-D fixtures rather
+than 6-D coordinate frames to avoid ambiguity in the representation. Each fixture is represented with a position vector as well
+as a normal vector onto the surface where the target is located,
+i.e., x ∈ R5 . In addition to seeking the maximum procedure
+entropy, the planning problem consists of finding the optimal
+port locations, valid values for the passive joints, as well as the
+position of the patient with respect to the base. The optimal plan
+is rendered as the solution of (16), i.e.,
+
+q̃passive ∈ Qvalid,passive
+
+
+
+∗
+
+P =
+
+	
+∗
+q̃passive
+, p∗patient , {Q∗x,R (k)}1:N , {Q∗x,L (k)}1:N 	
+
+∗
+q̃passive
+, p∗patient , {Q∗x,R (k)}1:N , {Q∗x,L (k)}1:N =
+
+
+|Qq,R (k)Qq,L (k)|
+1 N
+= arg min Σk =1 log
+N
+|Qx,R (k)|2 |Qx,L (k)|2
+
+subject to
+Φ−1 (1 − )(diag(Qd (k))) 2 < μd (k)
+	
+	
+	
+	
+	μq,R (k) − qR,m ax + qR,m in 	
+	
+	
+2
+1
+
++ Φ−1 (1 − )(diag(Qq,R (k))) 2 <
+	
+	
+	
+	
+	μq,L (k) − qL,m ax + qL,m in 	
+	
+	
+2
+1
+
+qR,m ax − qR,m in
+2
+
+qL,m ax − qL,m in
+2
+
+
+1 
+
+−1
+μγ ,R (k) + Φ (1 − )(diag(Qγ ,R (k))) 2  < π/2
+∞
+
+
+1 
+
+μγ ,L (k) + Φ−1 (1 − )(diag(Qγ ,L (k))) 2  < π/2
+∞
+	
+	
+	
+	
+	qE (k) − qE,m ax + qE,m in 	 < qE,m ax − qE,m in
+	
+	
+2
+2
++ Φ−1 (1 − )(diag(Qq,L (k))) 2 <
+1
+
+for k = 1, 2, . . . , N
+
+(17)
+
+
+ ∗
+, p∗patient , {Qx,R (k)}∗1:N , {Qx,L (k)}∗1:N | is the
+where q̃passive
+optimal plan, q̃passive refers to the augmented vector of passive joints, Qvalid,passive is the valid joint space for the passive
+section, dpassive is the minimum distance between the passive
+section and other stationary objects, and qE and γE refer to the
+endoscope joint vector and approach angles, respectively.
+For the sake of simplicity, it is assumed that the Cartesian
+covariance matrices
+and identical for all fixtures,
+ 2 are diagonal 
+σp I3×3
+0
+i.e., Qx (k) =
+, where σp2 and σo2 are the
+0
+σo2 I2×2
+position and orientation variances, respectively. As a result, the
+covariance matrices pertaining to the right and left instruments
+2
+can be conveniently parametrized by only four parameters σp,R
+,
+2
+2
+2
+σo,R , σp,L , and σo,L . It is worth mentioning that the covariance
+matrices need not be diagonal and can bear any desired structure.
+In fact, the desired structure of the covariance matrices can be
+inferred by the preliminary statistical analysis stage.
+The unscented transform was utilized to estimate μq , Qq , μd ,
+Qd , μγ , and Qγ in (17) (the inverse kinematics solutions for
+uncertain 5-D fixtures are given in the Appendix.). The LIMA
+harvesting task was represented by six 5-D fixtures, i.e., N = 6.
+The success probability was chosen to be at 98%, i.e.,  = 0.02.
+The resulting constrained nonlinear programming problem was
+solved using an active-set sequential quadratic programming
+method using the BFGS Hessian update implemented by fmincon in MATLAB. Algorithm 1 outlines the steps taken to solve
+the planning problem.
+The algorithm starts by picking an ICS triad on the patient’s
+rib cage represented by c̃ = {c1 , c2 , c3 }, where ci (u) ∈ R3
+denote parametric spatial curves that represent the ICS and I
+is the set of these spatial curves. Then a set of initial plans P0i
+are randomly generated and passed to FindFeas. FindFeas is an
+implementation of a minimax optimization that takes P0i and
+iteratively adjusts the plan until a feasible solution is achieved.
+If a feasible solution, denoted by P0 , is found, it is then passed
+
+618
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Fig. 4. da Vinci arms in action. A collision-free trajectory of the active sections
+as they reach the individual task fixtures inside the thorax.
+
+Fig. 3. Visualization of the placement (setup) of the da Vinci arms with respect
+to the patient; front view (top), top view (bottom).
+
+as an initial value to Optimize, which is an implementation of
+(16). Among all possible combinations, only those triads that
+are more likely to yield feasible results are chosen. For instance,
+to ensure a better hand/eye alignment, it is normally assumed
+that the endoscope ICS is between the other two.
+The planning took less than 4 h for 16 ICS triads on a PC
+with an i7 3.4 GHz QUAD core CPU. The optimal placement of
+the arms with respect to the patient (as instructed by the optimal
+plan) is shown in Fig. 3. The collision-free operation of the active
+sections while reaching the individual target fixtures is shown
+in Fig. 4. Finally, the optimal port locations are illustrated in
+Fig. 5 (see the following section for more description of Fig. 5).
+According to the figure, the optimal port locations for the left
+and right instruments, and the endoscope are located in the third,
+sixth, and fifth ICS, respectively. In [19], the author suggests that
+the ports should be placed in the third, seventh, and fifth ICS.
+While this is simply a rough guideline based on the clinician’s
+experience and expertise and does not consider patient-specific
+
+Fig. 5. Three-dimensional model of the thorax, the extracted features, and the
+optimal port locations along with the origin (position) of the feasible task fixtures
+pertaining to the left and right instruments for a LIMA harvesting task generated
+by a Monte Carlo simulation with a total of 100 samples: left instrument (left),
+right instrument (right).
+
+aspects of the surgery, it is very close to the result that has been
+obtained in this case study.
+B. Evaluation
+The actual reliability achieved by using the resulting plan P ∗
+was evaluated by a Monte Carlo simulation. Given the optimal
+plan P ∗ , M = 1000 pairs of target fixtures, denoted by xR,i
+and xL,i , with Q∗x,R (k) and Q∗x,L (k) were randomly generated.
+Then, the satisfaction of the chance constraints (5)–(9) was
+investigated. The constraint satisfaction statistics at every target
+task fixture are provided in Fig. 6 (left). As the figure shows,
+more than 94% of all constraints are satisfied by all samples,
+and about 4% of the rest are satisfied by more than 98% of
+
+AZIMIAN et al.: CHANCE-CONSTRAINED PROGRAMMING APPROACH TO PREOPERATIVE PLANNING OF ROBOTIC CARDIAC SURGERY
+
+Fig. 6. Constraint satisfaction rate by the randomly generated samples for all
+N = 6 target task fixtures. Each bar in the six-tuple stacks pertains to one task
+fixture (left); percentage of infeasible samples at every target task fixture (right).
+
+the samples. However, one might be concerned with a more
+objective assessment of the results, e.g., the percentage of the
+samples with 100% satisfaction rate as the chance of success
+[see Fig. 6 (right)]. As the figure suggests, the average rate is
+about 94%. This is due to the fact that (16) does not contemplate
+the chance of success directly, but indirectly by contemplating
+the individual chance constraints that constitute the chance of
+success.
+For illustration purposes, the above simulation was implemented for a second time but with 100 samples. The situation
+of the feasible samples within the surgical workspace is illustrated in Fig. 5. For the sake of clarity, only the origin (position)
+of the task fixtures is illustrated. According to the figure, the
+tolerable uncertainty pertaining to the right instrument is much
+larger than that of the left instrument. Given the fact that for
+a right-handed surgeon, the required range of motion for the
+right instrument should normally be less limited, the solution
+can be considered reasonable. However, one can always modify
+the objective function for different desired results, e.g., to get
+an equal tolerable uncertainty one can choose the variances to
+be identical for both instruments, i.e., σR = σL = σ.
+IV. SYSTEM PERFORMANCE
+In order to evaluate the performance of the proposed planning
+scheme, an analysis similar to the one presented in [3] is used
+here. Given the preoperative CT images of four patients, the
+algorithm was run for three different scenarios as follows:
+1) Algorithm-Recommended Ports (ARP) Scenario: In this
+scenario, the algorithm sought an optimal plan among all
+feasible ICS triads with no particular preference. The decision parameters included the covariance matrices, the port
+locations (and the ICS triad) as well as the configuration
+of the arms.
+2) Surgeon-Recommended ICS Triad (SRT) Scenario: In this
+scenario, the algorithm sought an optimal plan in the ICS
+triad recommended by the surgeon. The decision parameters included the covariance matrices, the port locations,
+as well as the configuration of the arms.
+3) Surgeon-Recommended Ports (SRP) Scenario: This scenario consisted of seeking an optimal arm configuration
+for a set of ports recommended by the surgeon.
+ARP, SRT, and SRP plans were sought for N = 6 and
+ = 0.02 for six different patients with substantially different
+
+619
+
+Fig. 7. Comparison of the SRP, SRT, and ARP plans: the overall scores
+(left), (normalized) Cartesian task entropy (middle), (normalized) joint
+space/Cartesian space cross entropy (right).
+
+geometries. The quality of the resulting ARP, SRT, and SRP
+plans are compared in Fig. 7. As the figures show, ARP plans
+provide the highest robustness and performance. On the other
+hand, SRP plans provide the lowest robustness and performance.
+In all of the cases, Monte Carlo simulations showed an actual
+constraint satisfaction rate of 99%. Also, the average chance of
+success in all of the cases was above 94%.
+While it is in fact difficult to actually quantify the advantages
+of the proposed formalism over the common practice, the results
+still very well suggest that the common practice, which is solely
+dependent on the surgeon’s experience, is more prone to failure.
+This is particularly supported by the fact that the consideration
+of the patient’s geometry and robot kinematics is too complex
+that can be replaced by rough guidelines, and overlooking these
+aspects of RAI can easily lead to failure. On the other hand, to
+make the proposed formalism even more practically authentic,
+it is designed to provide solutions that can offer some degree of
+robustness to various sources of uncertainty.
+Finally, according to the results of this section, the actual
+chance of success is smaller than the chance of satisfaction of
+individual constraints. This can be simply explained by the fact
+that success is equivalent to the simultaneous satisfaction of
+all constraints. Therefore, the formulation needs to be slightly
+modified to enable direct control of the chance of success. However, as one may expect, the modified problem will be more
+complicated.
+V. CONCLUSION
+In this paper, patient-specific preoperative planning of
+robotics-assisted interventions under task uncertainty was addressed. In order to accommodate more surgeons in the planning, it is essential that the resulting plans are able to tolerate larger task uncertainties. The proposed formalism can also
+accommodate other sources of uncertainty indirectly. This includes uncertainties pertaining to patient placement, tool/tissue
+interaction, preoperative models, and registration error. The ultimate goal of this approach is to improve some quality indices
+while keeping the chances of failure (e.g., due to intraoperative collisions and/or joint limit violations) sufficiently small.
+Therefore, the planning problem was formulated as a chanceconstrained programming problem in terms of the uncertainty
+of the instrument tip pose in the vicinity of the desired task
+frame, maximizing the performance and tolerable uncertainty at
+the task. To avoid using Monte Carlo methods for solving the
+
+620
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+resulting stochastic optimization problem, the unscented transform was adopted. This transformation provides a more accurate
+estimation of the constraints’ distribution than a linearization
+method, with far less complexity than Monte Carlo methods.
+The efficacy of the proposed formulation was demonstrated by
+case studies focused on optimal planning of robotics-assisted
+LIMA harvesting using the da Vinci robotic system as part of
+minimally invasive coronary artery bypass surgery.
+The proposed stochastic formulation is based on the assumption that a given procedure can be described in terms of surgical
+gestures that can be represented by task frames. This can be
+likened to innovating a language of surgery whose words and
+alphabets are gestures and task frames, respectively. Although
+innovating such a language for more complex procedures is still
+an ongoing area of research, many simpler tasks can be modeled
+by a sequence of task frames by intuition. While the proposed
+stochastic formalism in this paper is still computationally more
+expensive than the deterministic formalism proposed [3], it is
+more complete in terms of its consideration of uncertainty and
+therefore can provide more accurate and reliable plans.
+The formalism presented in this paper can also be modified to
+accommodate other procedures, robots, and tools so long as the
+assumptions made here are also applicable to those procedures,
+robots, and tools. Another good example of the application of
+the proposed formalism is planning for radiation therapy where
+minimizing the dosage of the radiation as well as maximizing
+the chance of success must be concurrently considered. In addition to its direct applications in treatment/surgical planning, the
+proposed framework can also be employed to assess the eligibility of the patient, robot, and the surgeon for a given procedure.
+The proposed framework can be used for improving surgical
+manipulators as well as training surgeons.
+It is worth noting that other decisive factors that may not have
+been addressed here can also be accounted for, e.g., collision
+avoidance with additional extra- or intracorporeal objects or
+organs can be translated into additional deterministic or chance
+constraints.
+As mentioned earlier, current validation results are based on
+a MATLAB implementation of the algorithm. Recently, the proposed algorithm has been implemented in 3-D Slicer (coded in
+C++) (see [22]). This will not only increase the usability of such
+a complex algorithm by clinicians by providing a user-friendly
+interface, but will likely reduce the execution time. This will also
+allow for easier adoption of GPUs and will eventually result in
+a significant boost in the execution speed.
+Finally, in order to realize a plan—that is either recommended
+by the surgeon or selected by an algorithm—in the operating
+room, a preoperative registration stage is necessary. If the mismatch between the intraoperative conditions and the preoperative model is significant, an intraoperative planning/registration
+might also be deemed necessary. Since the proposed formalism
+seeks plans that are less susceptible toward geometric shifts in
+the targets with respect to the port locations, it is less likely
+that an intraoperative registration becomes necessary whenever
+a plan recommended by the formalism is adopted.
+As future work, the proposed chance-constrained entropy
+maximization can also be extended to a mixed-integer stochas-
+
+Fig. 8. Kinematics of the surgical instrument with a roll–pitch–yaw wrist
+operating through a trocar constraint.
+TABLE I
+DH PARAMETERS
+
+tic programming problem to consider all potential ICS triads
+in the planning problem in a single run. Moreover, elaborating the algorithm to incorporate surgical procedures modeled as
+Markov processes can be a very interesting future extension of
+the current framework.
+APPENDIX
+This section outlines the forward kinematics as well as the
+inverse kinematic solutions of a 6-DOF surgical instruments
+considering the uncertainty at the task level. Generally, instruments with similar kinematics are utilized by the da Vinci system
+to perform cardiac procedures.
+The tool is composed of five rotary and one prismatic joints
+denoted by θ1 , θ2 , θ3 , θ5 , θ6 , and d4 , respectively. The frame
+attachment is shown in Fig. 8, and the Denavit–Hartenberg (DH)
+parameters are presented in Table I.
+Assume that a target fixture is represented by a position vector pt , and a normal vector n̂t , and the pose uncertainty in the
+neighborhood of the target fixture is defined as pt + z where
+3
+z
+⎞ position uncertainty, and R(α, β) =
+⎛ 2 ≤ δ, z ∈ R is the
+cα cβ −sα cα sβ
+⎝ sα cβ
+cα
+sα sβ ⎠, where R ∈ SE(3) is the approach
+−sβ
+0
+cβ
+uncertainty with respect to the normal vector. In order to avoid
+
+AZIMIAN et al.: CHANCE-CONSTRAINED PROGRAMMING APPROACH TO PREOPERATIVE PLANNING OF ROBOTIC CARDIAC SURGERY
+
+Fig. 9.
+
+Target pose uncertainty propagation in intracorporeal kinematics.
+
+redundancy in the inverse kinematics solutions for 5-D task
+fixtures (denoted by pt and n̂t ), the last rotary joint (yaw) is
+assumed to be locked at zero position, i.e., θ6 = 0. Then, the
+goal is to solve the following system of nonlinear equations for
+θ1 , θ2 , θ3 , d4 , and θ5 (see Fig. 9):
+x̂6 (θ1 , θ2 , θ3 , d4 , θ5 , θ6 = 0) = −R(α, β)n̂t
+
+(18)
+
+p6 (θ1 , θ2 , θ3 , d4 , θ5 ) = pt .
+
+(19)
+
+The joint values are calculated in terms of the pose uncertainty
+as
+⎛ 		 ⎞
+cu
+d4 ẑ4 = pt + z + a6 R(α, β)n̂t  ⎝ v 		 ⎠
+(20)
+w		
+
+θ2 = atan2(w		 , ± u		2 + v 		2 )
+(21)
+θ1 = atan2(−c2 v 		 , −c2 u		 )
+
+2 + B 2 , −B )
+θ5 = atan2(± B11
+21
+31
+
+(22)
+(23)
+
+θ3 = atan2(s5 B31 , s5 B11 )
+(24)
+⎞
+⎛
+c1 s2 s1 s2 c2 0 
+
+⎜ c1 c2 c2 s1 −s2 0 ⎟ −R(α, β)n̂t pt + z
+where B  ⎝
+.
+⎠
+0 0
+−s1 c1
+0
+1
+0
+0
+0 1
+
+621
+
+[5] B. Varadarajan, C. Reiley, H. Lin, S. Khudanpur, and G. Hager, “Dataderived models for segmentation with application to surgical assessment
+and training,” in Proc. Med. Image Comput. Comput.-Assisted Intervention, 2009, vol. 5761, pp. 426–434.
+[6] C. E. Reiley and G. D. Hager, “Decomposition of robotic surgical tasks:
+An analysis of subtasks and their correlation to skill,” in Proc. Medical Image Computing Computer-Assisted Intervention M2Cai Workshop,
+2009.
+[7] C. Reiley and G. Hager, “Task versus subtask surgical skill evaluation
+of robotic minimally invasive surgery,” in Proc. Med. Image Comput.
+Comput.-Assisted Intervention, 2009, vol. 5761, pp. 435–442.
+[8] L. Tao, E. Elhamifar, S. Khudanpur, G. Hager, and R. Vidal, “Sparse
+hidden Markov models for surgical gesture classification and skill evaluation,” in Proc. Inf. Process. Comput.-Assisted Interventions, 2012,
+vol. 7330, pp. 167–177.
+[9] F. Lalys, L. Riffaud, D. Bouget, and P. Jannin, “A framework for the
+recognition of high-level surgical tasks from video images for cataract
+surgeries,” IEEE Trans. Biomed. Eng., vol. 59, no. 4, pp. 966–976, Apr.
+2012.
+[10] R. M. Murray, Z. Li, and S. S. Sastry, A Mathematical Introduction to
+Robotic Manipulation. Boca Raton, FL, USA: CRC Press, 1994.
+[11] S. Fang, J. R. Rajasekera, and H. J. Tsao, Entropy Optimization and Mathematical Programming. Dordreckt, The Netherlands: Kluwer, 1997.
+[12] S. Julier and J. Uhlmann, “Unscented filtering and nonlinear estimation,”
+Proc. IEEE, vol. 92, no. 3, pp. 401–422, Mar. 2004.
+[13] G. S. Chirikjian, Stochastic Models, Information Theory, and Lie Groups,
+Volume 2: Analytic Methods and Modern Applications. vol. 2, New
+York, NY, USA: Springer, 2011.
+[14] Y. Wang and G. Chirikjian, “Error propagation on the Euclidean group
+with application to manipulator kinematics,” IEEE Trans. Robot., vol. 22,
+no. 4, pp. 591–602, Aug. 2006.
+[15] Y. Wang and G. S. Chirikjian, “Nonparametric second order theory of
+error propagation on motion groups,” Int. J. Robot. Res., vol. 27, no. 11/12,
+pp. 1258–1273, Nov. 2008.
+[16] G. Chirikjian, “Information theory on lie groups and mobile application,”
+in Proc. IEEE Int. Conf. Robot. Autom., Anchorage, AK, USA, May 2010,
+pp. 2751–2757.
+[17] W. Park, Y. Wang, and G. S. Chirikjian, “The path-of-probability algorithm
+for steering and feedback control of flexible needles,” Int. J. Robot. Res.,
+vol. 29, no. 7, pp. 813–830, Dec. 2010.
+[18] S. S. Rao, Engineering Optimization: Theory and Practice, 3rd ed. New
+York, NY, USA: Wiley, 1996.
+[19] T. Vassiliades, “Technical aids to performing thoracoscopic roboticallyassisted internal mammary artery harvesting,” Heart Surg. Forum, vol. 5,
+no. 2, pp. 119–124, 2002.
+[20] P. Nataf, L. Lima, M. Regan, S. Benarim, R. Ramadan, A. Pavie, and
+I. Gandjbakhch, “Thoracoscopic internal mammary artery harvesting:
+Technical considerations,” Ann. Thoracic Surg., vol. 63, no. 6, pp. S104–
+S106, 1997.
+[21] S. Masroor, L. W. Nifong, W. R. C. Jr., “Robotic Coronary Artery Bypass
+Surgery,” Mastery of Cardiothoracic Surgery, 2nd ed., second Baltimore,
+MD, USA: Lippincott Williams and Wilkins, 2006.
+[22] L. Torres, H. Azimian, and A. Enquobahrie, “A user friendly automated
+port placement planning for laparascopic surgery,” in Proc. SPIE Med.
+Imag., San Diego, CA, USA, Feb. 2014.
+[23] J. Craig, Introduction to Robotics: Mechanics and Control. Englewood
+Cliffs, NJ, USA: Prentice Hall, 2004.
+
+REFERENCES
+[1] H. Azimian, R. Patel, and M. Naish, “A chance-constrained approach to
+preoperative planning of robotics-assisted interventions,” in Proc. 33rd
+Annu. Int. Conf. IEEE EMBS, Boston, MA, USA, Sep. 2011, pp. 2127–
+2130.
+[2] H. Azimian, “Preoperative planning of robotics-assisted minimally invasive cardiac surgery under uncertainty” Ph.D. dissertation, The Univ. of
+Western Ontario, ON, Canada, 2012.
+[3] H. Azimian, R. V. Patel, M. D. Naish, and B. Kiaii, “A semi-infinite programming approach to preoperative planning of robotic cardiac surgery
+under geometric uncertainty,” IEEE J. Biomed. Health Informat., vol. 17,
+no. 1, pp. 172–182, Jan. 2013.
+[4] H. Lin, I. Shafran, T. Murphy, A. Okamura, D. Yuh, and G. Hager,
+“Automatic detection and segmentation of robot-assisted surgical motions,” in Proc. Med. Image Comput. Comput.-Assisted Intervention, 2005,
+vol. 3749, pp. 802–810.
+
+Hamidreza Azimian received the B.Sc. degree in
+electronics engineering from the Iran University of
+Science and Technology, Tehran, Iran, in 2004, the
+M.Sc. degree (with distinction) in electrical engineering (control systems) from the K. N. Toosi University of Technology, Tehran, Iran, in 2006, and the
+Ph.D. degree in mechanical and materials engineering from The Univesrity of Western Ontario, London,
+ON, Canada, in 2012.
+He is currently a Senior Project manager at the
+Centre for Image-Guided Innovation and Therapeutic Intervention, The Hospital for Sick Children, Toronto, ON, Canada. His
+research experience includes topics in optimization, robotics, and control with
+application to biomedicine.
+
+622
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 19, NO. 2, MARCH 2015
+
+Muchael D. Naish (S’96–M’03) received the B.Sc.
+degree in computer science and the B.E.Sc. degree
+in mechanical engineering from The University of
+Western Ontario, London, ON, Canada, both in 1996,
+the M.A.Sc. degree in mechanical engineering from
+the University of British Columbia, Vancouver, BC,
+Canada, in 1999, and the Ph.D. degree in mechanical and industrial engineering from the University of
+Toronto, Toronto, ON, Canada, in 2004.
+Since 2003, he has been with the Department of
+Mechanical and Materials Engineering at University
+of Western Ontario, where he is currently an Associate Professor, cross appointed with the Department of Electrical and Computer Engineering and is
+the Director of the Mechatronic Systems Engineering program. He is also a
+Scientist at Canadian Surgical Technologies and Advanced Robotics, Lawson
+Health Research Institute, London, ON, Canada, and a licensed Professional
+Engineer in the Province of Ontario. His research interests include mechatronic
+systems, device design, sensing systems, surgical training, minimally invasive
+surgery and therapy, and medical robotics.
+
+Bob Kiaii received the MD degree in 1992 and completed his FRCS(C) in Cardiac Surgery in 2002 from
+Western University, London, ON, Canada.
+He is an Associate Professor with the Department of Surgery and Chair of the Division of Cardiac
+Surgery at Westerns Schulich School of Medicine,
+and Chief of the Division of Cardiac Surgery and
+Director of the Minimally Invasive Robotic Cardiac
+Surgery Program at London Health Sciences Centre.
+He is one of the most experienced minimally invasive
+robotic cardiac surgeons internationally, and received
+the CFI New Opportunities Fund Grant, allowing him to do research to perform
+simultaneous integrated coronary artery revascularization. His primary interests
+are minimally invasive cardiac surgical procedures including surgical treatment
+of atrial fibrillation, mitral and aortic valve procedures, and coronary artery
+revascularization. He has served on numerous scientific advisory boards, and is
+a regular reviewer of grant submissions and journal articles as an expert in the
+field of minimally invasive surgery.
+
+Rajni V. Patel (M’76–SM’80–F’92–LF’13) received
+the Ph.D. degree in electrical engineering from the
+University of Cambridge, U.K., in 1973.
+He currently holds the position of Distinguished
+University Professor and Tier-1 Canada Research
+Chair in the Department of Electrical and Computer
+Engineering with a cross appointment in the Department of Surgery in the Schulich School of Medicine
+and Dentistry at the University of Western Ontario,
+Canada.
+Dr. Patel also serves as Director of Engineering for
+Canadian Surgical Technologies and Advanced Robotics (CSTAR). He is a Fellow of the ASME, the Royal Society of Canada, and the Canadian Academy of
+Engineering. He has served on the editorial boards of the IEEE TRANSACTIONS
+ON ROBOTICS, the IEEE/ASME TRANSACTIONS ON MECHATRONICS, the IEEE
+TRANSACTIONS ON AUTOMATIC CONTROL, and Automatica, and is currently a
+member of the Editorial Board of the International Journal of Medical Robotics
+and Computer Assisted Surgery.
+
+

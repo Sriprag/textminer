@@ -1,0 +1,1097 @@
+1992
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 8, AUGUST 2015
+
+Using Kalman Filtering to Predict Time-Varying
+Parameters in a Model Predicting Baroreflex
+Regulation During Head-Up Tilt
+Brett Matzuka, Jesper Mehlsen, Hien Tran, and Mette Sofie Olufsen ∗
+
+Abstract—The cardiovascular control system is continuously engaged to maintain homeostasis, but it is known to fail in a large
+cohort of patients suffering from orthostatic intolerance. Numerous clinical studies have been put forward to understand how the
+system fails, yet noninvasive clinical data are sparse, typical studies only include measurements of heart rate and blood pressure, as
+a result it is difficult to determine what mechanisms that are impaired. It is known, that blood pressure regulation is mediated by
+changes in heart rate, vascular resistance, cardiac contractility, and
+a number of other factors. Given that numerous factors contribute
+to changing these quantities, it is difficult to devise a physiological
+model describing how they change in time. One way is to build a
+model that allows these controlled quantities to change and to compare dynamics between subject groups. To do so, it requires more
+knowledge of how these quantities change for healthy subjects. This
+study compares two methods predicting time-varying changes in
+cardiac contractility and vascular resistance during head-up tilt.
+Similar to the study by Williams et al. [51], the first method uses
+piecewise linear splines, while the second uses the ensemble transform Kalman filter (ETKF) [1], [11], [12], [33]. In addition, we
+show that the delayed rejection adaptive Metropolis (DRAM) algorithm can be used for predicting parameter uncertainties within
+the spline methodology, which is compared with the variability obtained with the ETKF. While the spline method is easier to set up,
+this study shows that the ETKF has a significantly shorter computational time. Moreover, while uncertainty of predictions can be
+augmented to spline predictions using DRAM, these are readily
+available with the ETKF.
+Index Terms—Baroreflex regulation, cardiovascular, DRAM,
+ensemble transform Kalman filter, head-up tilt, Kalman filtering,
+parameter estimation.
+
+I. INTRODUCTION
+
+O
+
+VER short time scales (seconds to minutes), the body’s requirement to distribute and maintain adequate amounts of
+
+Manuscript received September 23, 2014; revised February 4, 2015 and
+February 28, 2015; accepted February 28, 2015. Date of publication March
+5, 2015; date of current version July 15, 2015. The work of M. Olufsen and H.
+Tran were supported in part by the National Science Foundation under Grant
+NSF-DMS 1022688. In addition, the work of H. Tran was supported in part by
+the National Institute of Allergy and Infectious Diseases under Grant NIAID
+9R01AI071915 and the work of M. Olufsen was supported in part by the National Science Foundation under Grant NSF-DMS 1122424 and by the Virtual
+Rat Physiology Project from the National Institute of General Medical Sciences
+under Grant NIGMS 1P50GM094503-01A0. Asterisk indicates corresponding
+author.
+B. Matzuka is with the North Carolina State University; and also with Children’s Mercy Hospital, Kansas City, MO.
+J. Mehlsen is with Frederiksberg Hospital, Frederiksberg, Denmark.
+H. Tran is with the North Carolina State University.
+* M. S. Olufsen is with the Department of Mathematics, North Carolina State
+University, Raleigh, NC 27695 USA (e-mail: msolufse@ncsu.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2015.2409211
+
+oxygenated blood to vital areas is paramount to maintain homeostasis. This feature is controlled via multiple mechanisms, but
+primarily by the baroreflex system, which senses changes in
+aortic and carotid blood pressure, stimulating the sympathetic
+and parasympathetic systems [15]. The sympathetic system
+induces alterations in heart rate (HR), cardiac contractility, vascular resistance, and compliance, while the parasympathetic system induces rapid changes in HR and cardiac contractility [16],
+[43], [51].
+The control system is compromised in people with orthostatic intolerance, and while it is known that people with orthostatic disorders experience lightheadedness and dizziness, the
+cause is not easy to diagnose [41]. One problem is that much
+variation is observed within and between groups of subjects
+making it difficult to devise general guidelines for response
+variation. Moreover, clinical diagnosis typically assesses statics
+rather than dynamics, e.g. patients’ with high blood pressure
+are hypertensive, an indicator for orthostatic intolerance. Yet
+the patients ability to change blood pressure in response to
+a given stimuli may be a more significant biomarker. To understand how blood pressure and HR dynamics change with
+disease, it is essential to understand how dynamics change in
+healthy subjects both as a group and within individual subjects.
+This study addresses the latter, in particular, how parameters
+change over time to reflect dynamics observed in data. To resolve the time-varying dynamics, we show how time-varying
+parameters, determined using piecewise linear splines and the
+ensemble transform Kalman filter (ETKF), can be combined
+with modeling to predict BP and HR measurements during
+head-up tilt (HUT). Results show dynamic change with confidence bounds. When combined with methods characterizing
+differences in large cohorts of data, the methods developed
+here have potential to be used for devising diagnosis and treatment strategies combining measurements and model predicted
+quantities.
+A number of modeling studies have been carried out to elucidate these mechanisms and their interplay [4], [22], [30],
+[37], [38], [40], [42], [48], [51]. Most of these studies can
+be separated into two categories: models predicting baroreflex regulation of HR as a function of blood pressure [4], [30],
+[38], [48] and models predicting blood pressure dynamics as
+a function of HR [22], [27], [37], [42], [51]. A few studies
+include more elaborate models predicting the interaction between the cardiovascular and respiratory systems [2], [9], [48].
+In addition, to these modeling studies, which were derived
+from mechanical considerations, numerous studies, e.g. [10],
+
+0018-9294 © 2015 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+MATZUKA et al.: USING KF TO PREDICT TIME-VARYING PARAMETERS IN A MODEL PREDICTING BAROREFLEX REGULATION
+
+[14], [19], [29], [45], [47], [50], assess baroreflex regulation
+quantitatively via analysis of the measured signals using a variety of signal processing methodologies, most commonly based
+on transfer function analysis. While most of these studies are
+able to provide qualitative descriptions of blood pressure regulation, they fail to predict patient specific dynamics, i.e. they
+were designed to predict the overall response without being fitted to actual data. The latter can be done by estimating patient
+specific parameter values, which in turn can be compared within
+and between subjects. This is primarily due to the fact that the
+baroreflex regulation is a complex phenomena, with numerous
+patient specific adaptations. So rather than trying to derive yet
+another lumped baroreflex regulation model, this study focuses
+on using the ETKF [1], [11], [12], [33] to predict the control.
+In this paper, we consider a mechanistic-based mathematical
+model that uses HR to predict arterial blood pressure dynamics
+during HUT [51]. While several other studies have modeled
+HUT dynamics, e.g. [10], [14], [19], [45], the model by Williams
+et al. was analyzed since it is simple and already addresses
+prediction of time-varying parameters, the topic of this study.
+HUT is a noninvasive test often used to determine the ability
+of the body to maintain blood flow and pressure for patients
+suffering from syncope, lightheadedness, and dizziness [28],
+[36]. The test starts with a patient lying on a tilt table in supine
+position, after steady signals have been recorded, the patient is
+tilted head-up to an angle of 60◦ –70◦ . In response to the tilt,
+gravity pools 500–1000 ml of blood in the lower extremities
+[28], [51]. The result is a decrease in venous return, which
+causes a decrease in cardiac filling, and blood pressure in the
+upper body (above the body’s center of gravity), while the blood
+pressure in the lower body (below the body’s center of gravity)
+is increased. The body senses this change in blood pressure
+by baroreceptors located in the aortic arch and carotid sinuses,
+and responds by sympathetic activation and parasympathetic
+withdrawal [51]. This autonomic neural modulation leads to an
+increase in HR, cardiac contractility, vascular resistance, and
+vascular tone.
+The ETKF is employed to predict time-varying changes in
+cardiac contractility and vascular resistance embossed by the
+baroreflex control system. Results are compared with those obtained by Williams et al. [51], using piecewise linear splines for
+prediction of the time varying dynamics. Moreover, we show
+that the delayed rejection adaptive Metropolis (DRAM) algorithm [7] can be used for the prediction of parameter uncertainties within the spline methodology, and compared to the
+variability obtained by the ETKF.
+II. METHODS
+This section presents data, the cardiovascular dynamics
+model, as well as methodologies involved with prediction of
+time-varying parameters including the piecewise linear splines,
+ETKF, and DRAM algorithms.
+A. Data
+Data used for model simulations were collected by Mehlsen’s
+group at the Coordinating Research Centre at Frederiksberg
+
+1993
+
+Fig. 1. Blood pressure measured using a Finapres device held at the level of
+the heart and HR measured using a three lead ECG during HUT (shown on top).
+The left panel shows continuous measurements sampled at 1000 Hz, and the
+right panel shows a zoom over 10 s, while the subject rested in supine position.
+The subject is tilted head-up at time t = 75 s (marked with a green vertical line
+on the left panel) causing a drop in BP due to gravitational pooling of blood
+in the lower extremities. In response, baroreceptors are activated increasing
+HR and cardiac contractility, as well as systemic vascular resistance. The latter
+returns BP to baseline values.
+
+Hospital, Denmark, from a healthy young male volunteer who
+had no known heart or vascular diseases. Data include measurements of blood pressure and HR during HUT. Blood pressure
+was measured at the level of the carotid artery, and HR was measured using a standard three lead ECG. The time-series analysis
+started 1 min before the subject was tilted to an angle of 60◦ at a
+speed of 15◦ /s (see Fig. 1). More detail about the experimental
+study can be found in [51]. The subject gave informed consent
+to participate in the study, which was approved by the local
+internal review board at Frederiksberg Hospital, Denmark.
+B. Lumped Cardiovascular Model
+The cardiovascular model is derived equivalently to an electrical RC circuit with pressure analogous to voltage, flow to current, volume to charge, and compliance to capacitance, while
+resistance is used similarly in both formulations. The model
+(shown in Fig. 2), adopted from [51], includes five compartments representing the heart, arteries and veins in the upper and
+lower body of the systemic circulation. Two upper body compartments include arteries and veins in the head, thorax, and
+abdomen, and corresponding lower body compartments include
+vessels in the legs. The heart is modeled as pulsatile using a
+time-varying elastance function simulating the contractility of
+the heart, and the heart valves are modeled using time-varying
+resistances. A low resistance indicates an open valve, while a
+high resistance indicates that the valve is closed. The switching between open and closed is determined by analysis of the
+pressure drop between the heart compartment and upper body
+arterial and venous compartments, respectively. It should be
+noted that given the RC-circuit formulation, the model cannot
+
+1994
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 8, AUGUST 2015
+
+Fig. 2. Compartment model used for predicting HUT dynamics in the systemic
+circulation. The model includes five compartments representing the left heart
+(lh), arteries (a) and veins (v) in the upper (u) and lower (l) body. Flows are
+marked by q, pressures by p, volumes by V , resistors by R, compliances by C .
+The opening and closing of the aortic (av) and mitral valves (mv) and prevention
+of retrograde flow through systemic veins are modeled via pressure-varying
+resistors.
+
+accurately capture the pulsatile nature of wave propagation in
+the arterial network. Therefore, this study is limited to the prediction of the systolic and diastolic pressures.
+Within each of the four arterial and venous compartments
+(indexed by i), pressure pi (mmHg), and volume Vi (ml) are
+related by
+Vi − Vun,i = Ci (pi − pext,i )
+
+(1)
+
+where Vun,i (ml) is the unstressed volume, Ci (ml/mmHg) is
+the compliance, and pext,i = 0 (mmHg) is the pressure in the
+surrounding tissue.
+Using Ohm’s law, the volumetric flow rate q (ml/s) between
+two compartments is given by
+q=
+
+pin − pout
+R
+
+(2)
+
+where pin and pout are the pressures on each side of the resistor
+and R (mmHg s/ml) is the resistance. Differentiating (1) with
+respect to time and applying Ohm’s law (2) gives
+
+
+1 dVi
+dpi
+1 pi−1 − pi
+pi − pi+1
+=
+=
+−
+.
+Ci dt
+dt
+Ci
+Ri−1
+Ri
+Here, i − 1 and i + 1 represent the two neighboring component
+to i, Ri−1 refers to the resistance between compartments i − 1
+and i, and Ri refers to the resistance between compartments i
+and i + 1.
+The remaining compartment represents the pumping left
+heart. To facilitate pumping, we introduce a time-varying elastance function Elh (t) incorporated in a relation similar to (1) of
+the form
+plh = Elh (Vlh − Vun,lh )
+
+where t̃ (s) is the time within a cardiac cycle T (s), Em ax
+(mmHg/ml) and Em in (mmHg/ml) denote the maximum and
+minimum elastance, respectively, and TM (s) denotes the time,
+where Elh = Em ax and TM + TR is the time where Elh hits
+Em in . To make each period fit data, TM is defined as a vector
+with elements fitted to coincide with the time at which the
+measured pressure hit its maximum value.
+Finally, to make heart valves open and close and to prevent
+retrograde flow in the legs, resistors presenting these quantities
+are modeled as smooth functions of pressure of the form
+Rv = Rcl −
+
+Rcl − Rop
+1 + e−β (p i n −p o u t )
+
+where pin and pout denote the pressures in the compartments
+on either side of the valve, Rop is a small baseline resistance to
+define “open” valve, and Rcl is a resistance that is several order
+of magnitude larger than Rop to define “closed” valve.
+Using these relations, the system can be written as
+dx
+= f (t, x; θ), x(0; θ) = x0
+dt
+y(t, θ) = g(t, x(t, θ); θ)
+
+(4)
+(5)
+
+where x(t) = [pvu , pau , pvl , pal , Vlh ], θ = [Raup ,Ral ,Rvl ,Ralp ,
+Cau ,Cal ,Cvl ,Cvu ,TR ,Em in ,Em ax ,Vun,lh ], and y(t) = pau . For
+more detail and a complete set of equations; see Williams
+et al. [51].
+C. HUT Model Dynamics
+Upon HUT gravity pools blood in the lower extremities,
+which leads to an increase in pressure in the lower body, while
+decreasing pressure in the upper body. This response is modeled
+by modifying flow between the upper and lower body accounting for the hydrostatic pressure change, given by
+ρgh sin(ψ(t)) + pin − pout
+R
+⎧
+0,
+t < tst
+⎪
+⎪
+⎨
+vt (t − tst ), tst ≤ t ≤ tst + ted
+ψ(t) =
+⎪
+⎪
+⎩
+60,
+t > tst + ted
+q=
+
+where ρ (g/ml) is the blood density, g (cm/s2 ) is the gravitational
+acceleration constant, h (cm) is the absolute difference in height
+between the center of mass within the upper and lower body,
+ψ(t) is the tilt angle (in degrees), vt = 15 ◦ /s is the tilt speed,
+while tst and ted denote the time at which the tilt begins and
+finishes, respectively.
+
+(3)
+
+where Elh (t) (reciprocal of the compliance) is given by
+Elh (t̃) =
+⎧E −E 
+	
+m ax
+m in
+1−cos( TπMt̃ ) +Em in ,
+0 ≤ t̃ ≤ TM
+⎪
+⎪
+2
+⎪
+⎨
+
+	
+E m a x −E m i n
+M )
+cos( π ( t̃−T
+)+1 +Em in , TM ≤ t̃ ≤ TM + TR
+2
+TR
+⎪
+⎪
+⎪
+⎩
+Em in ,
+TM + TR ≤ t̃ ≤ T
+
+D. Data and Nominal Parameter Values
+Nominal parameter values used for this simulation were in
+part calculated from knowledge of the patients’ height, age, and
+weight, and in part taken from optimized values estimated to fit
+resting levels of blood pressure and HR as reported in the studies
+by Williams et al. [51], [52]. In addition to fitting systolic and
+diastolic values of blood pressure, parameters were estimated
+to ensure adequate cardiac output and blood volume for the
+
+MATZUKA et al.: USING KF TO PREDICT TIME-VARYING PARAMETERS IN A MODEL PREDICTING BAROREFLEX REGULATION
+
+Fig. 3. Left panel shows blood pressure measurements and prediction with
+nominal parameter values, and right panel shows a zoom for t = 20 − 30 s.
+The onset of HUT is marked by a vertical green line.
+
+1995
+
+parameters are not reliable. Several methods can be used for
+determining parameter correlations, ideally these should be
+mapped analytically using structural correlation analysis.
+Though for most problems no theory exist, and correlations must
+be determined using practical methods, e.g. as discussed in [35]
+and [39].
+In this study, the SVD-QR method as described by Pope et al.
+[42] and correlation analysis as described by Olufsen and Ottesen [39] is used to identify the subset of
+	 identifiable parameters.
+Results showed that θ = Raup , Em in are identifiable.
+F. Least Squares Error
+To estimate the identifiable model parameters, nonlinear optimization is employed to minimize the least square error between
+the model prediction and the measured data [27]. To set up the
+nonlinear optimization problem, we assume that the measurements are described fully by some underlying function of the
+model plus an error term, which represents the measurement
+noise, i.e.
+yid = h(ti , xm (ti ; θρ , θn −ρ ), θ) + i ,
+
+Fig. 4. Ranked sensitivities for the cardiovascular model computed as
+(||∂p a u /∂ln(θ)||2 ). Shown from most to least sensitive: R a u p , E m in , C a u ,
+E m a x , C v u , R a lp , V d , C a l , C v l , R a l , T R , R v l . Note, for the most sensitive parameters, ranking are the same as the one presented in Williams et al. [57], while
+sensitivities vary slightly for parameters with lower sensitivities, the reason is
+that Williams et al. present the average sensitivity ranking over five subjects,
+whereas this study only includes data for one subject.
+
+subject studied. Fig. 3 (right panel) shows blood pressure data
+and model fit with nominal parameter values, note at the time of
+tilt, upper blood pressure drops due to pooling of blood in the
+legs.
+E. Sensitivity Analysis, Identifiability, and Subset Selection
+Using the model described by (4) and (5), the relative sensitivity [3] of the model output y(t) = pau (t) to the model parameters θ is given by
+S=
+
+∂pau
+∂pau
+=
+θ.
+∂log(θ)
+∂θ
+
+(6)
+
+For this study, sensitivities were predicted using finite differences as discussed in the previous study by Pope et al. [42]. It
+should be noted that sensitivities are local, i.e. they are evaluated at nominal parameter values. Sensitivities were predicted
+while the patient was resting in supine position (i.e. assuming
+the hydrostatic height h(t) = 0 cm). The sensitivity S is time
+varying and, for each parameter, a sensitivity rank was obtained
+by averaging the time series using the two norm. Comparison
+of ranked sensitivities are displayed in Fig. 4.
+Parameters for which the model output is insensitive cannot
+be estimated reliably [23], neither can parameters that are correlated. Parameters that are either insensitive or correlated are not
+identifiable [5], [6], [8], [13], [24], [39], [49]. The recent study
+by Ipsen et al. [23] also showed that estimates for correlated
+
+i = 1, 2, . . . , K
+
+(7)
+
+where h is the observation function, y d denotes the measured
+data, xm is the model states, θρ is the identifiable parameters,
+θn −ρ is the unidentifiable parameters (kept constant at nominal
+parameter values),  is the measurement noise, and K is the number of measured data. This definition relies on the assumption
+that the errors are independent, identically distributed random
+variables with mean E[i ] = 0, covariance cov(i , j ) = 0, and
+constant variance var(i ) = σ 2 . Defining the observation function (7) as the arterial blood pressure pau , the residual r is
+constructed as
+
+
+ m
+d
+d
+pau1 − pdau1 pm
+1
+pm
+au2 − pau2
+auK − pauK
+r= √
+,
+, ...,
+pdau1
+pdau2
+pdauK
+K
+d
+where pm
+aui denotes the model predictions and paui is the obd
+served data. The scaling by pau is done to ensure that all quantities in the output vector are similar in magnitude and equal
+in weight. Given that we only include the systolic and diastolic
+pressure within each cardiac cycle, the arterial pressure data
+sys
+sys
+dia dia
+dia
+pdau = [psys
+au1 , pau2 , ..., pauK , pau1 , pau2 , ..., pauK ].
+Using the residual, the objective function for optimization,
+the sum of squares error is given by
+
+θ̄ρ = arg min J(θ), J(θ) = rT r.
+
+(8)
+
+θρ
+
+The objective of this study is to predict the effect of baroreflex
+regulation by introducing time-varying parameters. Quantities
+regulated include peripheral vascular resistance, cardiac contractility, HR, and vascular tone. HR is an input to the model;
+hence, this portion of the regulation is implicitly accounted for,
+and vascular tone is mainly regulated over longer time scales
+and is thus kept constant in this study.
+Two methods will be compared, piecewise linear splines
+(adopted from Williams et al. [51]) with parameter uncertainties
+predicted using the DRAM algorithm and ETKF.
+
+1996
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 8, AUGUST 2015
+
+G. Piecewise Linear Splines
+One approach for estimating time-varying parameters θ(t) =
+{Rup (t), Em in (t)} is by using piecewise linear splines. With this
+approach
+⎧ t−t
+i −1
+⎪
+, ti−1 ≤ t ≤ ti
+⎪
+t −t
+⎪
+N
+⎨ i i −1
+
+−t
+θ(t) =
+γi Hi (t), Hi (t) = tt i + 1−t
+, ti ≤ t ≤ ti+1
+i+ 1
+i
+⎪
+⎪
+i=1
+⎪
+⎩
+0,
+otherwise
+(9)
+where the unknown coefficients γi , i = 1, ..., N are the nodes
+representing the parameter with N being the number of nodes
+along the time-span analyzed. The N nodes γi are estimated
+using nonlinear optimization minimizing the least squares error
+(8). The advantage of this method is that it is easy to implement, the disadvantage is that node locations must be determined
+a priori. For details on this method; see the previous study by
+Williams et al. [51].
+Results from Williams et al. [51] only give deterministic parameter estimates. Given, the high level of noise in the data,
+Markov chain Monte Carlo techniques can be used to determine uncertainty of the predicted parameter values [20]. More
+specifically, we combined the enhancements delayed rejection
+[46] and adaptation [18], and incorporated them into the original Metropolis-Hastings algorithm [7] using the procedures
+required for the DRAM algorithm [17]. This was carried out following the procedure outlined in the chemical reactions problem
+(example 2) by Haario et al. [17].
+H. Kalman Filtering
+Given, the requirement to combine model predictions with
+physical data, stochastic estimation and the Kalman filter will be
+explored. The Kalman filter [25] is a recursive algorithm, which
+calculates the optimal state of a system by taking a weighted
+average of the probability distribution from the model and from
+the measurements. A classic example illustrating this concept
+explores how to find the location when lost at sea [34]. This
+example combines multiple measurements at varying levels of
+certainty along with time dynamics. Given an estimate of the
+position of the boat, in one spatial dimension, x− (t1 ), with
+variance σx2 , and an observation of the position of the boat z(t1 )
+with variance σz2 . Assuming that both of these estimates are
+Gaussian distributions, then the best estimate (in the maximum
+likelihood or least squares sense) of these two measurements
+can be predicted as
+x+ (t1 ) =
+
+σz2
+σz2 + σx2
+
+x− (t1 ) +
+
+σx2
+σz2 + σx2
+
+= x− (t1 ) + K(z1 − x− (t1 ))
+
+z(t1 )
+
+by some noise v, which is the best estimate for the true biological
+system?
+Mathematically, assuming a continuous model and data measurements at discrete times, the problem can be stated as
+ẋ = f (t, x) + g(t)w(t)
+yi = h(x(ti ), i) + vi
+where x(t0 ) is normally distributed with mean x̂0 and covariance
+P0 , w(t) and vi are white noise processes uncorrelated with
+x(t0 ), and with each other, with means 0 and covariances Q and
+W , respectively. When f and h are linear, the problem reduces
+to the Kalman filter [27], which can be formulated using two
+steps:
+Prediction
+dx̂−
+= f x̂−
+dt
+dPx−
+= f Px− + Px− f T + Q.
+dt
+Update
+x̂+ = x̂− + Ki+1 (yk − hx̂− )
+
+−1
+Ki+1 = Px− hT hPx− hT + W
+Px+ = (I − Ki+1 h)Px− .
+It should be noted that the update formula for the state variable
+x̂+ is of the same form as the expression given by (10). When
+these restrictive assumptions do not hold, adjustments to the
+Kalman filter must be made. Due to the stiff behavior along
+with nonlinearities of the model, we used the ETKF for this
+study.
+The ETKF uses the general framework of the Kalman filter,
+but approximates the error statistics of the estimate by a set of
+particles sampled from the prior distribution. Within this algorithm, the prior and posterior error covariances can be calculated
+from the ensemble covariance matrices around the corresponding mean as
+Px− =
+
+1
+T
+Ui+1|i Ui+1|i
+Kp − 1
+
+Px+ =
+
+1
+T
+Ui+1|i+1 Ui+1|i+1
+Kp − 1
+
+(11)
+
+where
+Ui+1|i = [x1i+1|i − x̂i+1|i ; x2i+1|i − x̂i+1|i ; ...; xK
+i+1|i − x̂i+1|i ]
+Ui+1|i+1 = [x1i+1|i+1 − x̂i+1|i+1 ; x2i+1|i+1 − x̂i+1|i+1 ; ...
+xK
+i+1|i+1 − x̂i+1|i+1 ]
+
+(10)
+
+in which xji+1|i denotes the jth particle propagated through the
+
+2
+z
+where K = σ 2σ+σ
+is
+2 , and the variance of the new estimate σ
+z
+x
+1
+1
+1
+σ 2 = σ z2 + σ x2 .
+The general problem to be considered is given, a mathematical
+model for a biological system x, corrupted by some process
+noise w, and a model for data measurements z, also corrupted
+
+model, and xji+1|i+1 describes the update for each particle. Kp
+denotes the number of particles
+necessary to approximate the
+
+j
+x
+, which will be used to caldistribution and x̂ = Kp−1 K
+j =1
+culate the prior and posterior mean with respect to the particles.
+In the following, U denotes the ensemble perturbation matrix as
+it gives the deviation of each particle from its mean.
+
+2
+
+MATZUKA et al.: USING KF TO PREDICT TIME-VARYING PARAMETERS IN A MODEL PREDICTING BAROREFLEX REGULATION
+
+1997
+
+To update the equations, the Kalman gain is calculated using
+the ensemble error covariance (11), given by
+gain
+Ki+1
+= Px− H T (hPx− hT + W )−1
+
+= (K − 1)−1 U U T hT (h(K − 1)−1 U U T hT + W )−1
+= (K − 1)−1 U (hU )T ((K − 1)−1 (hU )(hU )T + W )−1 . (12)
+In the above expression, and for the remainder of this paper, the
+subscript on U is omitted.
+Subsequently, the classical Kalman filter update equations is
+applied to each ensemble member
+gain k
+xji+1|i+1 = xji+1|i + Ki+1
+(yi+1 − h(xji+1|i ))
+
+(13)
+
+gain
+where Ki+1
+is defined as above, and the observation yi+1 is
+perturbed accordingly
+k
+k
+yi+1
+= yi+1 + ψi+1
+k
+where ψi+1
+is a Gaussian random variable with mean zero and
+covariance W .
+In summary, the main idea of the ETKF [1] is to take the
+square root of the covariance matrix and transform it to a
+space where it is more robust and well conditioned [11], [12],
+[21], [31].
+1) Kalman Filter Dual Estimation: The ETKF derived
+above is only used to estimate the model states. The time-varying
+parameters Rsup and Em in are estimated using a dual filter [21],
+in which the time-varying parameters and the model state space
+are concatenated as follows
+ 
+ẋ
+ż =
+θ̇
+
+where the dynamics of the estimated parameters are given by
+θ̇ = 0. This form of dual estimation is more commonly referred
+to as joint estimation [11], [12], [21] (see [33] for more details).
+III. RESULTS
+Using the five compartment cardiovascular model, HUT was
+modeled by pooling blood in the legs upon tilt. The effect of the
+baroreflex control, activated in response to the imposed drop in
+blood pressure, was modeled by predicting controlled properties, cardiac contractility and vascular resistance, as timevarying
+parameters. As noted above, the time course of these parameters
+were predicted using piecewise linear spline functions defined
+by (9) and the ETKF.
+The initial conditions for the states and initial guesses for the
+parameter nodes used in the spline approximation are given by
+⎞
+⎞ ⎛
+⎛
+67
+pau0
+⎟
+⎟ ⎜
+⎜
+⎜ pal0 ⎟ ⎜ 3.5 ⎟
+⎟ 
+⎟ ⎜
+⎜
+ 
+
+⎟
+⎟ ⎜
+⎜
+Raup 0
+0.94
+⎟
+⎟ ⎜
+⎜
+=
+⎜ pvl0 ⎟ = ⎜ 66 ⎟,
+⎟
+⎟ ⎜
+⎜
+Em in 0
+0.02
+⎟
+⎟ ⎜
+⎜
+⎜ pvu0 ⎟ ⎜ 3.8 ⎟
+⎠
+⎠ ⎝
+⎝
+Vlh0
+
+60
+
+Fig. 5. Blood pressure (bp) estimations using piecewise linear splines and
+DRAM (top left) versus the ETKF (top right). The onset of HUT is marked
+with a green vertical line. The bottom graphs show corresponding residual
+distributions.
+
+where pressures pi are in mmHg, the volume Vlh is in ml, the
+resistance Rsup is in mmHg s/ml, and the elastance Em in is in
+mmHg/ml. Holding the unidentifiable parameters at their nominal values, the remaining ρ identifiable baroreflex controlled parameters are discretized as θρ = [γi,R a u p , γi,E m i n ] using N = 33
+linear spline nodes spaced out across the time domain.
+Fig. 5 shows the diastolic and systolic arterial blood pressure
+data along with the model fits for pau using the piecewise linear
+spline and the ETKF. The top panels show model predictions
+along with the diastolic and systolic pressure data, while the
+bottom panels display the histogram of the residuals for the
+model fits overlaid with the theoretical Gaussian distribution.
+The time-varying parameters Raup and Em in obtained by
+minimizing the least squared error (8) are depicted in Fig. 8. For
+the piecewise linear spline model, parameter uncertainties were
+predicted using the DRAM algorithm. The DRAM routine was
+run for 2000 samples with a burn-in of 300 samples. Each plot
+shows the mean, taken to be the estimates for each node in the
+linear piecewise spline, along with the first and second standard
+deviation intervals calculated using DRAM. The ETKF parameters estimates were obtained using the same initial conditions
+as above and
+⎞
+⎛
+0.5
+0
+0
+0
+0
+⎟
+⎜
+⎜0
+0.0001
+0
+0
+0 ⎟
+⎟
+⎜
+⎟
+⎜
+⎟
+⎜
+0
+0.05 0
+0 ⎟
+Q = ⎜0
+⎟
+⎜
+⎟
+⎜
+⎜0
+0
+0
+0.1
+0 ⎟
+⎠
+⎝
+0
+0
+0
+0 0.05
+
+
+1e − 6
+0
+W = 0.1, QR a u p ,E m i n =
+0
+1e − 6
+
+1998
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 8, AUGUST 2015
+
+Fig. 6. Absolute value of residuals predicted with ETKF. The light green and
+red lines mark one (σ) and two (2σ) standard deviations from the mean. The
+vertical green line marks the onset of HUT.
+
+TABLE I
+BLOOD PRESSURE PREDICTIONS OBTAINED USING THE PIECEWISE LINEAR
+SPLINE AND DRAM VERSUS THE ETKF METHOD
+
+RMSE
+σ r2e s i d u a l
+Jc o s t
+CPU time (s)
+
+Spline and DRAM
+
+ETKF
+
+1.97
+4.59
+3.86
+34449
+
+0.74
+0.55
+0.55
+1851
+
+where Px 0 = 1e−6 I, Pq 0 = 1e−8 I, and I is the identity matrix.
+A number of different initial covariances were tested. Those presented were selected to encompass the model assumptions and
+convergence properties. The value for the measurement noise
+covariance W was selected from prior knowledge of the data
+collection methodology. Given the desire to appropriately compare the spline and filtering methodologies, the process noise
+covariance for the parameters QR a u p ,E m i n and the states Q were
+selected to closely resemble the assumptions underlying the initial spline modeling methodology with higher confidence on
+model states, which best described the system dynamics, and
+less confidence on model states which were believed to have
+more error or over simplified/misspecified. For the observed
+state pau , the variance was set to more heavily weight confidence in the measurements. The confidence intervals, two standard deviations, for the filter are presented as the dashed red
+lines in Fig. 8. As the filter estimates the distributions in time,
+a better understanding of the fit can be viewed by analyzing
+the absolute value of the residuals over the entire time interval,
+shown in Fig. 6.
+Reviewing the plot, we would expect approximately 95% of
+the data to be within 2σ. Over the time course of the experiment,
+413 observations were collected. Of these, 31 were outside of the
+2σ interval resulting in 92.5% being within the calculated filter
+confidence interval. Although this metric gives a theoretical
+understanding of the filters accuracy in prediction, it should be
+noted that a large number of points are outside of the interval
+for t = [80, 100], immediately after the tilt occurs. This interval
+is where the greatest changes are occurring due to effects of
+gravity and the body’s regulation of the physiological processes.
+Table I gives a quantitative overview of the two methods fit of
+the pressure data.
+Further insight can be obtained by examining the dynamics of
+the unobserved states. As no data are available for these states,
+
+Fig. 7. ETKF predictions of the unobserved states, as expected upon HUT
+pressure in the lower body compartments (arteries p al and veins p vl ) increase
+(left graphs), while it decreases in the upper body compartments. On the top
+panels, the onset of HUT is marked with a vertical green line. The center panel
+show zooms during supine position, while the bottom panels show the entire
+time span. To see dynamics in these panels, the HUT onset are not shown, but
+follow timing indicated on the top panels.
+
+Fig. 8. Parameter estimates for R a u p (top) and E m in (bottom) along with
+confidence bounds, derived through DRAM (blue) compared to ETKF estimates
+(red). On both panels, the onset of HUT is marked with a vertical green line.
+
+only the qualitative behavior and average values can be assessed.
+Fig. 7 depicts the dynamics for the lower body arterial pressure
+pal , venous pressure pvl , upper body venous pressure pvu , and
+the volume of the left ventricle Vlh . At the onset of HUT, the
+effect of gravity causes pooling of blood in the lower extremities
+(in compartments below the center of gravity), while pressure
+decreases in the upper body. As a result, the return of blood to the
+heart decreases leading to a decrease in left ventricular volume.
+For both estimation methods, graphs depicting the unobserved
+states (shown in Fig. 7) follow the expected behavior.
+IV. DISCUSSION AND CONCLUSION
+Following HUT, peripheral resistance immediately drops (see
+Fig. 8 top). This could be a result of changes in hydrostatic pressure in the lower compartments or due to activation of skeletal
+muscle [45], [50]. However, as the tilt is performed in a relaxed
+environment, muscles should not be activated during the procedure and, therefore, changes in hydrostatic pressure is likely
+the reason. After the initial drop in resistance, a rebound occurs
+
+MATZUKA et al.: USING KF TO PREDICT TIME-VARYING PARAMETERS IN A MODEL PREDICTING BAROREFLEX REGULATION
+
+due to contraction of smooth muscles in the muscular and elastic arteries, respectively, while increasing nerve traffic through
+sympathetic efferent nerves [51]. Sympathetic activation, along
+with parasympathetic withdrawal, has a positive inotropic effect
+on the heart, decreasing the left ventricles elastance (see Fig. 8
+bottom) allowing the heart to increase the preload volume and,
+therefore, cardiac output. The drop in blood volume observed
+in Fig. 7, immediately following the tilt coincides with results
+in previous studies; Smith and Ebert [44] and Matzen et al. [32]
+reported a 25% reduction in ventricular blood volume, while
+Enish et al. [10] and Lieshout et al. [29] reported a decrease in
+stroke volume following HUT [57]. This decrease in left ventricular volume is an immediate consequence of the decrease of
+filling pressure, as seen experimentally [10]. The lower compartments venous pressure (pvl ) increases as a result of the gravitational pooling of blood, which agrees with previous findings
+[14], while the upper venous pressure (puv ) also simultaneously
+drops, as reported earlier [19], [29].
+The differences in the residual distributions and fits are reported in Table I. Although the ETKF method is assuming Gaussian distributions for both the measurement error and model
+error, the filter can better represents the residual distribution
+because it accounts for the model error. The model error represents the variability that otherwise would be associated with the
+measurements, inappropriately, giving biased estimates. More
+specifically, we are using a model, which simplifies the cardiovascular system into five lumped compartments, and represents the baroreflex control via two parameters Raup and Em in .
+In practice, the system is significantly more complex so some
+model error is expected. The model error estimated by the ETKF
+accounts for the fact that some of the system processes are not
+modeled accurately. This is done by appropriately relegating
+the error within the different components of the model to their
+respective states. Reviewing the estimates for Raup for both the
+filter and linear spline in Fig. 8 (top), the qualitative features are
+consistent for both methods. Although discrepancies are visible between the two predictions. The linear spline method is
+discretizing the time domain and approximating the dynamics
+through the optimization of each node. Since this is not continuous like the ETKF, the linear spline can only approximate
+the dynamics where the nodes are positioned. For the dataset
+analyzed here, the ETKF has a maximum value for the Raup
+around t = 60 s, while the linear spline positioned this maximum at t = 45 s as that is where the closest node was positioned.
+This feature allows the filter to give more accurate estimates of
+where the dynamics occur temporally since it does not rely
+on a specific discretization. This gives rise to model selection
+issues in terms of optimal number of nodes for each parameter. Comparing the confidence intervals for each method, they
+appear consistent for both methods over the time frame. Moreover, as the length of the time interval increases more nodes are
+needed to effectively capture expected dynamics, significantly
+increasing the simulation time needed to estimate nodes in the
+piecewise linear function. Fig. 8 (bottom) gives an overview of
+the fits for Em in using both the linear spline and ETKF. Before
+the HUT (t = 80 s), both methods are consistent in predicting
+little to no change to the estimate. Once the HUT occurs, the
+
+1999
+
+methods display differences in their estimate of the minimum
+ventricular elastance, Em in . The filter estimate’s greatest deviation occurs from t = 150 s to t = 180 s with a qualitative shift
+not seen in the spline estimate. The filter obtains a smaller final
+estimate along with an increase in the uncertainty, encapsulating
+the spline estimate within the confidence bounds. Some of this
+error may be due to the very stiff nature of the equation brought
+by the rapid change in time-varying resistances as the valves are
+either closing or opening. To rule out any discrepancy brought
+by the valve equations, more effort should be put into analyzing
+convergence of the two methods as step size is decreased.
+However, even after checking numerical stability, the differences in the parameter estimates and confidence intervals show
+how the incorporation of the model error into the system can
+have an effect on our perceived dynamics. The spline shows less
+variation overall and less uncertainty in the estimate due to the
+assumptions that all the error in the fit is solely due to the observations. This leads to a higher confidence in the estimate and
+less deviation over time. When this assumption breaks down,
+the filter more appropriately captures the parameter dynamics,
+and uncertainty in those estimates.
+While other studies have been proposed to predict blood pressure regulation [4], [22], [38], we utilized a simplified five compartment model derived by Williams et al. [51] to better understand the body’s response to orthostatic stress during HUT.
+By using arterial pressure data, utilizing parameter estimation
+to fit our model, and capturing the dynamics of resistance and
+elastance, it is possible to obtain a better understanding of cardiovascular autonomic activation. This is achieved by comparing the filter and linear spline fits for pau , and estimation of
+Raup and Em in , and taking the underlying assumptions of the
+methodologies into account. Utilizing both linear spline optimization and ETKF filtering, the benefits of ETKF filtering are
+highlighted through the estimation of Raup and Em in and the
+uncertainty associated with those parameters. Due to the nature
+of biological modeling, in general, and cardiovascular modeling specifically, complex systems are often analyzed using
+fairly simple models. The ETKF filter presents a methodology
+to account for the errors inherent to these model simplifications.
+While this study only presented analysis for a single subject, the
+model and methodology have potential to be used for the analysis of multiple subjects as well as groups of subjects. Future
+work should consider estimation for more subjects or utilization
+of a nonlinear mixed effects engine to estimate the variability
+among a population. Finally, to have a better understanding of
+the model misspecification, the filter can be incorporated into
+optimization and the model noise can become parameters which
+can also be estimated.
+REFERENCES
+[1] C. H. Bishop et al., “Adaptive sampling with the ensemble transform Kalman filter. Part I: Theoretical Aspects,” Monthly Weather Rev.,
+vol. 129, pp. 420–436, 2001.
+[2] J. J. Batzel et al., Cardiovascular and Respiratory Systems. Modeling,
+Analysis and Control. Philadelphia, PA, USA: SIAM, 2007.
+[3] D. M. Bortz and P. W. Nelson, “Sensitivity analysis of a nonlinear lumped
+parameter model of HIV infection dynamics,” Bull. Math. Biol., vol. 66,
+pp. 1009–1026, 2004.
+
+2000
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 62, NO. 8, AUGUST 2015
+
+[4] S. Bugenhagen et al., “Identifying physiological origins of baroreflex
+dysfunction in salt-sensitive hypertension in the Dahl SS rat,” Physiol.
+Genomics, vol. 42, pp 23–41, 2010.
+[5] M. Burth et al., “Subsect selection for improved parameter estimation
+in on-line identification of a synchronous generator,” IEEE Trans Power
+Syst., vol. 14, no. 1, pp. 218–225, Feb. 1999.
+[6] A. Capaldi et al., “Parameter estimation and uncertainty quantification
+for an epidemic model,” Math. Biosci. Eng., vol. 9, pp. 553–576, 2012.
+[7] S. Chib and E. Greenberg, “Understanding the Metropolis-Hastings algorithm,” Amer. Stat., vol. 49, pp. 327–335, 1995.
+[8] A. Cintron-Arias et al., “A sensitivity matrix based methodology
+for inverse problem formulation,” J Inverse ILL-Posed Probl. vol. 17,
+pp. 545–564, 2009.
+[9] L. M. Ellwein, “Cardiovascular and respiratory regulation, modeling and
+parameter estimation,” Ph.D. dissertation, Dept. Appl. Math., North Carolina State Univ., Raleigh, NC, USA, 2008.
+[10] K. Enishi et al., “Initial drop of blood pressure during head-up tilt in patients with cerebrovascular accidents,” Environ. Health Preventive Med.,
+vol. 9, pp. 228–233, 2004.
+[11] G. Evensen, Data Assimilation: The Ensemble Kalman Filter. New York,
+NY, USA: Springer, 2009.
+[12] G. Evensen, “The ensemble Kalman filter: Theoretical formulation and
+practical implementation,” Ocean Dyn., vol. 54, pp. 539–560, 2003.
+[13] M. Fink et al., “Subset selection for parameter estimation in an HIV
+model,” Proc. Appl. Math. Mech., vol. 7, pp. 1121501–1121502, 2007.
+[14] J. Groothius et al., “Leg intravenous pressure during head-up tilt,” J Appl.
+Physiol., vol. 105, pp. 811–815, 2008.
+[15] P. G. Guyenet, “The sympathetic control of blood pressure,” Nature Rev.,
+Neurosci., vol 7, pp. 335–346, 2006.
+[16] A. C. Guyton and J. E. Hall, Textbook of Medical Physiology, 9th ed.
+Philadelphia, PA, USA: Saunders, 1996.
+[17] H. Haario et al., “DRAM: Efficient adaptive MCMC,” Stat. Comput.,
+vol. 16, pp. 339–354, 2006.
+[18] H. Haario et al., “An adaptive Metropolis algorithm,” Bernoulli, vol. 7,
+pp. 223–242, 2001.
+[19] M. Harms et al., “Postural effects on cardiac output and mixed venous
+oxygen saturation in humans,” Exp. Physiol., vol. 88, pp. 611–616, 2003.
+[20] W. K. Hastings, “Monte Carlo sampling methods using Markov chains
+and their applications,” Biometrika Trust, vol. 57, pp. 97–109, 1970.
+[21] S. Haykin, Kalman Filtering and Neural Networks. New York, NY, USA:
+Wiley, 2001.
+[22] T. Heldt et al., “Computational modeling of cardiovascular response to
+orthostatic stress,” J. Appl. Physiol., vol. 92, pp. 1239–1254, 2002.
+[23] I. C. F. Ipsen et al., “Rank-deficient nonlinear least squares problems and
+subset selection,” SIAM J. Numer. Anal., vol. 49, pp. 1244–1266, 2011.
+[24] J. A. Jacquez and P. Greif, “Numerical parameter identifiability and estimability: Integrating identifiability, estimability, and optimal sampling
+design,” Math. Biosci., vol. 77, pp. 201–227, 1985.
+[25] R. E. Kalman, “A new approach to linear filtering and prediction problems,” J. Basic Eng., vol. 82, pp. 34–45, 1960.
+[26] F. Kappel and R. O. Peer, “A mathematical model for fundamental regulation processes in the cardiovascular system,” J. Math. Biol., vol. 31,
+pp. 611–631, 1993.
+[27] C. T. Kelley, Iterative Methods for Optimization. Philadelphia, PA, USA:
+SIAM, 1999.
+[28] J. B. Lanier et al., “Evaluation and management of orthostatic hypertension,” Amer. Family Physician, vol. 84, pp. 527–536, 2011.
+[29] J. Lieshout et al., “Stroke volume of the heart and thoracic fluid content
+during head-up and head-down tilt in humans,” Acta Anaesthesiologica
+Scand., vol. 49, pp. 1287–1292, 2005.
+[30] A. Mahdi et al., “Modeling the afferent dynamics of the baroreflex control
+system,” PLoS Comput. Biol., vol. 9, p. e1003384, Dec. 2013.
+
+[31] Majda and J. Harlim, Filtering Complex Turbulent Systems. New York,
+NY, USA: Cambridge Univ. Press, 2012.
+[32] S. Matzen et al., “Blood volume distribution during head-up tilt induced
+central hypovolaemia in man,” Clin. Physiol., vol. 11, pp. 411–422, 1991.
+[33] B. Matzuka, “Nonlinear filtering methodologies for parameter estimation and uncertainty quantification in noisy, complex biological systems,”
+Ph.D. dissertation, Dept. Math., North Carolina State Univ., Raleigh, NC,
+USA, 2014.
+[34] P. S. Maybeck, Stochastic Models, Estimation and Control. New York,
+NY, USA: Academic, 1979.
+[35] H. Miao et al., “On identifiability on nonlinear ODE models and applications in viral dynamics,” SIAM Rev., vol. 53, pp. 3–39, 2011.
+[36] T. H. Miller and J. E. Kruse, “Evaluation of syncope,” Amer. Family
+Physician. vol. 72, pp. 1492–1500, 2005.
+[37] M. S. Olufsen et al., “Blood pressure and blood flow variation during postural change from sitting to standing: Model development and validation,”
+J. Appl. Physiol., vol. 99, pp. 1523–1537, 2005.
+[38] M. S. Olufsen et al., “Modeling baroreflex regulation of heart rate during
+orthostatic stress,” Amer. J. Physiol., vol. 291, pp. R1355–R1368, 2006.
+[39] M. S. Olufsen and J. T. Ottesen, “A Practical approach to parameter
+estimation applied to model predicting heart rate regulation,” J. Math.
+Biol., vol. 67, pp. 39–68, 2013.
+[40] J. Ottesen, and M. Danielsen, “Modeling ventricular contraction with heart
+rate changes,” J. Theor. Biol., vol. 222, pp. 337–346, 2003.
+[41] T. G. Pickering, “Orthostatic intolerance,” J. Clin. Hypertension, vol. 4,
+pp. 306–308, 2007.
+[42] S. R. Pope et al., “Estimation and identification of parameters in a lumped
+cerebrovascular model,” Math. Biosci. Eng., vol. 6, pp. 93–115, 2009.
+[43] D. W. Robertson et al., Primer on the Autonomic Nervous System, 2nd
+ed. Sam Diego, CA, USA: Academic, 2009.
+[44] J. J. Smith and J. Ebert, General Response to Orthostatic Stress. Boca
+Raton, FL, USA: CRC Press, 1990.
+[45] R. Sprangers et al., “Initial blood pressure fall on stand up and exercise
+explained by changes in total peripheral resistance,” J. Appl. Physiol.,
+vol. 70, pp. 523–530, 1991.
+[46] L. Tierney and A. Mira, “Some adaptive Monte Carlo methods for
+Bayesian inference,” Stat. Med., vol. 18, pp. 2507–2515, 1999.
+[47] J. Triedman and J. Paul, “Blood pressure modulation by central venous
+pressure and respiration. Buffering effects of the heart rate reflexes,” Circulation, vol. 89, pp. 169–179, 1994.
+[48] M. Ursino and E. Magosso, “Role of short-term cardiovascular regulation
+in heart period variability: A modeling study,” Amer. J. Physiol., vol. 284,
+pp. H479–H1493, 2003.
+[49] M. Velez-Reyes and G. C. Verghese, “Subset selection in identification and
+application to speed and parameter estimation for induction machines,” in
+Proc IEEE 4th Conf. Control Appl., 1995, pp. 991–997.
+[50] W. Wieling et al., “Circulatory response evoked by a 3 s bout of dynamic
+leg exercise in humans,” J. Physiol., vol. 494, pp. 601–611, 1996.
+[51] N. D. Williams et al., “Patient specific modelling of head-up tilt,” Math.
+Med. Biol., vol. 31, pp. 365–392, 2014.
+[52] N. Williams, “Mathematical modeling of cardiovascular dynamics during
+head-up tilt,” Ph.D. dissertation, Dept. Math., North Carolina State Univ.,
+Raleigh, NC, USA, 2014.
+
+Authors’ photographs and biographies not available at the time of publication.
+
+

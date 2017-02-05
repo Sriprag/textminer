@@ -1,0 +1,1019 @@
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+1947
+
+Real-Time Simulation of Three-Dimensional
+Shoulder Girdle and Arm Dynamics
+Edward K. Chadwick∗ , Dimitra Blana, Robert F. Kirsch, Member, IEEE, and Antonie J. van den Bogert
+
+Abstract—Electrical stimulation is a promising technology for
+the restoration of arm function in paralyzed individuals. Control
+of the paralyzed arm under electrical stimulation, however, is a
+challenging problem that requires advanced controllers and command interfaces for the user. A real-time model describing the
+complex dynamics of the arm would allow user-in-the-loop type
+experiments where the command interface and controller could
+be assessed. Real-time models of the arm previously described
+have not included the ability to model the independently controlled
+scapula and clavicle, limiting their utility for clinical applications
+of this nature. The goal of this study therefore was to evaluate
+the performance and mechanical behavior of a real-time, dynamic
+model of the arm and shoulder girdle. The model comprises seven
+segments linked by eleven degrees of freedom and actuated by 138
+muscle elements. Polynomials were generated to describe the muscle lines of action to reduce computation time, and an implicit,
+first-order Rosenbrock formulation of the equations of motion was
+used to increase simulation step-size. The model simulated flexion of the arm faster than real time, simulation time being 92%
+of actual movement time on standard desktop hardware. Modeled maximum isometric torque values agreed well with values
+from the literature, showing that the model simulates the momentgenerating behavior of a real human arm. The speed of the model
+enables experiments where the user controls the virtual arm and
+receives visual feedback in real time. The ability to optimize potential solutions in simulation greatly reduces the burden on the user
+during development.
+Index Terms—Biomechanics, forward dynamics, musculoskeletal modeling, shoulder.
+
+I. INTRODUCTION
+number of recent publications have shown significant and
+promising advances in the ability of brain–computer interfaces (BCI) to control prosthetic and robotics-based devices
+[1], [2] to assist people with seriously impaired movement. In
+
+A
+
+Manuscript received July 31, 2013; revised December 3, 2013; February 3,
+2014; accepted February 22, 2014. Date of publication March 4, 2014; date
+of current version June 14, 2014. This work was supported by the National
+Institutes of Health under Contract N01-HD-5-3403. Asterisk indicates corresponding author.
+∗ E. K. Chadwick is with the Institute for Science and Technology in Medicine,
+Keele University, Staffordshire ST5 5BG, U.K. (e-mail: e.k.j.chadwick@
+keele.ac.uk).
+D. Blana is with the Institute for Science and Technology in Medicine, Keele
+University, Staffordshire ST5 5BG, U.K. (e-mail: dimitra.blana@gmail.com).
+R. F. Kirsch is with the Department of Biomedical Engineering, Case Western
+Reserve University, Cleveland, OH 44106 USA (e-mail: rfk3@case.edu).
+A. J. van den Bogert is with the Department of Mechanical Engineering, Cleveland State University, Cleveland, OH 44115 USA (e-mail:
+a.vandenbogert@csuohio.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/TBME.2014.2309727
+
+order to achieve the goal of restoring natural control of movement to people with spinal cord injury, such high levels of control must be extended to reanimated limbs where movement is
+achieved under the power of the user’s own muscles.
+We have previously shown the feasibility of such an approach
+by demonstrating direct cortical control of simulated arm reaching by a person with tetraplegia [3]. The simulated arm was realized using a forward-dynamic model describing the complex
+dynamics of muscle activation and contraction, muscle nonlinearities, and muscle skeleton coupling.
+In forward dynamics, we specify the muscle activations or
+neural excitations, and mathematically describe how those translate into movements. Fig. 1 shows the essential components in
+a forward-dynamic musculoskeletal model. The muscle model
+(block 1) describes the transfer from neural excitation to muscle
+force for each muscle part, the muscle–skeleton model (block 2)
+describes the transition from muscle forces to joint torques, and
+the segment inertial model (block 3) describes the effect of
+joint torques on segment accelerations. Integration of the state
+variables over time results in the simulation of a movement trajectory based on a series of inputs describing neural excitation.
+In our application, the neural excitation values are calculated by
+a controller whose inputs are the desired movements decoded
+from the BCI.
+By creating a dynamic simulation of muscle-driven movement, we are able to optimize design parameters and BCI decoding methods, and test different control schemes for the user
+in a safe but accelerated way. However, in our initial demonstration of direct cortical control [3], the simulated arm was limited
+to planar movements of the shoulder and elbow, and did not
+include the additional control requirements of a mobile scapula
+and clavicle.
+The addition of an independently-controlled shoulder girdle
+allows us to model the complex muscle control requirements
+needed to ensure appropriate positioning and stabilization of
+the scapula during movement. This is an essential feature of any
+neuroprosthesis control algorithm that claims to enable natural
+control of the whole arm. In musculoskeletal dynamics, however, differential equations describing the model are typically
+very stiff and nonlinear.
+A model including the shoulder girdle suffers particularly
+from high stiffness due to the low-mass rigid bodies of the
+scapula and clavicle being actuated by high-stiffness muscles.
+As a result, forward dynamic simulations using explicit numerical methods require very small time steps and are much slower
+than real time [4]. This precludes their use in the “user-in-theloop” type experiments necessary for development and testing
+of control algorithms that is the focus of our study.
+
+0018-9294 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+1948
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+Fig. 1. Block diagram showing the simulation phases of a musculoskeletal
+model. u: vector of neural inputs; F : muscle forces; L: muscle lengths; T : joint
+torques; θ̈: joint accelerations.
+
+Previously, we overcame this problem by using SD/FAST to
+generate equations of motion, and running simulations using
+a fixed-step solver on a dedicated, real-time operating system
+[5]. In addition, in order to achieve real-time simulations, we
+restricted the motion of the shoulder girdle, and only modeled
+glenohumeral (GH) and elbow motions.
+The goal of this project, therefore, was to create a “virtual
+arm” that can simulate the complex musculoskeletal dynamics
+of the whole shoulder girdle in real time, given a set of neural
+inputs derived from a controller. We achieved this by using
+an implicit method based on a first-order Rosenbrock formula,
+resulting in simulation times faster than real time, with the same
+accuracy as a much slower variable-step explicit method.
+In the current paper, we describe the resulting model of the
+shoulder and elbow that includes independent control of the
+clavicle and scapula, demonstrate its ability to run simulations
+in real time, and show the validity of the resulting simulations by
+comparison with the published literature on torque-angle curves
+for the shoulder and elbow.
+II. METHODS
+A. SIMM Model
+The model was initially built in SIMM (MusculoGraphics,
+Inc.), using anatomical data from cadaver studies performed by
+Klein-Breteler et al. [6]. These data are available on SimTK.org
+(https://simtk.org/home/dsem). The model was later imported
+into Opensim [7], from where the muscle moment arm and
+length functions are generated. Simulation of the model is subsequently performed using MATLAB and custom C-code, as
+outlined in Section II-B9. It consists of seven body segments
+(thorax, clavicle, scapula, humerus, ulna, radius, and hand),
+and eleven degrees of freedom (three orthogonal hinges at the
+sterno-clavicular, acromio-clavicular and GH joints, and elbow
+flexion-extension and forearm pronation-supination). It contains
+138 muscle elements. Details of the original SIMM model and
+its evaluation using inverse dynamic simulations can be found
+in [8].
+B. Musculoskeletal Dynamics
+1) Activation Dynamics: The active state a is controlled by
+neural excitation u, and this process is modeled as a first-order
+differential equation according to [9]:
+da
+=
+dt
+
+
+
+u
+1−u
++
+Tact
+Tdeact
+
+
+(u − a).
+
+(1)
+
+Fig. 2. Three-element Hill muscle model, showing the contractile element
+CE, parallel elastic element PEE, and series elastic element SEE. L C E is the
+CE length, L M is the muscle length, and φ is the pennation angle.
+
+The values for the activation and deactivation time constants
+(Tact and Tdeact ) were derived from the proportions of fast and
+slow twitch fibers in the muscle (from [10]).
+2) Muscle Contraction Dynamics: The muscle model is a
+three-element Hill-type model (see Fig. 2). The contractile element (CE) represents the muscle fibers, the parallel elastic element (PEE) represents the passive properties of muscle fibers
+and surrounding tissue, and the series elastic element (SEE)
+represents the tendon and any elastic tissue in the muscle itself
+that is arranged in series with the muscle fibers.
+The state equation for muscle contraction represents the force
+balance between the elements of the muscle model:
+(Factive + fPEE (LCE )) cosφ = fSEE (LM − LCE cosφ) (2)
+where LCE is the CE length, LM is the muscle length, φ is
+the pennation angle, and Factive , fPEE , and fSEE are the forces
+in CE, PEE, and SEE, respectively. The equations describing
+these forces are included in Appendix A. To avoid singularities
+relating to pennation, the state variable used for the muscle
+contraction differential equation is s = LCE cosφ [4].
+3) Muscle–Skeleton Coupling: Moment arms were exported
+from Opensim for a large number of combinations of joint angles. These data were used to generate polynomial regression
+models for muscle length as a function of joint angles:
+LM (q) =
+
+N
+
+i=1
+
+ci
+
+M
+
+
+e
+
+qj i j
+
+(3)
+
+j =1
+
+where N is the number of polynomial terms, and q1 ,
+q2 , . . . qM are the angles of the joints crossed by the muscle. The
+moment arm with respect to joint angle k (where 1 ≤ k ≤ M )
+is obtained by partial differentiation with respect to the kth joint
+angle (i.e., the ratio between muscle–tendon shortening velocity
+and joint angular velocity). This definition is consistent with the
+use of generalized forces and virtual work in Kane’s equations
+that were used for simulation of the system [11].
+The polynomial coefficients c were found by minimizing
+the error in moment arms and the error in muscle length of
+the polynomial model, relative to the Opensim results. To make
+sure that all moment arms are accurately represented by the
+polynomial model, all terms were normalized to the largest moment arm for each muscle.
+
+CHADWICK et al.: REAL-TIME SIMULATION OF THREE-DIMENSIONAL SHOULDER GIRDLE AND ARM DYNAMICS
+
+4) Passive Joint Torques: Passive joint torques M are modeled as a sum of damping and stiffness terms:
+⎧
+−bq̇ − k1 (q − qm id ) + k2 (q − qm in )2 , if q < qm in
+⎪
+⎨
+M = −bq̇ − k1 (q − qm id ), if qm in ≤ q ≤ qm ax
+⎪
+⎩
+−bq̇ − k1 (q − qm id ) − k2 (q − qm ax )2 , if q > qm ax
+(4)
+where b is a small damping coefficient (1 Nms/rad), k1 is the
+stiffness within the joint limits that tends to push the joints
+towards the middle of the range of motion (where q = qm id )
+and is also small (5 Nm/rad), and k2 is the stiffness that only
+occurs outside the range of motion and is large enough to prevent
+the joints from going too far out of the limits (5000 Nm/rad2 ).
+5) Conoid Ligament: The conoid ligament restricts the axial
+rotation of the clavicle. It is modeled as a nonlinear spring:
+
+
+k
+
+(5)
+d + d2 + 2
+F =−
+2
+where d is the displacement from the conoid slack length, k is
+the stiffness, and  is a small parameter that eliminates negative
+displacements (i.e., allows the ligament to pull but not push).
+The conoid slack length is 17.4 mm and the other parameters,
+stiffness (80 N/mm) and  (1 mm), were chosen so that the
+force–displacement curve best matches the experimental curve
+from [12].
+6) Scapula–Thorax Contact: Scapulo–thoracic contact was
+modeled as deformable, rather than a hard constraint as is typically used in inverse-dynamic models. Stiffness is high when
+the scapula goes inside the thorax (modeled as an ellipsoid),
+and zero (or low) when it is outside the thorax. This allows a
+“winging” scapula to be simulated by the model. The equation
+for the scapula–thorax contact force and its derivation are shown
+in Appendix B.
+7) Equations of Motion: The multibody model has 22 state
+variables: the 11 angles q and 11 angular velocities q̇. The equations of motion are
+M (q).q̈ + B(q, q̇) + C(q).τ = 0.
+
+(6)
+
+The first term represents inertial effects, with M being an
+11 × 11 mass matrix. The second term includes effects of
+centrifugal and coriolis forces, gravity, ligaments, and contact
+forces. The last term is the effect of joint moments τ via an
+11 × 11 coefficient matrix C. τ is the summation of the passive
+joint moments (4), muscle moments, conoid ligament moment,
+and scapula–thorax contact moment. The muscle moments are
+calculated by multiplying the muscle moment arms, which are
+the derivatives of (3), by the simulated muscle forces. The conoid
+ligament force and scapula–thorax contact force are calculated
+in Autolev (see Section II-B9 on “Implementation”), which also
+computes the moment arms using partial velocities.
+8) System Dynamics: If the equations of motion are combined with the muscle dynamics, the model can be described
+with an implicit first-order differential equation:
+f (x, ẋ, u) = 0.
+
+(7)
+
+The state vector x contains 298 variables: 11 angles q, 11 angular velocities q̇, 138 muscle contraction state variables s, and
+
+1949
+
+138 muscle active states a. The function f has 298 equations,
+and consists of four parts:
+d
+(x(1 : 11)) = xdot(1 : 11);
+1) 11 identities dt
+2) 11 multibody equations of motion (6);
+3) 138 muscle activation dynamics equations (1);
+4) 138 muscle contraction dynamics equations (2).
+9) Implementation: Equations of motion for the model were
+derived using Autolev (Online Dynamics Inc., Sunnyvale, CA).
+Muscle dynamics were implemented using custom C code. The
+dynamic residuals f and the Jacobians are calculated in a MATLAB MEX function.
+C. Forward Dynamic Simulation
+Forward dynamic simulation of a musculoskeletal system
+model involves solving the state trajectory x(t), given an initial
+state x(0) and controls u as functions of time and/or state. Due
+to the implicit formulation of the system equation f , and the
+fact that all functions used (e.g., the conoid ligament force,
+the muscle contractile force, etc.) are continually differentiable,
+we can calculate exact analytical Jacobians ∂∂ fx , ∂∂ fẋ and ∂∂ uf . This
+allows efficient simulation with an L-stable implicit Rosenbrock
+method based on the backwards Euler discretization:
+
+−1
+∂f
+1 ∂f
++
+Δx =
+∂x h ∂ ẋ
+
+
+∂f
+∂f
+ẋn − f (xn , ẋn , un ) −
+(un +1 − un )
+∂ ẋ
+∂u
+xn +1 = xn + Δx
+Δx
+.
+(8)
+h
+For the derivation of the aforementioned equation, see the
+appendix in [4].
+The accuracy of the implicit method has been demonstrated
+in [4], where the same simulation was performed using two
+solvers: the implicit Rosenbrock method, and a second-order
+explicit Runge–Kutta method. For that simulation, the timestep
+used by the implicit method was 3 ms, resulting in a faster-thanrealtime speed, while the average timestep used by the explicit
+method was 2 μs. In spite of using a timestep 1500 times larger
+than the Runge–Kutta method, the implicit method showed an
+RMS error in the resulting joint angles of just 0.11◦ .
+In the same study, to investigate the effect of the timestep on
+the accuracy of the implicit solver, the simulation was run with
+various timesteps ranging from 0.05 to 6 ms, when the method
+became unstable. It was shown that the RMS error between
+the implicit method and the Runge–Kutta increased with larger
+timesteps, but remained below 0.2◦ (see Fig. 5(b) in [4]).
+ẋn +1 =
+
+D. GH Joint Stability
+A polynomial modeling procedure was also used to approximate the lines of action of the muscles crossing the GH joint,
+in order to estimate the resultant joint force, and subsequently
+assess GH stability. One polynomial model, similar to (3), was
+needed for each orthogonal component (x, y, and z) of the muscle line of action, as described in [5]. The contribution of the
+
+1950
+
+muscles to the GH joint force is then found using the amplitude
+of the muscle forces and the polynomial approximation of the
+lines of action. This is added to the force due to the weight and
+acceleration of the arm segments to calculate the resultant GH
+joint reaction force. The direction of this vector can be used to
+assess GH stability: if it points inside the glenoid cavity, the
+joint is stable; if not, the force vector tends to dislocate the
+joint [5], [13].
+The stability value is defined as
+ 2  2
+θ
+φ
++
+−1
+(9)
+GHstab =
+θa
+φa
+where θ and φ are the angles of the vector away from the normal
+to the glenoid along the major and minor axes of the ellipse
+representing the glenoid fossa, and θa and φa are the angles of
+that vector at the rim of the glenoid. GHstab is −1 at the center
+of the glenoid fossa, and approaches 0 as the vector approaches
+the edge of the fossa.
+During simulation, this stability value could be used to simply monitor the effect of the applied muscle excitations on the
+GH joint, or used by a real-time controller to modify the muscle
+excitations to ensure GH stability. The direction as well as the
+magnitude of any potential instability can be monitored by generating a polar plot of the reaction force in an ellipse representing
+the glenoid, using the angles θ and φ.
+E. Example Real-Time Simulation
+To demonstrate the speed of the model and its ability to produce a standard movement, a simulation was run generating
+forward flexion of the arm. Since this model at its current state
+can only run forward-dynamic simulations, the muscle excitation patterns for the arm flexion movement were based on an
+inverse-dynamic simulation performed using the Delft Shoulder
+and Elbow model (described in [13], [14]). The input motion
+used to generate the neural excitation set was averaged from
+measured motions taken from approximately 20 subjects. Neural inputs were estimated every 50 ms throughout the movement.
+During the forward-dynamic simulation, the joint angles, velocities, and muscle states were recorded. In addition, GH force
+was recorded to monitor GH stability, and scapular contact
+forces were recorded to monitor scapular stability. To achieve
+real-time speed with these computations, a 4-ms timestep was
+used, slightly higher than the 3 ms used in [4], but with minimal
+impact on accuracy, as discussed in Section II-C.
+F. Model Evaluation Using Maximum Isometric Moments
+The implicit formulation has been shown to be as accurate
+as commonly used explicit methods, but the accuracy of the
+model itself also needs to be assessed against experimental data.
+To do this, maximum isometric joint moments estimated using the model were compared with experimental data reported
+in the literature [15]–[20]. This provides a robust assessment of
+the mechanical behavior of the model, reducing the sensitivity
+of the output to computational factors such as the exact choice
+of cost function. This is also the method that has been used by
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+other authors for the evaluation of upper limb models (e.g., [21])
+as data for comparison can be found in the literature.
+Measured arm joint moments usually include three
+thoraco-humeral moments (shoulder flexion/extension, abduction/adduction, and internal/external rotation), elbow flexion/extension, and forearm pronation/supination. Experimental
+data do not typically include measurements of clavicular and
+scapular angles, so the model itself needs to find the optimal
+shoulder angles that result in maximum arm moments. Moreover, to find a maximum joint moment, it is not sufficient to
+simply fully activate all muscles that contribute to this moment,
+since GH stability and scapular positioning need to be taken
+into account: the muscle forces around the GH joint need to
+keep the joint stable and avoid dislocation, and muscle forces
+acting on the scapula need to keep it pressed against the thorax,
+to avoid winging. We therefore need to perform an optimization
+procedure to obtain the maximum isometric joint moments.
+With the addition of external moments, the system dynamics
+(7) becomes
+f (x, ẋ, u, M ) = 0
+
+(10)
+
+where M is the vector of the five externally applied moments.
+Additionally, note that ẋ = 0 because static equilibrium is required, and u does not matter because activation dynamics can
+be ignored in the steady state. The system dynamics can then be
+written as
+f ∗ (x, 0, 0, M ) = 0
+
+(11)
+
+with f ∗ being only the elements of f without activation
+dynamics.
+The optimization problem is then to find the state vector x and
+five external moments M such that (11) is satisfied and M (i) is
+maximized, where i is the degree of freedom whose moment is
+to be maximized. This is done for each posture (three thoracohumeral angles, two elbow angles) for which the maximum
+isometric joint moments are sought.
+Additional constraints to the optimization are given by the
+need to constrain the reaction force vector to lie within the
+glenoid ellipse (GHstab ) ≤ 0), and by requiring the scapular
+points Trigonum Spinae and Angulus Inferior to lie on the surface of the thorax ellipsoid to prevent scapular winging, similar
+to [13]. Finally, the muscle active states must lie between 0 and 1.
+This procedure was implemented in MATLAB using the function FMINCON, a gradient-based method that seeks the minimum of a constrained, nonlinear, multivariable function.
+III. RESULTS
+A. Example Real-Time Simulation
+The model was tested on an Intel i5 processor running at
+2.67 GHz. The simulated movement was 1.3 s long, and using
+a 4-ms time-step, the simulation was completed in 1.2 s, which
+is faster than real time. Fig. 3 shows the arm angles produced
+during the forward dynamic simulation. The muscle excitation
+patterns used as inputs were taken from a forward flexion movement, and as it can be seen from the output plane of elevation,
+
+CHADWICK et al.: REAL-TIME SIMULATION OF THREE-DIMENSIONAL SHOULDER GIRDLE AND ARM DYNAMICS
+
+Fig. 3. Results of a forward dynamic simulation. The 1.3-s long forward
+flexion movement was simulated in 1.2 s. Shown are the angles between thorax
+and clavicle (panel A), clavicle and scapula (panel B), and thorax and humerus
+(panel C). The inset in panel C shows the direction of the GH joint reaction
+force with respect to the glenoid fossa represented by an ellipse. During the
+simulation, the GH force direction moves from “Start” to “Finish”.
+
+which is about 50◦ , the simulated movement is indeed forward
+flexion. The arm elevation goes from about 10 to 80◦ .
+The inset in panel C shows the polar plot of the GH joint
+reaction force in an ellipse representing the glenoid, as described
+in Section II-D. During the simulation, the GH force moves from
+a superior position in the glenoid (labeled “Start”) towards the
+center (labeled “Finish”). Throughout the movement, the GH
+force vector remains within the glenoid cavity, which means
+that the GH joint is stable.
+
+B. Model Evaluation Using Maximum Isometric Moments
+Figs. 4, 5, and 6 show the maximum isometric moments
+(Panel A) generated by the model, and equivalent values from
+the literature, for shoulder flexion and extension, abduction and
+adduction, and internal and external rotation respectively. In
+each case, the maximum isometric moment is shown for each
+elevation angle from 10 to 80◦ . The model-predicted moments
+are plotted alongside values obtained from the literature, where
+these were available. Where variability in the data from the
+literature was given in the reported study, these values are also
+shown. Panels B and C of these same figures show the scapular
+and clavicular angles adopted by the model during the exertion
+of maximum moments in each arm position.
+
+1951
+
+Fig. 4. Panel A shows the maximum isometric shoulder flexion moments (red
+lines) and extension moments (black lines). The model estimates (thick solid
+lines) are compared to experimental data from Winters and Kleweno [18] (thin
+solid lines), Garner and Pandy [15] (dashed lines), and Otis et al. [16] (dotted
+lines). In all cases, elevation is in the sagittal plane, with the arm externally
+rotated, the elbow is at sixty degrees of flexion, and the forearm is at neutral
+pronation/supination. Panels B and C show the clavicular and scapular angles
+assumed by the model for each maximum moment trial, red for shoulder flexion
+and black for shoulder extension.
+
+Figs. 7 and 8 show maximum isometric moments for elbow
+flexion/extension and forearm pronation/supination against the
+relevant angle. Similarly, Panel A shows the moments, and Panels B and C show the scapular and clavicular angles.
+IV. DISCUSSION
+The forward-dynamic simulation results demonstrate that our
+model runs comfortably in real time on normal desktop hardware, and produces the movement expected from the given neural inputs, i.e., forward flexion of the arm. The maximum isometric moment simulations show that the model reliably simulates
+the moment-generating behavior of a real human arm under a
+range of conditions.
+The method of evaluation performed in the current study is
+similar to that reported by [21], but with an important difference in the model: our model contains a fully described shoulder girdle. That is, the scapula and clavicle are independently
+controlled by muscle forces, rather than being kinematicallycontrolled either by measured motions or by regression equations describing the scapulo–humeral rhythm.
+The combination of real-time performance and the ability to
+control the shoulder girdle by simulated muscle forces allows
+the model to be used in “user-in-the-loop” type experiments,
+
+1952
+
+Fig. 5. Panel A shows the maximum isometric shoulder abduction moments
+(red lines) and adduction moments (black lines). The model estimates (thick
+solid lines) are compared to experimental data from Garner and Pandy [15]
+(dashed lines), and Otis et al. [16] (dotted lines). In all cases, arm elevation is in
+the scapular plane, the elbow is at sixty degrees of flexion, and the forearm is at
+neutral pronation/supination. Panels B and C show the clavicular and scapular
+angles assumed by the model for each maximum moment trial, red for shoulder
+abduction, and black for shoulder adduction.
+
+where the virtual arm is under the control of a potential neuroprosthesis user. This enables the development and testing of
+neuroprosthetic devices that control whole arm movement including the positioning of the scapula and clavicle.
+For the majority of the simulations, there is general agreement
+between the model-predicted maximum isometric moments and
+those reported in the literature, both in the shape of the torqueangle curves, and in the magnitudes of the maximum moments
+reported. The conditions for which agreement is less good are
+discussed further below.
+For elevation of the arm, shoulder flexion and scapular abduction moments agreed well with the experimental data throughout
+the range of motion. For extension moments, however, the model
+values were lower than the literature, while for adduction, they
+were higher. In addition, the model predicted increasing strength
+up to 90◦ of abduction, while the experimental data show a slight
+decrease at higher elevation angles (above 70◦ ). The same behavior was shown by the model of [21], and can be explained by
+the increasing moment arms of the shoulder adductors through
+this range. The lack of agreement with the experimental data
+may be caused by differences in the expression of the forcelength curve or by overestimated passive forces in the model.
+For shoulder internal rotation moments, the model data show
+the same shape as the experimental data with the maximum
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+Fig. 6. Panel A shows the maximum isometric shoulder internal rotation
+moments (red lines) and external rotation moments (black lines). The model
+estimates (thick solid lines) are compared to experimental data from Garner
+and Pandy [15] (dashed lines), Otis et al. [16] (dotted lines) and Engin and
+Kaleps [17] (thin solid lines). In all cases, the shoulder is at sixty degrees of
+abduction in the scapular plane, the elbow is at sixty degrees of flexion, and the
+forearm is at neutral pronation/supination. Panels B and C show the clavicular
+and scapular angles assumed by the model for each maximum moment trial, red
+for internal rotation, and black for external rotation.
+
+torques decreasing slightly at both ends of the range of motion.
+In addition, the values agree very well with those of Otis [16]
+and Engin [17], but are significantly lower than those found by
+Garner [15]. It should be noted that the model data we use here
+are taken from a single cadaver source and not scaled in any
+way, so we might expect significant deviation from values taken
+from other small populations. In external rotation efforts, the
+model exhibits good agreement with the torques found in the
+literature.
+Elbow flexion torques fall within the range of measured values, and show the correct shape, having a maximum value in the
+middle of the range of motion and decreasing at the extremes.
+Elbow extension is similar, but this time, the model overestimates measured torques somewhat. Pronation and supination
+torques agree well with measured values throughout the range
+of motion.
+A further check on the integrity of the model is provided by the
+analysis of the scapular and clavicular positions reached by the
+model during the exertion of maximum moments. These angles
+were not specified as inputs, but were optimized along with the
+neural excitations required to produce the maximum moments.
+Since we are attempting to simulate normal kinematics, the
+scapula was constrained to lie on the surface of the thorax to
+
+CHADWICK et al.: REAL-TIME SIMULATION OF THREE-DIMENSIONAL SHOULDER GIRDLE AND ARM DYNAMICS
+
+Fig. 7. Panel A shows the maximum isometric elbow flexion moments
+(red lines) and extension moments (black lines). The model estimates (thick
+solid lines) are compared to experimental data from Buchanan et al. [20] (thin
+solid lines), and Amis et al. [19] (dotted lines). In all cases, the shoulder is at
+ninety degrees of abduction in the coronal plane, and the forearm is at a neutral
+pronation/supination angle. Panels B and C show the clavicular and scapular
+angles assumed by the model for each maximum moment trial, red for elbow
+flexion, and black for elbow extension.
+
+prevent scapular winging, and the GH joint reaction force was
+constrained to be inside the glenoid to maintain the stability of
+the GH joint.
+No data on shoulder girdle kinematics were reported by the
+studies we used to compare maximum moments of the model
+with measured data, so the resulting model kinematics have been
+assessed by comparison with studies that have reported shoulder girdle kinematics for comparable arm positions [22], [23].
+The difficulty of accurately measuring scapular and clavicular
+kinematics during maximal effort tasks may explain the lack of
+data in this area.
+In general, shoulder girdle kinematics adopted by the model
+were within the expected ranges, did not reach the limits of
+motion, and followed normal patterns with arm elevation. However, there were a number of differences during elevation of the
+humerus in both the sagittal and scapular planes:
+1) Clavicle retraction was fairly constant at approximately
+40◦ during arm elevation in forward flexion and, after an
+initial increase remained approximately constant at 50◦ in
+scapular plane abduction. Previous work by de Groot [23]
+has shown that it increases from 25◦ to 40◦ with increasing
+elevation angle on average.
+
+1953
+
+Fig. 8. Panel A shows the maximum isometric forearm pronation moments
+(red lines) and supination moments (black lines). The model estimates (thick
+solid lines) are compared to experimental data from Winters and Kleweno [18]
+(thin solid lines), and Garner and Pandy [15] (dashed lines). In all cases, the
+shoulder is at the side of the torso, and the elbow is at a ninety degrees of flexion.
+Panels B and C show the clavicular and scapular angles assumed by the model
+for each maximum moment trial, red for pronation, and black for supination.
+
+2) Axial rotation of the clavicle in scapular plane abduction
+would normally be expected to increase from approximately 0◦ to 50◦ at 90◦ humeral elevation, but appears
+to be suppressed in the case of the maximal abduction
+moment.
+3) Scapular lateral rotation appears to be lower than normal
+by about 20◦ during a maximal abduction moment, but
+normal during an adduction moment.
+For shoulder axial rotation, there are large differences in
+scapular and clavicular orientation between the maximal internal and external moment conditions, although the normal
+(unloaded) range of values according to [23] lies between the
+two.
+For elbow flexion and extension, the humerus was in a fixed
+position with respect to the thorax, with the arm elevated at 90◦ .
+Nonetheless, considerable differences were seen in shoulder girdle angles for the different loading conditions. In particular, axial
+rotation of the clavicle is low at low elbow flexion angles during
+a flexion effort, and protraction of the scapula changes significantly with flexion angle during the same effort. For pronation
+and supination moments, scapular protraction angle is lower
+than expected.
+In general, scapular protraction and lateral rotation tend to
+be low, and axial rotation of the clavicle is also suppressed in
+
+1954
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+some cases. The scapulo–thoracic constraint during the maximum moment simulations requires that the medial border of
+the scapula stays a fixed distance away from the thorax, which
+might not be true for all shoulder positions (for example, during
+forward flexion). The rigidity of this constraint may therefore
+be a significant factor affecting the model-predicted shoulder
+kinematics and may restrict the scapula and clavicle from taking up more normal positions. This constraint could be made
+more flexible, as proposed recently by Bolsterlee et al. [24].
+V. CONCLUSION
+We have demonstrated a comprehensive musculoskeletal
+model of the shoulder and arm, including the additional degrees
+of freedom introduced by the scapula and clavicle, that can run
+forward-dynamic simulations in real time. This was achieved
+using an implicit formulation of system dynamics and an implicit solver, allowing the use of a much larger step-size than in
+previous work. With this method, we achieved speeds 1.1 times
+faster than real time, using an ordinary personal computer and no
+specialized hardware. We have shown that the model can replicate the behavior of a real human arm in terms of torque-angle
+curves over all degrees of freedom, and that the independentlycontrolled scapula and clavicle adopt realistic postures during
+maximal effort tasks.
+Integrated with a 3-D visualization environment, this model
+will provide an invaluable tool for applications that require realtime simulation of arm movements including realistic muscle
+and limb dynamics. The methods presented here can be applied
+equally well to other musculoskeletal models, and to offline simulations where simulation speed has always been a bottleneck.
+APPENDIX A
+THE MUSCLE MODEL
+The active force in the CE is
+Factive = α.Fm ax .fFL (LCE ).fFV (L̇CE )
+
+(12)
+
+where:
+a is the active state
+Fm ax is the maximum isometric force, estimated for each
+muscle using the physiological cross-sectional area measured
+in the cadaver studies in [6], multiplied by a specific tension of
+100 N/cm2 . This value is higher than that typically found in in
+vivo studies, but is within the range reported in the literature for
+cadaver studies [25], and used in other modeling studies [21].
+fFL (LCE ) is the isometric force-length relationship of the
+CE, approximated by a Gaussian curve:
+
+
+2
+−
+
+fFL (LCE ) = e
+
+L C E −L C E opt
+W .L CEopt
+
+.
+
+(13)
+
+LCE is CE length, LCEopt is the CE optimal length (values from
+the cadaver studies of Klein-Breteler [6]), and W is the width
+parameter of the force-length curve, set to 0.56.
+The values of the pennation angle at optimal fiber length are
+taken from the same cadaver study, and based on those values,
+the pennation angle at any fiber length can be calculated using
+
+the constant volume assumption [26]:
+LCE sin(φ) = constant = LCEopt sin(φopt )
+
+(14)
+
+where φ is the pennation angle and φopt is the pennation angle
+at optimal length.
+fFV (L̇CE ) is the force–velocity relationship of the CE, approximated using two hyperbolic equations (from [27]):
+⎧V
+m ax + VCE
+⎪
+,
+if VCE ≤ 0
+⎪
+VC E
+⎨V
+m ax − A
+fFV (VCE ) =
+(15)
+⎪
+⎪
+⎩ gm ax .VCE + c3 , if VCE > 0.
+VCE + c3
+VCE is the CE velocity. The Hill curve parameter A is assumed
+to have a value of 0.25 [28], and the maximal shortening velocity
+at full activation Vm ax is assumed to have a value of 10.LCEopt
+per second [28]. The parameter gm ax , the maximal normalized
+eccentric muscle force, was assumed to be 1.5 [27]. The constant
+c3 is set to a value that produces a continuous first derivative at
+VCE = 0:
+c3 =
+
+Vm ax A(gm ax − 1)
+.
+A+1
+
+(16)
+
+The passive elastic elements (PEE and SEE) are modeled as
+nonlinear springs:
+
+k1 (L − Lslack ),
+if L ≤ Lslack
+F (L) =
+2
+k1 (L − Lslack ) + k2 (L − Lslack ) , if L > Lslack .
+The k1 term is small (10 N/m) but is needed to ensure that
+stiffness is never zero, which could cause singularity in the
+Jacobian of the implicit system dynamics at zero activation.
+The stiffness parameter k2 for SEE is chosen for each muscle
+such that when the SEE elongation is 4%, the SEE force equals
+the maximum isometric force. The k2 parameter for PEE is
+chosen such that when the CE is stretched to its maximal length
+for active force production (=W.LCEopt ), the PEE force equals
+the maximum isometric force (from [27]). Lslack for the SEE
+is approximated by the tendon slack length measured in the
+cadaver studies, while Lslack for the PEE is set to equal LCEopt ,
+except for a few muscle elements for which this resulted in very
+high passive forces. Those values are shown in Table V in [5].
+APPENDIX B
+MODELING THE SCAPULA–THORAX CONTACT
+The scapula-thorax contact is modeled using two points on
+the scapula: TS (trigonum spinae) and AI (angulus inferior), and
+an ellipsoid representing the thorax, with center (mx , my , mz )
+and axes αx , αy , αz (from [13]):
+
+2 
+2
+x − mx
+y − my
+F (x, y, z) =
++
+αx
+αy
+
+2
+z − mz
++
+− 1 = 0.
+(17)
+αz
+We model the contact force as being the result of an elastic potential energy that is zero on the surface and increases quadratically
+
+CHADWICK et al.: REAL-TIME SIMULATION OF THREE-DIMENSIONAL SHOULDER GIRDLE AND ARM DYNAMICS
+
+when moving away from the surface:
+
+1 
+V (x, y, z) = k a2x + a2y + a2z F 2 (x, y, z).
+(18)
+4
+Parameter k is used to calculate the contact stiffness and is
+set to 20 kN/m. The stiffness of the contact is not the same
+everywhere on the contact surface, but the exact value is not
+important for our application, as long as it is large enough to
+prevent penetration into the surface. To represent the contact
+with a constant stiffness, the force would need to be a function
+of distance from the surface. This is not easily calculated, and
+also has singularities which we need to avoid for our numerical
+methods to work. The a2 factor is introduced to give V the
+dimension of energy.
+The contact force is the negative gradient of the potential
+energy:
+Fx = −k(x − mx )
+
+αx2 + αy2 + αz2
+.F (x, y, z)
+αx2
+
+(19)
+
+Fy = −k(y − my )
+
+αx2 + αy2 + αz2
+.F (x, y, z)
+αy2
+
+(20)
+
+Fz = −k(z − mz )
+
+αx2 + αy2 + αz2
+.F (x, y, z).
+αz2
+
+(21)
+
+We modify these equations to make the force go to zero when
+the point x, y, z is outside the surface, where F > 0:
+Fx = −k(x − mx )
+
+αx2 + αy2 + αz2 −
+.F (x, y, z)
+αx2
+
+(22)
+
+Fy = −k(y − my )
+
+αx2 + αy2 + αz2 −
+.F (x, y, z)
+αy2
+
+(23)
+
+Fz = −k(z − mz )
+
+αx2 + αy2 + αz2 −
+.F (x, y, z)
+αz2
+
+(24)
+
+where F − is a continuous function that attenuates positive values
+but leaves negative values unchanged:
+
+
+1
+
+(25)
+F − F 2 + 2 .
+F − (x, y, z) =
+2
+The parameter  (set to 0.01) determines the transition region
+between linear stiffness (inside) and zero stiffness (outside).
+REFERENCES
+[1] J. L. Collinger, B. Wodlinger, J. E. Downey, W. Wang, E. C. TylerKabara, D. J. Weber, A. J. McMorland, M. Velliste, M. L. Boninger, and
+A. B. Schwartz, “High-performance neuroprosthetic control by an individual with tetraplegia,” Lancet, vol. 6736, no. 12, pp. 1–8, Dec. 2012.
+[2] L. R. Hochberg, D. Bacher, B. Jarosiewicz, N. Y. Masse, J. D. Simeral,
+J. Vogel, S. Haddadin, J. Liu, S. S. Cash, P. van der Smagt, and
+J. P. Donoghue, “Reach and grasp by people with tetraplegia using a
+neurally controlled robotic arm,” Nature, vol. 485, no. 7398, pp. 372–375,
+May 2012.
+[3] E. K. Chadwick and D. Blana, “Continuous neuronal ensemble control
+of simulated arm reaching by a human with tetraplegia,” J. Neural Eng.,
+vol. 8, no. 3, p. 034003, 2011.
+[4] A. J. van den Bogert, D. Blana, and D. Heinrich, “Implicit methods
+for efficient musculoskeletal simulation and optimal control,” Procedia
+IUTAM, vol. 2, pp. 297–316, 2011.
+[5] E. Chadwick, D. Blana, A. van den Bogert, and R. Kirsch, “A Real-Time,
+3D musculoskeletal model for dynamic simulation of arm movements,”
+IEEE Trans. Biomed. Eng., vol. 56, no. 4, pp. 941–948, Apr. 2009.
+
+1955
+
+[6] M. D. Klein-Breteler, C. W. Spoor, and F. C. Van der Helm, “Measuring muscle and joint geometry parameters of a shoulder for modeling purposes.,” J. Biomechanics, vol. 32, no. 11, pp. 1191–1197, Nov.
+1999.
+[7] S. L. Delp, F. C. Anderson, A. S. Arnold, P. Loan, A. Habib, C. T. John,
+E. Guendelman, and D. G. Thelen, “OpenSim: open-source software to
+create and analyze dynamic simulations of movement,” IEEE Trans.
+Biomed. Eng., vol. 54, no. 11, pp. 1940–1950, Nov. 2007.
+[8] D. Blana, J. G. Hincapie, E. K. Chadwick, and R. F. Kirsch, “A musculoskeletal model of the upper extremity for use in the development of
+neuroprosthetic systems,” J. Biomechanics, vol. 41, no. 8, pp. 1714–1721,
+Jan. 2008.
+[9] J. He, W. Levine, and G. Loeb, “Feedback gains for correcting small
+perturbations to standing posture,” IEEE Trans. Automat. Control, vol. 36,
+no. 3, pp. 322–332, Mar. 1991.
+[10] J. M. Winters and L. Stark, “Analysis of fundamental human movement
+patterns through the use of in-depth antagonistic muscle models,” IEEE
+Trans. Biomed. Eng., vol. 32, no. 10, pp. 826–839, Oct. 1985.
+[11] K. N. An, K. Takahashi, T. P. Harrigan, and E. Y. Chao, “Determination of
+muscle orientations and moment arms,” J. Biomechanical Eng., vol. 106,
+no. 3, pp. 280–282, Aug. 1984.
+[12] R. I. Harris, A. L. Wallace, G. D. Harper, J. A. Goldberg,
+D. H. Sonnabend, and W. R. Walsh, “Structural properties of the
+intact and the reconstructed coracoclavicular ligament complex,” Am. J.
+Sports Med., vol. 28, no. 1, pp. 103–108, 2000.
+[13] F. C. T. van Der Helm, “A finite element musculoskeletal model of the
+shoulder mechanism,” J. Biomechanics, vol. 27, no. 5, pp. 551–569,
+1994.
+[14] A. A. Nikooyan, H. E. J. Veeger, E. K. J. Chadwick, M. Praagman, and
+F. C. T. V. D. Helm, “Development of a comprehensive musculoskeletal
+model of the shoulder and elbow,” Med. Biological Eng. Comput., vol. 49,
+no. 12, pp. 1425–1435, Dec. 2011.
+[15] B. A. Garner and M. G. Pandy, “Musculoskeletal model of the upper limb
+based on the visible human male dataset,” Comput. Methods Biomechanics
+Biomed. Eng., vol. 4, no. 2, pp. 93–126, Feb. 2001.
+[16] J. C. Otis, R. F. Warren, S. I. Backus, T. J. Santner, and J. D. Mabrey,
+“Torque production in the shoulder of the normal young adult male. The
+interaction of function, dominance, joint angle, and angular velocity,” Am,
+J. Sports Med., vol. 18, no. 2, pp. 119–123, 1990.
+[17] A. E. Engin and I. Kaleps, “Active muscle torques about long-bone axes
+of major human joints,” Aviation, Space, Environ. Med., vol. 51, no. 6,
+pp. 551–555, Jun. 1980.
+[18] J. M. Winters and D. G. Kleweno, “Effect of initial upper-limb alignment
+on muscle contributions to isometric strength curves,” J. Biomechanics,
+vol. 26, no. 2, pp. 143–153, Feb. 1993.
+[19] A. A. Amis, D. Dowson, and V. Wright, “Analysis of elbow forces due
+to high-speed forearm movements,” J. Biomechanics, vol. 13, no. 10,
+pp. 825–831, Jan. 1980.
+[20] T. S. Buchanan, S. L. Delp, and J. A. Solbeck, “Muscular resistance to
+varus and valgus loads at the elbow,” J. Biomechanical Eng., vol. 120,
+no. 5, pp. 634–639, Oct. 1998.
+[21] K. R. S. Holzbaur, W. M. Murray, and S. L. Delp, “A model of the upper extremity for simulating musculoskeletal surgery and analyzing neuromuscular control,” Ann. Biomed. Eng., vol. 33, no. 6, pp. 829–840,
+Jun. 2005.
+[22] P. M. Ludewig, V. Phadke, J. P. Braman, D. R. Hassett, C. J. Cieminski,
+and R. F. LaPrade, “Motion of the shoulder complex during multiplanar
+humeral elevation,” J. Bone Joint Surg. Am. volume, vol. 91, no. 2, pp. 378–
+389, Feb. 2009.
+[23] J. H. De Groot, “The variability of shoulder motions recorded by means
+of palpation,” Clin. Biomechanics, vol. 12, no. 7, pp. 461–472, 1997.
+[24] B. Bolsterlee, H. E. J. Veeger, and F. C. T. van der Helm, “Modelling
+clavicular and scapular kinematics: From measurement to simulation,”
+Med. Biol. Eng. Comput., vol. 52, no. 3, pp. 283–291, Mar. 2013.
+[25] T. S. Buchanan, “Evidence that maximum muscle stress is not a constant:
+differences in specific tension in elbow flexors and extensors,” Med. Eng.
+Phys., vol. 17, no. 7, pp. 529–536, Oct. 1995.
+[26] E. Otten, “Concepts and models of functional architecture in skeletal
+muscle,” Exercise Sport Sci. Rev., vol. 16, pp. 89–137, Jan. 1988.
+[27] S. G. McLean, A. Su, and A. J. van den Bogert, “Development and
+validation of a 3-D model to predict knee joint loading during dynamic movement,” J. Biomechanical Eng., vol. 125, no. 6, p. 864,
+2003.
+[28] W. Herzog, “Muscle,” in Biomechanics of the Musculo-Skeletal System,
+2nd ed., B. M. Nigg and W. Herzog, Eds. New York, NY, USA: Wiley,
+Aug. 1999, Vol. 195, no. 2, pp. 148–188.
+
+1956
+
+IEEE TRANSACTIONS ON BIOMEDICAL ENGINEERING, VOL. 61, NO. 7, JULY 2014
+
+Edward Chadwick received the B.Eng. degree in
+mechanical engineering from The University of
+Nottingham, Nottingham, U.K., in 1993, and the
+Ph.D. degree in bioengineering from the University
+of Strathclyde, Strathclyde, U.K., in 1999.
+After receiving the Ph.D. degree, he went on to
+complete postdoctoral positions in the area of shoulder biomechanics at the Technical University of Delft,
+Delft, the Netherlands, and the Case Western Reserve
+University, Cleveland, OH, USA. He is currently a
+Lecturer in the Institute for Science and Technology
+in Medicine, Keele University, Staffordshire, U.K. His research interests include
+biomechanical modeling of the upper limb and the application of modeling and
+simulation to rehabilitation in people with neuromuscular deficit.
+
+Robert Kirsch (M’82) received the B.S. degree
+in electrical engineering from the University of
+Cincinnati, Cincinnati, OH, USA, in 1982, and the
+M.S. and Ph.D. degrees in biomedical engineering
+from Northwestern University, Evanston, IL, USA,
+in 1986 and 1990, respectively.
+He was a Postdoctoral Fellow in the Department of Biomedical Engineering, McGill University,
+Montréal, QC, Canada, from 1990 to 1993. He is currently a Professor of Biomedical Engineering at Case
+Western Reserve University, Cleveland, OH, and Executive Director of the Cleveland VA FES Center. His research interests include
+restoring movement to disabled individuals using functional electrical stimulation (FES) and controlling FES actions via natural neural commands.
+
+Dimitra Blana received the B.S. degree in electrical
+and computer engineering from the National Technical University of Athens, Athens, Greece, in 2001.
+She then received the M.S. degree in biomedical engineering and the Ph.D. degree from the Case Western
+Reserve University, Cleveland, OH, USA, in 2003
+and 2008, respectively.
+She is currently working as a Postdoctoral Research Fellow in the Institute for Science and Technology in Medicine, Keele University, Staffordshire,
+U.K. Her research interests include biomechanical
+modeling and controller design for upper extremity neuroprostheses.
+
+Antonie (Ton) van den Bogert received the B.S. degree and M.S. degree in 1983, both in physics and
+applied mathematics at the University of Utrecht,
+Utrecht, The Netherlands, and, in 1989, the Ph.D. degree in veterinary sciences from the same university
+for computational modeling of locomotion in horses.
+After Postdoctoral work in sports biomechanics at
+the University of Calgary, he became a Faculty Member in Kinesiology in 1993. He moved to Cleveland,
+OH, USA, in 1998, to take up positions in the Lerner
+Research Institute of the Cleveland Clinic, and the
+Case Western Reserve University. He is currently a Professor of human motion
+and control at the Cleveland State University. His current research interest is
+in human biomechanics and motor control, with applications in the prevention
+and rehabilitation of musculoskeletal injuries and the development of assistive
+technology for persons with disabilities. He is a Founding Member of the Technical Group Computer Simulation (TGCS) and the President of the International
+Society of Biomechanics from 2011 to 2013.
+
+

@@ -1,0 +1,930 @@
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+73
+
+Automatic Identification of Artifact-Related
+Independent Components for Artifact
+Removal in EEG Recordings
+Yuan Zou, Student Member, IEEE, Viswam Nathan, Student Member, IEEE,
+and Roozbeh Jafari, Senior Member, IEEE
+
+Abstract—Electroencephalography (EEG) is the recording of
+electrical activity produced by the firing of neurons within the
+brain. These activities can be decoded by signal processing techniques. However, EEG recordings are always contaminated with
+artifacts which hinder the decoding process. Therefore, identifying and removing artifacts is an important step. Researchers often
+clean EEG recordings with assistance from independent component analysis (ICA), since it can decompose EEG recordings into
+a number of artifact-related and event-related potential (ERP)related independent components. However, existing ICA-based
+artifact identification strategies mostly restrict themselves to a subset of artifacts, e.g., identifying eye movement artifacts only, and
+have not been shown to reliably identify artifacts caused by nonbiological origins like high-impedance electrodes. In this paper,
+we propose an automatic algorithm for the identification of general artifacts. The proposed algorithm consists of two parts: 1) an
+event-related feature-based clustering algorithm used to identify
+artifacts which have physiological origins; and 2) the electrodescalp impedance information employed for identifying nonbiological artifacts. The results on EEG data collected from ten subjects
+show that our algorithm can effectively detect, separate, and remove both physiological and nonbiological artifacts. Qualitative
+evaluation of the reconstructed EEG signals demonstrates that our
+proposed method can effectively enhance the signal quality, especially the quality of ERPs, even for those that barely display ERPs
+in the raw EEG. The performance results also show that our proposed method can effectively identify artifacts and subsequently
+enhance the classification accuracies compared to four commonly
+used automatic artifact removal methods.
+Index Terms—Electrode-scalp impedance, electroencephalography (EEG), event-related potential (ERP), hierarchical clustering,
+independent component analysis (ICA).
+
+I. INTRODUCTION
+ECAUSE of its high temporal resolution, electroencephalographic (EEG) recordings have been widely used
+to measure background activities of the brain as well as the
+specific activity for a cognitive task in brain–computer interface
+
+B
+
+Manuscript received April 9, 2014; revised October 14, 2014 and September
+2, 2014; accepted November 4, 2014. Date of publication November 13, 2014;
+date of current version December 31, 2015. This work was supported by
+the Semiconductor Research Corporation, task # 1836.103 through the Texas
+Analog Center of Excellence (TxACE).
+The authors are with the Department of Electrical Engineering, University
+of Texas at Dallas, Richardson, TX 75080 USA (e-mail: zouy@utdallas.edu;
+viswamnathan@utdallas.edu; rjafari@utdallas.edu).
+Color versions of one or more of the figures in this paper are available online
+at http://ieeexplore.ieee.org.
+Digital Object Identifier 10.1109/JBHI.2014.2370646
+
+(BCI) [1]. However, a major problem of EEG recordings is that
+they are highly susceptible to various artifacts. In other words,
+it is almost impossible to see any event-related potential (ERP),
+the typical electrophysiological response to an internal or external stimulus, in the raw EEG recordings due to the presence of
+artifacts. However, neuroscientists are often interested in visualizing the signals and their time-domain ERPs such as N200
+(a negative peak around 200 ms after the excitation due to the
+stimuli) or P300 (a positive peak around 300 ms after the excitation due to the stimuli) [2], [3]. Therefore, artifact identification
+and rejection is a crucial step in the ERP-related EEG-based
+BCI.
+The artifacts can be divided into two categories: physiological
+and nonbiological artifacts, based on their origins. Physiological
+artifacts arise from biological sources other than the brain such
+as eye blinking, eye movements or muscle movements, etc.
+Nonbiological artifacts originate from outside the body due to
+factors such as high-impedance electrodes [4].
+Over past decades, several approaches have been proposed to
+identify and remove these artifacts, especially for the physiological artifacts. The most trivial of these approaches involves
+simply deleting the portions of the data in which the EEG activity exceeds some predefined thresholds. However, this may
+lead to a large loss of data, which in turn could mean the loss
+of relevant recorded ERP signals [5]. Alternatively, regression
+methods have been implemented for artifact removal either in
+the time domain or frequency domain, particularly for the artifacts caused by eye blinks and eye movements. However, the
+performance of the regression methods depends on having a
+good reference signal [6]. Moreover, for muscle artifacts and
+nonbiological artifacts, for which it is difficult to find a suitable
+reference signal, regression methods are not applicable [7].
+Recently, independent component analysis (ICA) has been a
+successful approach for artifact identification and removal. ICA
+is a statistical tool that decomposes a multichannel EEG recording into a set of independent components (ICs), which represent
+a statistical estimate of the maximally independent source signals [8]. Previous investigations have successfully demonstrated
+that ICA can separate multichannel EEG signals into brainrelated and artifact-related ICs [6], [9], [10]. The key issue is
+efficient identification of artifact-related ICs. A number of different approaches have been proposed to guide this process, such
+as visual inspection based on researcher’s prior knowledge of topographic patterns [6] and time-domain patterns [11]. However,
+these manual inspections require expert and well-trained staff.
+
+2168-2194 © 2014 IEEE. Personal use is permitted, but republication/redistribution requires IEEE permission.
+See http://www.ieee.org/publications standards/publications/rights/index.html for more information.
+
+74
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+Fig. 1. (a) (Left) EEG data acquisition system B. (Right) P300 speller matrix
+with one row intensified.
+
+Moreover, they are not applicable for online BCI applications.
+Therefore, automatic identification has become an attractive alternative. Clustering techniques have been mostly employed to
+automatically separate brain-related ICs from artifact-related
+ones based on some specific features extracted from each IC. Qi
+et al. presented a K-means clustering based on the similarity between every two components in a multitrial EEG analysis [12].
+Patidar and Zouridakis [13] and Ashtiyani et al. [14] presented
+an automatic artifacts identification method based on fuzzy Cmeans clustering. Both K-means and fuzzy C-means clustering
+are iterative methods. They both require the target number of
+clusters a priori to terminate the clustering iterations. However,
+the target number of clusters is often unknown; therefore, for
+the sake of a fully automatic solution, hierarchical clustering is
+a better approach and is employed in our proposed approach.
+Based on the hierarchical clustering method, several different
+features used to distinguish artifacts from real brain signal have
+also been presented in the previous works. Nicolaou and Nasuto
+propose an artifact removal algorithm via hierarchical clustering
+based on automutual information [15]. Milanesi et al. utilize the
+pair-wise mutual information as a hierarchical clustering feature for EEG late potential selection [16], [17]. However, they
+do not consider features that would highlight target ERPs (e.g.,
+the latency of the ERP patterns or the specific electrodes contributing to the ERPs) in the artifacts removal framework. For
+this reason, in our proposed approach, utilization of features that
+contribute to the desired ERPs will enhance the quality of the
+extracted ERP and facilitate the eventual classification process.
+A preliminary result of using ERP-related features and hierarchical clustering for physiological artifact removal in Go/Nogo
+task with a wet electrode recording system has been reported
+in [18].
+A review of the existing literature did not reveal a systematic
+approach for general artifact identification. Most approaches
+have been shown to recognize and reject major physiological
+artifacts like eye movements or muscle movement, while the
+detection of nonbiological artifacts has been reported only in a
+few studies and none of them constitute a robust approach for a
+portable recording system.
+Similar to physiological artifacts, nonbiological artifacts
+caused by high-impedance electrodes are also a significant
+source of artifacts in the EEG recordings. High electrode-scalp
+impedance can lead to distortions that are difficult to separate
+from the actual EEG recordings [19]. Therefore, in many existing EEG systems, electrode-scalp impedance is measured prior
+
+to data acquisition. In order to prevent signal distortions, the
+impedance at each electrode in contact with the scalp should be
+below 5 kΩ for wet electrodes and 500 kΩ for dry electrodes
+[19]. When the impedance is above these limits, it is an indication that there is poor connectivity between the electrode and the
+scalp. Currently, researchers reduce the impedance of the electrodes by injecting more gel in wet-electrode systems, for instance, or providing more pressure and adjusting the placement
+of the electrodes in dry-electrode systems. These adjustments
+are typically made prior to (or during) the data acquisition stage
+and can be very time consuming. Therefore, a time-efficient approach for high-impedance artifact removal is desired. Mognon
+et al. [7] and Nolan et al. [5] both developed an EEG artifact
+removal framework, which can identify multiple artifacts including nonbiological artifacts caused by high-impedance electrodes. They identified high-impedance artifacts using spatial
+features such as the channel’s correlation coefficients based on
+the assumption that in a high-density electrode recording system (number of electrodes larger than 100), most electrodes
+should correlate highly with neighboring electrodes. Therefore,
+an electrode with high impedance value will likely have a low
+correlation with other electrodes. Both methods showed their
+results on a 128-electrode system. However, these features are
+not applicable for a portable low-density electrode recording
+system, which is more and more prominent in recent BCI applications. Previous studies [20], [21] have demonstrated a correlation between the electrode-scalp impedance and EEG signal
+quality. In [20], Ferree et al. showed that lower impedance between the electrodes and the scalp improves the quality of EEG
+signals and mitigates the noise. In another study, Kappenman
+and Luck showed that the electrode-scalp impedance measure
+enables the characterization of the ERP signal quality. They
+found that the low-frequency noise in the ERP signal increases
+at electrodes with a higher impedance compared to those with
+low impedance [21]. Inspired by the aforementioned works, the
+impedance information is utilized to identify the nonbiological
+artifacts in our proposed approach. A preliminary study that
+shows the relationship between the electrode-scalp impedance
+information and the artifact signals has been reported in [22].
+Our proposed solution for identification and removal of general artifacts would be valuable for EEG researchers and BCI
+users. First, the methods proposed represent a unified solution
+for all types of artifacts and not just ones caused by physiological phenomena. Second, a practical method must be applicable without the need of time-consuming preparations at the
+time of the experiment. Third, there have been several recent
+advancements in circuit techniques for an EEG acquisition system, and this is a good opportunity to use these techniques in the
+signal processing stage for artifact identification and removal.
+Therefore, a generalized automatic ICA-based algorithm for
+identification of all artifact-related ICs in the EEG recordings
+is proposed here. The first step consists of decomposing the
+EEG recordings into ICs. Two types of artifact are then considered: First, electrode-scalp impedance information is utilized
+to distinguish the nonbiological artifact-related ICs from brainrelated ones. Second, the ERP-related temporal, spatial, and
+spectral features are utilized to identify physiological artifacts.
+
+ZOU et al.: AUTOMATIC IDENTIFICATION OF ARTIFACT-RELATED INDEPENDENT COMPONENTS FOR ARTIFACT REMOVAL IN EEG
+
+Fig. 2.
+
+75
+
+Block diagram of the proposed automatic artifact identification and removal system.
+
+This paper is organized as follows: Section II describes the
+experimental setup and Section III introduces the proposed automatic artifact-related ICs identification algorithm in detail. The
+experimental results are presented in Section IV. Finally, some
+conclusions are given in Section V.
+
+life scenarios of different impedances between each electrode
+and the scalp, no extra efforts were made to adjust the locations
+and connectivity of the cap and electrodes in the initial setup.
+
+II. EXPERIMENTAL SETUP
+
+The main steps in our proposed automatic artifact identification algorithm are illustrated in the scheme of Fig. 2 and
+described as follows:
+
+A. Data Acquisition System
+The data acquisition system is a custom platform designed and
+developed by our laboratory, shown in Fig. 1(a). It incorporates
+two daisy-chained TI ADS1299 analog front ends for EEG,
+a TI MSP430 microcontroller, and a BlueRadios dual mode
+Bluetooth radio for wireless communication of the data to a PC
+or any mobile device [23].
+In order to measure the electrode-scalp impedance for each
+individual electrode, we use the “lead-off detection” feature of
+the TI ADS1299. A 24-nA sinusoidal ac current at a known
+frequency of 30.5 Hz is injected into each electrode (the leadoff detection technique is described in more detail in Section
+III). The sampling rate of our acquisition system is 250 Hz.
+B. P300-Based BCI Task
+The BCI application implemented in our study is the P300
+speller introduced in [24]. It enables users to spell a word from a
+6 × 6 matrix that includes all the letters of the alphabet as well as
+other useful symbols [see Fig. 1(b)]. The rows or columns intensify sequentially in a random order. To spell a word, the subjects
+are instructed to focus on the letter they wish to communicate
+by counting the number of times it intensifies. In response, a
+P300 evoked potential is elicited in the brain. This is a positive deflection in the EEG 300 ms after th stimulus is presented
+[24]. By identifying this P300 pattern, it is possible to infer the
+attended letter.
+Ten healthy subjects participated in the experiment. They had
+no previous experience with the P300 speller task. Eight dry
+electrodes were placed at Fz, Cz, P3, Pz, P4, Oz, PO7, and PO8
+using the international 10–20 system and a wet patch electrode
+was placed at the right mastoid and used as the reference. For
+each subject, two to five sessions of data were recorded. In
+each session, the subject was instructed to choose between 20
+and 30 letters. Before each P300 session, a 30-s electrode-scalp
+impedance measurement was recorded. In order to emulate real-
+
+III. METHOD
+
+A. EEG Data Preprocessing
+Raw EEG recordings were bandpass filtered from 0.5 to
+50 Hz. Epochs of 800-ms duration were extracted starting from
+the onset of the first row/column intensification.
+B. Independent Component Analysis
+ICA is a well-known statistical technique in signal processing
+literature that aims at finding linear projections of the data that
+maximize their mutual independence [25]. It is assumed that
+we observe an array of electrodes that provide a vector of N
+electrode recordings v = [v1 , v2 , . . . , vN ]T that are linear combinations of M unknown and statistically independent sources
+s = [s1 , s2 , . . . , sN ]T . The objective of the ICA algorithm is to
+find a separating matrix W, such that
+s = W × v.
+
+(1)
+
+When applying the ICA to the EEG recordings, the resulting
+ICs represent the brain-related sources as well as artifact-related
+sources. This makes the ICA an effective solution for identifying the artifacts. Several ICA algorithms have been implemented
+and are publicly available. In this paper, we used the FastICA
+module of the EEGLAB toolbox [26] to decompose each EEG
+epoch into ICs. Each epoch consisted of eight components (corresponding to the eight EEG electrodes).
+C. Artifact-Related IC Identification
+After the ICA decomposition, we chose to leverage some
+well-known features in order to best capture the behavior of the
+ICs associated with the two different artifact classes. Here, we
+describe the features used for each artifact class.
+1) Physiological Artifact-Related ICs:
+
+76
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+a) Feature extraction: Eye blinks, eye movements and
+muscle movements are the major sources of physiological artifacts. In order to distinguish these artifacts from real brain
+signals, four kinds of features are extracted here:
+1) Temporal features: Due to the presence of physiological artifacts like eye blinks, the amplitude of the artifactrelated ICs will abruptly jump and show different temporal patterns compared to the normal brain-related ICs.
+This jump can be well captured by the kurtosis [27], which
+characterizes the relative peakedness of the amplitude distribution [28]. For example, ICs with eye blink artifacts
+exhibit relatively high kurtosis [27]. However, the slow
+amplitude drifts on the entire signal will also generate high
+kurtosis and hamper the detection of artifacts. Therefore,
+the whole IC is normalized to have zero mean before the
+calculation of kurtosis as in [7]
+avg ep(s4i )
+−3
+ftemporal =
+avg ep((s2i )2 )
+
+(3)
+
+where a (n) is the IC topography weight matrix A (A =
+W −1 ) at column n (for electrode n). In order to scale
+the topography weight for each electrode to the same
+range, a normalization process is implemented on a (n)
+by dividing the square root of the sum of squares of a (n)
+for all electrodes [7].
+3) Spectral features: The normal power of EEG signals are
+in delta band (0–4 Hz), theta band (4–8 Hz), alpha band
+(8–13 Hz), and beta band (13–30 Hz) and most of it falls
+in the range of 1–20 Hz [29]. However, the artifacts show
+dissimilar power distribution. For example, the spectrum
+of muscle artifacts is characterized usually by a high value
+in the 20–50 Hz range [30]. These differences can be
+highlighted by the average band power of delta, theta,
+alpha, beta and gamma bands (gamma is 30–50 Hz)
+fsp ectral = [F (delta) F (theta) F (alpha)
+F (beta) F (gamma)]
+
+On the other hand, the epochs with ERP-related ICs exhibit higher similarity with others. The correlation value
+is adopted to measure the similarity
+
+(2)
+
+where si indicates the time course of IC as defined in (1)
+of epoch i. avg_ep indicates the average within epoch i
+after mean removal.
+2) Spatial features: The artifact-related ICs and the brainrelated ICs are projected on different groups of electrodes.
+For instance, in our P300 experiment, the brain-related
+ICs are concentrated on the frontal and central electrodes
+(around Fz channel), while the eye blinks project most
+strongly on the far frontal site on the scalp [2]. To capture
+the spatial topography of artifact-related ICs, the median
+of each IC’s topography weight is utilized here
+fspatial = median([a (1)i , a (2)i , . . . , a (n)i ])
+
+Fig. 3. Example of EEG signals with N200 and P300 patterns for target
+(infrequent stimulus) and nontarget (frequent stimulus) epochs [3].
+
+(4)
+
+where F() is the average band power which is calculated
+using MATLAB’s pwelch function.
+4) Similarity over epochs: The artifacts are random, unexpected, and usually only occur in some epochs. Thus,
+the epochs that contain artifacts have no common pattern and exhibit very low similarity with other epochs.
+
+N e p
+fsimilarity =
+
+m =1,m = i
+
+rs i ,s m
+
+Nep − 1
+
+(5)
+
+where rs i ,s m is the correlation coefficient between ICs (si and
+sm ) calculated from epoch i and m. Nep is the total number of
+epochs in the dataset.
+Overall, an 8-D feature vector (one temporal feature, one
+spatial feature, five spectral features, and one similarity feature)
+is extracted from each IC.
+b) Hierarchical clustering: In order to automatically distinguish artifact-related ICs from brain-related ICs, a hierarchical clustering approach based on the features described in the
+previous section is employed here. We choose the hierarchical
+clustering approach for two reasons: First, the dendrogram in the
+hierarchical clustering not only encapsulates the grouping for
+clusters, but also provides information on the closeness of the
+elements in each cluster in the form of the height of the node.
+Second, the entire clustering procedure can be accomplished
+without determining the number of clusters a priori.
+c) Physiological artifacts identification: Since the physiological artifacts can randomly occur and are unexpected, it is
+difficult to generate a global model to identify them. Thus, instead of constructing a global template for artifact-related ICs,
+our approach is based on a global pattern that encapsulates
+models for signals of interest and identifies the artifact-related
+ICs by searching for the minimal contribution to this model.
+Neuroscientists have found that, for the P300 speller task, most
+ERP-related ICs have two common significant ERP patterns:
+N200 and P300 [2]. The cognitive representation of N200 is
+related to response inhibition and error-related negativity and
+the latency of N200 is related to the subject’s health conditions
+(there is an increase in latency for subjects with psychiatric disorders), while the cognitive representation of P300 is related to
+the process of decision making and the latency of P300 depends
+on the complexity of the stimuli (the latency is longer during
+difficult stimulus tasks) [3], [31]. Fig. 3 shows an example of
+EEG signals with N200 and P300 patterns for target (infrequent
+stimulus) and nontarget (frequent stimulus) epochs [3]. A target epoch corresponds to the intensification of a row/column
+
+ZOU et al.: AUTOMATIC IDENTIFICATION OF ARTIFACT-RELATED INDEPENDENT COMPONENTS FOR ARTIFACT REMOVAL IN EEG
+
+77
+
+Fig. 5. (a) Electrode-scalp impedance for all electrodes. (b) Dendrogram plot
+after clustering for all electrodes’ impedance on subject #1.
+Fig. 4.
+
+Injecting current into the signal electrode for impedance measurement.
+
+including the desired letter, and a nontarget related to intensifications not including the desired letter.
+Hence, we build a template to guide the artifact identification
+for all the subjects based on this a priori knowledge:
+Step 1: Calculate the back-projection value pi of each IC as
+follows:
+pi = W −1 (i) × si
+
+(6)
+−1
+
+where pi is the back-projection value of IC i, and W is the
+inverse of the unmixing matrix.
+Step 2: Calculate contribution of each cluster to the desired
+signal of interest patterns: N200 (∅nj 2 ) and P300 (∅Pj 3 ), separately, since they have different cognitive representations and
+impact factors related to the latency. The contribution value φj
+[see (7) and (8)] for each cluster is obtained by the average
+value pi of all ICs in the cluster, which is then averaged over a
+specified time range:
+⎡ + 
+⎤
+tP 3
+m
+
+
+1
+1
+⎣
+pi (t) ⎦
+(7)
+∅Pj 3 = +
+m i=1
+tP 3 − t−
+−
+p3
+tP 3
+
+∅nj 2 =
+
+t+
+n2
+
+1
+− t−
+n2
+
+⎡ + 
+⎤
+tn 2
+m
+
+
+1
+⎣
+pi (t) ⎦
+m i=1
+−
+
+(8)
+
+tn 2
+
+where ∅Pj 3 is the contribution value for the desired ERP (P300)
+of cluster j, ∅nj 2 is the contribution value for N200, and m is the
+total number of components included in the cluster j. t−
+n 2 and
+−
+specify
+the
+latency
+range
+for
+the
+N200
+pattern
+and
+t
+t+
+n2
+P 3 and
+specify
+the
+latency
+range
+for
+the
+P300
+pattern.
+In
+our
+study,
+t+
+P3
+all subjects are between 20 and 30 with no history of psychiatric
+disorders and given the same stimuli and experimental orders;
++
+therefore, we use the same latency range: t−
+n 2 = 200 ms, tn 2 =
++
+−
+300 ms, tp3 = 300 ms, tP 3 = 500 ms for all the subjects.
+Step 3: Finally, the cluster j which minimizes the difference
+between ∅Pj 3 and ∅nj 2 is identified as being affected by artifacts
+and the ICs inside of this cluster are marked as artifact-related
+ICs.
+2) Nonbiological Artifact-Related ICs: Poor scalp contact for
+a particular electrode that will produce consistently bad data for
+a long duration is the major source for nonbiological artifacts.
+The poor contact may be due to the drying out of gels used
+to establish a conductive path from the electrode to the scalp
+
+Fig. 6. (a)–(c) Three ICs generated from Subject #1. IC #1 (a) and #2 (b)
+are the artifact-related ICs. IC #3 (c) is the brain-related IC since it follows the
+ERP-related N200-P300 patterns. (d) Contribution of the electrodes in the ICs
+for Subject # 1.
+
+in a wet-electrode acquisition system or due to sweat, hair or
+the half-cell effect interfering with the connectivity between the
+scalp and the electrode for a dry-electrode system [32]. In order
+to identify this class of artifacts, the electrode-scalp impedance
+information is employed to guide the nonbiological artifactrelated IC identification process.
+a) Electrode-scalp impedance: Accurate measurement of
+EEG relies heavily on a low-impedance conductive path from
+the scalp to the signal acquisition device. If there is any disruption between an electrode and the scalp, the reported results may
+not be accurate. Typically, the contact quality of an electrode to
+the scalp is evaluated by the impedance value between the electrode and the scalp. One method to measure the electrode-scalp
+impedance would be to inject a current at the signal electrode,
+shown as Ia in Fig. 4. This technique is called “lead-off detection” and is provided on the TI ADS1299. When the applied
+current is a sinusoid at a known frequency fo , then we have
+Vout,f 0 = Ia,f 0 × Zoverall .
+
+(9)
+
+The frequency response of Vout at fo is dominated by the
+voltage drop across the overall impedance of the circuit due to
+the injected current, Ia :
+Zoverall = Zelec,sig + ZL + Zelec,ref .
+
+(10)
+
+78
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+Fig. 7. Demonstration of eye movement artifact identified by ICA with temporal feature. (a) Epoch of 800-ms raw EEG data containing eye movement artifacts.
+(b) Corresponding ICA components. (c) IC#3 with abrupt jumps on the amplitude is identified as eye movement. (d) Temporal feature (kurtosis value) of all eight
+ICs. (e) Dendrogram plot after hierarchical clustering.
+
+Fig. 8. Demonstration of muscle artifact identified by ICA with spectral feature. (a) Epoch of 800-ms raw EEG data containing muscle artifacts. (b) Corresponding
+ICA components. (c) Muscle artifact IC. (d) Abnormal spectral distribution of the muscle artifact IC. (e) Dendrogram plot after hierarchical clustering.
+
+The overall impedance Zoverall is the combination of
+Zelec,sig (the impedance faced by the dry signal electrodes), ZL
+(the impedance of the length of the scalp between two electrodes), and Zelec,ref (the impedance faced by the wet reference electrode). The power spectrum of the signal Vout at fo
+is directly proportional to the impedance faced by the constant
+current Ia .
+If the electrodes are properly connected with the scalp, the
+injected signal has minimal impact on Vout . However, when
+the contact quality becomes weak, the impedance Zelec,sig increases. Since the impedances ZL and Zelec,ref remain relatively constant for all the electrodes during our experiments,
+any changes in the overall impedance Zoverall will be due to the
+various impedances of the dry electrodes and these will be reflected in frequency response of Vout at the frequency fo in each
+channel. This gives us a measure of the relative impedances of
+the eight signal electrodes.
+b) Nonbiological artifacts identification: In our study, we
+inject a sinusoidal signal with fo = 30.5 Hz as the constant current Ia and compute the magnitude of the power spectra of the
+output signals at 30.5 Hz as a measure of the impedance between
+the electrode and the scalp. A higher magnitude at 30.5 Hz, measured at one output channel, implies higher impedance faced by
+the corresponding electrode and therefore poorer contact be-
+
+tween that electrode and the scalp. Fig. 5(a) shows the magnitude of the power spectra between 25 and 35 Hz for the signal
+originating from each electrode for subject #1. Among all the
+electrodes, electrodes #4 (Pz) and #7 (PO7) exhibit extremely
+high magnitude at 30.5 Hz.
+In order to separate electrodes (#4 and #7) which show much
+higher impedance compared to the other electrodes, a Euclidean
+distance-based hierarchical clustering procedure is employed on
+the magnitude values at 30.5 Hz. Fig. 5(b) shows the dendrogram plot of eight electrodes on subject #1. After the clustering
+process, electrodes #4 and #7 which show higher impedance
+values in Fig. 5(b) are grouped together and separated from the
+other six electrodes.
+We then transform the vector multiplication in (1) and represent it as a linear combination:
+ŝi =
+
+N
+
+
+wij × vj
+
+(11)
+
+j =1
+
+where i is the IC index number and j is the electrode index number. wij is the ijth element of the unmixing matrix W. Each IC ŝi
+consists of all the electrodes, and each electrode has its own contribution wij . These ICs represent the brain-related potentials as
+well as artifacts. In our study, the brain-related potentials should
+
+ZOU et al.: AUTOMATIC IDENTIFICATION OF ARTIFACT-RELATED INDEPENDENT COMPONENTS FOR ARTIFACT REMOVAL IN EEG
+
+79
+
+Fig. 9. Demonstration of nonbiological artifact identified by ICA with lead-off value: (a) Lead-off value for eight electrodes. (b) Eight electrodes’ contribution
+to artifact-related IC. (c) Artifact-related IC. (d) Eight electrodes’ contribution to the ERP-related IC. (e) ERP-related IC.
+
+Step 2: Compare the contributions of all the electrodes for
+each IC. The ICs that represent the nonbiological artifacts should
+satisfy the following condition: the electrodes which have maximal impedance values provide the maximal contributions to
+this IC. If this condition is satisfied, the corresponding ICs are
+identified as artifact-related ICs.
+D. Artifacts Removal and Clean EEG Reconstruction
+In the last step, the components labeled as artifact-related ICs
+are removed from the data. Then, the artifact-free EEG data was
+reconstructed from the remaining ICs.
+IV. RESULTS
+A. Physiological Artifacts Identification
+Fig. 10. (a) Original EEG signals and (b) artifact-free EEG signals for the case
+that the original signals show visible N200-P300. Both exhibit the N200-P300
+complex, but the complex becomes more prominent after application of our
+proposed algorithm. (c) Original EEG signals and (d) artifact-free EEG signals
+for the case that the original signals do not exhibit the N200-P300 complex. The
+artifact-free signals clearly show the N200-P300 complex.
+
+contain two patterns: N200 and P300 (see Fig. 3). Therefore,
+IC #3 in Fig. 6(a) can be classified as ERP-related IC since it
+follows these two patterns, and IC #1 [see Fig. 6(b)] and #2 [see
+Fig. 6(c)] are artifact-related ICs.
+The contribution of each electrode to the above ICs is shown
+in Fig. 6(d). After comparing the different contributions of each
+electrode, we can see that for the artifact-related ICs (IC #1 and
+IC #2), electrodes #4 and #7, which have higher impedance
+value, provide the maximal contributions. However, for the
+ERP-related IC (IC#3), these two high-impedance electrodes
+have minimal contributions.
+Based on the relationship between the impedance and the
+contribution of each individual electrode to the ICs, the nonbiological artifacts can be identified in the following steps:
+Step 1: Calculate the electrode-scalp impedance for each individual electrode and employ the clustering technique to find
+the electrodes which show extremely high impedance compared
+to others.
+
+1) Example 1: Eye Movement Artifacts Identification:
+Fig. 7(a) shows an epoch of 800 ms of the original EEG data
+collected from eight electrodes. Around 400 ms, eye movement
+artifacts are observed on the signals of electrodes PO7 and PO8.
+The corresponding ICA components are shown in Fig. 7(b).
+IC#3 is automatically identified as eye movement artifacts since
+its amplitude abruptly jumps, as shown in Fig. 7(c). This jump
+is captured by the temporal feature, kurtosis value. Fig. 7(d)
+shows the kurtosis value for all eight ICs and IC#3 shows a very
+high value. Fig. 7(e) shows the dendrogram plot of eight ICs
+after hierarchical clustering using the temporal feature. After
+the clustering, IC#3 is isolated from the other ICs.
+2) Example 2: Muscle Artifacts Identification: Fig. 8 demonstrates the identification of muscle artifacts by ICA using spectral features. It shows another epoch of 800 ms of the original
+EEG data [see Fig. 8(a)] and its ICA components [see Fig. 8(b)].
+The artifacts occurring during the entire epoch of the signals
+from channels Cz, Oz, and PO7 [see Fig. 8(a)] are isolated to
+ICA component 8 [see Fig. 8(c)]. IC#8 is automatically identified as muscle artifacts due to its abnormal spectral distribution
+that shows very high value in the 20–50 Hz range [see Fig. 8(d)].
+Fig. 8(e) shows the dendrogram plot of eight ICs after hierarchical clustering using the spectral feature. After the clustering,
+IC#8 is separated from the other ICs.
+
+80
+
+IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, VOL. 20, NO. 1, JANUARY 2016
+
+B. Nonbiological Artifacts Identification
+Fig. 9 demonstrates the identification of nonbiological artifacts by ICA using the lead-off value. Fig. 9(a) shows the leadoff value (magnitude at 30.5 Hz) of eight electrodes. Electrode
+#2 shows an extremely high value compared to other electrodes.
+Fig. 9(b) shows the contributions from each electrode to an IC
+[shown in Fig. 9(c)]. This IC receives maximal contribution from
+electrode #2. Since electrode #2 has the highest lead-off value,
+the IC shown in Fig. 9(c) is automatically identified as artifactrelated. On the other hand, Fig. 9(d) shows the contributions
+from each electrode to another IC [shown in Fig. 9(e)]. This
+IC receives minimal contribution from electrode #2. Since the
+ERP-related component should have minimal relationship with
+electrodes that show high impedance, the IC shown in Fig. 9(e)
+is identified as ERP-related IC.
+
+TABLE I
+CLASSIFICATION ACCURACY (IN %) ACHIEVED BY FOUR COMMONLY USED
+AUTOMATIC ARTIFACT IDENTIFICATION AND REMOVAL METHODS VERSUS OUR
+PROPOSED METHOD
+
+subject
+
+K-means
+with
+similarity [12]
+
+Automutual
+information [15]
+
+ADJUST
+[7]
+
+FASTER
+[5]
+
+Our
+Method
+
+#1
+#2
+#3
+#4
+#5
+#6
+#7
+#8
+#9
+#10
+Avg.
+p-value
+
+84.8
+70.9
+76.2
+69.5
+75.5
+74.2
+75.2
+75.9
+81.7
+82.9
+76.68
+< 0.01
+
+86.3
+72.1
+74.5
+70.2
+74.5
+73.9
+74.2
+77.1
+81.1
+83.6
+76.75
+< 0.01
+
+88.7
+73.4
+79.6
+73.5
+76.9
+77.5
+78.9
+80.6
+83.3
+85.9
+79.83
+< 0.05
+
+89.9
+73.5
+79.9
+72.9
+77.5
+78.1
+78.4
+79.3
+83.7
+85.6
+79.88
+< 0.05
+
+92.1
+76.6
+83.5
+77.8
+80.9
+82.9
+84.4
+85.2
+86.4
+89.4
+83.92
+
+C. Performance Evaluation by Reviewing Reconstructed
+Artifact-Free EEG
+Next, we compare the original EEG recordings with the reconstructed EEG to evaluate the performance of our algorithm
+on signal quality enhancement, especially ERP-related information enhancement. In order to better evaluate the performance,
+we separated the ten subjects into two groups. The four of them
+that showed visible desired ERP-related patterns (N200 and
+P300) in the original EEG recordings are in group 1. The other
+six subjects who had no visible ERP-related patterns are in
+group 2.
+1) Group 1: Visible ERP Patterns Exist in the Original EEG
+Recordings: Fig 10(a) and (b) shows the comparison result of
+one subject who shows visible ERPs in the original EEG recordings. The original EEG signals are shown in (a) and the signals
+after applying our automatic artifact identification and removal
+algorithm are shown in (b). As indicated in Fig. 10(b), after
+artifact removal procedure, the N200-P300 complex is more
+prominent than in the original EEG signals.
+2) Group 2: No Visible ERP Patterns Exist in the Original
+EEG Recordings: Fig 10(c) and (d) depicts the comparison result for another subject who barely shows visible ERPs in the
+original EEG recording. As shown in (c), the N200-P300 complex is not visible before artifact removal. However, after artifact
+removal by the proposed algorithm, a view of N200-P300 complex is clearly recognizable on the reconstructed signals in Fig.
+10(d). It demonstrates that the proposed algorithm can effectively extract the ERP-related information even when there are
+no clearly visible ERPs in the original signals.
+These results illustrate the effectiveness of our proposed algorithm in identifying and removing artifacts. More importantly,
+our algorithm can also highlight ERP-related information in
+the resulting artifact-free signals and distinguish the target and
+nontarget epochs.
+D. Performance Evaluation by Classification Accuracy
+Comparison With Alternate Methods
+Finally, we evaluate the performance of our proposed artifacts
+identification and removal algorithm by comparing the classifi-
+
+cation accuracies (target epochs versus nontarget epochs) with
+four commonly used automatic artifact identification and removal methods. The proposed approach outperforms method 1
+that uses k-means clustering based on the similarity [12] (shown
+in Column #2 of Table I) and method 2 that uses hierarchical
+clustering based on automutual information [15] (shown in Column #3 of Table I). It is due to the fact that these two methods are
+only suitable for the physiological artifacts and could not identify nonbiological artifacts. The ADJUST [7] (shown in Column
+#4 of Table I) and FASTER [5] (shown in Column #5 of Table I)
+methods can achieve better performance than the previous two
+methods since they consider the nonbiological artifacts in their
+artifact identification process. However, the accuracies obtained
+by our proposed method are higher than these two methods since
+our approach is more applicable for the low-density electrode
+system. We also conducted the statistical t-test, shown on the
+last row of Table I, to evaluate the significance of the improvements between our algorithm and the other four algorithms. All
+t-tests resulted in a p-value less than 0.05 which indicates that
+the improvement in accuracy is statistically significant.
+V. CONCLUSION
+A novel automated artifact-related ICs identification algorithm has been presented in this paper. The proposed methods
+take into account both physiological artifacts and nonbiological artifacts. An ERP-related clustering method is proposed for
+physiological artifact-related ICs identification. A quantitative
+comparison of original EEG signals with reconstructed artifactfree signals shows that the proposed algorithm can effectively
+enhance the ERP quality for all subjects in the study, even
+for those that barely display ERPs in the original recordings.
+Electrode-scalp impedance information was employed for nonbiological artifact-related ICs identification. Quantitative comparisons of the proposed algorithm to other methods show that
+significant performance improvements were achieved using our
+proposed method compared to four commonly used automatic
+removal methods for noisy ICs.
+
+ZOU et al.: AUTOMATIC IDENTIFICATION OF ARTIFACT-RELATED INDEPENDENT COMPONENTS FOR ARTIFACT REMOVAL IN EEG
+
+REFERENCES
+[1] E. Niedermeyer and F. L. da Silva, Electroencephalography: Basic Principles, Clinical Applications, and Related Fields. Baltimore, MD, USA:
+Williams & Wilkins, 2005.
+[2] M. Falkenstein, J. Hoormann, and J. Hohnsbein, “ERP components
+in go/nogo tasks and their relation to inhibition,” Acta psychologica,
+vol. 101, no. 2, pp. 267–291, 1999.
+[3] S. H. Patel and P. N. Azzam, “Characterization of n200 and p300: Selected
+studies of the event-related potential,” Int. J. Med. Sci., vol. 2, no. 4,
+pp. 147–154, 2005.
+[4] M. Fatourechi, A. Bashashati, R. K. Ward, and G. E. Birch, “EMG and
+EOG artifacts in brain computer interface systems: A survey,” Clin. Neurophysiol., vol. 118, no. 3, pp. 480–494, 2007.
+[5] H. Nolan, R. Whelan, and R. Reilly, “FASTER: Fully automated statistical
+thresholding for EEG artifact rejection,” J. Neurosci. Methods, vol. 192,
+no. 1, pp. 152–162, 2010.
+[6] T.-P. Jung, S. Makeig, C. Humphries, T.-W. Lee, M. J. Mckeown, V. Iragui,
+and T. J. Sejnowski, “Removing electroencephalographic artifacts by blind
+source separation,” Psychophysiology, vol. 37, no. 2, pp. 163–178, 2000.
+[7] A. Mognon, J. Jovicich, L. Bruzzone, and M. Buiatti, “Adjust: An automatic EEG artifact detector based on the joint use of spatial and temporal
+features,” Psychophysiology, vol. 48, no. 2, pp. 229–240, 2011.
+[8] A. Hyvärinen and E. Oja, “Independent component analysis: Algorithms
+and applications,” Neural Netw., vol. 13, no. 4, pp. 411–430, 2000.
+[9] T.-P. Jung, S. Makeig, M. Westerfield, J. Townsend, E. Courchesne, and
+T. J. Sejnowski, “Removal of eye activity artifacts from visual eventrelated potentials in normal and clinical subjects,” Clin. Neurophysiol.,
+vol. 111, no. 10, pp. 1745–1758, 2000.
+[10] S. Makeig, M. Westerfield, T.-P. Jung, S. Enghoff, J. Townsend, E. Courchesne, and T. Sejnowski, “Dynamic brain sources of visual evoked responses,” Science, vol. 295, no. 5555, pp. 690–694, 2002.
+[11] T.-P. Jung, S. Makeig, M. Westerfield, J. Townsend, E. Courchesne, and
+T. J. Sejnowski, “Analysis and visualization of single-trial event-related
+potentials,” Human Brain Mapping, vol. 14, no. 3, pp. 166–185, 2001.
+[12] H. Qi, Y. Zhu, D. Ming, B. Wan, Y. Wang, and R. Zhang, “Independent component automatic clustering and its application on multitrails imaginary hand movement related EEG,” in Proc. IEEE Int. Conf.
+Virtual Environments, Human-Comput. Interfaces Meas. Syst., 2009,
+pp. 149–153.
+[13] U. Patidar and G. Zouridakis, “A hybrid algorithm for artifact rejection
+in EEG recordings based on iterative ICA and fuzzy clustering,” in Proc.
+30th Annu. Int. Conf. IEEE Eng. Med. Biol. Soc., 2008, pp. 50–53.
+[14] M. Ashtiyani, S. Asadi, and P. M. Birgani, “ICA-based EEG classification
+using fuzzy c-mean algorithm,” in Proc. 3rd Int. Conf. Inf. Commun.
+Technol.: From Theory Appl., 2008, pp. 1–5.
+[15] N. Nicolaou and S. J. Nasuto, “Automatic artefact removal from eventrelated potentials via clustering,” J. VLSI Signal Process. Syst. Signal,
+Image, Video Technol., vol. 48, nos. 1/2, pp. 173–183, 2007.
+[16] M. Milanesi, C. James, N. Martini, A. Gemignani, D. Menicucci,
+B. Ghelarducci, and L. Landini, “Late positive event-related potentials enhancement through independent component analysis clustering,” in Proc.
+4th IET Int. Conf. Adv. Med., Signal Inf. Process., 2008, pp. 1–4.
+[17] M. Milanesi, C. James, N. Martini, D. Menicucci, A. Gemignani,
+B. Ghelarducci, and L. Landini, “Objective selection of EEG late potentials through residual dependence estimation of independent components,”
+Physiol. Meas., vol. 30, no. 8, pp. 779–794, 2009.
+[18] Y. Zou, J. Hart, and R. Jafari, “Automatic EEG artifact removal based on
+ICA and hierarchical clustering,” in Proc. IEEE Int. Conf. Acoust., Speech
+Signal Process., 2012, pp. 649–652.
+[19] M. Teplan, “Fundamentals of EEG measurement,” Meas. Sci. Rev., vol. 2,
+no. 2, pp. 1–11, 2002.
+[20] T. C. Ferree, P. Luu, G. S. Russell, and D. M. Tucker, “Scalp electrode
+impedance, infection risk, and EEG data quality,” Clin. Neurophysiol.,
+vol. 112, no. 3, pp. 536–544, 2001.
+[21] E. S. Kappenman and S. J. Luck, “The effects of electrode impedance on
+data quality and statistical significance in ERP recordings,” Psychophysiology, vol. 47, no. 5, pp. 888–904, 2010.
+[22] Y. Zou, O. Dehzangi, V. Nathan, and R. Jafari, “Automatic removal of
+EEG artifacts using electrode-scalp impedance,” in Proc. IEEE Int. Conf.
+Acoust., Speech, Signal Process., 2014, pp. 2054–2058.
+[23] V. Nathan, J. Wu, C. Zong, Y. Zou, O. Dehzangi, M. Reagor, and
+R. Jafari, “Demonstration paper: A 16-channel bluetooth enabled wearable
+EEG platform with dry-contact electrodes for brain computer interface,”
+in Proc. 4th Conf. Wireless Health, 2013, p. 17.
+
+81
+
+[24] L. Farwell and E. Donchin, “Talking off the top of your head: Toward
+a mental prosthesis utilizing event-related brain potentials,” Electroencephalography Clin. Neurophysiol., vol. 70, no. 6, pp. 510–523, 1988.
+[25] R. Vigário, J. Sarela, V. Jousmiki, M. Hamalainen, and E. Oja, “Independent component approach to the analysis of EEG and MEG recordings,”
+IEEE Trans. Biomed. Eng., vol. 47, no. 5, pp. 589–593, May 2000.
+[26] A. Delorme and S. Makeig, “EEGLAB: An open source toolbox for analysis of single-trial EEG dynamics including independent component analysis,” J. Neurosci. Methods, vol. 134, no. 1, pp. 9–21, 2004.
+[27] A. Delorme, T. Sejnowski, and S. Makeig, “Enhanced detection of artifacts
+in EEG data using higher-order statistics and independent component
+analysis,” Neuroimage, vol. 34, no. 4, pp. 1443–1449, 2007.
+[28] D. G. Manolakis, V. K. Ingle, and S. M. Kogon, Statistical and Adaptive
+Signal Processing: Spectral estimation, Signal Modeling, Adaptive Filtering, and Array Processing, vol. 46. Norwood, MA, USA: Artech House,
+2005.
+[29] J. Malmivuo and R. Plonsey, Bioelectromagnetism: Principles and Applications Of Bioelectric and Biomagnetic Fields. New York, NY, USA:
+Oxford Univ. Press, 1995.
+[30] S. Makeig and J. Onton, “ERP features and EEG dynamics: An ICA
+perspective,” in Oxford Handbook of Event-Related Potential Components.
+New York, NY, USA: Oxford Univ. Press, 2009.
+[31] S. Sur and V. Sinha, “Event-related potential: An overview,” Ind. Psychiatry J., vol. 18, no. 1, pp. 70–73, 2009.
+[32] Y. M. Chi, T.-P. Jung, and G. Cauwenberghs, “Dry-contact and noncontact
+biopotential electrodes: Methodological review,” IEEE Rev. Biomed. Eng.,
+vol. 3, pp. 106–119, 2010.
+Yuan Zou (S’12) received the B.S. degree in electrical engineering from the Dalian University of Technology, Dalian, China, the M.Sc. degree in electrical
+engineering from Clarkson University, Potsdam, NY,
+USA, in 2007 and 2010, respectively. She is currently
+working toward the Ph.D. degree in electrical engineering at the University of Texas at Dallas, Richardson, TX, USA.
+Her research interests include design and implementation of real-time digital signal processing systems and signal processing algorithm optimization
+applied to noninvasive brain–computer interface.
+Viswam Nathan (S’13) received the B.S. degree in
+computer engineering from the University of Texas
+at Dallas, Richardson, TX, USA, in 2012, where he
+is currently working toward the Ph.D. degree in computer engineering.
+His research interests include design and development of a wearable and reconfigurable dry electrodebased brain–computer interface as well as signalprocessing techniques to assess the quality and reliability of the acquired signal.
+Roozbeh Jafari (SM’12) received the Ph.D. degree
+in computer science from the University of California, Los Angeles, CA, USA, and completed a
+postdoctoral fellowship at University of California,
+Berkeley, CA.
+He is currently an Associate Professor at the University of Texas at Dallas, Richardson, TX, USA.
+His research interests include the area of wearable
+computer design and signal processing. His research
+has been funded by the NSF, NIH, DoD (TATRC),
+AFRL, AFOSR, DARPA, SRC, and industry (Texas
+Instruments, Tektronix, Samsung & Telecom Italia). He has published more than
+100 papers in refereed journals and conferences. He has served as the General
+Chair and Technical Program Committee Chair for several flagship conferences
+in the area of Wearable Computers including the ACM Wireless Health 2012
+and 2013, International Conference on Body Sensor Networks 2011 and International Conference on Body Area Networks 2011.
+Dr. Jafari is the recipient of the NSF CAREER Award (2012) and the RTAS
+2011 Best Paper Award. He is an Associate Editor for the IEEE SENSORS JOURNAL, IEEE JOURNAL OF BIOMEDICAL AND HEALTH INFORMATICS, and IEEE
+INTERNET OF THINGS JOURNAL.
+
+
